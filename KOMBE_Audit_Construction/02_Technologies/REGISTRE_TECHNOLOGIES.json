@@ -1,0 +1,1848 @@
+[
+  {
+    "id": "TEC01",
+    "technologie": "Vercel",
+    "usage": "Hébergement web",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Audit PDF original p.1, URL kombe-mvp.vercel.app",
+    "recommandation": "Conserver seulement si dépôt adapté et offre commerciale ; vérifier plan réel.",
+    "alternatives": [
+      {
+        "nom": "Render",
+        "url": "https://render.com/docs",
+        "condition": "Application et worker ; production payante"
+      },
+      {
+        "nom": "Cloudflare Workers",
+        "url": "https://developers.cloudflare.com/workers/",
+        "condition": "Adapter runtime et connexions PostgreSQL"
+      },
+      {
+        "nom": "Netlify",
+        "url": "https://docs.netlify.com/",
+        "condition": "Vérifier limites fonctions, coûts et migrations"
+      }
+    ],
+    "source_officielle": "https://vercel.com/docs/plans/hobby"
+  },
+  {
+    "id": "TEC02",
+    "technologie": "PWA",
+    "usage": "Client installable web",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Référence §10 ; Backlog 12.2",
+    "recommandation": "Premier choix neuf à valider sur appareils ; le cache ne fait pas autorité.",
+    "alternatives": [
+      {
+        "nom": "Flutter",
+        "url": "https://docs.flutter.dev/",
+        "condition": "Natif ; coût de diffusion et maintenance"
+      },
+      {
+        "nom": "React Native",
+        "url": "https://reactnative.dev/docs/getting-started",
+        "condition": "Natif JS ; adapter stockage sécurisé"
+      },
+      {
+        "nom": "Kotlin Android",
+        "url": "https://developer.android.com/kotlin",
+        "condition": "Android seul ; pas client web partagé"
+      }
+    ],
+    "source_officielle": "https://web.dev/learn/pwa/"
+  },
+  {
+    "id": "TEC03",
+    "technologie": "Flutter",
+    "usage": "Client mobile multiplateforme",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Conserver si code existant et utile ; ne pas imposer réécriture PWA.",
+    "alternatives": [
+      {
+        "nom": "React Native",
+        "url": "https://reactnative.dev/",
+        "condition": "Compétence JS native nécessaire"
+      },
+      {
+        "nom": "Kotlin Multiplatform",
+        "url": "https://kotlinlang.org/docs/multiplatform.html",
+        "condition": "Partage logique ; UI à organiser"
+      },
+      {
+        "nom": "Capacitor",
+        "url": "https://capacitorjs.com/docs",
+        "condition": "Réutilise web ; plugins natifs à auditer"
+      }
+    ],
+    "source_officielle": "https://docs.flutter.dev/"
+  },
+  {
+    "id": "TEC04",
+    "technologie": "PostgreSQL",
+    "usage": "Base canonique et transactions",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Référence §10",
+    "recommandation": "À privilégier ; préserver contraintes, verrouillage et capacité de replay.",
+    "alternatives": [
+      {
+        "nom": "MySQL InnoDB",
+        "url": "https://dev.mysql.com/doc/refman/8.4/en/innodb-introduction.html",
+        "condition": "Viable avec adaptation SQL et isolation applicative ; RLS à remplacer"
+      },
+      {
+        "nom": "MariaDB InnoDB",
+        "url": "https://mariadb.com/docs/server/storage-engines/innodb",
+        "condition": "Même besoin de revalider concurrence et droits"
+      },
+      {
+        "nom": "SQL Server",
+        "url": "https://learn.microsoft.com/en-us/sql/relational-databases/security/row-level-security",
+        "condition": "RLS disponible ; exploitation/licence à chiffrer"
+      }
+    ],
+    "source_officielle": "https://www.postgresql.org/docs/"
+  },
+  {
+    "id": "TEC05",
+    "technologie": "SQLite",
+    "usage": "Cache local natif",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Cache seulement, chiffrer si données sensibles retenues.",
+    "alternatives": [
+      {
+        "nom": "IndexedDB",
+        "url": "https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API",
+        "condition": "Client web ; purge et quotas navigateur"
+      },
+      {
+        "nom": "ObjectBox",
+        "url": "https://docs.objectbox.io/",
+        "condition": "Natif ; vérifier SDK et licence"
+      },
+      {
+        "nom": "Couchbase Lite",
+        "url": "https://docs.couchbase.com/couchbase-lite/current/index.html",
+        "condition": "Natif ; licence, taille et sync à évaluer"
+      }
+    ],
+    "source_officielle": "https://www.sqlite.org/docs.html"
+  },
+  {
+    "id": "TEC06",
+    "technologie": "WhatsApp",
+    "usage": "Messagerie externe",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Backlog 11.2",
+    "recommandation": "Partage manuel pilote ; automatisation après G1 et consentement.",
+    "alternatives": [
+      {
+        "nom": "Meta Cloud API directe",
+        "url": "https://developers.facebook.com/docs/whatsapp/cloud-api/",
+        "condition": "Même canal ; compte éligible et modèles approuvés"
+      },
+      {
+        "nom": "Twilio WhatsApp",
+        "url": "https://www.twilio.com/en-us/messaging/channels/whatsapp",
+        "condition": "Intermédiaire ; frais prestataire et Meta"
+      },
+      {
+        "nom": "Infobip WhatsApp",
+        "url": "https://www.infobip.com/whatsapp",
+        "condition": "Intermédiaire ; contrat et prix Cameroun à obtenir"
+      }
+    ],
+    "source_officielle": "https://business.whatsapp.com/products/business-platform"
+  },
+  {
+    "id": "TEC07",
+    "technologie": "SMS",
+    "usage": "Rappels et éventuellement vérification",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Backlog 11.3 / 1.1",
+    "recommandation": "Pas de SMS illimité ; évaluer délivrabilité et fraude OTP au Cameroun.",
+    "alternatives": [
+      {
+        "nom": "Twilio Messaging",
+        "url": "https://www.twilio.com/docs/messaging",
+        "condition": "Tester destination Cameroun et sender ID"
+      },
+      {
+        "nom": "Infobip SMS",
+        "url": "https://www.infobip.com/sms",
+        "condition": "Tester routes locales et accusés"
+      },
+      {
+        "nom": "Vonage SMS",
+        "url": "https://developer.vonage.com/en/messaging/sms/overview",
+        "condition": "Vérifier couverture, réglementation et coût"
+      }
+    ],
+    "source_officielle": "https://www.twilio.com/en-us/sms/pricing/cm"
+  },
+  {
+    "id": "TEC08",
+    "technologie": "Push et notifications internes",
+    "usage": "Alertes",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Backlog 11.4",
+    "recommandation": "Interne persistante P0 ; push externe sans détails sensibles.",
+    "alternatives": [
+      {
+        "nom": "Web Push avec VAPID",
+        "url": "https://web.dev/articles/push-notifications-overview",
+        "condition": "Web ; permission et compatibilité à tester"
+      },
+      {
+        "nom": "Firebase Cloud Messaging",
+        "url": "https://firebase.google.com/docs/cloud-messaging",
+        "condition": "Android/web ; dépendance plateforme"
+      },
+      {
+        "nom": "OneSignal",
+        "url": "https://documentation.onesignal.com/",
+        "condition": "Gestion multicanal ; données et coût à examiner"
+      }
+    ],
+    "source_officielle": "https://developer.mozilla.org/en-US/docs/Web/API/Push_API"
+  },
+  {
+    "id": "TEC09",
+    "technologie": "Email transactionnel",
+    "usage": "Vérification et récupération",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Backlog 1.1 / 1.4",
+    "recommandation": "Canal à retenir seulement si adapté aux membres ; domaine authentifié.",
+    "alternatives": [
+      {
+        "nom": "Resend",
+        "url": "https://resend.com/docs",
+        "condition": "API/SMTP ; quotas et région"
+      },
+      {
+        "nom": "Brevo",
+        "url": "https://developers.brevo.com/",
+        "condition": "API transactionnelle ; réputation expéditeur"
+      },
+      {
+        "nom": "Amazon SES",
+        "url": "https://docs.aws.amazon.com/ses/",
+        "condition": "Sortie sandbox et délivrabilité à préparer"
+      }
+    ],
+    "source_officielle": "https://resend.com/docs"
+  },
+  {
+    "id": "TEC10",
+    "technologie": "Passkeys WebAuthn",
+    "usage": "Authentification résistante au phishing",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Audit PDF p.10 ; Backlog 1.3",
+    "recommandation": "Option membres ; vérifier récupération ; priorité opérateurs.",
+    "alternatives": [
+      {
+        "nom": "SimpleWebAuthn",
+        "url": "https://simplewebauthn.dev/docs",
+        "condition": "Implémentation web ; sécurité RP/origine à configurer"
+      },
+      {
+        "nom": "Keycloak WebAuthn",
+        "url": "https://www.keycloak.org/documentation",
+        "condition": "Service identité autohébergé ; Ops"
+      },
+      {
+        "nom": "Auth0 passkeys",
+        "url": "https://auth0.com/docs/authenticate/database-connections/passkeys",
+        "condition": "Managé ; coûts et export identité"
+      }
+    ],
+    "source_officielle": "https://www.w3.org/TR/webauthn-2/"
+  },
+  {
+    "id": "TEC11",
+    "technologie": "TOTP",
+    "usage": "Second facteur",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Backlog 1.3",
+    "recommandation": "Alternative MFA sans SMS ; codes de récupération protégés.",
+    "alternatives": [
+      {
+        "nom": "Supabase MFA",
+        "url": "https://supabase.com/docs/guides/auth/auth-mfa",
+        "condition": "Service géré ; intégration serveur"
+      },
+      {
+        "nom": "Keycloak OTP",
+        "url": "https://www.keycloak.org/documentation",
+        "condition": "Auto-hébergement à exploiter"
+      },
+      {
+        "nom": "Auth0 MFA",
+        "url": "https://auth0.com/docs/secure/multi-factor-authentication",
+        "condition": "Managé ; offre applicable à vérifier"
+      }
+    ],
+    "source_officielle": "https://www.rfc-editor.org/rfc/rfc6238"
+  },
+  {
+    "id": "TEC12",
+    "technologie": "Stockage objet privé",
+    "usage": "Exports et pièces futures",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Référence §14 ; Contrats §7",
+    "recommandation": "Exports privés seulement au pilote ; sauvegarde séparée.",
+    "alternatives": [
+      {
+        "nom": "Supabase Storage",
+        "url": "https://supabase.com/docs/guides/storage",
+        "condition": "Intégration DB/Auth ; ne pas exposer bucket"
+      },
+      {
+        "nom": "Amazon S3",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+        "condition": "IAM et rétention à configurer"
+      },
+      {
+        "nom": "Cloudflare R2",
+        "url": "https://developers.cloudflare.com/r2/",
+        "condition": "API compatible S3 ; contraintes région/contrat"
+      }
+    ],
+    "source_officielle": "https://supabase.com/docs/guides/storage"
+  },
+  {
+    "id": "TEC13",
+    "technologie": "GitHub",
+    "usage": "Dépôt et collaboration",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Audit PDF original p.17",
+    "recommandation": "Organisation, protections de branches et propriétaires nommés.",
+    "alternatives": [
+      {
+        "nom": "GitLab",
+        "url": "https://docs.gitlab.com/",
+        "condition": "Cloud ou auto-hébergement ; CI intégrée"
+      },
+      {
+        "nom": "Bitbucket",
+        "url": "https://support.atlassian.com/bitbucket-cloud/",
+        "condition": "Permissions et CI selon offre"
+      },
+      {
+        "nom": "Forgejo",
+        "url": "https://forgejo.org/docs/latest/",
+        "condition": "Auto-hébergement ; charge Ops"
+      }
+    ],
+    "source_officielle": "https://docs.github.com/"
+  },
+  {
+    "id": "TEC14",
+    "technologie": "Figma",
+    "usage": "Conception et prototypes",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Audit PDF original p.17",
+    "recommandation": "Outil de travail cité, aucun fichier design fourni.",
+    "alternatives": [
+      {
+        "nom": "Penpot",
+        "url": "https://help.penpot.app/",
+        "condition": "Design ouvert ; auto-hébergement possible"
+      },
+      {
+        "nom": "Sketch",
+        "url": "https://www.sketch.com/docs/",
+        "condition": "Édition Mac ; collaboration à chiffrer"
+      },
+      {
+        "nom": "Lunacy",
+        "url": "https://icons8.com/lunacy",
+        "condition": "Desktop ; vérifier échanges et licence équipe"
+      }
+    ],
+    "source_officielle": "https://help.figma.com/"
+  },
+  {
+    "id": "TEC15",
+    "technologie": "Gemma 3n E2B",
+    "usage": "LLM local",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "La promesse 100 Mo est rejetée ; benchmark après G1.",
+    "alternatives": [
+      {
+        "nom": "Qwen2.5 0.5B Instruct",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct",
+        "condition": "Plus petit ; FR et RAM à mesurer"
+      },
+      {
+        "nom": "Llama 3.2 1B Instruct",
+        "url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct",
+        "condition": "Licence spécifique ; mobile à tester"
+      },
+      {
+        "nom": "SmolLM2 135M Instruct",
+        "url": "https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct",
+        "condition": "Petit ; anglais privilégié, FR non garanti"
+      }
+    ],
+    "source_officielle": "https://ai.google.dev/gemma/docs/gemma-3n"
+  },
+  {
+    "id": "TEC16",
+    "technologie": "SmolLM2 135M Instruct",
+    "usage": "Petit LLM cité",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Usage libre en français non démontré ; option de benchmark seulement.",
+    "alternatives": [
+      {
+        "nom": "Qwen2.5 0.5B Instruct",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct",
+        "condition": "Plus de mémoire"
+      },
+      {
+        "nom": "Llama 3.2 1B Instruct",
+        "url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct",
+        "condition": "Plus de mémoire et licence à vérifier"
+      },
+      {
+        "nom": "Gemma 3n E2B",
+        "url": "https://ai.google.dev/gemma/docs/gemma-3n",
+        "condition": "Bien plus lourd ; mêmes critères matériels"
+      }
+    ],
+    "source_officielle": "https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct"
+  },
+  {
+    "id": "TEC17",
+    "technologie": "Qwen2.5 0.5B",
+    "usage": "LLM cité",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Révision Instruct proposée pour essai ; aucun poids installé.",
+    "alternatives": [
+      {
+        "nom": "SmolLM2 135M Instruct",
+        "url": "https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct",
+        "condition": "Budget inférieur, qualité FR à tester"
+      },
+      {
+        "nom": "Llama 3.2 1B Instruct",
+        "url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct",
+        "condition": "Licence et mémoire différentes"
+      },
+      {
+        "nom": "Gemma 3n E2B",
+        "url": "https://ai.google.dev/gemma/docs/gemma-3n",
+        "condition": "Plus lourd, runtime à valider"
+      }
+    ],
+    "source_officielle": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct"
+  },
+  {
+    "id": "TEC18",
+    "technologie": "Llama 3.2 1B",
+    "usage": "LLM cité",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Révision et licence précises avant téléchargement.",
+    "alternatives": [
+      {
+        "nom": "Qwen2.5 0.5B Instruct",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct",
+        "condition": "Petit modèle alternatif"
+      },
+      {
+        "nom": "SmolLM3 3B",
+        "url": "https://huggingface.co/HuggingFaceTB/SmolLM3-3B",
+        "condition": "Plus gros ; appareil mieux doté"
+      },
+      {
+        "nom": "Gemma 3n E2B",
+        "url": "https://ai.google.dev/gemma/docs/gemma-3n",
+        "condition": "Budget RAM à comparer"
+      }
+    ],
+    "source_officielle": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct"
+  },
+  {
+    "id": "TEC19",
+    "technologie": "SmolLM3 3B",
+    "usage": "LLM cité",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Hors budget petit téléphone sans mesure contraire.",
+    "alternatives": [
+      {
+        "nom": "Qwen2.5 0.5B Instruct",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct",
+        "condition": "Allègement avec changement qualité"
+      },
+      {
+        "nom": "Llama 3.2 1B Instruct",
+        "url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct",
+        "condition": "Allègement ; licence spécifique"
+      },
+      {
+        "nom": "Gemma 3n E2B",
+        "url": "https://ai.google.dev/gemma/docs/gemma-3n",
+        "condition": "Architecture différente, mesurer mémoire réelle"
+      }
+    ],
+    "source_officielle": "https://huggingface.co/HuggingFaceTB/SmolLM3-3B"
+  },
+  {
+    "id": "TEC20",
+    "technologie": "MediaPipe LLM Inference",
+    "usage": "Runtime mobile IA",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Prototype uniquement ; vérifier modèles et runtime actuel.",
+    "alternatives": [
+      {
+        "nom": "MNN",
+        "url": "https://github.com/alibaba/MNN",
+        "condition": "Conversion et kernels à valider"
+      },
+      {
+        "nom": "llama.cpp",
+        "url": "https://github.com/ggml-org/llama.cpp",
+        "condition": "GGUF et intégration native"
+      },
+      {
+        "nom": "ONNX Runtime Mobile",
+        "url": "https://onnxruntime.ai/docs/tutorials/mobile/",
+        "condition": "Export de modèle et opérateurs à valider"
+      }
+    ],
+    "source_officielle": "https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference"
+  },
+  {
+    "id": "TEC21",
+    "technologie": "MNN",
+    "usage": "Runtime IA embarqué",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Option benchmark, aucune compatibilité automatique.",
+    "alternatives": [
+      {
+        "nom": "llama.cpp",
+        "url": "https://github.com/ggml-org/llama.cpp",
+        "condition": "GGUF/natif"
+      },
+      {
+        "nom": "LiteRT",
+        "url": "https://ai.google.dev/edge/litert",
+        "condition": "Conversion et accélération à tester"
+      },
+      {
+        "nom": "ONNX Runtime Mobile",
+        "url": "https://onnxruntime.ai/docs/tutorials/mobile/",
+        "condition": "Modèle exportable requis"
+      }
+    ],
+    "source_officielle": "https://github.com/alibaba/MNN"
+  },
+  {
+    "id": "TEC22",
+    "technologie": "llama.cpp",
+    "usage": "Runtime LLM C/C++",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Épingler commit et modèle ; bench CPU/RAM.",
+    "alternatives": [
+      {
+        "nom": "MNN",
+        "url": "https://github.com/alibaba/MNN",
+        "condition": "Mobile, conversion requise"
+      },
+      {
+        "nom": "LiteRT",
+        "url": "https://ai.google.dev/edge/litert",
+        "condition": "Appareils et opérateurs ciblés"
+      },
+      {
+        "nom": "ExecuTorch",
+        "url": "https://docs.pytorch.org/executorch/",
+        "condition": "Export et backend matériel à valider"
+      }
+    ],
+    "source_officielle": "https://github.com/ggml-org/llama.cpp"
+  },
+  {
+    "id": "TEC23",
+    "technologie": "Core ML",
+    "usage": "Runtime Apple",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "iOS futur ; ne résout pas la cible Android du pilote.",
+    "alternatives": [
+      {
+        "nom": "ONNX Runtime Mobile",
+        "url": "https://onnxruntime.ai/docs/tutorials/mobile/",
+        "condition": "iOS possible ; export requis"
+      },
+      {
+        "nom": "ExecuTorch",
+        "url": "https://docs.pytorch.org/executorch/",
+        "condition": "Déploiement embarqué et backend Apple"
+      },
+      {
+        "nom": "llama.cpp",
+        "url": "https://github.com/ggml-org/llama.cpp",
+        "condition": "LLM compatible ; intégration iOS"
+      }
+    ],
+    "source_officielle": "https://developer.apple.com/documentation/coreml"
+  },
+  {
+    "id": "TEC24",
+    "technologie": "AI Edge Gallery et MatFormer",
+    "usage": "Prototype et configuration Gemma",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Outil/technique d’expérimentation, pas composant financier ni garantie de taille.",
+    "alternatives": [
+      {
+        "nom": "llama.cpp bench",
+        "url": "https://github.com/ggml-org/llama.cpp",
+        "condition": "Comparer modèles compatibles sans MatFormer"
+      },
+      {
+        "nom": "MNN benchmark",
+        "url": "https://github.com/alibaba/MNN",
+        "condition": "Mesurer modèle converti"
+      },
+      {
+        "nom": "ExecuTorch",
+        "url": "https://docs.pytorch.org/executorch/",
+        "condition": "Autre chaîne export/exécution ; pas remplacement identique de MatFormer"
+      }
+    ],
+    "source_officielle": "https://github.com/google-ai-edge/gallery"
+  },
+  {
+    "id": "TEC25",
+    "technologie": "all-MiniLM-L6",
+    "usage": "Embeddings cités sans révision exacte",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "La variante v2 est une candidate, pas un fait du dépôt ; vérifier FR/EN.",
+    "alternatives": [
+      {
+        "nom": "multilingual-e5-small",
+        "url": "https://huggingface.co/intfloat/multilingual-e5-small",
+        "condition": "Multilingue ; mémoire et préfixes à respecter"
+      },
+      {
+        "nom": "paraphrase-multilingual-MiniLM-L12-v2",
+        "url": "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        "condition": "Plus lourd ; bench appareil"
+      },
+      {
+        "nom": "bge-m3",
+        "url": "https://huggingface.co/BAAI/bge-m3",
+        "condition": "Candidat serveur, pas téléphone 2 Go"
+      }
+    ],
+    "source_officielle": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2"
+  },
+  {
+    "id": "TEC26",
+    "technologie": "sqlite-vec",
+    "usage": "Recherche vectorielle locale",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Pas nécessaire à V1 ; filtre d’accès avant recherche.",
+    "alternatives": [
+      {
+        "nom": "FAISS",
+        "url": "https://github.com/facebookresearch/faiss",
+        "condition": "Index local ; persistance et ACL à écrire"
+      },
+      {
+        "nom": "pgvector",
+        "url": "https://github.com/pgvector/pgvector",
+        "condition": "Serveur PostgreSQL ; ne donne pas offline"
+      },
+      {
+        "nom": "Qdrant",
+        "url": "https://qdrant.tech/documentation/",
+        "condition": "Service dédié ; complexité injustifiée au pilote"
+      }
+    ],
+    "source_officielle": "https://github.com/asg017/sqlite-vec"
+  },
+  {
+    "id": "TEC27",
+    "technologie": "BM25",
+    "usage": "Recherche lexicale",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Complément éventuel ; ne calcule pas les montants.",
+    "alternatives": [
+      {
+        "nom": "SQLite FTS5",
+        "url": "https://www.sqlite.org/fts5.html",
+        "condition": "Local ; fournit notamment classement BM25"
+      },
+      {
+        "nom": "PostgreSQL full text search",
+        "url": "https://www.postgresql.org/docs/current/textsearch.html",
+        "condition": "Serveur ; classement différent à revalider"
+      },
+      {
+        "nom": "Tantivy",
+        "url": "https://github.com/quickwit-oss/tantivy",
+        "condition": "Moteur local ; intégration Rust"
+      }
+    ],
+    "source_officielle": "https://www.sqlite.org/fts5.html"
+  },
+  {
+    "id": "TEC28",
+    "technologie": "Classifieur et LoRA",
+    "usage": "Intentions IA",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Commencer par règles déterministes ; dataset consenti, modèle non identifié.",
+    "alternatives": [
+      {
+        "nom": "fastText",
+        "url": "https://fasttext.cc/docs/en/supervised-tutorial.html",
+        "condition": "Classification légère ; pas un LLM"
+      },
+      {
+        "nom": "scikit-learn TF-IDF + linéaire",
+        "url": "https://scikit-learn.org/stable/tutorial/text_analytics/working_with_text_data.html",
+        "condition": "Baseline serveur/entraînement ; export à prévoir"
+      },
+      {
+        "nom": "SetFit",
+        "url": "https://huggingface.co/docs/setfit/index",
+        "condition": "Few-shot ; taille et qualité à mesurer"
+      }
+    ],
+    "source_officielle": "https://huggingface.co/docs/peft/index"
+  },
+  {
+    "id": "TEC29",
+    "technologie": "JNI",
+    "usage": "Pont natif cité",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Source note IA §§1–5",
+    "recommandation": "Concerne Android ; préférer interface maintenue et étroite.",
+    "alternatives": [
+      {
+        "nom": "Dart FFI",
+        "url": "https://dart.dev/interop/c-interop",
+        "condition": "Si client Flutter et librairie C"
+      },
+      {
+        "nom": "Flutter platform channels",
+        "url": "https://docs.flutter.dev/platform-integration/platform-channels",
+        "condition": "Pont Kotlin/Swift avec sérialisation"
+      },
+      {
+        "nom": "React Native Turbo Native Modules",
+        "url": "https://reactnative.dev/docs/turbo-native-modules-introduction",
+        "condition": "Si client React Native ; réécriture du pont"
+      }
+    ],
+    "source_officielle": "https://developer.android.com/training/articles/perf-jni"
+  },
+  {
+    "id": "TEC30",
+    "technologie": "React et TypeScript",
+    "usage": "Client web proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Choix neuf proposé dans cet audit",
+    "recommandation": "Conserver autre frontend sain ; ne pas réécrire pour préférence.",
+    "alternatives": [
+      {
+        "nom": "Vue + TypeScript",
+        "url": "https://vuejs.org/guide/typescript/overview.html",
+        "condition": "Écosystème différent, API identique"
+      },
+      {
+        "nom": "Svelte + TypeScript",
+        "url": "https://svelte.dev/docs",
+        "condition": "Moins de code UI ; compétences à confirmer"
+      },
+      {
+        "nom": "Angular",
+        "url": "https://angular.dev/",
+        "condition": "Cadre complet ; poids/complexité à mesurer"
+      }
+    ],
+    "source_officielle": "https://react.dev/learn"
+  },
+  {
+    "id": "TEC31",
+    "technologie": "Vite",
+    "usage": "Build web proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Choix neuf",
+    "recommandation": "Épingler version compatible Node/plugins dans lockfile.",
+    "alternatives": [
+      {
+        "nom": "Rspack",
+        "url": "https://rspack.dev/guide/start/introduction",
+        "condition": "Configurer plugins et PWA"
+      },
+      {
+        "nom": "webpack",
+        "url": "https://webpack.js.org/concepts/",
+        "condition": "Mature, configuration plus lourde"
+      },
+      {
+        "nom": "Parcel",
+        "url": "https://parceljs.org/docs/",
+        "condition": "Vérifier contrôle bundle/cache"
+      }
+    ],
+    "source_officielle": "https://vite.dev/guide/"
+  },
+  {
+    "id": "TEC32",
+    "technologie": "Node.js et Fastify",
+    "usage": "API monolithe proposée",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Choix neuf",
+    "recommandation": "Runtime LTS soutenu lors du gel ; JSON Schema et transactions SQL.",
+    "alternatives": [
+      {
+        "nom": "NestJS",
+        "url": "https://docs.nestjs.com/",
+        "condition": "Même écosystème JS ; structure plus prescriptive"
+      },
+      {
+        "nom": "Django",
+        "url": "https://docs.djangoproject.com/",
+        "condition": "Python ; identité/admin et API à intégrer"
+      },
+      {
+        "nom": "ASP.NET Core",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/",
+        "condition": "C# ; équipe et plateforme à confirmer"
+      }
+    ],
+    "source_officielle": "https://fastify.dev/docs/latest/"
+  },
+  {
+    "id": "TEC33",
+    "technologie": "node-postgres pg",
+    "usage": "Accès SQL proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Choix neuf",
+    "recommandation": "Transactions explicites sur une même connexion.",
+    "alternatives": [
+      {
+        "nom": "Kysely",
+        "url": "https://kysely.dev/docs/intro",
+        "condition": "SQL typé ; migrations à organiser"
+      },
+      {
+        "nom": "Drizzle ORM",
+        "url": "https://orm.drizzle.team/docs/overview",
+        "condition": "Revoir SQL généré et verrous"
+      },
+      {
+        "nom": "Prisma",
+        "url": "https://www.prisma.io/docs/orm",
+        "condition": "Évaluer requêtes brutes, transactions et RLS"
+      }
+    ],
+    "source_officielle": "https://node-postgres.com/features/transactions"
+  },
+  {
+    "id": "TEC34",
+    "technologie": "Supabase DB",
+    "usage": "PostgreSQL géré proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Choix neuf",
+    "recommandation": "Production payante et sauvegarde indépendante ; région à décider.",
+    "alternatives": [
+      {
+        "nom": "Neon",
+        "url": "https://neon.com/docs/introduction/plans",
+        "condition": "Postgres ; pooling, arrêt et restauration à vérifier"
+      },
+      {
+        "nom": "Render Postgres",
+        "url": "https://render.com/docs/postgresql",
+        "condition": "Plan payant durable"
+      },
+      {
+        "nom": "Amazon RDS PostgreSQL",
+        "url": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html",
+        "condition": "Plus de paramètres et coûts à gérer"
+      }
+    ],
+    "source_officielle": "https://supabase.com/pricing"
+  },
+  {
+    "id": "TEC35",
+    "technologie": "Supabase Auth",
+    "usage": "Identité gérée proposée",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Choix neuf",
+    "recommandation": "Ne remplace pas les permissions métier ; BFF/session sécurisée.",
+    "alternatives": [
+      {
+        "nom": "Keycloak",
+        "url": "https://www.keycloak.org/documentation",
+        "condition": "Souveraineté au prix Ops"
+      },
+      {
+        "nom": "Auth0",
+        "url": "https://auth0.com/docs",
+        "condition": "SaaS ; coût MAU et sortie à vérifier"
+      },
+      {
+        "nom": "ZITADEL",
+        "url": "https://zitadel.com/docs",
+        "condition": "Géré ou auto-hébergé ; licence et options"
+      }
+    ],
+    "source_officielle": "https://supabase.com/docs/guides/auth"
+  },
+  {
+    "id": "TEC36",
+    "technologie": "Render web et worker",
+    "usage": "Compute proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Choix neuf",
+    "recommandation": "Instances payantes ; même image, processus séparés.",
+    "alternatives": [
+      {
+        "nom": "Railway",
+        "url": "https://docs.railway.com/",
+        "condition": "Vérifier coûts usages et DB"
+      },
+      {
+        "nom": "Fly.io",
+        "url": "https://fly.io/docs/",
+        "condition": "Machines et réseau à opérer"
+      },
+      {
+        "nom": "Cloud Run",
+        "url": "https://cloud.google.com/run/docs",
+        "condition": "Worker et jobs à adapter au cycle de vie serverless"
+      }
+    ],
+    "source_officielle": "https://render.com/docs"
+  },
+  {
+    "id": "TEC37",
+    "technologie": "Outbox PostgreSQL",
+    "usage": "File transactionnelle proposée",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Contrats §4 ; Backlog 18.6",
+    "recommandation": "À garder même en changeant le moteur de livraison.",
+    "alternatives": [
+      {
+        "nom": "Graphile Worker",
+        "url": "https://worker.graphile.org/",
+        "condition": "Jobs PostgreSQL ; couplage transaction à vérifier"
+      },
+      {
+        "nom": "pg-boss",
+        "url": "https://github.com/timgit/pg-boss",
+        "condition": "Jobs Node/Postgres ; intégration métier à tester"
+      },
+      {
+        "nom": "BullMQ + Valkey",
+        "url": "https://docs.bullmq.io/",
+        "condition": "Broker supplémentaire ; relais outbox conservé, compatibilité vérifiée"
+      }
+    ],
+    "source_officielle": "https://www.postgresql.org/docs/current/sql-select.html"
+  },
+  {
+    "id": "TEC38",
+    "technologie": "IndexedDB",
+    "usage": "Cache PWA proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Choix client web",
+    "recommandation": "Données minimales, TTL, purge de compte.",
+    "alternatives": [
+      {
+        "nom": "Dexie",
+        "url": "https://dexie.org/docs/",
+        "condition": "Couche IndexedDB, pas autre sécurité"
+      },
+      {
+        "nom": "SQLite WASM",
+        "url": "https://sqlite.org/wasm/doc/trunk/index.md",
+        "condition": "Compatibilité OPFS et coût de bundle"
+      },
+      {
+        "nom": "localForage",
+        "url": "https://localforage.github.io/localForage/",
+        "condition": "Abstraction stockage ; transactions limitées, petits brouillons seulement"
+      }
+    ],
+    "source_officielle": "https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API"
+  },
+  {
+    "id": "TEC39",
+    "technologie": "Workbox",
+    "usage": "Service worker proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Client PWA",
+    "recommandation": "Cache assets ; exclure routes auth et privées par défaut.",
+    "alternatives": [
+      {
+        "nom": "Service Worker natif",
+        "url": "https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API",
+        "condition": "Plus de code et tests lifecycle"
+      },
+      {
+        "nom": "Serwist",
+        "url": "https://serwist.pages.dev/",
+        "condition": "Vérifier intégration et maintenance"
+      },
+      {
+        "nom": "vite-plugin-pwa",
+        "url": "https://vite-pwa-org.netlify.app/",
+        "condition": "Intégration s’appuyant souvent sur Workbox, pas remplacement complet du moteur"
+      }
+    ],
+    "source_officielle": "https://developer.chrome.com/docs/workbox/"
+  },
+  {
+    "id": "TEC40",
+    "technologie": "Resend",
+    "usage": "Email proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Cible identité",
+    "recommandation": "Prévoir dépassement quotas de récupération ; pas de tracking superflu.",
+    "alternatives": [
+      {
+        "nom": "Brevo",
+        "url": "https://developers.brevo.com/",
+        "condition": "Délivrabilité et DPA à comparer"
+      },
+      {
+        "nom": "Amazon SES",
+        "url": "https://docs.aws.amazon.com/ses/",
+        "condition": "Sandbox et réputation à préparer"
+      },
+      {
+        "nom": "Postmark",
+        "url": "https://postmarkapp.com/developer",
+        "condition": "Transactionnel ; prix par volume"
+      }
+    ],
+    "source_officielle": "https://resend.com/pricing"
+  },
+  {
+    "id": "TEC41",
+    "technologie": "Sentry",
+    "usage": "Erreurs applicatives proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Observabilité",
+    "recommandation": "Désactiver PII et replay métier ; alertes sous quotas.",
+    "alternatives": [
+      {
+        "nom": "GlitchTip",
+        "url": "https://glitchtip.com/documentation",
+        "condition": "Compatible SDK ; ops si self-host"
+      },
+      {
+        "nom": "Rollbar",
+        "url": "https://docs.rollbar.com/",
+        "condition": "SaaS ; limites et données"
+      },
+      {
+        "nom": "Bugsnag",
+        "url": "https://docs.bugsnag.com/",
+        "condition": "SaaS ; coûts et conservation"
+      }
+    ],
+    "source_officielle": "https://sentry.io/pricing/"
+  },
+  {
+    "id": "TEC42",
+    "technologie": "OpenTelemetry",
+    "usage": "Instrumentation proposée",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Observabilité",
+    "recommandation": "Éviter identifiants individuels dans métriques ; exporter données expurgées.",
+    "alternatives": [
+      {
+        "nom": "Grafana Cloud OTLP",
+        "url": "https://grafana.com/docs/grafana-cloud/",
+        "condition": "Backend compatible ; quotas"
+      },
+      {
+        "nom": "Elastic Observability",
+        "url": "https://www.elastic.co/guide/en/observability/current/index.html",
+        "condition": "Backend ; coûts et exploitation"
+      },
+      {
+        "nom": "Datadog OTLP",
+        "url": "https://docs.datadoghq.com/opentelemetry/",
+        "condition": "Backend ; coûts à contrôler"
+      }
+    ],
+    "source_officielle": "https://opentelemetry.io/docs/"
+  },
+  {
+    "id": "TEC43",
+    "technologie": "Backblaze B2",
+    "usage": "Sauvegarde objet séparée proposée",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Continuité",
+    "recommandation": "Compte/droits séparés, chiffrement et restauration.",
+    "alternatives": [
+      {
+        "nom": "Amazon S3",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+        "condition": "Rétention et classe stockage adaptées"
+      },
+      {
+        "nom": "Wasabi",
+        "url": "https://docs.wasabi.com/",
+        "condition": "Durée et volume minimum facturés à vérifier"
+      },
+      {
+        "nom": "OVHcloud Object Storage",
+        "url": "https://www.ovhcloud.com/en/public-cloud/object-storage/",
+        "condition": "Région, immutabilité et egress à vérifier"
+      }
+    ],
+    "source_officielle": "https://www.backblaze.com/cloud-storage/pricing"
+  },
+  {
+    "id": "TEC44",
+    "technologie": "GitHub Actions",
+    "usage": "CI proposée",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Chaîne de livraison",
+    "recommandation": "Actions épinglées, environnements protégés, permissions minimales.",
+    "alternatives": [
+      {
+        "nom": "GitLab CI",
+        "url": "https://docs.gitlab.com/ci/",
+        "condition": "Pipeline intégrée au dépôt GitLab"
+      },
+      {
+        "nom": "CircleCI",
+        "url": "https://circleci.com/docs/",
+        "condition": "SaaS ; minutes et secrets"
+      },
+      {
+        "nom": "Buildkite",
+        "url": "https://buildkite.com/docs",
+        "condition": "Agents contrôlés ; ops et coût"
+      }
+    ],
+    "source_officielle": "https://docs.github.com/en/actions"
+  },
+  {
+    "id": "TEC45",
+    "technologie": "Docker et images OCI",
+    "usage": "Packaging proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Déploiement",
+    "recommandation": "Runtime non-root, images digest, dépendances minimales.",
+    "alternatives": [
+      {
+        "nom": "Podman",
+        "url": "https://docs.podman.io/",
+        "condition": "Runtime conteneurs ; compatibilité à vérifier"
+      },
+      {
+        "nom": "Buildah",
+        "url": "https://buildah.io/",
+        "condition": "Construction OCI ; runtime séparé"
+      },
+      {
+        "nom": "Cloud Native Buildpacks",
+        "url": "https://buildpacks.io/docs/",
+        "condition": "Construction sans Dockerfile ; builder à épingler"
+      }
+    ],
+    "source_officielle": "https://docs.docker.com/"
+  },
+  {
+    "id": "TEC46",
+    "technologie": "OpenTofu",
+    "usage": "Infrastructure as code proposée",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Déploiement",
+    "recommandation": "À adopter si providers nécessaires disponibles ; state sensible protégé.",
+    "alternatives": [
+      {
+        "nom": "Terraform",
+        "url": "https://developer.hashicorp.com/terraform/docs",
+        "condition": "Licence/version à examiner"
+      },
+      {
+        "nom": "Pulumi",
+        "url": "https://www.pulumi.com/docs/",
+        "condition": "Langage généraliste ; state et secrets"
+      },
+      {
+        "nom": "Ansible",
+        "url": "https://docs.ansible.com/",
+        "condition": "Configuration déclarative ; drift/state différents"
+      }
+    ],
+    "source_officielle": "https://opentofu.org/docs/"
+  },
+  {
+    "id": "TEC47",
+    "technologie": "Vitest",
+    "usage": "Tests unitaires proposés",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Harness",
+    "recommandation": "Règles déterministes et cas négatifs.",
+    "alternatives": [
+      {
+        "nom": "Jest",
+        "url": "https://jestjs.io/docs/getting-started",
+        "condition": "Écosystème JS"
+      },
+      {
+        "nom": "Node test runner",
+        "url": "https://nodejs.org/api/test.html",
+        "condition": "Natif ; moins de dépendances"
+      },
+      {
+        "nom": "Mocha",
+        "url": "https://mochajs.org/",
+        "condition": "Ajouter assertions et couverture adaptées"
+      }
+    ],
+    "source_officielle": "https://vitest.dev/guide/"
+  },
+  {
+    "id": "TEC48",
+    "technologie": "Playwright",
+    "usage": "E2E proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Harness",
+    "recommandation": "Multi-acteurs, réseau, navigateur et export.",
+    "alternatives": [
+      {
+        "nom": "Cypress",
+        "url": "https://docs.cypress.io/",
+        "condition": "Tester contraintes multi-session"
+      },
+      {
+        "nom": "WebdriverIO",
+        "url": "https://webdriver.io/docs/gettingstarted",
+        "condition": "Web/mobile ; configuration"
+      },
+      {
+        "nom": "Selenium",
+        "url": "https://www.selenium.dev/documentation/",
+        "condition": "Grille et orchestration à gérer"
+      }
+    ],
+    "source_officielle": "https://playwright.dev/docs/intro"
+  },
+  {
+    "id": "TEC49",
+    "technologie": "k6",
+    "usage": "Charge proposée",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Harness",
+    "recommandation": "Scénarios fictifs sur staging autorisé.",
+    "alternatives": [
+      {
+        "nom": "Locust",
+        "url": "https://docs.locust.io/",
+        "condition": "Python ; modèle d’utilisateurs"
+      },
+      {
+        "nom": "Artillery",
+        "url": "https://www.artillery.io/docs",
+        "condition": "JS/YAML ; runner"
+      },
+      {
+        "nom": "JMeter",
+        "url": "https://jmeter.apache.org/usermanual/",
+        "condition": "Java ; scénarios et infrastructure"
+      }
+    ],
+    "source_officielle": "https://grafana.com/docs/k6/latest/"
+  },
+  {
+    "id": "TEC50",
+    "technologie": "OWASP ZAP",
+    "usage": "DAST proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Harness",
+    "recommandation": "Scanner staging avec authentification ; revue humaine requise.",
+    "alternatives": [
+      {
+        "nom": "Burp Suite",
+        "url": "https://portswigger.net/burp/documentation",
+        "condition": "Manuel/automatique selon licence"
+      },
+      {
+        "nom": "Nuclei",
+        "url": "https://docs.projectdiscovery.io/tools/nuclei/overview",
+        "condition": "Templates ciblés ; couverture différente"
+      },
+      {
+        "nom": "Invicti",
+        "url": "https://www.invicti.com/support/",
+        "condition": "Commercial ; couverture/API à comparer"
+      }
+    ],
+    "source_officielle": "https://www.zaproxy.org/docs/"
+  },
+  {
+    "id": "TEC51",
+    "technologie": "Semgrep",
+    "usage": "SAST proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Harness",
+    "recommandation": "Règles adaptées TypeScript ; faux positifs justifiés.",
+    "alternatives": [
+      {
+        "nom": "CodeQL",
+        "url": "https://codeql.github.com/docs/",
+        "condition": "Langages et licence privée à vérifier"
+      },
+      {
+        "nom": "SonarQube",
+        "url": "https://docs.sonarsource.com/sonarqube-server/",
+        "condition": "Éditions/couverture à comparer"
+      },
+      {
+        "nom": "Snyk Code",
+        "url": "https://docs.snyk.io/scan-with-snyk/snyk-code",
+        "condition": "SaaS ; données source et coûts"
+      }
+    ],
+    "source_officielle": "https://semgrep.dev/docs/"
+  },
+  {
+    "id": "TEC52",
+    "technologie": "Trivy",
+    "usage": "Dépendances et image proposées",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Harness",
+    "recommandation": "Versionner DB vulnérabilités et rapport ; pas de label de conformité.",
+    "alternatives": [
+      {
+        "nom": "Grype",
+        "url": "https://github.com/anchore/grype",
+        "condition": "Scan artefacts et SBOM"
+      },
+      {
+        "nom": "OSV-Scanner",
+        "url": "https://google.github.io/osv-scanner/",
+        "condition": "Dépendances ; périmètre images différent"
+      },
+      {
+        "nom": "Snyk Open Source",
+        "url": "https://docs.snyk.io/scan-with-snyk/snyk-open-source",
+        "condition": "SaaS ; licence et quotas"
+      }
+    ],
+    "source_officielle": "https://trivy.dev/latest/docs/"
+  },
+  {
+    "id": "TEC53",
+    "technologie": "Gitleaks",
+    "usage": "Détection de secrets proposée",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Harness",
+    "recommandation": "Scanner changements et historique autorisé ; rotation si fuite.",
+    "alternatives": [
+      {
+        "nom": "TruffleHog",
+        "url": "https://github.com/trufflesecurity/trufflehog",
+        "condition": "Attention validation externe des secrets"
+      },
+      {
+        "nom": "detect-secrets",
+        "url": "https://github.com/Yelp/detect-secrets",
+        "condition": "Baseline revue, ne pas ignorer tout"
+      },
+      {
+        "nom": "GitGuardian",
+        "url": "https://docs.gitguardian.com/",
+        "condition": "SaaS ; politiques dépôt et coûts"
+      }
+    ],
+    "source_officielle": "https://github.com/gitleaks/gitleaks"
+  },
+  {
+    "id": "TEC54",
+    "technologie": "axe-core",
+    "usage": "Audit accessibilité proposé",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Harness",
+    "recommandation": "Compléter avec clavier et lecteurs écran.",
+    "alternatives": [
+      {
+        "nom": "Pa11y",
+        "url": "https://pa11y.org/",
+        "condition": "Automatisation d’accessibilité"
+      },
+      {
+        "nom": "Lighthouse",
+        "url": "https://developer.chrome.com/docs/lighthouse/",
+        "condition": "Audit partiel ; ne prouve pas WCAG"
+      },
+      {
+        "nom": "Accessibility Insights",
+        "url": "https://accessibilityinsights.io/docs/",
+        "condition": "Guidage des vérifications manuelles"
+      }
+    ],
+    "source_officielle": "https://github.com/dequelabs/axe-core"
+  },
+  {
+    "id": "TEC55",
+    "technologie": "PDF et CSV",
+    "usage": "Exports de référence",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Backlog 10 ; Contrats §7",
+    "recommandation": "Conserver les deux formats, empreinte finale externe.",
+    "alternatives": [
+      {
+        "nom": "pdf-lib + sérialiseur CSV",
+        "url": "https://pdf-lib.js.org/",
+        "condition": "Node ; mise en page à écrire et CSV à neutraliser"
+      },
+      {
+        "nom": "PDFKit + sérialiseur CSV",
+        "url": "https://pdfkit.org/",
+        "condition": "Node ; texte, pages et fontes à tester"
+      },
+      {
+        "nom": "WeasyPrint + csv Python",
+        "url": "https://doc.courtbouillon.org/weasyprint/stable/",
+        "condition": "Python ; HTML contrôlé et accès réseau interdit"
+      }
+    ],
+    "source_officielle": "https://pdf-lib.js.org/"
+  },
+  {
+    "id": "TEC56",
+    "technologie": "SHA-256 et canonicalisation",
+    "usage": "Intégrité",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Contrats §6–7",
+    "recommandation": "Conserver les invariants cryptographiques ; alternatives d’implémentation, pas hashes affaiblis.",
+    "alternatives": [
+      {
+        "nom": "Node crypto + bibliothèque JCS validée",
+        "url": "https://nodejs.org/api/crypto.html",
+        "condition": "Même profil et golden vectors"
+      },
+      {
+        "nom": "Web Crypto + bibliothèque JCS validée",
+        "url": "https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API",
+        "condition": "Vérificateur client ; source de hash fiable requise"
+      },
+      {
+        "nom": "Python hashlib + bibliothèque JCS validée",
+        "url": "https://docs.python.org/3/library/hashlib.html",
+        "condition": "Vérificateur indépendant ; ne pas confondre json.dumps et JCS"
+      }
+    ],
+    "source_officielle": "https://www.rfc-editor.org/rfc/rfc8785"
+  },
+  {
+    "id": "TEC57",
+    "technologie": "API HTTP JSON",
+    "usage": "Contrats transport",
+    "statut": "Cité historiquement ; usage actuel non vérifié",
+    "preuve_interne": "Contrats §1–3",
+    "recommandation": "REST de commandes et schémas retenu ; pas de CRUD arbitraire.",
+    "alternatives": [
+      {
+        "nom": "Fastify JSON Schema",
+        "url": "https://fastify.dev/docs/latest/Reference/Validation-and-Serialization/",
+        "condition": "Validation serveur choisie"
+      },
+      {
+        "nom": "NestJS OpenAPI",
+        "url": "https://docs.nestjs.com/openapi/introduction",
+        "condition": "Autre implémentation mêmes contrats"
+      },
+      {
+        "nom": "FastAPI OpenAPI",
+        "url": "https://fastapi.tiangolo.com/",
+        "condition": "Python ; mêmes sémantiques transactionnelles"
+      }
+    ],
+    "source_officielle": "https://spec.openapis.org/oas/v3.1.1.html"
+  },
+  {
+    "id": "TEC58",
+    "technologie": "MTN MoMo",
+    "usage": "Moyen externe cité dans étude, connecteur futur",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Étude DOCX ; Backlog 17.1",
+    "recommandation": "Pas un prestataire attesté de KÓMBE ; contrat/pays/flux après G3.",
+    "alternatives": [
+      {
+        "nom": "Orange Money",
+        "url": "https://developer.orange.com/apis/om-webpay",
+        "condition": "Réseau différent ; accès marchand local"
+      },
+      {
+        "nom": "CamPay",
+        "url": "https://www.campay.net/",
+        "condition": "Agrégation ; vérifier statut, frais et règlement"
+      },
+      {
+        "nom": "CinetPay",
+        "url": "https://docs.cinetpay.com/",
+        "condition": "Vérifier offre actuelle Cameroun et montage légal"
+      }
+    ],
+    "source_officielle": "https://momodeveloper.mtn.com/"
+  },
+  {
+    "id": "TEC59",
+    "technologie": "Orange Money",
+    "usage": "Moyen externe cité dans étude",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Étude DOCX ; Backlog 17.1",
+    "recommandation": "Orange liste Cameroun ; admissibilité contractuelle du projet non acquise.",
+    "alternatives": [
+      {
+        "nom": "MTN MoMo",
+        "url": "https://momodeveloper.mtn.com/",
+        "condition": "Contrat et API pays à vérifier"
+      },
+      {
+        "nom": "CamPay",
+        "url": "https://www.campay.net/",
+        "condition": "Agrégateur ; diligence légale requise"
+      },
+      {
+        "nom": "CinetPay",
+        "url": "https://docs.cinetpay.com/",
+        "condition": "Couverture/flux et coûts à vérifier"
+      }
+    ],
+    "source_officielle": "https://developer.orange.com/apis/om-webpay"
+  },
+  {
+    "id": "TEC60",
+    "technologie": "Wave",
+    "usage": "Moyen mentionné par un concurrent dans étude",
+    "statut": "Futur ; non installé",
+    "preuve_interne": "Étude DOCX, exemple Djangui",
+    "recommandation": "Aucun choix KÓMBE ; aucune disponibilité Cameroun présumée.",
+    "alternatives": [
+      {
+        "nom": "Orange Money",
+        "url": "https://developer.orange.com/apis/om-webpay",
+        "condition": "Usage local à contractualiser"
+      },
+      {
+        "nom": "MTN MoMo",
+        "url": "https://momodeveloper.mtn.com/",
+        "condition": "Usage local à contractualiser"
+      },
+      {
+        "nom": "CamPay",
+        "url": "https://www.campay.net/",
+        "condition": "Agrégation conditionnelle, pas autorisation implicite"
+      }
+    ],
+    "source_officielle": "https://www.wave.com/"
+  },
+  {
+    "id": "TEC61",
+    "technologie": "Hugging Face Hub",
+    "usage": "Distribution modèles, proposition",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "Liens modèles de la note IA ; candidat de travail",
+    "recommandation": "Fixer révision, licence et empreinte ; aucun dataset réel public.",
+    "alternatives": [
+      {
+        "nom": "Stockage objet privé versionné",
+        "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html",
+        "condition": "Héberger les poids légalement redistribuables"
+      },
+      {
+        "nom": "GitLab Package Registry",
+        "url": "https://docs.gitlab.com/user/packages/generic_packages/",
+        "condition": "Artefacts génériques ; quotas fichiers"
+      },
+      {
+        "nom": "Artifactory",
+        "url": "https://jfrog.com/help/r/jfrog-artifactory-documentation",
+        "condition": "Registry privé ; ops/coûts"
+      }
+    ],
+    "source_officielle": "https://huggingface.co/docs/hub/index"
+  },
+  {
+    "id": "TEC62",
+    "technologie": "Python standard library",
+    "usage": "Harness livré dans ce dossier",
+    "statut": "Proposition ; non installé",
+    "preuve_interne": "04_Harness",
+    "recommandation": "Exécutable sans dépendances externes ; ne constitue pas backend KÓMBE.",
+    "alternatives": [
+      {
+        "nom": "Node test runner",
+        "url": "https://nodejs.org/api/test.html",
+        "condition": "Porter oracles et protocoles JSON"
+      },
+      {
+        "nom": "pytest",
+        "url": "https://docs.pytest.org/",
+        "condition": "Même Python, dépendance supplémentaire"
+      },
+      {
+        "nom": "JUnit",
+        "url": "https://docs.junit.org/",
+        "condition": "Portage JVM et fixtures identiques"
+      }
+    ],
+    "source_officielle": "https://docs.python.org/3/library/unittest.html"
+  },
+  {
+    "id": "TEC63",
+    "technologie": "Spec Kit",
+    "usage": "Méthode de spécification",
+    "statut": "Proposé pour la construction neuve ; non installé",
+    "preuve_interne": "Révision 2.0 ; recommandations discutées le 16 septembre 2026",
+    "recommandation": "Socle principal recommandé ; un seul pilote de workflow.",
+    "alternatives": [
+      {
+        "nom": "OpenSpec",
+        "url": "https://github.com/Fission-AI/OpenSpec",
+        "condition": "Spécifications par changement ; remplacer la méthode principale"
+      },
+      {
+        "nom": "BMAD Method",
+        "url": "https://github.com/bmad-code-org/BMAD-METHOD",
+        "condition": "Méthode produit/architecture plus large ; éviter double orchestration"
+      },
+      {
+        "nom": "BDD avec Cucumber",
+        "url": "https://github.com/cucumber/cucumber-js",
+        "condition": "Exigences exécutables ; gouvernance et plan à construire séparément"
+      }
+    ],
+    "source_officielle": "https://github.com/github/spec-kit"
+  },
+  {
+    "id": "TEC64",
+    "technologie": "ECC",
+    "usage": "Bibliothèque de skills et règles",
+    "statut": "Proposé pour la construction neuve ; non installé",
+    "preuve_interne": "Révision 2.0 ; recommandations discutées le 16 septembre 2026",
+    "recommandation": "Sélectionner les composants ; compatibilité hôte à tester.",
+    "alternatives": [
+      {
+        "nom": "Superpowers",
+        "url": "https://github.com/obra/superpowers",
+        "condition": "Discipline de réalisation prescriptive ; adoption sélective"
+      },
+      {
+        "nom": "BMAD Method",
+        "url": "https://github.com/bmad-code-org/BMAD-METHOD",
+        "condition": "Workflow global à substituer si besoin"
+      },
+      {
+        "nom": "Instructions et scripts internes",
+        "url": "https://agents.md/",
+        "condition": "Moins de dépendances ; maintenance et évaluation à assurer"
+      }
+    ],
+    "source_officielle": "https://github.com/affaan-m/ECC"
+  },
+  {
+    "id": "TEC65",
+    "technologie": "Trail of Bits Skills",
+    "usage": "Skills de revue et sécurité",
+    "statut": "Proposé pour la construction neuve ; non installé",
+    "preuve_interne": "Révision 2.0 ; recommandations discutées le 16 septembre 2026",
+    "recommandation": "Sélectionner propriété, mutation, conformité spec/code et validation après patch.",
+    "alternatives": [
+      {
+        "nom": "ECC security-review",
+        "url": "https://github.com/affaan-m/ECC",
+        "condition": "Checklist générale ; compléter avec tests et expertise"
+      },
+      {
+        "nom": "Revue ASVS structurée",
+        "url": "https://owasp.org/www-project-application-security-verification-standard/",
+        "condition": "Méthode manuelle et automatisée ; demande un relecteur compétent"
+      },
+      {
+        "nom": "Skills internes de revue",
+        "url": "https://agentskills.io/",
+        "condition": "Construire et évaluer un pack adapté au domaine ; aucune équivalence immédiate"
+      }
+    ],
+    "source_officielle": "https://github.com/trailofbits/skills"
+  },
+  {
+    "id": "TEC66",
+    "technologie": "Superpowers",
+    "usage": "Workflow et skills de développement",
+    "statut": "Proposé pour la construction neuve ; non installé",
+    "preuve_interne": "Révision 2.0 ; recommandations discutées le 16 septembre 2026",
+    "recommandation": "Alternative à l’exécution ECC ; éviter consignes globales concurrentes.",
+    "alternatives": [
+      {
+        "nom": "ECC",
+        "url": "https://github.com/affaan-m/ECC",
+        "condition": "Composer les capacités utiles"
+      },
+      {
+        "nom": "BMAD Method",
+        "url": "https://github.com/bmad-code-org/BMAD-METHOD",
+        "condition": "Couverture plus large du cycle produit"
+      },
+      {
+        "nom": "TDD et revue internes",
+        "url": "https://agents.md/",
+        "condition": "Règles et scripts maintenus dans le projet"
+      }
+    ],
+    "source_officielle": "https://github.com/obra/superpowers"
+  },
+  {
+    "id": "TEC67",
+    "technologie": "OpenSpec",
+    "usage": "Gestion des spécifications et changements",
+    "statut": "Proposé pour la construction neuve ; non installé",
+    "preuve_interne": "Révision 2.0 ; recommandations discutées le 16 septembre 2026",
+    "recommandation": "Alternative à Spec Kit ; pas deuxième source de vérité.",
+    "alternatives": [
+      {
+        "nom": "Spec Kit",
+        "url": "https://github.com/github/spec-kit",
+        "condition": "Workflow principal structuré"
+      },
+      {
+        "nom": "BMAD Method",
+        "url": "https://github.com/bmad-code-org/BMAD-METHOD",
+        "condition": "Conception et développement guidés"
+      },
+      {
+        "nom": "BDD avec Cucumber",
+        "url": "https://github.com/cucumber/cucumber-js",
+        "condition": "Scénarios exécutables ; traçabilité complémentaire à concevoir"
+      }
+    ],
+    "source_officielle": "https://github.com/Fission-AI/OpenSpec"
+  },
+  {
+    "id": "TEC68",
+    "technologie": "BMAD Method",
+    "usage": "Méthode produit architecture et réalisation",
+    "statut": "Proposé pour la construction neuve ; non installé",
+    "preuve_interne": "Révision 2.0 ; recommandations discutées le 16 septembre 2026",
+    "recommandation": "Alternative pour accompagnement élargi ; non nécessaire au socle proposé.",
+    "alternatives": [
+      {
+        "nom": "Spec Kit",
+        "url": "https://github.com/github/spec-kit",
+        "condition": "Centré sur spécifications et réalisation"
+      },
+      {
+        "nom": "OpenSpec",
+        "url": "https://github.com/Fission-AI/OpenSpec",
+        "condition": "Changements documentés ; rôles à organiser"
+      },
+      {
+        "nom": "Superpowers",
+        "url": "https://github.com/obra/superpowers",
+        "condition": "Conception et exécution ; compléter arbitrages produit"
+      }
+    ],
+    "source_officielle": "https://github.com/bmad-code-org/BMAD-METHOD"
+  },
+  {
+    "id": "TEC69",
+    "technologie": "fast-check",
+    "usage": "Tests génératifs de propriétés",
+    "statut": "Proposé pour la construction neuve ; non installé",
+    "preuve_interne": "Révision 2.0 ; recommandations discutées le 16 septembre 2026",
+    "recommandation": "Recommandé pour les invariants TypeScript ; graines reproductibles.",
+    "alternatives": [
+      {
+        "nom": "Hypothesis",
+        "url": "https://github.com/HypothesisWorks/hypothesis",
+        "condition": "Python ; utile pour oracle indépendant ou autre backend"
+      },
+      {
+        "nom": "jqwik",
+        "url": "https://github.com/jqwik-team/jqwik",
+        "condition": "JVM ; changement de langage ou harness interprocessus"
+      },
+      {
+        "nom": "Générateur métier interne",
+        "url": "https://nodejs.org/api/test.html",
+        "condition": "Même stack JS ; écrire réduction des cas et gestion des graines"
+      }
+    ],
+    "source_officielle": "https://github.com/dubzzz/fast-check"
+  },
+  {
+    "id": "TEC70",
+    "technologie": "StrykerJS",
+    "usage": "Tests de mutation",
+    "statut": "Proposé pour la construction neuve ; non installé",
+    "preuve_interne": "Révision 2.0 ; recommandations discutées le 16 septembre 2026",
+    "recommandation": "Cibler le domaine critique ; examiner chaque mutant survivant.",
+    "alternatives": [
+      {
+        "nom": "mutmut",
+        "url": "https://github.com/boxed/mutmut",
+        "condition": "Python uniquement ; autre backend ou oracle Python"
+      },
+      {
+        "nom": "PIT",
+        "url": "https://github.com/hcoles/pitest",
+        "condition": "Java/JVM ; non interchangeable avec le produit TypeScript"
+      },
+      {
+        "nom": "Mutations ciblées internes",
+        "url": "https://git-scm.com/docs/git-apply",
+        "condition": "Patches de défauts connus sur checkout éphémère ; couverture plus étroite"
+      }
+    ],
+    "source_officielle": "https://github.com/stryker-mutator/stryker-js"
+  },
+  {
+    "id": "TEC71",
+    "technologie": "Testcontainers Node",
+    "usage": "Services réels temporaires pour tests",
+    "statut": "Proposé pour la construction neuve ; non installé",
+    "preuve_interne": "Révision 2.0 ; recommandations discutées le 16 septembre 2026",
+    "recommandation": "PostgreSQL isolé ; empêcher accès des agents au daemon privilégié de l’hôte.",
+    "alternatives": [
+      {
+        "nom": "Docker Compose",
+        "url": "https://docs.docker.com/compose/",
+        "condition": "Piloter explicitement isolation, readiness et nettoyage"
+      },
+      {
+        "nom": "Services CI PostgreSQL",
+        "url": "https://docs.github.com/en/actions/tutorials/use-containerized-services/create-postgresql-service-containers",
+        "condition": "Dépend du runner ; isoler jobs et credentials"
+      },
+      {
+        "nom": "PostgreSQL éphémère local",
+        "url": "https://www.postgresql.org/docs/current/app-initdb.html",
+        "condition": "Provisionner ports, comptes et répertoires ; nettoyage à maintenir"
+      }
+    ],
+    "source_officielle": "https://github.com/testcontainers/testcontainers-node"
+  }
+]

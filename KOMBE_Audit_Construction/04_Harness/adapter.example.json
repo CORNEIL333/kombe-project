@@ -1,0 +1,7 @@
+{
+  "command": [
+    "python3",
+    "application_adapter.py"
+  ],
+  "timeout_seconds": 90
+}

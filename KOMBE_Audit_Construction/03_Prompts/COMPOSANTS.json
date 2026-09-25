@@ -1,0 +1,442 @@
+[
+  {
+    "id": "C00",
+    "titre": "Cadrage dépôt architecture et contrats",
+    "porte": "G0",
+    "dependances": [],
+    "references": "18.20",
+    "objectif": "Créer le dépôt neuf, les contrats et les versions de la construction.",
+    "conception": "Construction neuve confirmée ; produire squelette fictif, ADR01–ADR20, OpenAPI et build. Préparer H00 et ses frontières de confiance.",
+    "livrables": "Inventaire versionné, carte des modules, ADR, OpenAPI initial, scripts de build, matrice 130 stories et rapport de revue",
+    "prerequis_assurance": "C00 prépare H00"
+  },
+  {
+    "id": "C01",
+    "titre": "Données migrations et isolation PostgreSQL",
+    "porte": "G0",
+    "dependances": [
+      "C00"
+    ],
+    "references": "14.1 14.2 18.2",
+    "objectif": "Créer les contraintes qui protègent les groupes et les transactions.",
+    "conception": "Créer tables séparant identité, adhésions, versions de règles, obligations, contributions, validations, décaissements/frais, votes, litiges, journal, commandes, outbox et exports. group_id et FK composites sur relations métier. Unicité adhésion active, vote, validation par rôle, compensation et idempotence. RLS complémentaire avec rôle non-owner sans BYPASSRLS, contexte SET LOCAL par transaction ; tester pool. Rôle migration distinct. Définir ordre de verrous et niveaux isolation ; montant entier positif et borné. Prévoir migration additive et reprise de backfill. Pas de secrets service-role au navigateur.",
+    "livrables": "Migrations up et stratégie de retour, politiques RLS, dictionnaire, tests PostgreSQL réels, preuve rôles applicatifs",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C02",
+    "titre": "Identité sessions MFA et récupération",
+    "porte": "G0",
+    "dependances": [
+      "C00",
+      "C01"
+    ],
+    "references": "1.1 1.2 1.3 1.4 1.5",
+    "objectif": "Protéger les comptes en gardant un accès adapté aux membres.",
+    "conception": "Intégrer fournisseur identité retenu derrière interface testable ; vérifier canal avant activation. Invité limité aux fixtures. Session web via BFF/cookie HttpOnly Secure SameSite avec CSRF ; mobile jetons en stockage protégé si retenu. Politique NIST proposée et MFA obligatoire opérateurs. Récupération par jeton unique expirant, réponse anti-énumération, révocation toutes sessions, notification de sécurité, suspension temporaire des privilèges selon ADR. Recontrôler l’état compte en serveur et ne pas se fier au rôle dans JWT. Évaluer perte/changement de téléphone, SIM recyclée et code de secours sans réclamer automatiquement CNI.",
+    "livrables": "Adaptateur identité, sessions, recovery, UI d’accès, tests anti-énumération et secrets, politique versionnée",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C03",
+    "titre": "Groupes membres et séparation des pouvoirs",
+    "porte": "G0",
+    "dependances": [
+      "C01",
+      "C02"
+    ],
+    "references": "2.1 2.2 2.3 2.4 2.7 4.1 4.2 4.3 4.4 4.5 4.6 4.7 4.8 4.9 4.10",
+    "objectif": "Garantir que chaque rôle est borné au groupe, à la période et à l’opération.",
+    "conception": "Construire configuration/actif/pause/clôturé/arrêt avec écarts/archivé. Amorçage sans pouvoir financier : nominations acceptées puis activation avec règles acceptées et suppléants. Invitation limitée, expirante, révocable, ne révèle pas le groupe avant adhésion. Rôles membre/admin/trésorier/contrôleur/secrétaire ; fondateur admin initial sans droit universel. Changement après démarrage à approbateur distinct. Délégation bornée et récusation. Départ conserve obligations et lecture personnelle filtrée ; aucun raccourcissement automatique du cycle. Pour décès/incapacité, gel documentaire sans héritier automatique ni dossier médical. Fonctionnalités P1 peuvent être reportées explicitement, mais serveur refuse états non supportés.",
+    "livrables": "Matrice droits/objets/champs/temps, commandes groupes et rôles, parcours invités, tests amorçage et révocation",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C04",
+    "titre": "Moteur de règles et acceptations",
+    "porte": "G0",
+    "dependances": [
+      "C01",
+      "C03"
+    ],
+    "references": "3.1 3.2 3.3 3.4 3.5 3.6 3.7 3.8 6.7",
+    "objectif": "Rendre les engagements explicites, versionnés et non rétroactifs.",
+    "conception": "Construire schéma de règles rotation égale, une part, XAF, échéances et validateurs ; pénalités non activables côté serveur au pilote. Immutabilité publication ; acceptations de chaque membre sur hash exact. Lier vote et acceptations sans les confondre ; changement financier essentiel au cycle suivant, exception explicite nécessitant tous concernés. Paramétrage du quorum, majorité, abstention et grâce versionné. Glossaire FR/EN séparé du moteur. Mettre le moteur en fonctions pures testables, montants bornés entiers, pas de valeurs tirées d’un prompt.",
+    "livrables": "Schémas règles, moteur pur, acceptations, comparaison versions, migrations, fixtures dates et monnaie",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C05",
+    "titre": "Cycles tours échéances et bénéficiaires",
+    "porte": "G0",
+    "dependances": [
+      "C03",
+      "C04"
+    ],
+    "references": "5.1 5.2 5.3 5.4 5.5",
+    "objectif": "Produire un calendrier sans confusion entre membres, tours et cycles.",
+    "conception": "Générer N tours pour N membres, une occurrence de chaque bénéficiaire et obligation unique membre/tour. Prévisualiser dates métier Africa/Douala, persister instants UTC et version de règle. Mensuel au 31 ramené à dernier jour du mois selon règle acceptée. Interdire démarrage incomplet, modification libre après démarrage et levée répétée. Renouvellement crée nouveau cycle avec nouvelles acceptations si engagement changé. Départ ne réaffecte pas la dette et ne réduit pas silencieusement le nombre de tours.",
+    "livrables": "Calendrier, obligations, ordre figé, prévisualisation, tests temps injecté et renouvellement",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C06",
+    "titre": "Déclarations montants partiels et idempotence",
+    "porte": "G0",
+    "dependances": [
+      "C01",
+      "C04",
+      "C05",
+      "C11"
+    ],
+    "references": "6.1 6.9 18.1 18.2 18.3",
+    "objectif": "Accepter des déclarations une seule fois malgré les coupures et les courses.",
+    "conception": "Séparer brouillon local et déclaration serveur. amount_minor entier XAF positif, obligation accessible, date alléguée distincte date serveur. Espèces sans référence admises ; électronique sans référence exige motif, ne vaut pas preuve authentifiée. Capacité sous verrou = dû moins déclarations actives réservées ; restant dû affiché calculé sur validé net. Registre durable acteur/groupe/type/clé avec hash corps ; same-key/different-body 409 ; droits relus avant résultat replay ; cache expiré ne recrée jamais. Écrire événement, projection et outbox dans une transaction. Exposer statut commande et conflit compréhensible.",
+    "livrables": "Command handler, registre idempotence, statut commande, réservations, tests concurrence DB et coupure après commit",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C07",
+    "titre": "Validations et corrections de cotisations",
+    "porte": "G0",
+    "dependances": [
+      "C06",
+      "C11"
+    ],
+    "references": "6.2 6.3 6.4 6.5 6.6",
+    "objectif": "Valider avec personnes indépendantes et corriger sans altérer l’histoire.",
+    "conception": "Machine déclarée/confirmée/validée/rejetée/compensée, litige séparé. Le déclarant effectif et confirmateur doivent être différents ; contrôleur distinct des deux s’il est requis. Cas mandataire : tracer auteur et membre concerné et appliquer règle de conflits approuvée, pas une identité choisie par client. Confirmation sans contrôleur peut produire confirmation+validation atomiques. Rejet avant validation seulement. Correction totale via demande revue puis compensation unique de l’événement d’origine, pas de transfert des validations au remplacement. Coordination de réservation A04. Litige avant validation bloque ; après validation conserve écritures et gèle dépendances.",
+    "livrables": "Machine à états, règles indépendance, circuits correction, UI refus motivés, tests races et replay",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C08",
+    "titre": "Décaissements frais rapprochement et clôture",
+    "porte": "G0",
+    "dependances": [
+      "C07",
+      "C10",
+      "C11"
+    ],
+    "references": "2.8 6.10 18.4 18.9",
+    "objectif": "Documenter une levée externe et fermer un tour seulement si cohérent.",
+    "conception": "Le trésorier déclare net bénéficiaire et frais groupe ; le bénéficiaire confirme et contrôleur indépendant intervient selon règle. Si trésorier est bénéficiaire, suppléant déclare. Une correction de décaissement/frais suit demande, approbation indépendante et contre-écriture unique : ajouter ce contrat manquant. Rapprochement contributions validées nettes = décaissements nets + frais groupe validés. Frais personnels hors pot ne sont jamais déduits. Impayé/litige affectant pot/écart empêche clôture normale ; arrêt exceptionnel conserve obligations. Une correction ne rembourse jamais automatiquement un mouvement externe.",
+    "livrables": "Commandes décaissement et correction, grand livre des frais, rapprochement tour/cycle, export arrêt avec écarts",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C09",
+    "titre": "Propositions votes et décisions",
+    "porte": "G0",
+    "dependances": [
+      "C03",
+      "C04",
+      "C11"
+    ],
+    "references": "7.1 7.2 7.3 7.4 7.5 18.5",
+    "objectif": "Rendre tout résultat de vote reproductible et son exécution contrôlée.",
+    "conception": "Figer électorat après conflits d’intérêts, hash proposition, règles, échéance serveur. Un vote oui/non/abstention par électeur ; vote identifié ; pas de vote après clôture. Quorum ceil(2N/3), majorité strictement > moitié oui/non dans fixture ; abstentions participent seulement au quorum, zéro exprimé rejette. Un départ n’altère pas le dénominateur ; si nécessité de le changer, annuler et rouvrir. Exécution idempotente après clôture, résultat, acceptations individuelles et date d’effet. Ne jamais accepter actor_id ou electorate fournis librement sans validation serveur.",
+    "livrables": "Snapshots électoraux, fonctions de calcul, commandes clôture/annulation/exécution, fixtures et historique lisible",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C10",
+    "titre": "Litiges et recours",
+    "porte": "G0",
+    "dependances": [
+      "C03",
+      "C11"
+    ],
+    "references": "8.1 8.2 8.3 8.4",
+    "objectif": "Traiter une contestation sans modifier silencieusement un montant.",
+    "conception": "Litige sur objet du même groupe accessible, parties, demande, état, délais et responsable non impliqué. Données privées séparées, vue commune limitée existence/statut/issue utile. Pièces désactivées au pilote. Fenêtre ordinaire sept jours après notification avec signalement tardif grave possible. Temps calendrier et ouvré distingués. Un bouton résoudre ne modifie aucun total ; correction déclenchée via C07/C08 et issue référence ces écritures. Réouverture liée à original. Si tous sont impliqués, maintenir gel ciblé et procédure externe.",
+    "livrables": "Module litiges, ACL détaillées, état de gel, recours, temps de traitement et tests divulgation",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C11",
+    "titre": "Journal événements projections et intégrité",
+    "porte": "G0",
+    "dependances": [
+      "C00",
+      "C01"
+    ],
+    "references": "9.1 9.2 9.3 9.4 9.5",
+    "objectif": "Créer une trace reconstructible avec contrôles d’intégrité indépendants.",
+    "conception": "Événement contient ID, groupe/séquence, type/version, agrégat/version, acteur interne/rôle instantané, règle, date serveur, commande/corrélation, charge minimale et hash précédent. Profil canonique déterminé par ADR et golden vectors RFC 8785 ; genèse fixe, pas clés dupliquées ni floats métier. App role append-only, opérations techniques exceptionnelles séparées. Transaction événements/projections/outbox ; replay versionné sans emails. Checkpoints hors privilèges app ; le hash seul ne garantit pas origine. Timeline filtrée par droits et période sans exposer payload privé brut.",
+    "livrables": "Schéma événements, replay, canonicalisation et fixtures, vérificateur, checkpoints, migrations de payload",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C12",
+    "titre": "Exports PDF CSV et vérification",
+    "porte": "G0",
+    "dependances": [
+      "C03",
+      "C08",
+      "C11"
+    ],
+    "references": "10.1 10.2 10.3 10.4 10.5 18.8",
+    "objectif": "Fournir un relevé imprimable et une vérification indépendante.",
+    "conception": "Fixer cutoff_sequence ; générer état cohérent de ce snapshot malgré mutations ultérieures. Appliquer périmètre objet/champs/temps au demandeur puis recontrôler à téléchargement. PDF A4 lisible et CSV neutralisé contre =,+,-,@ ainsi que variantes espaces/tabulations ; nombres provenant champs typés, pas textes libres. Hash sur octets finalisés, manifeste séparé, événement export et référence indépendante. Jamais signature simulée. Downloads privés expirants ; proxy si révocation immédiate exigée. Membre sortant uniquement historique autorisé ; supports et payeurs sans accès automatique.",
+    "livrables": "Générateurs PDF/CSV, manifeste, vérificateur autonome, ACL download, snapshots, tests layout et formules",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C13",
+    "titre": "Outbox worker et notifications internes",
+    "porte": "G0",
+    "dependances": [
+      "C01",
+      "C11"
+    ],
+    "references": "11.1 11.4 18.6",
+    "objectif": "Livrer des alertes sans fragiliser la transaction métier.",
+    "conception": "Écriture outbox dans transaction métier ; worker à lease/verrou borné, backoff avec jitter, attempts max, dead-letter et relecture préférences/droits. Unicité event/destinataire/canal/type. Persister notifications internes indépendantes de l’externe. Crash après acceptation prestataire traité comme statut ambigu, pas promesse exactly-once. TTL des tâches, canal suspendu, replay administratif tracé et quota défini. Pas de contenu financier dans push verrouillé, logs ou erreurs prestataire.",
+    "livrables": "Outbox, worker, alertes internes, dead-letter, simulateur prestataire, tests crash et retry",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C14",
+    "titre": "Interface parcours accessibilité et langues",
+    "porte": "G0",
+    "dependances": [
+      "C02",
+      "C03",
+      "C04",
+      "C05"
+    ],
+    "references": "12.1 12.3 12.4 12.5 12.6",
+    "objectif": "Construire une interface compréhensible sur téléphone et accessible.",
+    "conception": "Parcours modèle/règles/membres-calendrier/récapitulatif ; tableau groupe, détail obligation, saisie, validation, litige, votes, export et paramètres. Afficher attendu/déclaré/en cours/validé/contesté/restant distinctement. Boutons navigation type button, relecture avant engagement, erreurs liées aux champs. États chargement/vide/erreur/permission/offline. FR complet au pilote et architecture i18n ; EN avant recrutement anglophone. Navigation clavier, lecteurs écran, zoom/reflow et contraste ; pas d’information par couleur seule. Ne pas afficher cryptographie ou log technique dans le parcours ordinaire. Aucune promesse garantie des fonds.",
+    "livrables": "Composants UI, tokens, i18n, parcours E2E multi-acteurs, rapport accessibilité manuel et captures appareils",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C15",
+    "titre": "Cache hors connexion et synchronisation",
+    "porte": "G0",
+    "dependances": [
+      "C06",
+      "C14"
+    ],
+    "references": "12.2 18.7",
+    "objectif": "Permettre lecture prudente et brouillons sans créer de fausse validation.",
+    "conception": "Cache whitelist par compte/groupe/période et TTL adopté, horodatage dernière sync ; aucun secret auth, commentaire litige ou référence complète en cache par défaut. Mode appareil partagé sans conservation. Brouillon stocké sur appareil et compte, avertissement avant logout puis purge. Soumission après réseau avec même clé persistée jusqu’à certitude ; 409 recharge et confirmation humaine. Votes, validations, rôles et règles exigent serveur. Revalidation au retour après révocation ; horloge client ne prolonge pas un droit. Cache versionné et migration/éviction gérées. Sur PWA, tester mise à jour service worker et requêtes privées non mises en cache implicitement.",
+    "livrables": "Cache policy, queue locale, UX états, TTL et purge, tests réseau/coupure/compte partagé",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C16",
+    "titre": "Données personnelles notices et droits",
+    "porte": "G0",
+    "dependances": [
+      "C02",
+      "C03",
+      "C12"
+    ],
+    "references": "13.1 13.2 13.3 13.4 18.10 18.19",
+    "objectif": "Rendre les traitements explicites et exécuter les droits sans fuite.",
+    "conception": "Créer registre finalités/catégories/base à valider/responsable/sous-traitants/pays/durées/accès. Garder factuel : pas d’éditeur inventé, délai légal supposé ou notice publiée avec placeholders. Séparer consentement recherche/marketing/future IA du registre normal. Demandes de droits avec vérification proportionnée, extraction filtrée, motif de gel et revue datée. Purge identités/caches/fichiers/index ; backups selon cycle de vie ; registre tombstones externe au point de restauration. Réappliquer effacements ET révocations avant reprise. Le journal pseudonymisé n’est pas automatiquement anonyme ; évaluer possibilité de réidentification.",
+    "livrables": "Registre traitements, notices préparées, demandes de droits, purge/tombstones, tests restaurations et dossier conseil local",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C17",
+    "titre": "Administration support sécurité opérationnelle",
+    "porte": "G0",
+    "dependances": [
+      "C02",
+      "C03",
+      "C11"
+    ],
+    "references": "8.5 9.6 9.7 14.3 14.4 14.5 14.7 14.9 18.17 18.18",
+    "objectif": "Limiter l’assistance et préparer une réponse réelle aux incidents.",
+    "conception": "Console support séparée, MFA, tickets, motif, périmètre et expiration ; proposition COM05 à deux approbateurs indépendants avant accès sensible, sinon pas d’accès. Aucun pouvoir de confirmer/corriger financièrement. Journal sécurité séparé et expurgé, alertes rôle/OTP/abus, anti-bot proportionné. CSP/CSRF/HSTS adaptés et testés ; secrets gestionnaire, jamais frontend. Privilèges de clés bornés, rotation et procédure rupture. Nommer responsable et suppléant, horaires et runbook. Exercice S1 fuite, S2 indisponibilité et S3 canal, sans contacter de vrais membres dans test.",
+    "livrables": "Console bornée, ACL et MFA, journaux sécurité, redaction, alertes, runbooks, exercice incident",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C18",
+    "titre": "Mesure du pilote et économie unitaire",
+    "porte": "G0",
+    "dependances": [
+      "C05",
+      "C11"
+    ],
+    "references": "16.1 16.2 16.3 18.13",
+    "objectif": "Mesurer usage réel sans exposer le registre dans les analytics.",
+    "conception": "Événements whitelist agrégés/pseudonymisés sans montant individuel, référence ou commentaire ; éviter session replay métier. Distinguer cohortes éligibles, invitations uniques, validation, tours et cycles. Complétude ne signifie pas solvabilité. Afficher nombres bruts, médiane/p90 et dossiers ouverts. Paiement réel séparé de promesse ; coût support minutes×coût horaire, messages, infrastructure, annulations et taxes à documenter. Pas de taux rétention trois cycles avant durée observée. Tableau manuel reproductible acceptable au pilote.",
+    "livrables": "Dictionnaire métriques, requêtes/export pilote, registre risques, dashboard et fixtures de cohortes",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C19",
+    "titre": "Abonnements quotas et réversibilité",
+    "porte": "G2",
+    "dependances": [
+      "C02",
+      "C03",
+      "C12",
+      "C18"
+    ],
+    "references": "15.1 15.2 15.4 15.5 15.6 18.11",
+    "objectif": "Facturer le service sans toucher à la comptabilité du pot.",
+    "conception": "Offres versionnées prix hypothétiques 1500/mois ou 15000/an et quotas ; décision produit préalable. Séparer payer, groupe, entitlement et reçus de service des contributions. Activation initiale peut être manuelle avec preuve d’encaissement abonnement et contrôle indépendant ; automatiser seulement avec marchand/contrat vérifiés. États actif/expiré/annulé/remboursé, idempotence encaissement et révocation options. Facturation ne donne aucun droit de lire un groupe. Expiration conserve historique autorisé, règles, litige et export de base. Ne pas coder taxe externe universelle.",
+    "livrables": "Catalogue offres, entitlements, comptabilité service distincte, quotas, parcours résiliation et tests expiration",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C20",
+    "titre": "Canaux WhatsApp SMS email et préférences",
+    "porte": "G1",
+    "dependances": [
+      "C13",
+      "C16",
+      "C19"
+    ],
+    "references": "1.6 6.8 11.2 11.3 11.5",
+    "objectif": "Ajouter les canaux externes sans coûts ou divulgations incontrôlés.",
+    "conception": "Adaptateurs prestataire derrière interface ; choix canal/consentement/quota, messages sécurité internes maintenus. Pour WhatsApp utiliser service officiel et templates si requis ; le partage manuel ne nécessite pas connecteur. SMS fallback seulement avec consentement et budget, tests délivrabilité Cameroun. Email domaine configuré, SPF/DKIM/DMARC vérifiés. Traiter webhooks signés, doublons, hors ordre et état ambigu ; aucun payload financier complet. Limites coût et coupe-circuit canal ; notification commerciale désactivable indépendamment du compte.",
+    "livrables": "Adaptateurs, contrats de callbacks, simulateurs de panne, consentements, quotas, rapports sandbox et coût",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C21",
+    "titre": "Association import papier et mode réunion",
+    "porte": "G2",
+    "dependances": [
+      "C03",
+      "C08",
+      "C12",
+      "C19"
+    ],
+    "references": "2.5 2.6 15.3 18.12 18.14",
+    "objectif": "Étendre l’usage sans inventer des validations historiques ni les droits du payeur.",
+    "conception": "Lot P2 activé sur besoin démontré ; multi-groupes filtré, entrée cinq groupes selon offre adoptée, pas cinquante implicites. Import preview avec provenance, empreinte fichier, lignes invalides et doublons ; historique rapporté et date de saisie actuelle, pas de confirmations antidatées. Approbation avant intégration et idempotence du batch. Mode réunion affiche tâches, écarts et bénéficiaire mais masque commentaires privés et données d’autres groupes. Tester écran partagé. Évaluer temps réunion sur trois séances comparables.",
+    "livrables": "Console association filtrée, importeur avec preview/rapport, écran réunion, tests batch et écran partagé",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C22",
+    "titre": "Aide déterministe et glossaire",
+    "porte": "G1",
+    "dependances": [
+      "C04",
+      "C05",
+      "C06",
+      "C16"
+    ],
+    "references": "18.15",
+    "objectif": "Répondre aux questions courantes avec des faits autorisés et sourcés.",
+    "conception": "Après G1, intentions prochaine échéance/règle/état déclaration/contestation ; whitelisted queries et templates FR/EN. Montants provenant fonctions métier, citations ID événement/règle et freshness. Le classement d’intentions peut commencer par règles, pas modèle obligatoire. Demande ambiguë déclenche clarification, donnée indisponible refus clair. Aucun acte financier ou message à un autre membre. Exécuter avec même filtre champ/temps que UI ; lecture cache périmé signalée et pas de synthèse mélangeant groupes.",
+    "livrables": "Taxonomie intentions, requêtes autorisées, templates, citations, jeu FR/EN séparé et tests accès",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C23",
+    "titre": "IA locale RAG et benchmark appareils",
+    "porte": "G1",
+    "dependances": [
+      "C15",
+      "C16",
+      "C22"
+    ],
+    "references": "18.16",
+    "objectif": "Vérifier si un modèle améliore l’aide sans compromettre exactitude et confidentialité.",
+    "conception": "Lot expérimental distinct après G1, budget matériel fixé avant choix. Épingler modèle/révision/quantification/licence ; aucun Gemma 100 Mo annoncé. Index facultatif local ou serveur filtre utilisateur/groupe/champs/période avant retrieval, purge complète et cache partitionné. Noms et documents sont données hostiles possibles. Aucun outil mutateur ou notification ; sortie structurée validée contre sources et substitution par template pour montants/dates. Dataset FR/EN/localismes, entraînement/test séparés, attaques injection et obsolescence ; mesurer RAM pic, stockage réel, latence froid/chaud, batterie/thermique sur 2 Go et appareil courant. Si seuils échouent, aide déterministe seule.",
+    "livrables": "Model card projet, licence/révision, benchmark, jeu adversarial, pipeline index/purge, rapport et kill switch",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C24",
+    "titre": "API partenaires et autorisations déléguées",
+    "porte": "G3",
+    "dependances": [
+      "C12",
+      "C16",
+      "C17"
+    ],
+    "references": "10.6 17.3",
+    "objectif": "Exposer un accès minimal aux partenaires seulement après dossier dédié.",
+    "conception": "Construire d’abord sandbox fictive ; contrat/finalités/base d’accès/conservation/droits/révocation et périmètre légal avant activation. API lecture seule et scopes par groupe/personne/période ; pas de consentement collectif valant autorisation universelle. Client credentials ne doivent pas devenir superuser ; autorisation courante au serveur. Quotas, pagination, logs minimisés et révocation immédiate selon contrat. Exports et cache partenaires à inclure dans purge. Données financières sans ciblage commercial implicite.",
+    "livrables": "Contrat API séparé, sandbox plafonnée, registre accès partenaires, révocation et tests négatifs",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C25",
+    "titre": "Connecteur paiement du pot et rapprochement",
+    "porte": "G3",
+    "dependances": [
+      "C08",
+      "C16",
+      "C17",
+      "C19",
+      "C24"
+    ],
+    "references": "17.1 17.5",
+    "objectif": "Préparer un connecteur réglementé conditionnel sans wallet propriétaire.",
+    "conception": "Ne créer qu’un simulateur fermé tant que conditions G3, avis légal et contrat partenaire ne sont pas prouvés. Cartographier flux et bénéficiaires ; aucun transit sur compte KÓMBE par défaut. Signature callback sur octets bruts, fenêtre temporelle, clé partenaire, dédup event et transaction ; traiter pending/succeeded/failed/reversed et messages hors ordre par état confirmé prestataire, pas simple rang monotone. Retour navigateur jamais preuve. Reconciliation quotidienne montant/devise/frais/référence et anomalies en suspense. Remboursement via prestataire distinct de contre-écriture, approbation indépendante. Scoring/crédit/crypto non activés par ce lot.",
+    "livrables": "Simulateur prestataire, machine paiement, sécurité webhook, registre rapprochement, contract checklist et tests chaos",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C26",
+    "titre": "Scoring et passeport financier conditionnels",
+    "porte": "V2",
+    "dependances": [
+      "C16",
+      "C18",
+      "C24"
+    ],
+    "references": "13.5 17.2",
+    "objectif": "Cadrer un futur profilage avec contrôle humain et contestation.",
+    "conception": "Aucun score réel au pilote. Commencer par dossier de finalités, nécessité, bases juridiques, risques de biais, droits, destinataires, durée et revue locale. Ne pas transformer manque de saisie en insolvabilité ni consentement groupe en autorisation personnelle. Utiliser données fictives pour prototype explicable, provenance de chaque variable et contrôle accès/temps. Séparer risque d’erreur de registre et risque financier ; abstention si données insuffisantes. Procédure contestation/correction et retrait selon droit applicable. Aucun refus automatique de crédit ou notification sociale punitive.",
+    "livrables": "Dossier de cadrage, modèle fictif explicable, évaluation biais, contrôles droits et procédure recours",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C27",
+    "titre": "Assurance et extensions financières conditionnelles",
+    "porte": "V2",
+    "dependances": [
+      "C16",
+      "C24"
+    ],
+    "references": "17.4",
+    "objectif": "Préparer une étude de partenariat sans vendre une couverture inexistante.",
+    "conception": "Ne pas construire un produit d’assurance actif à partir d’une simple idée. Vérifier partenaire, mandat, activité autorisée, primes, exclusions, bénéficiaires, sinistres, réclamations, données et responsabilités. Prototype sandbox affiche statut non actif et refuse toute collecte de prime. Réutiliser contrôles identité et consentements sans demander données médicales par défaut. Validation humaine pour sinistre, traçabilité et dossier séparé pour caisse secours. Une activation de paiement ne vaut pas habilitation d’assurance.",
+    "livrables": "Dossier partenariat, contrats à obtenir, simulation sinistre fictive et contrôles de non-activation",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C28",
+    "titre": "Harness QA sécurité et chaîne de livraison",
+    "porte": "G0",
+    "dependances": [
+      "C00",
+      "C01"
+    ],
+    "references": "14.8 14.10 18.20",
+    "objectif": "Installer une boucle de preuve qui refuse les succès simulés.",
+    "conception": "Porter les scénarios livrés vers tests du dépôt, pas vers un mock du domaine. Unitaires règles avec oracle indépendant ; transactions/concurrence sous PostgreSQL ; API par comptes fictifs ; E2E multi-acteurs ; sécurité, accessibilité, perf et reprise. Écrire adaptateur JSON du harness qui ne reçoit pas les réponses attendues. Aucun skip critique, aucun xfail masquant défaut ; logs expurgés. Avant correction reproduire défaut, puis retest ; provoquer délibérément un écart en environnement de test pour montrer que contrôle échoue. CI avec actions épinglées, lockfile, scans SAST/SCA/secrets, SBOM/provenance et gate evidence. Cartographie ASVS applicable réelle, IDs exacts depuis standard retenu.",
+    "livrables": "Test adapters, suites CI, rapports JUnit/JSON, SBOM, gate par commit, matrice ASVS et indépendance revue",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  },
+  {
+    "id": "C29",
+    "titre": "Infrastructure déploiement sauvegarde et reprise",
+    "porte": "G0",
+    "dependances": [
+      "C13",
+      "C16",
+      "C17",
+      "C28"
+    ],
+    "references": "14.6 18.10 18.18",
+    "objectif": "Livrer une exploitation reproductible et restaurable.",
+    "conception": "Préparer IaC et plan lisible sans souscrire/déployer production avant décision concrète. Dev/staging/prod et comptes séparés, MFA et secrets bornés, backups hors compte applicatif, région et coûts approuvés. Serveur/worker mêmes artefacts identifiés. Expand/contract, image précédente, pas de rollback DB destructif après écritures. Restaurer dans environnement isolé, aucun message sortant ; réappliquer révocations/effacements depuis registre séparé ; replay sans notifications financières répétées. Mesurer RPO selon ADR (1h proposé, 24h source) et RTO≤8h. Reconcile puis rouvrir avec QA. Test incident hors heures couvertes et budget fournisseurs.",
+    "livrables": "IaC/plan coûts, pipeline promotion, runbook rollback/reprise, rapport RPO/RTO et rapport incident",
+    "prerequis_assurance": "G-CONSTRUCTION accepté selon H00 ; ne change pas les dépendances métier"
+  }
+]

@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "statut": "PROPOSITION_NON_INSTALLEE",
+  "revision_document": "2.0",
+  "date_recherche": "2026-09-16",
+  "outils": [
+    {
+      "id": "TEC48",
+      "nom": "Playwright",
+      "source": "https://playwright.dev/docs/intro",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    },
+    {
+      "id": "TEC52",
+      "nom": "Trivy",
+      "source": "https://trivy.dev/latest/docs/",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    },
+    {
+      "id": "TEC53",
+      "nom": "Gitleaks",
+      "source": "https://github.com/gitleaks/gitleaks",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    },
+    {
+      "id": "TEC63",
+      "nom": "Spec Kit",
+      "source": "https://github.com/github/spec-kit",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    },
+    {
+      "id": "TEC64",
+      "nom": "ECC",
+      "source": "https://github.com/affaan-m/ECC",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    },
+    {
+      "id": "TEC65",
+      "nom": "Trail of Bits Skills",
+      "source": "https://github.com/trailofbits/skills",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    },
+    {
+      "id": "TEC66",
+      "nom": "Superpowers",
+      "source": "https://github.com/obra/superpowers",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    },
+    {
+      "id": "TEC67",
+      "nom": "OpenSpec",
+      "source": "https://github.com/Fission-AI/OpenSpec",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    },
+    {
+      "id": "TEC68",
+      "nom": "BMAD Method",
+      "source": "https://github.com/bmad-code-org/BMAD-METHOD",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    },
+    {
+      "id": "TEC69",
+      "nom": "fast-check",
+      "source": "https://github.com/dubzzz/fast-check",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    },
+    {
+      "id": "TEC70",
+      "nom": "StrykerJS",
+      "source": "https://github.com/stryker-mutator/stryker-js",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    },
+    {
+      "id": "TEC71",
+      "nom": "Testcontainers Node",
+      "source": "https://github.com/testcontainers/testcontainers-node",
+      "version_retenue": null,
+      "commit_verifie": null,
+      "licence_verifiee": null,
+      "outil_hote": null,
+      "permissions_approuvees": [],
+      "rapport_compatibilite": null,
+      "statut": "A_EVALUER"
+    }
+  ]
+}

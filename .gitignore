@@ -1,0 +1,115 @@
+# ============================================================
+# KÓMBE — .gitignore
+# Stack : Node.js 22 / TypeScript / pnpm / Fastify / React / Vite / PostgreSQL
+# ============================================================
+
+# ── Secrets et configuration locale ─────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+secrets/
+credentials/
+
+# ── Node.js / pnpm ──────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.pnp.cjs
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── Build / dist ─────────────────────────────────────────────
+dist/
+dist-ssr/
+build/
+out/
+.output/
+.vercel/
+.netlify/
+.render/
+
+# ── Vite ──────────────────────────────────────────────────────
+*.local
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# ── TypeScript ────────────────────────────────────────────────
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# ── Tests / couverture ────────────────────────────────────────
+coverage/
+.coverage/
+*.lcov
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+.stryker-tmp/
+reports/stryker/
+stryker.log
+
+# ── Testcontainers ────────────────────────────────────────────
+.testcontainers/
+
+# ── Éditeurs et IDE ──────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# ── Système d'exploitation ────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── Docker ────────────────────────────────────────────────────
+docker-compose.override.yml
+.docker/
+
+# ── Sauvegardes et dumps ──────────────────────────────────────
+*.dump
+*.sql.gz
+*.sql.bz2
+backups/
+*.bak
+
+# ── Python (harness et scripts) ───────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# ── Harness — rapports générés (les sources Python sont suivis) ─
+harness/reports/*.json
+harness/reports/*.html
+
+# ── Fichiers temporaires agents IA ────────────────────────────
+*.tmp
+*.temp
+.scratch/

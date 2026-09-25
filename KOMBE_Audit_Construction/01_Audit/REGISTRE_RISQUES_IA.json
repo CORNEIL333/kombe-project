@@ -1,0 +1,200 @@
+[
+  {
+    "id": "RA01",
+    "priorite": "P0",
+    "risque": "Erreur commune au code et à son test",
+    "scenario": "L’agent encode un quorum faux et reproduit la même formule dans le test.",
+    "controle": "Exemples métier adoptés et oracle séparé.",
+    "tests_assurance": "H01 H08",
+    "responsable": "Produit/QA",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA02",
+    "priorite": "P0",
+    "risque": "Modification des attentes",
+    "scenario": "Un test gênant est désactivé pour faire passer le lot.",
+    "controle": "Suite critique et exclusions protégées par revue distincte.",
+    "tests_assurance": "H02 H11",
+    "responsable": "Lead/QA",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA03",
+    "priorite": "P0",
+    "risque": "Observations fabriquées",
+    "scenario": "Un adaptateur retourne des constantes au lieu de lire la DB.",
+    "controle": "Exécution indépendante, fixtures variables et traces vérifiables.",
+    "tests_assurance": "H01 H07",
+    "responsable": "QA",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA04",
+    "priorite": "P0",
+    "risque": "Mauvaise version testée",
+    "scenario": "Le rapport reprend un SHA fourni sans lien avec le binaire.",
+    "controle": "Lien commit/build/artefact contrôlé par CI de confiance.",
+    "tests_assurance": "H04 H05",
+    "responsable": "Exploitation",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA05",
+    "priorite": "P0",
+    "risque": "Fausse identité de revue",
+    "scenario": "Deux chaînes de caractères prétendent représenter deux approbateurs.",
+    "controle": "Identités authentifiées et droits séparés ; attestation validée.",
+    "tests_assurance": "H06",
+    "responsable": "Direction/CI",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA06",
+    "priorite": "P0",
+    "risque": "Fuite de secrets et réseau",
+    "scenario": "L’agent ou un script lit des variables sensibles et les envoie.",
+    "controle": "Aucun secret prod, liste blanche des variables et sorties réseau limitées.",
+    "tests_assurance": "H09 H10",
+    "responsable": "Sécurité",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA07",
+    "priorite": "P0",
+    "risque": "Injection par contenu externe",
+    "scenario": "Un README ou résultat outil demande de changer la CI.",
+    "controle": "Contenus externes non fiables, permissions hors modèle, revue des outils.",
+    "tests_assurance": "H12",
+    "responsable": "Sécurité",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA08",
+    "priorite": "P0",
+    "risque": "Dépendance ou hook compromis",
+    "scenario": "Un paquet ou skill exécute une commande inattendue.",
+    "controle": "Provenance, pinning, examen des scripts, installation isolée.",
+    "tests_assurance": "H13",
+    "responsable": "Lead",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA09",
+    "priorite": "P1",
+    "risque": "Conflits entre agents",
+    "scenario": "Deux migrations et contrats incompatibles sont fusionnés.",
+    "controle": "Propriétaire du schéma, branches courtes, intégration sérialisée des migrations.",
+    "tests_assurance": "H14",
+    "responsable": "Lead",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA10",
+    "priorite": "P1",
+    "risque": "Contexte périmé",
+    "scenario": "Un agent suit un ancien état des règles.",
+    "controle": "Version explicite des ADR et contrôle de compatibilité avant fusion.",
+    "tests_assurance": "H15",
+    "responsable": "Produit",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA11",
+    "priorite": "P0",
+    "risque": "Mocks à la place de la DB",
+    "scenario": "Le test prétend prouver un verrou PostgreSQL avec un objet mémoire.",
+    "controle": "DB réelle et requêtes concurrentes synchronisées.",
+    "tests_assurance": "H07",
+    "responsable": "Backend/QA",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA12",
+    "priorite": "P0",
+    "risque": "Tests faibles",
+    "scenario": "Retirer un contrôle d’autorisation ne fait échouer aucun test.",
+    "controle": "Mutants critiques semés et cas négatifs indépendants.",
+    "tests_assurance": "H08",
+    "responsable": "QA",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA13",
+    "priorite": "P1",
+    "risque": "Flakiness masquée",
+    "scenario": "Des relances automatiques cachent une course intermittente.",
+    "controle": "Conserver première erreur, graine et rapports ; correction avant passage.",
+    "tests_assurance": "H16",
+    "responsable": "QA",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA14",
+    "priorite": "P1",
+    "risque": "Coûts ou boucles sans fin",
+    "scenario": "Une tâche relance la génération sans nouvelle preuve.",
+    "controle": "Budget par tâche, essais bornés et arrêt diagnostiqué.",
+    "tests_assurance": "H17",
+    "responsable": "Lead/finance",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA15",
+    "priorite": "P0",
+    "risque": "Migration ou restauration destructrice",
+    "scenario": "Le retour arrière perd des opérations déjà acceptées.",
+    "controle": "Expand/contract et restauration avec rapprochement, données fictives en essai.",
+    "tests_assurance": "H18",
+    "responsable": "Exploitation",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA16",
+    "priorite": "P0",
+    "risque": "Actions réelles pendant recette",
+    "scenario": "Email, frais ou transfert déclenchés depuis les tests.",
+    "controle": "Fournisseurs simulés/sandbox, aucun credential réel et egress limité.",
+    "tests_assurance": "H19",
+    "responsable": "Exploitation",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA17",
+    "priorite": "P0",
+    "risque": "Rapport périmé réutilisé",
+    "scenario": "Un PASS précédent autorise un nouvel artefact.",
+    "controle": "Attestation liée au run, artefact, suite et environnement attendus.",
+    "tests_assurance": "H05",
+    "responsable": "CI",
+    "statut": "OUVERT",
+    "preuve": null
+  },
+  {
+    "id": "RA18",
+    "priorite": "P0",
+    "risque": "Contrôleur modifiable par le candidat",
+    "scenario": "Une PR change le workflow qui décide de son succès.",
+    "controle": "Contrôleur versionné depuis une source approuvée ; environnement d’évaluation séparé.",
+    "tests_assurance": "H02 H20",
+    "responsable": "Sécurité/CI",
+    "statut": "OUVERT",
+    "preuve": null
+  }
+]

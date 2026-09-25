@@ -1,0 +1,388 @@
+{
+  "target": "application",
+  "commit": "unconfigured",
+  "gate": "G0",
+  "suite_sha256": "d7b8ba376bdab25263d543e060ba7b677bd188cd7c094581933944ed95ecb59f",
+  "at_utc": "2026-09-15T14:38:32.127956+00:00",
+  "status": "BLOCKED",
+  "results": [
+    {
+      "id": "C00-BUILD",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C00-STACK",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C00-SCOPE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C01-TENANT",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C01-FK",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C01-POOL",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C02-RECOVERY",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C02-SESSION",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C02-PRIVILEGE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C03-BOOT",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C03-REVOKE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C03-ROLE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C04-RETRO",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C04-ACCEPT",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C04-PENALTY",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C05-SCHEDULE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C05-MONTH",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C05-UNIQUE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C06-REPLAY",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C06-BODY",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C06-RACE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C07-SELF",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C07-TRIPLE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C07-REVERSE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C08-BALANCE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C08-GAP",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C08-CORRECTION",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C09-PASS",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C09-TIE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C09-LATE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C10-PRIVACY",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C10-RESOLVE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C10-FREEZE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C11-REBUILD",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C11-TAMPER",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C11-ROLLBACK",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C12-HASH",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C12-CSV",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C12-DOWNLOAD",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C13-FAIL",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C13-WORKERS",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C13-OPT_OUT",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C14-BACK",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C14-A11Y",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C14-MONEY",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C15-OFFLINE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C15-LOGOUT",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C15-RECONNECT",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C16-EXPORT",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C16-RESTORE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C16-CONSENT",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C17-JIT",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C17-FINANCE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C17-LOGS",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C18-COHORT",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C18-PAYERS",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C18-ANALYTICS",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C28-MISSING",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C28-FAILURE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C28-GATE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C29-RESTORE",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C29-RIGHTS",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    },
+    {
+      "id": "C29-OUTBOUND",
+      "status": "BLOCKED",
+      "failed_assertions": [],
+      "reason": "adapter_not_ready"
+    }
+  ]
+}

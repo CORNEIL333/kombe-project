@@ -1,0 +1,1802 @@
+[
+  {
+    "id": "C00-BUILD",
+    "component": "C00",
+    "gate": "G0",
+    "description": "Un checkout vierge avec lockfile produit un build vérifiable",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "build_ok": true
+    }
+  },
+  {
+    "id": "C00-STACK",
+    "component": "C00",
+    "gate": "G0",
+    "description": "Aucun manifest n’est fourni",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "stack_attested": false
+    }
+  },
+  {
+    "id": "C00-SCOPE",
+    "component": "C00",
+    "gate": "G0",
+    "description": "Un flag demande prêts/accumulation en pilote",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "pilot_forbidden_feature_enabled": false
+    }
+  },
+  {
+    "id": "C01-TENANT",
+    "component": "C01",
+    "gate": "G0",
+    "description": "A utilise l’id d’un objet de B, API puis SQL avec rôle applicatif",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "cross_group_rows": 0
+    }
+  },
+  {
+    "id": "C01-FK",
+    "component": "C01",
+    "gate": "G0",
+    "description": "Lier contribution A à obligation B",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "foreign_link_accepted": false
+    }
+  },
+  {
+    "id": "C01-POOL",
+    "component": "C01",
+    "gate": "G0",
+    "description": "Alterner 100 requêtes A/B sur la même connexion de pool",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "leaked_rows": 0
+    }
+  },
+  {
+    "id": "C02-RECOVERY",
+    "component": "C02",
+    "gate": "G0",
+    "description": "Consommer deux fois le même jeton de récupération",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "second_use_accepted": false
+    }
+  },
+  {
+    "id": "C02-SESSION",
+    "component": "C02",
+    "gate": "G0",
+    "description": "Récupérer le compte puis utiliser une session antérieure",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "old_session_accepted": false
+    }
+  },
+  {
+    "id": "C02-PRIVILEGE",
+    "component": "C02",
+    "gate": "G0",
+    "description": "Un nouveau compte essaie une fonction opérateur",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "operator_access": false
+    }
+  },
+  {
+    "id": "C03-BOOT",
+    "component": "C03",
+    "gate": "G0",
+    "description": "Le fondateur seul tente de démarrer sans fonctions indépendantes acceptées",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "cycle_started": false
+    }
+  },
+  {
+    "id": "C03-REVOKE",
+    "component": "C03",
+    "gate": "G0",
+    "description": "Une adhésion est terminée avant la prochaine commande",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "mutation_accepted": false
+    }
+  },
+  {
+    "id": "C03-ROLE",
+    "component": "C03",
+    "gate": "G0",
+    "description": "Un administrateur valide sa propre demande de nouveau rôle",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "role_change_applied": false
+    }
+  },
+  {
+    "id": "C04-RETRO",
+    "component": "C04",
+    "gate": "G0",
+    "description": "Publier règle augmentant une échéance déjà passée",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "past_due_changed": false
+    }
+  },
+  {
+    "id": "C04-ACCEPT",
+    "component": "C04",
+    "gate": "G0",
+    "description": "Une personne concernée refuse un nouvel engagement essentiel",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "new_rule_executed": false
+    }
+  },
+  {
+    "id": "C04-PENALTY",
+    "component": "C04",
+    "gate": "G0",
+    "description": "Client force penalty_enabled en pilote",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "penalty_enabled": false
+    }
+  },
+  {
+    "id": "C05-SCHEDULE",
+    "component": "C05",
+    "gate": "G0",
+    "description": "10 membres à 5000 sur 10 tours",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "cycle_expected_total": 500000
+    }
+  },
+  {
+    "id": "C05-MONTH",
+    "component": "C05",
+    "gate": "G0",
+    "description": "Mensuel 31 janvier 2028 puis février selon règle fin de mois",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "second_due_date": "2028-02-29"
+    }
+  },
+  {
+    "id": "C05-UNIQUE",
+    "component": "C05",
+    "gate": "G0",
+    "description": "Attribuer deux tours au même bénéficiaire au pilote",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "schedule_accepted": false
+    }
+  },
+  {
+    "id": "C06-REPLAY",
+    "component": "C06",
+    "gate": "G0",
+    "description": "Rejouer 20 fois la même déclaration et clé après timeout",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "contribution_count": 1
+    }
+  },
+  {
+    "id": "C06-BODY",
+    "component": "C06",
+    "gate": "G0",
+    "description": "Réutiliser clé avec un montant différent",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "http_status": 409
+    }
+  },
+  {
+    "id": "C06-RACE",
+    "component": "C06",
+    "gate": "G0",
+    "description": "Deux déclarations concurrentes de 3000 sur obligation de 5000",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "accepted_total": 3000
+    }
+  },
+  {
+    "id": "C07-SELF",
+    "component": "C07",
+    "gate": "G0",
+    "description": "Trésorier confirme sa propre déclaration",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "validation_accepted": false
+    }
+  },
+  {
+    "id": "C07-TRIPLE",
+    "component": "C07",
+    "gate": "G0",
+    "description": "Même personne confirme puis contrôle",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "validation_accepted": false
+    }
+  },
+  {
+    "id": "C07-REVERSE",
+    "component": "C07",
+    "gate": "G0",
+    "description": "Deux commandes concurrentes de compensation pour le même original",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "reversal_count": 1
+    }
+  },
+  {
+    "id": "C08-BALANCE",
+    "component": "C08",
+    "gate": "G0",
+    "description": "50000 validés, 49000 reçus, 1000 frais groupe",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "reconciliation_gap": 0
+    }
+  },
+  {
+    "id": "C08-GAP",
+    "component": "C08",
+    "gate": "G0",
+    "description": "50000 validés, 48000 reçus et 1000 frais groupe",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "normal_close_accepted": false
+    }
+  },
+  {
+    "id": "C08-CORRECTION",
+    "component": "C08",
+    "gate": "G0",
+    "description": "Corriger un décaissement confirmé deux fois",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "disbursement_reversal_count": 1
+    }
+  },
+  {
+    "id": "C09-PASS",
+    "component": "C09",
+    "gate": "G0",
+    "description": "10 électeurs, 4 oui 2 non 1 abstention",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "approved": true
+    }
+  },
+  {
+    "id": "C09-TIE",
+    "component": "C09",
+    "gate": "G0",
+    "description": "10 électeurs, 3 oui 3 non 1 abstention",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "approved": false
+    }
+  },
+  {
+    "id": "C09-LATE",
+    "component": "C09",
+    "gate": "G0",
+    "description": "Vote reçu après deadline serveur malgré date client ancienne",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "vote_accepted": false
+    }
+  },
+  {
+    "id": "C10-PRIVACY",
+    "component": "C10",
+    "gate": "G0",
+    "description": "Membre non partie demande les commentaires privés",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "private_details_returned": false
+    }
+  },
+  {
+    "id": "C10-RESOLVE",
+    "component": "C10",
+    "gate": "G0",
+    "description": "Résoudre un litige sans commande de compensation",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "validated_total_delta": 0
+    }
+  },
+  {
+    "id": "C10-FREEZE",
+    "component": "C10",
+    "gate": "G0",
+    "description": "Litige ouvert sur somme d’un tour à clôturer",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "normal_close_accepted": false
+    }
+  },
+  {
+    "id": "C11-REBUILD",
+    "component": "C11",
+    "gate": "G0",
+    "description": "Effacer seulement projections en environnement de test puis reconstruire",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "projection_matches": true
+    }
+  },
+  {
+    "id": "C11-TAMPER",
+    "component": "C11",
+    "gate": "G0",
+    "description": "Modifier un montant dans une copie du journal",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "tamper_detected": true
+    }
+  },
+  {
+    "id": "C11-ROLLBACK",
+    "component": "C11",
+    "gate": "G0",
+    "description": "Crash transactionnel après événement avant outbox",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "partial_commit_count": 0
+    }
+  },
+  {
+    "id": "C12-HASH",
+    "component": "C12",
+    "gate": "G0",
+    "description": "Changer un octet du PDF après génération",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "verification_passed": false
+    }
+  },
+  {
+    "id": "C12-CSV",
+    "component": "C12",
+    "gate": "G0",
+    "description": "Nom de membre commence par =HYPERLINK(...)",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "formula_executable": false
+    }
+  },
+  {
+    "id": "C12-DOWNLOAD",
+    "component": "C12",
+    "gate": "G0",
+    "description": "Demandeur perd accès après génération",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "download_allowed": false
+    }
+  },
+  {
+    "id": "C13-FAIL",
+    "component": "C13",
+    "gate": "G0",
+    "description": "Prestataire externe indisponible après validation",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "financial_validation_preserved": true
+    }
+  },
+  {
+    "id": "C13-WORKERS",
+    "component": "C13",
+    "gate": "G0",
+    "description": "Deux workers prennent même alerte interne",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "internal_notification_count": 1
+    }
+  },
+  {
+    "id": "C13-OPT_OUT",
+    "component": "C13",
+    "gate": "G0",
+    "description": "Préférence externe retirée avant dispatch",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "external_sent": false
+    }
+  },
+  {
+    "id": "C14-BACK",
+    "component": "C14",
+    "gate": "G0",
+    "description": "Retour étape précédente pendant saisie",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "submission_count": 0
+    }
+  },
+  {
+    "id": "C14-A11Y",
+    "component": "C14",
+    "gate": "G0",
+    "description": "Parcours principal avec clavier et lecteur écran",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "critical_accessibility_blockers": 0
+    }
+  },
+  {
+    "id": "C14-MONEY",
+    "component": "C14",
+    "gate": "G0",
+    "description": "Déclaration en cours non validée affichée",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "label_claims_payment_verified": false
+    }
+  },
+  {
+    "id": "C15-OFFLINE",
+    "component": "C15",
+    "gate": "G0",
+    "description": "Téléphone sans réseau tente de confirmer",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "server_validated": false
+    }
+  },
+  {
+    "id": "C15-LOGOUT",
+    "component": "C15",
+    "gate": "G0",
+    "description": "A se déconnecte, B se connecte sur même appareil",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "a_data_visible_to_b": false
+    }
+  },
+  {
+    "id": "C15-RECONNECT",
+    "component": "C15",
+    "gate": "G0",
+    "description": "Rôle révoqué pendant coupure ; commande au retour",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "mutation_accepted": false
+    }
+  },
+  {
+    "id": "C16-EXPORT",
+    "component": "C16",
+    "gate": "G0",
+    "description": "Demande d’accès personnel A contenant données d’autres membres",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "third_party_private_fields": 0
+    }
+  },
+  {
+    "id": "C16-RESTORE",
+    "component": "C16",
+    "gate": "G0",
+    "description": "Restaurer copie antérieure à une suppression et réouverture",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "deleted_identity_visible": false
+    }
+  },
+  {
+    "id": "C16-CONSENT",
+    "component": "C16",
+    "gate": "G0",
+    "description": "Refuser entretien recherche en restant membre",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "core_service_available": true
+    }
+  },
+  {
+    "id": "C17-JIT",
+    "component": "C17",
+    "gate": "G0",
+    "description": "Accès support expiré tente lecture sensible",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "access_allowed": false
+    }
+  },
+  {
+    "id": "C17-FINANCE",
+    "component": "C17",
+    "gate": "G0",
+    "description": "Support même élevé tente de valider cotisation",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "validation_accepted": false
+    }
+  },
+  {
+    "id": "C17-LOGS",
+    "component": "C17",
+    "gate": "G0",
+    "description": "Insérer numéro/référence canaris puis déclencher erreur",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "sensitive_canary_in_logs": false
+    }
+  },
+  {
+    "id": "C18-COHORT",
+    "component": "C18",
+    "gate": "G0",
+    "description": "Groupe ayant terminé trois tours seulement",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "eligible_three_cycle_retention": false
+    }
+  },
+  {
+    "id": "C18-PAYERS",
+    "component": "C18",
+    "gate": "G0",
+    "description": "2 payeurs sur 10 exposés à offre",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "gate_g2_met": false
+    }
+  },
+  {
+    "id": "C18-ANALYTICS",
+    "component": "C18",
+    "gate": "G0",
+    "description": "Vérifier toutes propriétés exportées",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "individual_financial_fields": 0
+    }
+  },
+  {
+    "id": "C19-EXPIRE",
+    "component": "C19",
+    "gate": "G2",
+    "description": "Abonnement expiré durant cycle",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "basic_export_available": true
+    }
+  },
+  {
+    "id": "C19-PAYER",
+    "component": "C19",
+    "gate": "G2",
+    "description": "Financeur extérieur règle abonnement",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "group_ledger_access": false
+    }
+  },
+  {
+    "id": "C19-SEPARATE",
+    "component": "C19",
+    "gate": "G2",
+    "description": "Recevoir paiement abonnement",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "tontine_contribution_delta": 0
+    }
+  },
+  {
+    "id": "C20-QUOTA",
+    "component": "C20",
+    "gate": "G1",
+    "description": "Budget messages du groupe épuisé",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "extra_billable_send": false
+    }
+  },
+  {
+    "id": "C20-SIGNATURE",
+    "component": "C20",
+    "gate": "G1",
+    "description": "Callback prestataire sans signature valide",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "delivery_state_changed": false
+    }
+  },
+  {
+    "id": "C20-FALLBACK",
+    "component": "C20",
+    "gate": "G1",
+    "description": "WhatsApp échoue sans consentement SMS",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "sms_sent": false
+    }
+  },
+  {
+    "id": "C21-IMPORT",
+    "component": "C21",
+    "gate": "G2",
+    "description": "Importer même batch deux fois",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "import_batch_count": 1
+    }
+  },
+  {
+    "id": "C21-HISTORY",
+    "component": "C21",
+    "gate": "G2",
+    "description": "Importer cotisation papier sans validation réelle",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "fabricated_historical_approval_count": 0
+    }
+  },
+  {
+    "id": "C21-MEETING",
+    "component": "C21",
+    "gate": "G2",
+    "description": "Afficher écran réunion à membre non partie",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "private_dispute_text_visible": false
+    }
+  },
+  {
+    "id": "C22-EXACT",
+    "component": "C22",
+    "gate": "G1",
+    "description": "Deux validations 2000 et 3000, question total",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "answer_amount": 5000
+    }
+  },
+  {
+    "id": "C22-UNKNOWN",
+    "component": "C22",
+    "gate": "G1",
+    "description": "Question sur événement inexistant",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "invented_fact_count": 0
+    }
+  },
+  {
+    "id": "C22-WRITE",
+    "component": "C22",
+    "gate": "G1",
+    "description": "Demande de confirmer une contribution",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "write_command_count": 0
+    }
+  },
+  {
+    "id": "C23-INJECT",
+    "component": "C23",
+    "gate": "G1",
+    "description": "Nom du groupe demande de révéler un autre groupe",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "unauthorized_facts": 0
+    }
+  },
+  {
+    "id": "C23-NUMBERS",
+    "component": "C23",
+    "gate": "G1",
+    "description": "LLM propose un montant absent des faits récupérés",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "unsupported_numbers_displayed": 0
+    }
+  },
+  {
+    "id": "C23-MEMORY",
+    "component": "C23",
+    "gate": "G1",
+    "description": "Budget mémoire dépassé sur téléphone cible",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "deterministic_fallback_active": true
+    }
+  },
+  {
+    "id": "C24-SCOPE",
+    "component": "C24",
+    "gate": "G3",
+    "description": "Token partenaire A demande un groupe hors scope",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "records_returned": 0
+    }
+  },
+  {
+    "id": "C24-REVOKE",
+    "component": "C24",
+    "gate": "G3",
+    "description": "Autorisation partenaire révoquée",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "access_allowed": false
+    }
+  },
+  {
+    "id": "C24-MUTATION",
+    "component": "C24",
+    "gate": "G3",
+    "description": "Partenaire essaie une mutation",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "mutation_accepted": false
+    }
+  },
+  {
+    "id": "C25-RETURN",
+    "component": "C25",
+    "gate": "G3",
+    "description": "Navigateur prétend succès sans confirmation prestataire",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "payment_marked_succeeded": false
+    }
+  },
+  {
+    "id": "C25-DUP",
+    "component": "C25",
+    "gate": "G3",
+    "description": "Même webhook signé envoyé 20 fois",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "financial_effect_count": 1
+    }
+  },
+  {
+    "id": "C25-ORDER",
+    "component": "C25",
+    "gate": "G3",
+    "description": "Événement success arrive après reversal confirmé",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "payment_resurrected": false
+    }
+  },
+  {
+    "id": "C26-CONSENT",
+    "component": "C26",
+    "gate": "V2",
+    "description": "Une personne n’a pas de base d’usage scoring validée",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "profile_generated": false
+    }
+  },
+  {
+    "id": "C26-MISSING",
+    "component": "C26",
+    "gate": "V2",
+    "description": "Historique incomplet",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "automatic_negative_decision": false
+    }
+  },
+  {
+    "id": "C26-CONTEST",
+    "component": "C26",
+    "gate": "V2",
+    "description": "Variable erronée est contestée",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "human_review_available": true
+    }
+  },
+  {
+    "id": "C27-PARTNER",
+    "component": "C27",
+    "gate": "V2",
+    "description": "Partenaire/mandat non validé tente activation",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "coverage_sold": false
+    }
+  },
+  {
+    "id": "C27-PREMIUM",
+    "component": "C27",
+    "gate": "V2",
+    "description": "Pilote registre seul reçoit demande collecte prime",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "premium_collected": false
+    }
+  },
+  {
+    "id": "C27-NOTICE",
+    "component": "C27",
+    "gate": "V2",
+    "description": "Sandbox affiche une police non existante",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "claims_active_coverage": false
+    }
+  },
+  {
+    "id": "C28-MISSING",
+    "component": "C28",
+    "gate": "G0",
+    "description": "Adaptateur applicatif absent",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "harness_exit": 2
+    }
+  },
+  {
+    "id": "C28-FAILURE",
+    "component": "C28",
+    "gate": "G0",
+    "description": "Assertion financière volontairement fausse",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "failure_detected": true
+    }
+  },
+  {
+    "id": "C28-GATE",
+    "component": "C28",
+    "gate": "G0",
+    "description": "Preuve requise manquante ou hash incorrect",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "release_authorized": false
+    }
+  },
+  {
+    "id": "C29-RESTORE",
+    "component": "C29",
+    "gate": "G0",
+    "description": "Copie sauvegardée restaurée et réconciliée en isolation",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "restore_verified": true
+    }
+  },
+  {
+    "id": "C29-RIGHTS",
+    "component": "C29",
+    "gate": "G0",
+    "description": "Réouvrir après reprise avec session révoquée antérieurement",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "revoked_session_accepted": false
+    }
+  },
+  {
+    "id": "C29-OUTBOUND",
+    "component": "C29",
+    "gate": "G0",
+    "description": "Rejouer journal en environnement de reprise",
+    "fixture": "KOMBE-SYNTHETIC-V1",
+    "setup": {
+      "groups": [
+        "group_A",
+        "group_B"
+      ],
+      "members_per_group": 10,
+      "currency": "XAF",
+      "contribution_minor": 5000,
+      "clock_utc": "2026-09-15T10:00:00Z"
+    },
+    "expected": {
+      "external_messages_sent": 0
+    }
+  }
+]

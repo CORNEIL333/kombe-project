@@ -1,0 +1,38 @@
+{
+  "gate": "G0",
+  "commit": null,
+  "author": null,
+  "reviewer": null,
+  "artifacts": {
+    "application_report": {
+      "path": null,
+      "sha256": null,
+      "status": "NOT_RUN"
+    },
+    "security_review": {
+      "path": null,
+      "sha256": null,
+      "status": "NOT_RUN"
+    },
+    "restore_report": {
+      "path": null,
+      "sha256": null,
+      "status": "NOT_RUN"
+    },
+    "privacy_decision": {
+      "path": null,
+      "sha256": null,
+      "status": "NOT_RUN"
+    },
+    "support_roster": {
+      "path": null,
+      "sha256": null,
+      "status": "NOT_RUN"
+    },
+    "release_review": {
+      "path": null,
+      "sha256": null,
+      "status": "NOT_RUN"
+    }
+  }
+}

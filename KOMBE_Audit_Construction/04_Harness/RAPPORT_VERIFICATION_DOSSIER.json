@@ -1,0 +1,58 @@
+{
+  "date": "2026-09-15",
+  "target": "reference_pack_only",
+  "application_tested": false,
+  "checks": [
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "-v",
+        "test_reference.py"
+      ],
+      "exit": 0,
+      "output": "test_balanced (test_reference.ReferenceTests.test_balanced) ... ok\ntest_csv (test_reference.ReferenceTests.test_csv) ... ok\ntest_csv_at (test_reference.ReferenceTests.test_csv_at) ... ok\ntest_csv_normal (test_reference.ReferenceTests.test_csv_normal) ... ok\ntest_disputed_close (test_reference.ReferenceTests.test_disputed_close) ... ok\ntest_gap (test_reference.ReferenceTests.test_gap) ... ok\ntest_gate_missing (test_reference.ReferenceTests.test_gate_missing) ... ok\ntest_independent_checker (test_reference.ReferenceTests.test_independent_checker) ... ok\ntest_leap (test_reference.ReferenceTests.test_leap) ... ok\ntest_missing_observation (test_reference.ReferenceTests.test_missing_observation) ... ok\ntest_no_bool_money (test_reference.ReferenceTests.test_no_bool_money) ... ok\ntest_no_float (test_reference.ReferenceTests.test_no_float) ... ok\ntest_no_negative (test_reference.ReferenceTests.test_no_negative) ... ok\ntest_not_leap (test_reference.ReferenceTests.test_not_leap) ... ok\ntest_over_reservation (test_reference.ReferenceTests.test_over_reservation) ... ok\ntest_overflow (test_reference.ReferenceTests.test_overflow) ... ok\ntest_partial (test_reference.ReferenceTests.test_partial) ... ok\ntest_rotation (test_reference.ReferenceTests.test_rotation) ... ok\ntest_strict_bool (test_reference.ReferenceTests.test_strict_bool) ... ok\ntest_tampered (test_reference.ReferenceTests.test_tampered) ... ok\ntest_unchanged (test_reference.ReferenceTests.test_unchanged) ... ok\ntest_under_reservation (test_reference.ReferenceTests.test_under_reservation) ... ok\ntest_vote_abstain (test_reference.ReferenceTests.test_vote_abstain) ... ok\ntest_vote_count_overflow (test_reference.ReferenceTests.test_vote_count_overflow) ... ok\ntest_vote_no_quorum (test_reference.ReferenceTests.test_vote_no_quorum) ... ok\ntest_vote_tie (test_reference.ReferenceTests.test_vote_tie) ... ok\ntest_vote_yes (test_reference.ReferenceTests.test_vote_yes) ... ok\ntest_zero_contribution (test_reference.ReferenceTests.test_zero_contribution) ... ok\n\n----------------------------------------------------------------------\nRan 28 tests in 0.003s\n\nOK\n"
+    },
+    {
+      "command": [
+        "python3",
+        "oracle_cli.py"
+      ],
+      "exit": 0,
+      "output": "{\n  \"target\": \"reference_only\",\n  \"rotation\": {\n    \"round_pot\": 50000,\n    \"rounds\": 10,\n    \"cycle_total\": 500000\n  },\n  \"partial\": {\n    \"remaining_due\": 3000,\n    \"available_to_declare\": 0\n  },\n  \"vote_pass\": {\n    \"quorum\": 7,\n    \"approved\": true\n  },\n  \"vote_tie\": {\n    \"quorum\": 7,\n    \"approved\": false\n  },\n  \"reconciliation\": {\n    \"gap\": 0,\n    \"can_close_if_obligations_complete\": true\n  }\n}\n"
+    },
+    {
+      "command": [
+        "python3",
+        "run_harness.py",
+        "--config",
+        "adapter.example.json",
+        "--suite",
+        "scenarios.json",
+        "--gate",
+        "G0",
+        "--commit",
+        "unconfigured",
+        "--out",
+        "reports/application_non_raccordee.json"
+      ],
+      "exit": 2,
+      "output": "BLOCKED: 63 scénarios, rapport reports/application_non_raccordee.json\n"
+    },
+    {
+      "command": [
+        "python3",
+        "verify_gate.py",
+        "--manifest",
+        "evidence.example.json",
+        "--suite",
+        "scenarios.json",
+        "--commit",
+        "unconfigured"
+      ],
+      "exit": 2,
+      "output": "BLOCKED: preuve G0 absente, invalide ou incohérente\n"
+    }
+  ]
+}

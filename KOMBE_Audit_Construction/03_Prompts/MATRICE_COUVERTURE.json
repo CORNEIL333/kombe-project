@@ -1,0 +1,920 @@
+[
+  {
+    "story_id": "1.1",
+    "titre": "Inscription — *P0*",
+    "composant_principal": "C02",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "1.2",
+    "titre": "Authentification — *P0*",
+    "composant_principal": "C02",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "1.3",
+    "titre": "Authentification forte — *P1*",
+    "composant_principal": "C02",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "1.4",
+    "titre": "Récupération de compte — *P0*",
+    "composant_principal": "C02",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "1.5",
+    "titre": "Profil utilisateur — *P0*",
+    "composant_principal": "C02",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "1.6",
+    "titre": "Préférences — *P1*",
+    "composant_principal": "C20",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "2.1",
+    "titre": "Création de groupe — *P0*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "2.2",
+    "titre": "Modèles de tontine — *P0*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "2.3",
+    "titre": "Typologies supportées — *P0/P1*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "2.4",
+    "titre": "Hors périmètre explicite — *N/A (garde-fou produit)*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "2.5",
+    "titre": "Multi-groupes — *P1*",
+    "composant_principal": "C21",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "2.6",
+    "titre": "Offre Association — *P2*",
+    "composant_principal": "C21",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "2.7",
+    "titre": "Statut du groupe — *P0*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "2.8",
+    "titre": "Clôture de groupe — *P0*",
+    "composant_principal": "C08",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "3.1",
+    "titre": "Paramètres financiers — *P0*",
+    "composant_principal": "C04",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "3.2",
+    "titre": "Paramètres de cycle — *P0*",
+    "composant_principal": "C04",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "3.3",
+    "titre": "Pénalités — *P0*",
+    "composant_principal": "C04",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "3.4",
+    "titre": "Période de grâce — *P1*",
+    "composant_principal": "C04",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "3.5",
+    "titre": "Quorum — *P0*",
+    "composant_principal": "C04",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "3.6",
+    "titre": "Versionnement des règles — *P0*",
+    "composant_principal": "C04",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "3.7",
+    "titre": "Modification des règles — *P0*",
+    "composant_principal": "C04",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "3.8",
+    "titre": "Glossaire contextuel — *P1*",
+    "composant_principal": "C04",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "4.1",
+    "titre": "Invitation — *P0*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "4.2",
+    "titre": "Acceptation des règles — *P0*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "4.3",
+    "titre": "Identité affichée — *P0*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "4.4",
+    "titre": "Rôles — *P0*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "4.5",
+    "titre": "Matrice d'autorisation — *P0*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "4.6",
+    "titre": "Délégation — *P1*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "4.7",
+    "titre": "Exclusion d'un membre — *P1*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "4.8",
+    "titre": "Départ volontaire — *P1*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "4.9",
+    "titre": "Changement de rôle — *P0*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "4.10",
+    "titre": "Statuts spéciaux — *P1*",
+    "composant_principal": "C03",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "5.1",
+    "titre": "Cycle — *P0*",
+    "composant_principal": "C05",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "5.2",
+    "titre": "Échéance — *P0*",
+    "composant_principal": "C05",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "5.3",
+    "titre": "Ordre des bénéficiaires — *P0*",
+    "composant_principal": "C05",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "5.4",
+    "titre": "Changement de bénéficiaire — *P1*",
+    "composant_principal": "C05",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "5.5",
+    "titre": "Renouvellement — *P1*",
+    "composant_principal": "C05",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "6.1",
+    "titre": "Déclaration — *P0*",
+    "composant_principal": "C06",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "6.2",
+    "titre": "Machine à états — *P0*",
+    "composant_principal": "C07",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "6.3",
+    "titre": "Double/triple validation — *P0*",
+    "composant_principal": "C07",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "6.4",
+    "titre": "Anti-collusion — *P0*",
+    "composant_principal": "C07",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "6.5",
+    "titre": "Contestation — *P0*",
+    "composant_principal": "C07",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "6.6",
+    "titre": "Correction — *P0*",
+    "composant_principal": "C07",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "6.7",
+    "titre": "Défaut / retard — *P1*",
+    "composant_principal": "C04",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "6.8",
+    "titre": "Rappels — *P1*",
+    "composant_principal": "C20",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "6.9",
+    "titre": "Brouillon — *P0*",
+    "composant_principal": "C06",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "6.10",
+    "titre": "Décaissement — *P0*",
+    "composant_principal": "C08",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "7.1",
+    "titre": "Proposition — *P0*",
+    "composant_principal": "C09",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "7.2",
+    "titre": "Vote — *P0*",
+    "composant_principal": "C09",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "7.3",
+    "titre": "Quorum — *P0*",
+    "composant_principal": "C09",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "7.4",
+    "titre": "Décision — *P0*",
+    "composant_principal": "C09",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "7.5",
+    "titre": "Historique des décisions — *P0*",
+    "composant_principal": "C09",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "8.1",
+    "titre": "Ouverture de litige — *P0*",
+    "composant_principal": "C10",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "8.2",
+    "titre": "Circuit de résolution — *P0*",
+    "composant_principal": "C10",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "8.3",
+    "titre": "Résolution — *P0*",
+    "composant_principal": "C10",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "8.4",
+    "titre": "Statistiques litiges — *P1*",
+    "composant_principal": "C10",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "8.5",
+    "titre": "Support externe — *P0*",
+    "composant_principal": "C17",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "9.1",
+    "titre": "Journal d'événements — *P0*",
+    "composant_principal": "C11",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "9.2",
+    "titre": "Chaîne d'intégrité — *P1*",
+    "composant_principal": "C11",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "9.3",
+    "titre": "Timeline — *P0*",
+    "composant_principal": "C11",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "9.4",
+    "titre": "Journal métier et journal technique — *P0*",
+    "composant_principal": "C11",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "9.5",
+    "titre": "Totaux calculés — *P0*",
+    "composant_principal": "C11",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "9.6",
+    "titre": "Journal d’administration — *P0*",
+    "composant_principal": "C17",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "9.7",
+    "titre": "Audit log sécurité — *P0*",
+    "composant_principal": "C17",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "10.1",
+    "titre": "Relevé PDF/CSV — *P0*",
+    "composant_principal": "C12",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "10.2",
+    "titre": "Empreinte du fichier — *P0*",
+    "composant_principal": "C12",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "10.3",
+    "titre": "Langage prudent — *P0*",
+    "composant_principal": "C12",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "10.4",
+    "titre": "Export imprimable — *P0*",
+    "composant_principal": "C12",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "10.5",
+    "titre": "Export final et signature conditionnelle — *P1*",
+    "composant_principal": "C12",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "10.6",
+    "titre": "API partenaire (V2) — *P2*",
+    "composant_principal": "C24",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "11.1",
+    "titre": "File d'attente — *P0*",
+    "composant_principal": "C13",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "11.2",
+    "titre": "WhatsApp — *P1*",
+    "composant_principal": "C20",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "11.3",
+    "titre": "SMS (option payante) — *P2*",
+    "composant_principal": "C20",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "11.4",
+    "titre": "Push/in-app — *P0*",
+    "composant_principal": "C13",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "11.5",
+    "titre": "Préférences — *P1*",
+    "composant_principal": "C20",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "12.1",
+    "titre": "Parcours guidé — *P0*",
+    "composant_principal": "C14",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "12.2",
+    "titre": "Mode faible connectivité — *P1*",
+    "composant_principal": "C15",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "12.3",
+    "titre": "Skeleton screens — *P2*",
+    "composant_principal": "C14",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "12.4",
+    "titre": "Accessibilité — *P1*",
+    "composant_principal": "C14",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "12.5",
+    "titre": "Performance — *P1*",
+    "composant_principal": "C14",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "12.6",
+    "titre": "Bilingue FR/EN — *P1*",
+    "composant_principal": "C14",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "13.1",
+    "titre": "Pages légales — *P0*",
+    "composant_principal": "C16",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "13.2",
+    "titre": "Communication prudente — *P0*",
+    "composant_principal": "C16",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "13.3",
+    "titre": "Protection des données — *P0*",
+    "composant_principal": "C16",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "13.4",
+    "titre": "Consentement recherche — *P0*",
+    "composant_principal": "C16",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "13.5",
+    "titre": "Consentement scoring (V2) — *V2*",
+    "composant_principal": "C26",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "14.1",
+    "titre": "Autorisation objet — *P0*",
+    "composant_principal": "C01",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "14.2",
+    "titre": "Tests multi-tenant — *P0*",
+    "composant_principal": "C01",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "14.3",
+    "titre": "Secrets & config — *P0*",
+    "composant_principal": "C17",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "14.4",
+    "titre": "Cookies/sessions — *P0*",
+    "composant_principal": "C17",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "14.5",
+    "titre": "Chiffrement — *P0*",
+    "composant_principal": "C17",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "14.6",
+    "titre": "Sauvegarde/reprise — *P0*",
+    "composant_principal": "C29",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "14.7",
+    "titre": "Redaction logs — *P0*",
+    "composant_principal": "C17",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "14.8",
+    "titre": "CI/CD sécurité — *P0*",
+    "composant_principal": "C28",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "14.9",
+    "titre": "Plan d'incident — *P0*",
+    "composant_principal": "C17",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "14.10",
+    "titre": "Pentest — *P0*",
+    "composant_principal": "C28",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "15.1",
+    "titre": "Découverte — *P1*",
+    "composant_principal": "C19",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "15.2",
+    "titre": "Groupe — *P1*",
+    "composant_principal": "C19",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "15.3",
+    "titre": "Association — *P2*",
+    "composant_principal": "C21",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "15.4",
+    "titre": "Options payantes — *P2*",
+    "composant_principal": "C19",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "15.5",
+    "titre": "Test de prix réel — *P1*",
+    "composant_principal": "C19",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "15.6",
+    "titre": "Frais Mobile Money — *P1*",
+    "composant_principal": "C19",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "16.1",
+    "titre": "Funnel instrumenté — *P0*",
+    "composant_principal": "C18",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "16.2",
+    "titre": "Tableau de bord pilote — *P0*",
+    "composant_principal": "C18",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "16.3",
+    "titre": "Registre des risques — *P0*",
+    "composant_principal": "C18",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.1",
+    "titre": "Idempotence des commandes — *P0*",
+    "composant_principal": "C06",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.2",
+    "titre": "Concurrence et version des objets — *P0*",
+    "composant_principal": "C01",
+    "contributeurs": [
+      "C06"
+    ],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.3",
+    "titre": "Versements partiels — *P0*",
+    "composant_principal": "C06",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.4",
+    "titre": "Frais et rapprochement — *P0*",
+    "composant_principal": "C08",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.5",
+    "titre": "Électorat et conflits d’intérêts — *P0*",
+    "composant_principal": "C09",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.6",
+    "titre": "Outbox et notifications en échec — *P0*",
+    "composant_principal": "C13",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.7",
+    "titre": "Reprise hors connexion — *P1*",
+    "composant_principal": "C15",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.8",
+    "titre": "Manifeste d’export — *P0*",
+    "composant_principal": "C12",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.9",
+    "titre": "Clôture et arrêt exceptionnel — *P0*",
+    "composant_principal": "C08",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.10",
+    "titre": "Purge et restauration des droits — *P0*",
+    "composant_principal": "C16",
+    "contributeurs": [
+      "C29"
+    ],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.11",
+    "titre": "Abonnement et réversibilité — *P1*",
+    "composant_principal": "C19",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.12",
+    "titre": "Import d’un historique papier — *P2*",
+    "composant_principal": "C21",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.13",
+    "titre": "Mesure du pilote — *P0*",
+    "composant_principal": "C18",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.14",
+    "titre": "Mode réunion — *P2*",
+    "composant_principal": "C21",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.15",
+    "titre": "Aide déterministe — *P2*",
+    "composant_principal": "C22",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.16",
+    "titre": "Benchmark IA locale — *P2*",
+    "composant_principal": "C23",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.17",
+    "titre": "Accès temporaire du support — *P0*",
+    "composant_principal": "C17",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.18",
+    "titre": "Runbook et couverture réelle — *P0*",
+    "composant_principal": "C17",
+    "contributeurs": [
+      "C29"
+    ],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.19",
+    "titre": "Traitement des demandes personnelles — *P0*",
+    "composant_principal": "C16",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "18.20",
+    "titre": "Registre de décision et de versions — *P0*",
+    "composant_principal": "C00",
+    "contributeurs": [
+      "C28"
+    ],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "17.1",
+    "titre": "Connecteur Mobile Money",
+    "composant_principal": "C25",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "17.2",
+    "titre": "Scoring / Financial Passport",
+    "composant_principal": "C26",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "17.3",
+    "titre": "API partenaires (EMF/banques)",
+    "composant_principal": "C24",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "17.4",
+    "titre": "Assurance/réassurance caisses de secours",
+    "composant_principal": "C27",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  },
+  {
+    "story_id": "17.5",
+    "titre": "Jamais sans analyse formelle",
+    "composant_principal": "C25",
+    "contributeurs": [],
+    "statut": "SPECIFIE_NON_VERIFIE"
+  }
+]
