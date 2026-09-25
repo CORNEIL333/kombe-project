@@ -1,0 +1,252 @@
+{
+  "runner": "H00",
+  "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "gate": "G-CONSTRUCTION",
+  "at_utc": "2026-09-25T08:50:41.492703+00:00",
+  "status": "BLOCKED",
+  "counts": {
+    "PASS": 11,
+    "FAIL": 0,
+    "BLOCKED": 9,
+    "NOT_RUN": 0
+  },
+  "results": [
+    {
+      "id": "H01",
+      "status": "PASS",
+      "detail": "Mode sain honnête ; mode fabrication détecté par flag 'fabricated'",
+      "evidence": {
+        "sain_obs": {
+          "witness_called": true,
+          "result": "ok",
+          "db_state": "unchanged"
+        },
+        "fab_obs": {
+          "fabricated": true,
+          "result": "PASS"
+        }
+      }
+    },
+    {
+      "id": "H02",
+      "status": "PASS",
+      "detail": "SHA du runner identique avant/après exécution témoin",
+      "evidence": {
+        "runner": "C:\\Users\\migco\\Desktop\\kombe project\\harness\\run_h00.py",
+        "sha": "78acbc9c908e87b373cb9e498a962c15a8a30532724629c8b1aff1d1ac2711d8"
+      }
+    },
+    {
+      "id": "H03",
+      "status": "BLOCKED",
+      "detail": "Fichier d'attentes accessible sans isolation OS (Docker/namespace requis). Limite HC02 confirmée : séparation effective à construire par C28.",
+      "evidence": {
+        "read_ok": true,
+        "note": "isolation_manquante"
+      }
+    },
+    {
+      "id": "H04",
+      "status": "PASS",
+      "detail": "SHA déclaré != SHA du contrôleur → rejet correct",
+      "evidence": {
+        "expected_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "declared_commit": "0000000000000000000000000000000000000000"
+      }
+    },
+    {
+      "id": "H05",
+      "status": "PASS",
+      "detail": "Rapport PASS d'un autre commit rejeté par vérification d'identité",
+      "evidence": {
+        "report_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "current_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    {
+      "id": "H06",
+      "status": "BLOCKED",
+      "detail": "verify_gate.py accepte deux noms différents sans authentification (limite HC04). Identité authentifiée à implémenter dans C28.",
+      "evidence": {
+        "author": "Alice",
+        "reviewer": "Bob",
+        "note": "plateforme_auth_requise"
+      }
+    },
+    {
+      "id": "H07",
+      "status": "BLOCKED",
+      "detail": "PostgreSQL non disponible sur cet hôte. Testcontainers ou instance locale requis pour prouver le verrouillage réel.",
+      "evidence": {
+        "pg_available": false,
+        "note": "docker_ou_postgres_requis"
+      }
+    },
+    {
+      "id": "H08",
+      "status": "PASS",
+      "detail": "Mutants auth et unicité détectés",
+      "evidence": {
+        "H08_auth_mutant": {
+          "observations": {
+            "auth_checked": false,
+            "authorized": true
+          },
+          "mutant_detected": true
+        },
+        "H08_unique_mutant": {
+          "observations": {
+            "idempotent": false,
+            "duplicate_rejected": false
+          },
+          "mutant_detected": true
+        }
+      }
+    },
+    {
+      "id": "H09",
+      "status": "BLOCKED",
+      "detail": "Sentinelle visible du processus enfant sans isolation d'env (limite HC06 : subprocess hérite les variables du parent). Isolation d'env à implémenter dans C28 avec liste blanche.",
+      "evidence": {
+        "sentinel_visible": true,
+        "note": "env_allowlist_requise"
+      }
+    },
+    {
+      "id": "H10",
+      "status": "BLOCKED",
+      "detail": "Restrictions réseau (iptables/nftables/Windows Firewall pour subprocess) non configurées sur cet hôte. À implémenter dans C28 avec politique egress par namespace ou conteneur.",
+      "evidence": {
+        "note": "network_namespace_ou_conteneur_requis"
+      }
+    },
+    {
+      "id": "H11",
+      "status": "PASS",
+      "detail": "Écart détecté : ['H07'] absent(s) de la matrice",
+      "evidence": {
+        "expected_count": 20,
+        "submitted_count": 19,
+        "missing": [
+          "H07"
+        ]
+      }
+    },
+    {
+      "id": "H12",
+      "status": "PASS",
+      "detail": "Instruction du contenu externe refusée",
+      "evidence": {
+        "executed": false,
+        "reason": "instructions_from_content_refused"
+      }
+    },
+    {
+      "id": "H13",
+      "status": "BLOCKED",
+      "detail": "Sandboxing des scripts d'installation (postinstall) non configuré. À implémenter par C28 : pnpm --ignore-scripts + revue de provenance + exécution en utilisateur non privilégié.",
+      "evidence": {
+        "note": "npm_hook_sandboxing_requis"
+      }
+    },
+    {
+      "id": "H14",
+      "status": "BLOCKED",
+      "detail": "Protection des branches Git et vérification de compatibilité des migrations à configurer sur un remote (GitHub/GitLab). Dépôt local uniquement sur cet hôte.",
+      "evidence": {
+        "note": "git_branch_protection_requise"
+      }
+    },
+    {
+      "id": "H15",
+      "status": "PASS",
+      "detail": "ADR périmé détecté : ['ADR01']",
+      "evidence": {
+        "stale_adrs": [
+          "ADR01"
+        ],
+        "submission": {
+          "ADR01": "v1",
+          "ADR02": "v1"
+        },
+        "current": {
+          "ADR01": "v2",
+          "ADR02": "v1"
+        }
+      }
+    },
+    {
+      "id": "H16",
+      "status": "PASS",
+      "detail": "Première erreur à graine=42 conservée dans le rapport ; relance à graine=99 PASS mais défaut non fermé automatiquement.",
+      "evidence": {
+        "first_error_seed": 42,
+        "retry_seed": 99,
+        "rule": "relance_ne_ferme_pas_le_defaut",
+        "resp_fail": {
+          "result": "ok",
+          "seed": 42
+        },
+        "resp_pass": {
+          "result": "ok",
+          "seed": 99
+        }
+      }
+    },
+    {
+      "id": "H17",
+      "status": "PASS",
+      "detail": "Arrêt borné : 4 itérations ≤ budget 3+1",
+      "evidence": {
+        "iterations": 4,
+        "budget": 3,
+        "stopped": true
+      }
+    },
+    {
+      "id": "H18",
+      "status": "BLOCKED",
+      "detail": "Test de reprise avec sauvegarde fictive PostgreSQL non exécutable sans base de données disponible. À exécuter avec Testcontainers dans C28/C29.",
+      "evidence": {
+        "note": "postgresql_testcontainers_requis"
+      }
+    },
+    {
+      "id": "H19",
+      "status": "PASS",
+      "detail": "Aucune variable de production dans l'environnement CI",
+      "evidence": {
+        "checked": [
+          "KOMBE_PROD_DB_URL",
+          "KOMBE_PROD_SMTP_KEY",
+          "KOMBE_PROD_PAYMENT_SECRET"
+        ],
+        "found": {
+          "KOMBE_PROD_DB_URL": false,
+          "KOMBE_PROD_SMTP_KEY": false,
+          "KOMBE_PROD_PAYMENT_SECRET": false
+        }
+      }
+    },
+    {
+      "id": "H20",
+      "status": "BLOCKED",
+      "detail": "Séparation du job candidat et du job de confiance non configurable sans GitHub Actions ou CI équivalente. À implémenter dans C28 : jobs séparés, contrôleur versionné hors reach du candidat.",
+      "evidence": {
+        "note": "github_actions_protected_job_requis"
+      }
+    }
+  ],
+  "limites": [
+    "H03 : isolation fichier/volume non démontrée sans conteneur (HC02)",
+    "H06 : identité authentifiée non vérifiable sans plateforme CI (HC04)",
+    "H07 : PostgreSQL non disponible — verrou réel non testé (RA11)",
+    "H09 : env hérité du parent sans liste blanche (HC06)",
+    "H10 : restrictions réseau non configurées (RA06)",
+    "H13 : sandboxing npm scripts non configuré (RA08)",
+    "H14 : protection branches Git nécessite un remote (RA09)",
+    "H18 : reprise PostgreSQL nécessite Testcontainers (RA15)",
+    "H20 : séparation jobs CI nécessite GitHub Actions (RA18)"
+  ],
+  "next": "Configurer Docker/Testcontainers pour H07 et H18 ; configurer GitHub Actions avec jobs séparés pour H02, H14, H20 ; implémenter env allowlist pour H09 ; configurer restrictions réseau pour H10 ; revoir H06 avec identité authentifiée dans C28."
+}
