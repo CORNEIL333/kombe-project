@@ -57,6 +57,17 @@ async function withTenant(client, groupId, fn) {
   }
 }
 
+/** Enveloppe une transaction en posant le contexte self-scope kombe.identity_id. */
+async function withIdentity(client, identityId, fn) {
+  await client.query("BEGIN");
+  await client.query("SET LOCAL kombe.identity_id = $1", [identityId]);
+  try {
+    return await fn();
+  } finally {
+    await client.query("ROLLBACK");
+  }
+}
+
 async function main() {
   const migrator = new pg.Client({ connectionString: url });
   await migrator.connect();
@@ -67,6 +78,7 @@ async function main() {
     await runSql(migrator, "migrations/0001_init.down.sql");
     await runSql(migrator, "migrations/0001_init.sql");
     await runSql(migrator, "migrations/0002_role_change.sql");
+    await runSql(migrator, "migrations/0003_access.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
@@ -81,6 +93,21 @@ async function main() {
       INSERT INTO obligation (obligation_id, group_id, round_id, member_membership_id, due_amount)
         VALUES ('obl_a','grpA','rnd_a','mem_a',1000), ('obl_b','grpB','rnd_b','mem_b',1000)
         ON CONFLICT DO NOTHING;
+    `);
+
+    // État d'accès + jeton + session (fictifs) pour idn_a (lot C02).
+    await migrator.query(`
+      INSERT INTO identity_access (identity_id, state, channel_verified)
+        VALUES ('idn_a','active',true) ON CONFLICT (identity_id)
+        DO UPDATE SET state='active', channel_verified=true, session_generation=1;
+      -- Un seul jeton de récupération non consommé pour idn_a.
+      DELETE FROM verification_token WHERE identity_id = 'idn_a';
+      INSERT INTO verification_token (token_id, identity_id, purpose, channel, token_hash, expires_at)
+        VALUES ('tok_rec_a','idn_a','recovery','email','hash_fictif_a', now() + interval '15 minutes');
+      -- Session à la génération courante (1) pour le scénario de supplantation.
+      DELETE FROM access_session WHERE identity_id = 'idn_a';
+      INSERT INTO access_session (session_id, identity_id, generation, expires_at)
+        VALUES ('ses_a','idn_a',1, now() + interval '1 hour');
     `);
 
     // Session applicative : kombe_app (non-propriétaire, sans BYPASSRLS).
@@ -132,12 +159,64 @@ async function main() {
     }
     observations.C01_POOL = { leaked_rows: leaked };
 
+    // ── C02-RECOVERY : consommer deux fois le même jeton en base réelle. ─────
+    // La consommation est un UPDATE atomique sous verrou ; la seconde trouve
+    // consumed_at déjà posé ⇒ 0 ligne touchée ⇒ second_use_accepted = false.
+    const consumeOnce = async () => {
+      await app.query("BEGIN");
+      await app.query("SET LOCAL kombe.identity_id = 'idn_a'");
+      const res = await app.query(
+        `UPDATE verification_token SET consumed_at = now()
+         WHERE token_id = 'tok_rec_a' AND consumed_at IS NULL
+         RETURNING token_id`,
+      );
+      await app.query("COMMIT");
+      return res.rowCount; // 1 = accepté, 0 = refus (déjà consommé)
+    };
+    const firstUse = await consumeOnce();
+    const secondUse = await consumeOnce();
+    observations.C02_RECOVERY = {
+      first_use_accepted: firstUse === 1,
+      second_use_accepted: secondUse === 1,
+    };
+
+    // ── C02-SESSION : la récupération incrémente la génération ⇒ l'ancienne
+    // session (génération 1) n'est plus recevable (jointure self-scope). ──────
+    await app.query("BEGIN");
+    await app.query("SET LOCAL kombe.identity_id = 'idn_a'");
+    await app.query(
+      "UPDATE identity_access SET session_generation = session_generation + 1 WHERE identity_id = 'idn_a'",
+    );
+    await app.query("COMMIT");
+    const oldSessionAccepted = await withIdentity(app, "idn_a", async () => {
+      const res = await app.query(
+        `SELECT count(*)::int AS n FROM access_session s
+         JOIN identity_access a ON a.identity_id = s.identity_id
+         WHERE s.session_id = 'ses_a' AND s.generation = a.session_generation
+           AND s.revoked_at IS NULL AND s.expires_at > now()`,
+      );
+      return res.rows[0].n > 0;
+    });
+    observations.C02_SESSION = { old_session_accepted: oldSessionAccepted };
+
+    // ── C02-SELFSCOPE : kombe_app ne voit que la ligne de l'identité posée. ──
+    const selfScope = await withIdentity(app, "idn_b", async () => {
+      // kombe.identity_id = idn_b ; la ligne d'idn_a doit être invisible.
+      const res = await app.query("SELECT count(*)::int AS n FROM identity_access");
+      return res.rows[0].n;
+    });
+    observations.C02_SELFSCOPE = { rows_visible_to_other_identity: selfScope };
+
     await app.end();
 
     const pass =
       observations.C01_TENANT.cross_group_rows === 0 &&
       observations.C01_FK.foreign_link_accepted === false &&
-      observations.C01_POOL.leaked_rows === 0;
+      observations.C01_POOL.leaked_rows === 0 &&
+      observations.C02_RECOVERY.first_use_accepted === true &&
+      observations.C02_RECOVERY.second_use_accepted === false &&
+      observations.C02_SESSION.old_session_accepted === false &&
+      observations.C02_SELFSCOPE.rows_visible_to_other_identity === 0;
 
     process.stdout.write(
       JSON.stringify(

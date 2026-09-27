@@ -23,9 +23,10 @@ Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats ac
 | 0009 | Politique d'installation stricte (aucun build de dépendance) | `[PROPOSÉ]` — en place via pnpm-workspace.yaml, à confirmer en revue | C00 |
 | [0010](./0010_porte_g_construction_statut_bloque.md) | Porte G-CONSTRUCTION et statut des preuves base-réelle | **ADOPTÉ** (harness H00 **BLOCKED**, documenté) | Lead C00 |
 | [0011](./0011_circuit_a19.md) | Circuit A19 d'approbation distincte des rôles | **ADOPTÉ** (C01) — preuve base réelle **BLOCKED** | Lead C01 |
-| 0012–0020 | Réservés (identité/fournisseurs, sauvegarde/RPO, régions, IA, paiement…) | `[OUVERT]` — aucune installation présumée | Décideurs des portes G0/G1 |
+| [0012](./0012_acces_sessions_recuperation.md) | Accès des comptes : sessions, jetons à usage unique, récupération | **ADOPTÉ** (C02) — preuve base réelle **BLOCKED** | Lead C02 |
+| 0013–0020 | Réservés (identité/fournisseurs, sauvegarde/RPO, régions, IA, paiement…) | `[OUVERT]` — aucune installation présumée | Décideurs des portes G0/G1 |
 
-> Slots 0012–0020 restent vides tant qu'une décision n'est pas prise ; les
+> Slots 0013–0020 restent vides tant qu'une décision n'est pas prise ; les
 > décisions ouvertes `[OPEN-D01..D10]` de STACK.md y seront rattachées.
 
 ## Note de méthode

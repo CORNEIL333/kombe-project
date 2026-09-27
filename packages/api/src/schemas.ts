@@ -60,3 +60,24 @@ export const castBallotBody = z.object({
 export type InviteMemberInput = z.infer<typeof inviteMemberBody>;
 export type DeclareContributionInput = z.infer<typeof declareContributionBody>;
 export type RoleNominationInput = z.infer<typeof roleNominationBody>;
+
+/* --- C02 : inscription, sessions, récupération (1.1 → 1.5) --- */
+
+const identityId = z.string().min(1).max(120);
+const tokenId = z.string().min(1).max(120);
+
+export const registrationRequest = z.object({
+  identityId,
+  channel: z.enum(["email", "phone"]),
+});
+export const registrationVerification = z.object({ identityId, tokenId });
+export const recoveryRequest = z.object({ identityId });
+export const recoveryCompletion = z.object({
+  identityId,
+  tokenId,
+  suspensionSeconds: z.number().int().positive().max(86_400).optional(),
+});
+export const sessionLogin = z.object({ identityId, sessionId: z.string().min(1).max(120) });
+
+export type RegistrationRequestInput = z.infer<typeof registrationRequest>;
+export type RecoveryCompletionInput = z.infer<typeof recoveryCompletion>;

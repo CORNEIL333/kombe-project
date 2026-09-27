@@ -33,6 +33,22 @@ structurelle, cf. ADR-0007). Montants : domaine `kombe_money` = `bigint` borné
 | `role_change_request` | Circuit nomination → acceptation → **approbation distincte**. | PK `request_id` ; FK composite `(group_id, target_membership_id)` ; `state` ∈ nominated/accepted/declined/approved/rejected ; **`approved_by ≠ proposed_by`** (CHECK) ; distinction avec le nommé + acceptation par la cible = contrôle serveur (`assertApproverDistinct`/`acceptNomination`) |
 | `export_request` | Demande d'export **privé** (traçabilité, jamais public). | PK `export_id` ; `scope` = `private` (seule valeur) ; `state` ∈ requested/delivered/revoked |
 
+## Accès des comptes (migration additive `0003_access.sql`, lot C02)
+Tables **globales-identité** (sans `group_id`) ; RLS **self-scope** via
+`current_setting('kombe.identity_id', true)` (et non plus `kombe.group_id`).
+Aucun secret en clair : uniquement des **empreintes** (`password_hash`,
+`token_hash`).
+
+| Table | Rôle | Clés / contraintes clés |
+|---|---|---|
+| `identity_access` | État d'accès global d'une identité (1.1,1.2,1.3,1.5). | PK `identity_id`→`identity` ; `state` ∈ pending_verification/active/suspended/closed ; `channel_verified`/`mfa_enrolled`/`is_operator` booléens ; **`session_generation ≥ 1`** (révocation en cascade) ; `recovery_lock_until` (suspension post-récupération) ; `password_hash` (jamais le mot de passe) |
+| `verification_token` | Jeton de vérification **à usage unique et expirant** (1.1 inscription, 1.4 récupération). | PK `token_id` ; FK `identity_id` ; `purpose` ∈ registration/recovery ; `channel` ∈ email/phone ; `token_hash` (jamais le code) ; `expires_at > issued_at` ; **unicité d'usage** = `consumed_at` posé par `UPDATE … WHERE consumed_at IS NULL` sous verrou + **index partiel unique** `one_active_token_per_subject (identity_id, purpose) WHERE consumed_at IS NULL` |
+| `access_session` | Session **révocable**, liée à une génération du compte (1.2). | PK `session_id` ; FK `identity_id` ; `generation ≥ 1` ; `expires_at > issued_at` ; `revoked_at` nullable ; valide ssi `generation = identity_access.session_generation` (jointure serveur) |
+
+> Preuve **effective** (consommation unique sous verrou, supplantation de
+> session par génération, self-scope RLS) = scénarios C02-RECOVERY / C02-SESSION
+> / C02-SELFSCOPE de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
+
 ## Provisionnement (`provision/roles.sql`)
 | Rôle | Privilèges | But |
 |---|---|---|

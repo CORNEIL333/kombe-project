@@ -83,3 +83,20 @@ KOMBE_TEST_DATABASE_URL=postgresql://… node packages/db/tests/isolation.pg.mjs
 ```
 Observations issues **d'actions/réquisitions réelles**, jamais de constantes lues
 dans un fichier d'attentes (cf. `C01_PROMPT` §scénarios).
+
+## C02 — accès des comptes (inscription, sessions, récupération)
+Le lot C02 **ajoute** la persistance d'accès (tables **globales-identité**, hors
+tenant) et les scénarios de preuve ; l'exécution réelle reste `BLOCKED`.
+
+| Chemin | Rôle (C02) |
+|---|---|
+| `migrations/0003_access.sql` | Migration **additive** : `identity_access` (état, génération de sessions, MFA/opérateur, suspension), `verification_token` (usage unique + expiration, **empreinte** seulement), `access_session` (session liée à une génération). RLS **self-scope** (`kombe.identity_id`). |
+| `migrations/0003_access.down.sql` | **Retour arrière** de 0003 (drops en ordre inverse). |
+| `tests/isolation.pg.mjs` (étendu) | Scénarios **C02-RECOVERY** (double consommation refusée sous verrou), **C02-SESSION** (supplantation par génération), **C02-SELFSCOPE** (invisible hors identité). |
+
+Unicité d'usage du jeton : `UPDATE … WHERE consumed_at IS NULL` sous verrou de
+ligne + index partiel unique (un seul jeton actif par identité+finalité).
+Révocation en cascade des sessions : la validité exige `access_session.generation
+= identity_access.session_generation` ; la récupération incrémente la génération.
+**Aucun secret en clair** (ni mot de passe, ni OTP) : uniquement des empreintes.
+Ordre de rollback complet : `0003…down` → `0002…down` → `0001…down`.
