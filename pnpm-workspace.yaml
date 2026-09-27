@@ -1,2 +1,14 @@
 packages:
   - "packages/*"
+
+# KÓMBE C00 — paramètres de construction et d'exécution (pnpm >= 11 lit les
+# réglages non-auth ici, plus dans .npmrc). Politique sécurité H13 / RA08 :
+# aucun script de build de dépendance n'est exécuté automatiquement.
+# esbuild fournit son binaire via un paquet optionnel précompilé ; son
+# postinstall est explicitement refusé (allowBuilds: esbuild: false), et
+# strictDepBuilds=false évite qu'un build ignoré fasse échouer l'installation.
+allowBuilds:
+  esbuild: false
+strictDepBuilds: false
+ignoreScripts: true
+verifyDepsBeforeRun: false

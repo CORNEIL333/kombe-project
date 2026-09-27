@@ -1,0 +1,597 @@
+openapi: 3.1.1
+info:
+  title: KÓMBE API
+  version: 0.0.0-c00
+  summary: Registre de tontines fermées — contrat de commandes (socle C00)
+  description: |
+    Contrat initial des commandes KÓMBE, posé par C00 avant tout lot métier.
+    Toutes les routes sont préfixées `/v1`. Les routes de fonctionnalités
+    futures (wallet, prêt, scoring, assurance, IA) NE SONT PAS exposées :
+    elles restent fermées côté serveur jusqu'à leur porte de décision.
+
+    Ce fichier est un CONTRAT, pas une génération depuis le code. C28 teste la
+    compatibilité de l'implémentation avec ce contrat approuvé (01_Audit/
+    ARCHITECTURE_CIBLE.md §Commandes complémentaires). Les routes marquées
+    « A19 » étaient absentes du dossier v1 et sont ajoutées ici.
+
+    Monnaie : entier XAF (int64 borné à l'entier sûr JSON), jamais de flottant.
+    Commandes mutantes : en-tête Idempotency-Key obligatoire et version d'objet
+    attendue (expectedVersion) ; conflit explicite, jamais d'écrasement silencieux.
+servers:
+  - url: /v1
+security:
+  - sessionCookie: []
+
+tags:
+  - name: commands
+    description: Suivi asynchrone des commandes (reprise, idempotence)
+  - name: groups
+    description: Groupes et adhésions
+  - name: roles
+    description: Nominations et changements de rôles (approbateur distinct) — A19
+  - name: rules
+    description: Versions de règles immuables et acceptations
+  - name: contributions
+    description: Déclarations, validations, compensations
+  - name: votes
+    description: Ouverture, vote, clôture, annulation
+  - name: disputes
+    description: Litiges et réouvertures — A19
+  - name: disbursements
+    description: Demandes de versement, annulations, reversions (externes au pilote) — A19
+  - name: rounds
+    description: Clôtures de tour — A19
+  - name: exports
+    description: Exports privés filtrés
+
+paths:
+  /commands/{commandId}:
+    get:
+      tags: [commands]
+      operationId: getCommand
+      summary: État d'une commande soumise (reprise) — A19
+      parameters:
+        - $ref: "#/components/parameters/CommandId"
+      responses:
+        "200":
+          description: Reçu de commande
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommandReceipt" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups:
+    post:
+      tags: [groups]
+      operationId: createGroup
+      summary: Créer un groupe (état configuration)
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateGroupRequest" }
+      responses:
+        "201":
+          description: Groupe créé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Group" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/memberships:
+    post:
+      tags: [groups]
+      operationId: inviteMember
+      summary: Inviter un membre (adhesion active unique)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InviteMemberRequest" }
+      responses:
+        "201":
+          description: Adhésion en attente
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Membership" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/role-nominations:
+    post:
+      tags: [roles]
+      operationId: nominateRoles
+      summary: Le créateur PROPOSE une liste de fonctions (A19)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoleNominationRequest" }
+      responses:
+        "201":
+          description: Nomination créée
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoleNomination" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /role-nominations/{nominationId}/acceptances:
+    post:
+      tags: [roles]
+      operationId: acceptNomination
+      summary: Le nommé accepte sa fonction (A19)
+      parameters:
+        - name: nominationId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Acceptation enregistrée
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoleNomination" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /groups/{groupId}/role-change-requests:
+    post:
+      tags: [roles]
+      operationId: requestRoleChange
+      summary: Demande de changement de rôle après démarrage (A19)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoleChangeRequest" }
+      responses:
+        "201":
+          description: Demande créée (circuit approbateur distinct)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoleChangeRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /role-change-requests/{requestId}/approvals:
+    post:
+      tags: [roles]
+      operationId: approveRoleChange
+      summary: Approbation par un acteur distinct du demandeur (A19)
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200":
+          description: Changement approuvé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoleChangeRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/rules/acceptances:
+    post:
+      tags: [rules]
+      operationId: acceptRules
+      summary: Accepter la version de règles en vigueur (snapshot immuable)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rulesVersion]
+              properties:
+                rulesVersion: { type: integer, minimum: 1 }
+      responses:
+        "200": { description: Acceptation enregistrée }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/contributions:
+    post:
+      tags: [contributions]
+      operationId: declareContribution
+      summary: Déclarer une cotisation (pot externe au pilote)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeclareContributionRequest" }
+      responses:
+        "201":
+          description: Déclaration enregistrée
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Contribution" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /contributions/{contributionId}/validations:
+    post:
+      tags: [contributions]
+      operationId: validateContribution
+      summary: Valider une cotisation (trésorier ; validation par rôle unique)
+      parameters:
+        - name: contributionId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200":
+          description: Cotisation validée
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Contribution" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/votes:
+    post:
+      tags: [votes]
+      operationId: openVote
+      summary: Ouvrir un vote (électeurs figés à l'ouverture)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpenVoteRequest" }
+      responses:
+        "201":
+          description: Vote ouvert
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vote" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /votes/{voteId}/ballots:
+    post:
+      tags: [votes]
+      operationId: castBallot
+      summary: Émettre un bulletin (unicité vote/électeur)
+      parameters:
+        - name: voteId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [choice]
+              properties:
+                choice: { type: string, enum: [yes, no, abstain] }
+      responses:
+        "201": { description: Bulletin enregistré }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /proposals/{proposalId}/closures:
+    post:
+      tags: [votes]
+      operationId: closeProposal
+      summary: Clôturer une proposition (A19)
+      parameters:
+        - name: proposalId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200": { description: Proposition clôturée }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /proposals/{proposalId}/cancellations:
+    post:
+      tags: [votes]
+      operationId: cancelProposal
+      summary: Annuler une proposition (A19)
+      parameters:
+        - name: proposalId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200": { description: Proposition annulée }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /groups/{groupId}/disputes:
+    post:
+      tags: [disputes]
+      operationId: raiseDispute
+      summary: Ouvrir un litige (bloque la clôture)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201": { description: Litige ouvert }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /disputes/{disputeId}/reopenings:
+    post:
+      tags: [disputes]
+      operationId: reopenDispute
+      summary: Rouvrir un litige clos (A19)
+      parameters:
+        - name: disputeId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200": { description: Litige rouvert }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /disbursements/{disbursementId}/reversal-requests:
+    post:
+      tags: [disbursements]
+      operationId: requestDisbursementReversal
+      summary: Demander la réversion d'un décaissement (A19)
+      parameters:
+        - name: disbursementId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          description: Demande acceptée (traitement hors pot par le pilote)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommandReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /disbursements/{disbursementId}/reversals:
+    post:
+      tags: [disbursements]
+      operationId: confirmDisbursementReversal
+      summary: Confirmer la réversion (A19)
+      parameters:
+        - name: disbursementId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200": { description: Réversion confirmée }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /rounds/{roundId}/closures:
+    post:
+      tags: [rounds]
+      operationId: closeRound
+      summary: Clôturer un tour (A19)
+      parameters:
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200": { description: Tour clôturé }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/export:
+    get:
+      tags: [exports]
+      operationId: exportGroup
+      summary: Export privé filtré (anti-injection CSV, pas de PII inutile)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: Export CSV filtré
+          content:
+            text/csv:
+              schema: { type: string }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: kombe_session
+      description: |
+        Cookie de session HttpOnly/SameSite, contrôles CSRF et CORS fermé
+        (même origine). Les règles de groupe sont évaluées côté serveur, jamais
+        depuis un JWT durable de confiance (ARCHITECTURE_CIBLE §Frontières).
+
+  parameters:
+    GroupId:
+      name: groupId
+      in: path
+      required: true
+      schema: { type: string }
+    CommandId:
+      name: commandId
+      in: path
+      required: true
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Clé d'idempotence ; un rejeu renvoie le résultat d'origine ou un conflit explicite.
+      schema: { type: string, minLength: 8, maxLength: 200 }
+    ExpectedVersion:
+      name: If-Match-Version
+      in: header
+      required: true
+      description: Version d'objet attendue pour toute mutation (concurrence optimiste, 18.2).
+      schema: { type: integer, minimum: 1 }
+
+  schemas:
+    Money:
+      type: integer
+      format: int64
+      minimum: 0
+      maximum: 9007199254740991
+      description: Montant XAF entier, borné à l'entier sûr JSON. Jamais de flottant.
+    ErrorCode:
+      type: string
+      description: Code d'erreur stable, non divulguant (cf. @kombe/domain errors).
+      enum:
+        - MONEY_NOT_INTEGER
+        - MONEY_NEGATIVE
+        - MONEY_OVER_PER_AMOUNT_CEILING
+        - MONEY_OVER_SAFE_CEILING
+        - ROTATION_MEMBERS_MIN
+        - ROTATION_CONTRIBUTION_POSITIVE
+        - RESERVATION_INCOHERENTE
+        - RECONCILIATION_INCOHERENTE
+        - ELECTORATE_INVALIDE
+        - VOTE_HORS_LIMITES
+        - JOUR_INVALIDE
+        - FEATURE_PILOT_FORBIDDEN
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { $ref: "#/components/schemas/ErrorCode" }
+        message: { type: string, description: Message générique, sans donnée réelle. }
+        traceId: { type: string }
+    CommandReceipt:
+      type: object
+      required: [commandId, status]
+      properties:
+        commandId: { type: string }
+        status: { type: string, enum: [queued, applied, rejected, conflict] }
+        resultVersion: { type: integer }
+        journalEventHash: { type: string, description: SHA-256 de l'événement canonique. }
+    Group:
+      type: object
+      required: [groupId, version]
+      properties:
+        groupId: { type: string }
+        version: { type: integer }
+        state: { type: string, enum: [configuration, active, paused, closed] }
+    CreateGroupRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+    Membership:
+      type: object
+      required: [membershipId, groupId, state]
+      properties:
+        membershipId: { type: string }
+        groupId: { type: string }
+        state: { type: string, enum: [pending, active, departed, revoked] }
+    InviteMemberRequest:
+      type: object
+      required: [handle]
+      properties:
+        handle: { type: string, description: Identifiant logique fictif ; aucun téléphone/nom complet au pilote. }
+    RoleNominationRequest:
+      type: object
+      required: [nominations]
+      properties:
+        nominations:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [handle, role]
+            properties:
+              handle: { type: string }
+              role: { type: string, enum: [animator, treasurer, secretary, auditor, member] }
+    RoleNomination:
+      type: object
+      required: [nominationId, groupId, state]
+      properties:
+        nominationId: { type: string }
+        groupId: { type: string }
+        state: { type: string, enum: [proposed, accepted, declined] }
+    RoleChangeRequest:
+      type: object
+      required: [requestId, groupId, state]
+      properties:
+        requestId: { type: string }
+        groupId: { type: string }
+        state: { type: string, enum: [pending, approved, rejected] }
+        approverId: { type: string, description: Doit différer du demandeur (approbateur distinct). }
+    DeclareContributionRequest:
+      type: object
+      required: [obligationId, amount]
+      properties:
+        obligationId: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+    Contribution:
+      type: object
+      required: [contributionId, groupId, amount, state, version]
+      properties:
+        contributionId: { type: string }
+        groupId: { type: string }
+        amount: { $ref: "#/components/schemas/Money" }
+        state: { type: string, enum: [declared, validated, rejected, compensated] }
+        version: { type: integer }
+    OpenVoteRequest:
+      type: object
+      required: [subject, quorumNumerator, quorumDenominator]
+      properties:
+        subject: { type: string }
+        quorumNumerator: { type: integer, minimum: 0 }
+        quorumDenominator: { type: integer, minimum: 1 }
+    Vote:
+      type: object
+      required: [voteId, groupId, electorateSize, state]
+      properties:
+        voteId: { type: string }
+        groupId: { type: string }
+        electorateSize: { type: integer, minimum: 1 }
+        state: { type: string, enum: [open, closed, cancelled] }
+
+  responses:
+    Forbidden:
+      description: Accès refusé sans divulgation (RBAC objet / IDOR / feature pilote fermée)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Ressource absente ou hors portée de l'acteur (non-divulgation)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Conflit d'idempotence ou de version (écrasement silencieux interdit)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unprocessable:
+      description: Violation d'invariant de domaine
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }

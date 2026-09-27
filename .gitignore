@@ -64,6 +64,7 @@ stryker.log
 .testcontainers/
 
 # ── Éditeurs et IDE ──────────────────────────────────────────
+.qoder/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json.example

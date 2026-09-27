@@ -1,0 +1,17 @@
+{
+  "name": "kombe",
+  "version": "0.0.0",
+  "private": true,
+  "description": "KÓMBE — registre de tontines fermées. Monorepo pnpm (C00).",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present run build",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm -r --if-present run test",
+    "recette:c00": "pnpm run build && pnpm run test",
+    "h00": "py -3 harness/run_h00.py --commit placeholder --out harness/reports/RAPPORT_G_CONSTRUCTION.json"
+  }
+}

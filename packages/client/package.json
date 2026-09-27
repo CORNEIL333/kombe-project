@@ -1,0 +1,7 @@
+{
+  "name": "@kombe/client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KÓMBE — client web PWA (React + Vite). Périmètre C00 : contrat d'interface posé (docs/openapi.yaml). L'implémentation UI accompagne les incréments métier (C02+) et n'est pas livrée au socle ; aucune dépendance React/Vite ajoutée tant que le build et la recette E2E (Playwright) ne sont pas raccordés."
+}

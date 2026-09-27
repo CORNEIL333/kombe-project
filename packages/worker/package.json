@@ -1,0 +1,10 @@
+{
+  "name": "@kombe/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KÓMBE — worker de traitement de l'outbox transactionnelle et des notifications externes. Squelette de contrat ; exécution réelle (lecture outbox dans la même DB, permissions réduites, pas de transfert du pot par le pilote) = lot ultérieur sur base réelle.",
+  "dependencies": {
+    "@kombe/domain": "workspace:*"
+  }
+}

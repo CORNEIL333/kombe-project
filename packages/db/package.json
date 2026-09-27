@@ -1,0 +1,12 @@
+{
+  "name": "@kombe/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KÓMBE — schéma PostgreSQL canonique (migrations + fixtures fictives). Contrat C00 ; exécution et preuves réelles (RLS/verrous/pool) = lot C01 sur base réelle.",
+  "scripts": {
+    "migrate": "node scripts/blocked.mjs migrate",
+    "seed": "node scripts/blocked.mjs seed",
+    "test:integration": "node scripts/blocked.mjs test:integration"
+  }
+}

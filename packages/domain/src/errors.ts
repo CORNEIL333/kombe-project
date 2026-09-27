@@ -1,0 +1,35 @@
+/**
+ * Erreurs stables du domaine KÓMBE.
+ *
+ * Chaque violation d'invariant porte un code stable et non divulguant :
+ * le code identifie la règle, le message reste générique. Aucune donnée
+ * réelle (nom, téléphone, montant d'autrui) ne transite par ces messages.
+ * Cf. 01_Audit/ARCHITECTURE_CIBLE.md §Commande, contrat « erreurs stables ».
+ */
+
+export type DomainErrorCode =
+  | "MONEY_NOT_INTEGER"
+  | "MONEY_NEGATIVE"
+  | "MONEY_OVER_PER_AMOUNT_CEILING"
+  | "MONEY_OVER_SAFE_CEILING"
+  | "ROTATION_MEMBERS_MIN"
+  | "ROTATION_CONTRIBUTION_POSITIVE"
+  | "RESERVATION_INCOHERENTE"
+  | "RECONCILIATION_INCOHERENTE"
+  | "ELECTORATE_INVALIDE"
+  | "VOTE_HORS_LIMITES"
+  | "JOUR_INVALIDE"
+  | "CSV_TEXTE_REQUIS"
+  | "CANONICAL_HORS_ENTIER_SUR"
+  | "EVENT_HASH_MISMATCH"
+  | "EVENT_CHAIN_BREAK"
+  | "FEATURE_PILOT_FORBIDDEN";
+
+export class DomainError extends Error {
+  readonly code: DomainErrorCode;
+  constructor(code: DomainErrorCode, message: string) {
+    super(message);
+    this.name = "DomainError";
+    this.code = code;
+  }
+}

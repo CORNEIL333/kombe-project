@@ -1,0 +1,25 @@
+{
+  "name": "@kombe/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KÓMBE — squelette API Fastify des commandes (socle C00). Données fictives ; persistance PostgreSQL réelle hors de ce socle (C01).",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@kombe/domain": "workspace:*",
+    "fastify": "^5.12.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.10.2",
+    "js-yaml": "^4.1.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
