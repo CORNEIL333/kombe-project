@@ -15,3 +15,5 @@ export * from "./canonical.js";
 export * from "./events.js";
 export * from "./features.js";
 export * from "./authorization.js";
+export * from "./identity.js";
+export * from "./role_change.js";

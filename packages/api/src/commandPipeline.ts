@@ -14,6 +14,8 @@ import {
   DomainError,
   GENESIS_HASH,
   PILOT_FEATURE_GATES,
+  acceptNomination as domainAcceptNomination,
+  approveRoleChange as domainApproveRoleChange,
   assertExpectedVersion,
   assertNoForbiddenFeatureEnabled,
   can,
@@ -26,11 +28,14 @@ import {
   type ForbiddenFeature,
   type JournalEvent,
   type Role,
+  type RoleChangeRequest,
 } from "@kombe/domain";
 
 export interface Actor {
   readonly handle: string;
   readonly role: Role;
+  /** Identité stable (distinctive pour le circuit A19 ; présente en C01 réel). */
+  readonly identityId?: string;
   /** Groupes où l'acteur a une adhésion ACTIVE (source de vérité anti-IDOR). */
   readonly groupIds: readonly string[];
 }
@@ -57,14 +62,24 @@ interface ObligationRecord {
   declared: bigint;
 }
 
+interface RoleRequestRecord {
+  req: RoleChangeRequest;
+  version: number;
+}
+
 export class FictitiousCommandStore {
   private readonly obligations = new Map<string, ObligationRecord>();
+  private readonly roleRequests = new Map<string, RoleRequestRecord>();
   private readonly idempotency = new Map<string, CommandReceipt>();
   private readonly journal = new Map<string, JournalEvent[]>();
   private commandCounter = 0;
 
   seedObligation(obligationId: string, groupId: string, version = 1): void {
     this.obligations.set(obligationId, { groupId, version, declared: 0n });
+  }
+
+  seedRoleRequest(request: RoleChangeRequest, version = 1): void {
+    this.roleRequests.set(request.requestId, { req: request, version });
   }
 
   private journalFor(groupId: string): JournalEvent[] {
@@ -104,7 +119,8 @@ export class FictitiousCommandStore {
     obligationId: string,
     amount: bigint,
   ): CommandReceipt {
-    return this.run(ctx, "contribution.declare", obligationId, () => {
+    const known = this.obligations.get(obligationId);
+    return this.run(ctx, "contribution.declare", known?.groupId, () => {
       const obligation = this.obligations.get(obligationId);
       if (!obligation) {
         // Non-divulgation : un objet inexistant ou hors portée répond pareil.
@@ -124,10 +140,59 @@ export class FictitiousCommandStore {
     });
   }
 
+  /**
+   * Acceptation d'une nomination par le nommé (A19). Action `role.accept`
+   * réservée au rôle membre ; le named doit être l'identité qui accepte.
+   */
+  acceptNomination(ctx: CommandContext, requestId: string): CommandReceipt {
+    const known = this.roleRequests.get(requestId);
+    return this.run(ctx, "role.accept", known?.req.groupId, () => {
+      const record = this.roleRequests.get(requestId);
+      if (!record) {
+        throw new DomainError("RESERVATION_INCOHERENTE", "Nomination introuvable");
+      }
+      assertExpectedVersion(record.version, ctx.expectedVersion);
+      const nominee = ctx.actor.identityId ?? ctx.actor.handle;
+      record.req = domainAcceptNomination(record.req, nominee);
+      record.version += 1;
+      const event = this.appendEvent(record.req.groupId, "role.nomination.accepted", {
+        requestId,
+        nominee,
+      });
+      return { resultVersion: record.version, event };
+    });
+  }
+
+  /**
+   * Approbation d'un changement de rôle (A19). Le serveur exige : rôle tenant
+   * `role.change.approve` (auditeur), adhésion active au groupe (anti-IDOR),
+   * acceptation préalable du nommé, et **approbateur distinct** du proposant et
+   * du nommé. Le fondateur ne peut jamais s'auto-approuver.
+   */
+  approveRoleChange(ctx: CommandContext, requestId: string): CommandReceipt {
+    const known = this.roleRequests.get(requestId);
+    return this.run(ctx, "role.change.approve", known?.req.groupId, () => {
+      const record = this.roleRequests.get(requestId);
+      if (!record) {
+        throw new DomainError("RESERVATION_INCOHERENTE", "Demande introuvable");
+      }
+      assertExpectedVersion(record.version, ctx.expectedVersion);
+      const approver = ctx.actor.identityId ?? ctx.actor.handle;
+      record.req = domainApproveRoleChange(record.req, approver);
+      record.version += 1;
+      const event = this.appendEvent(record.req.groupId, "role.change.approved", {
+        requestId,
+        approver,
+        newRole: record.req.newRole,
+      });
+      return { resultVersion: record.version, event };
+    });
+  }
+
   private run(
     ctx: CommandContext,
     action: Action,
-    scopeId: string,
+    targetGroupId: string | undefined,
     mutate: () => { resultVersion: number; event: JournalEvent },
   ): CommandReceipt {
     // 1. Authentification (le squelette fait confiance à l'acteur transmis ;
@@ -140,8 +205,7 @@ export class FictitiousCommandStore {
       throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Action non autorisée");
     }
     // 2b. Barrière serveur anti-IDOR : l'objet doit être dans un groupe actif.
-    const obligation = this.obligations.get(scopeId);
-    if (obligation && isCrossGroupAccess(ctx.actor.groupIds, obligation.groupId)) {
+    if (targetGroupId !== undefined && isCrossGroupAccess(ctx.actor.groupIds, targetGroupId)) {
       throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Objet hors portée");
     }
     // 3. Barrières de fonctionnalité (pilote) + feature explicitement demandée.

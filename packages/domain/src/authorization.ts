@@ -75,7 +75,10 @@ const MATRIX: Record<Role, readonly Action[]> = {
     "export.private",
   ],
   secretary: ["group.read", "vote.open", "export.private"],
-  auditor: ["group.read", "export.private"],
+  // L'auditeur est l'approbateur INDÉPENDANT du circuit A19 : il détient
+  // `role.change.approve`, distinct du fondateur/animator qui proposent. Le
+  // fondateur ne l'a jamais (auto-approbation universelle exclue).
+  auditor: ["group.read", "export.private", "role.change.approve"],
   member: [
     "group.read",
     "role.accept",

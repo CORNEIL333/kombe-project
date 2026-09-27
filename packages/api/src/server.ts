@@ -18,8 +18,13 @@ import { declareContributionBody, idempotencyKey, expectedVersion } from "./sche
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
 const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   FEATURE_PILOT_FORBIDDEN: 403,
+  IDENTITY_NOT_ACTIVE: 403,
+  APPROVER_NOT_DISTINCT: 403,
   RESERVATION_INCOHERENTE: 404,
   EVENT_CHAIN_BREAK: 409,
+  ROLE_ACCEPTANCE_REQUIRED: 409,
+  MEMBERSHIP_ALREADY_ACTIVE: 409,
+  MEMBERSHIP_STATE_INVALID: 422,
   MONEY_NOT_INTEGER: 422,
   MONEY_NEGATIVE: 422,
   MONEY_OVER_PER_AMOUNT_CEILING: 422,
@@ -30,6 +35,25 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
 
 export interface BuildAppOptions {
   readonly store?: FictitiousCommandStore;
+}
+
+/** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
+ *  par une session résolue côté serveur + RLS). */
+function actorFrom(request: { headers: Record<string, unknown> }): Actor {
+  const actorHeader = request.headers["x-actor"];
+  return typeof actorHeader === "string"
+    ? (JSON.parse(actorHeader) as Actor)
+    : { handle: "", role: "member", groupIds: [] };
+}
+
+function ctxFrom(
+  request: { headers: Record<string, unknown> },
+): CommandContext {
+  return {
+    actor: actorFrom(request),
+    idempotencyKey: idempotencyKey.parse(request.headers["idempotency-key"]),
+    expectedVersion: expectedVersion.parse(request.headers["if-match-version"]),
+  };
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -52,24 +76,24 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   app.post("/v1/groups/:groupId/contributions", async (request, reply) => {
     const body = declareContributionBody.parse(request.body);
-
-    const key = idempotencyKey.parse(request.headers["idempotency-key"]);
-    const version = expectedVersion.parse(request.headers["if-match-version"]);
-
-    // Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera).
-    const actorHeader = request.headers["x-actor"];
-    const actor: Actor = typeof actorHeader === "string" ? JSON.parse(actorHeader) : {
-      handle: "",
-      role: "member",
-      groupIds: [],
-    };
-
-    const ctx: CommandContext = {
-      actor,
-      idempotencyKey: key,
-      expectedVersion: version,
-    };
+    const ctx = ctxFrom(request);
     const receipt = store.declareContribution(ctx, body.obligationId, body.amount);
+    return reply.code(201).send(receipt);
+  });
+
+  // Circuit A19 — acceptation de nomination par le nommé.
+  app.post("/v1/role-nominations/:requestId/acceptances", async (request, reply) => {
+    const { requestId } = request.params as { requestId: string };
+    const ctx = ctxFrom(request);
+    const receipt = store.acceptNomination(ctx, requestId);
+    return reply.code(201).send(receipt);
+  });
+
+  // Circuit A19 — approbation par un approbateur distinct (auditeur).
+  app.post("/v1/role-change-requests/:requestId/approvals", async (request, reply) => {
+    const { requestId } = request.params as { requestId: string };
+    const ctx = ctxFrom(request);
+    const receipt = store.approveRoleChange(ctx, requestId);
     return reply.code(201).send(receipt);
   });
 

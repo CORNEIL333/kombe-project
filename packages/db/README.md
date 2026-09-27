@@ -51,3 +51,35 @@ Convention de sortie alignée sur `04_Harness/` : **0** = succès réel, **1** =
 
 Tant que PostgreSQL/ Testcontainers ne sont pas disponibles, le statut reste
 `BLOCKED` — **documenté, jamais simulé** (cf. `docs/adr/0010_*.md`).
+
+## C01 — gouvernance et preuves prêtes à l'emploi (contrat élargi)
+Le lot C01 **élargit le contrat** et livre les **tests prêts à exécuter** ; leur
+exécution réelle reste `BLOCKED` sans PostgreSQL.
+
+| Chemin | Rôle (C01) |
+|---|---|
+| `migrations/0002_role_change.sql` | Migration **additive** : `role_change_request` (circuit A19), `export_request` (export privé), RLS. |
+| `migrations/0002_role_change.down.sql` | **Retour arrière** de 0002 (drops en ordre inverse). |
+| `migrations/0001_init.down.sql` | **Retour arrière** complet du socle (prérequis : down 0002 d'abord). |
+| `provision/roles.sql` | Rôles distincts : `kombe_migrateur` (DDL), `kombe_app` (DML, non-owner, **sans BYPASSRLS**), `kombe_worker` (outbox). |
+| `tests/isolation.pg.mjs` | Scénarios **C01-TENANT / C01-FK / C01-POOL** sur base réelle. Sort `BLOCKED` (2) sans `KOMBE_TEST_DATABASE_URL` ni pilote `pg`. |
+| `DICTIONNAIRE.md` | Dictionnaire des tables, contraintes et rôles. |
+
+**Stratégie de migration / retour / backfill.** Les migrations sont `BEGIN…COMMIT`
+(enveloppes atomiques) avec `statement_timeout`/`lock_timeout`. 0002 est **purement
+additive** (nouvelles tables) : pas de réécriture de lignes existantes, donc
+rejouable après échec sans effet partiel. Un backfill futur (données du MVP non
+réutilisées — D01) suivra le même patron up/down. Ordre de rollback : `0002…down`
+puis `0001…down`.
+
+**Reproduction (quand l'infra existe) :**
+```bash
+pnpm --filter @kombe/db migrate        # contrat ; BLOCKED (2) sans base
+KOMBE_TEST_DATABASE_URL=postgresql://… node packages/db/tests/isolation.pg.mjs
+   # attendu une fois la base réelle fournie :
+   #   C01-TENANT.cross_group_rows = 0
+   #   C01-FK.foreign_link_accepted = false
+   #   C01-POOL.leaked_rows = 0        → status PASS, exit 0
+```
+Observations issues **d'actions/réquisitions réelles**, jamais de constantes lues
+dans un fichier d'attentes (cf. `C01_PROMPT` §scénarios).
