@@ -18,3 +18,5 @@ export * from "./authorization.js";
 export * from "./identity.js";
 export * from "./role_change.js";
 export * from "./access.js";
+export * from "./group.js";
+export * from "./governance.js";

@@ -14,6 +14,7 @@ import {
   type CommandContext,
 } from "./commandPipeline.js";
 import { FictitiousAccessStore } from "./accessStore.js";
+import { FictitiousGovernanceStore } from "./governanceStore.js";
 import {
   declareContributionBody,
   idempotencyKey,
@@ -23,6 +24,12 @@ import {
   recoveryRequest,
   recoveryCompletion,
   sessionLogin,
+  createGroupBody,
+  groupTransitionBody,
+  membershipTerminationBody,
+  groupMutationBody,
+  rulesAcceptanceBody,
+  contributionDeclarationBody,
 } from "./schemas.js";
 
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
@@ -40,6 +47,11 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   TOKEN_ALREADY_USED: 409,
   TOKEN_INVALID: 400,
   SESSION_INVALID: 401,
+  GROUP_STATE_INVALID: 422,
+  GROUP_READ_ONLY: 403,
+  CYCLE_START_NOT_READY: 409,
+  INVITATION_INVALID: 410,
+  RULES_NOT_ACCEPTED: 403,
   MEMBERSHIP_STATE_INVALID: 422,
   PASSWORD_TOO_WEAK: 422,
   PASSWORD_COMPROMISED: 422,
@@ -54,6 +66,7 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
 export interface BuildAppOptions {
   readonly store?: FictitiousCommandStore;
   readonly access?: FictitiousAccessStore;
+  readonly governance?: FictitiousGovernanceStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -79,6 +92,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   const store = options.store ?? new FictitiousCommandStore();
   const access = options.access ?? new FictitiousAccessStore();
+  const governance = options.governance ?? new FictitiousGovernanceStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -172,6 +186,68 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/access/operators/:identityId/privilege", async (request, reply) => {
     const { identityId } = request.params as { identityId: string };
     return reply.code(200).send(access.operatorAccess(identityId));
+  });
+
+  /* --- C03 : groupes, gouvernance, invitations, règles (2.1, 2.7, 4.1, 4.2) --- */
+
+  // Création d'un groupe en configuration (2.1).
+  app.post("/v1/groups", async (request, reply) => {
+    const body = createGroupBody.parse(request.body);
+    const out = governance.createGroup(body);
+    return reply.code(201).send(out);
+  });
+
+  // Lecture de la préparation au démarrage du cycle.
+  app.get("/v1/groups/:groupId/cycle-readiness", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    return reply.code(200).send(governance.readiness(groupId));
+  });
+
+  // Démarrage du cycle — porte serveur (C03-BOOT : fondateur seul ⇒ 409).
+  app.post("/v1/groups/:groupId/cycle-starts", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    return reply.code(201).send(governance.startCycle(groupId));
+  });
+
+  // Transition d'état du groupe (2.7).
+  app.post("/v1/groups/:groupId/state-transitions", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = groupTransitionBody.parse(request.body);
+    return reply.code(200).send(governance.transition(groupId, body.to));
+  });
+
+  // Sonde de mutation gardée par adhésion active + groupe mutable (C03-REVOKE).
+  app.post("/v1/groups/:groupId/mutations", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = groupMutationBody.parse(request.body);
+    return reply.code(200).send(governance.attemptMutation(groupId, body.identityId));
+  });
+
+  // Terminaison d'une adhésion (départ/révocation), avant la prochaine commande.
+  app.post("/v1/groups/:groupId/membership-terminations", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = membershipTerminationBody.parse(request.body);
+    return reply.code(200).send(governance.terminateMembership(groupId, body.identityId));
+  });
+
+  // Acceptation horodatée de la version courante des règles (4.2).
+  app.post("/v1/groups/:groupId/rules-acceptances", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = rulesAcceptanceBody.parse(request.body);
+    return reply.code(201).send(governance.acceptGroupRules(groupId, body.identityId));
+  });
+
+  // Déclaration de cotisation — refusée sans acceptation des règles en vigueur.
+  app.post("/v1/groups/:groupId/contribution-declarations", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = contributionDeclarationBody.parse(request.body);
+    return reply.code(200).send(governance.declareContribution(groupId, body.identityId));
+  });
+
+  // Rachat d'une invitation limitée/expirante/révocable (4.1).
+  app.post("/v1/invitations/:invitationId/redemptions", async (request, reply) => {
+    const { invitationId } = request.params as { invitationId: string };
+    return reply.code(200).send(governance.redeemInvitation(invitationId));
   });
 
   return app;

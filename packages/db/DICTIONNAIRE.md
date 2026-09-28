@@ -1,4 +1,4 @@
-# Dictionnaire de données — `@kombe/db` (C00 socle + C01 gouvernance)
+# Dictionnaire de données — `@kombe/db` (C00 socle + C01/C02/C03 gouvernance et accès)
 
 Registre de tontines fermées. Toutes les tables métier portent `group_id` ; les
 relations composées sont `UNIQUE`/`FK` sur `(group_id, id)` (isolation
@@ -10,7 +10,7 @@ structurelle, cf. ADR-0007). Montants : domaine `kombe_money` = `bigint` borné
 | Table | Rôle | Clés / contraintes clés |
 |---|---|---|
 | `identity` | Identité globale, indépendante des groupes. | PK `identity_id` |
-| `group` | Groupe de tontine (locataire). | PK `group_id` ; `state` ∈ configuration/active/paused/closed ; `version ≥ 1` |
+| `group` | Groupe de tontine (locataire). | PK `group_id` ; `state` ∈ configuration/active/paused/closed (+ stopped_with_discrepancies/archived élargis par `0004`, cf. C03) ; `version ≥ 1` |
 | `membership` | Adhésion d'une identité à un groupe. | PK `membership_id` ; `UNIQUE(group_id, membership_id)` ; **une adhésion active** par (groupe, identité) via `active_marker` généré + `UNIQUE` ; `state` ∈ pending/active/departed/revoked |
 | `role_assignment` | Rôle attribué dans un groupe ; accepté avant activation. | PK ; FK composite `(group_id, membership_id)` ; `role` ∈ animator/treasurer/secretary/auditor/member ; `accepted_at` |
 | `rule_version` | Instantané **immuable** des règles. | PK `(group_id, rules_version)` ; `snapshot` jsonb canonique |
@@ -49,6 +49,20 @@ Aucun secret en clair : uniquement des **empreintes** (`password_hash`,
 > session par génération, self-scope RLS) = scénarios C02-RECOVERY / C02-SESSION
 > / C02-SELFSCOPE de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
 
+## Gouvernance des groupes (migration additive `0004_group_governance.sql`, lot C03)
+Élargit les états du groupe (2.7) et pose les invitations (4.1). L'acceptation
+des règles (4.2, `rules_acceptance`) et les rôles (4.4, `role_assignment`)
+existent déjà dans le socle `0001` et ne sont pas redéfinis.
+
+| Table | Rôle | Clés / contraintes clés |
+|---|---|---|
+| `invitation` | Lien d'adhésion **borné, expirant, révocable** (4.1) ; ne révèle aucune donnée métier. | PK `invitation_id` ; FK composite `UNIQUE(group_id, invitation_id)` ; `channel` ∈ link/whatsapp/email ; `max_uses ≥ 1` ; **`used_count ≤ max_uses`** (borne dure) ; `expires_at > issued_at` ; `revoked_at` nullable ; RLS `tenant_isolation` (porte `group_id`) |
+| `group.state` (élargi) | Cycle de vie complet d'un groupe (2.7). | CHECK reposée : `configuration`/`active`/`paused`/`closed` **+ `stopped_with_discrepancies`/`archived`** ; transition et lecture seule d'un groupe clos/archivé = **décision serveur** (`packages/domain/src/group.ts`), la base ne choisit pas la transition |
+
+> Preuve **effective** (état élargi accepté, second usage d'une invitation bornée
+> refusé, invitation de A invisible au contexte de B) = scénarios C03-STATE /
+> C03-INVITE / C03-TENANT de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
+
 ## Provisionnement (`provision/roles.sql`)
 | Rôle | Privilèges | But |
 |---|---|---|
@@ -62,6 +76,6 @@ Aucun secret en clair : uniquement des **empreintes** (`password_hash`,
 
 ## Statut d'exécution
 Ce dictionnaire décrit un **contrat**, pas une base déployée. L'application du
-schéma et les preuves (RLS effective, verrous, isolation de pool, FK croisées)
-sont le **lot C01 d'exécution** sur PostgreSQL 16+ réel
-(`tests/isolation.pg.mjs`), **BLOCKED** sur un hôte sans base.
+schéma et les preuves (RLS effective, verrous, isolation de pool, FK croisées,
+bornes d'invitation, supplantation de session) sont le **lot d'exécution** sur
+PostgreSQL 16+ réel (`tests/isolation.pg.mjs`), **BLOCKED** sur un hôte sans base.

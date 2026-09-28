@@ -81,3 +81,18 @@ export const sessionLogin = z.object({ identityId, sessionId: z.string().min(1).
 
 export type RegistrationRequestInput = z.infer<typeof registrationRequest>;
 export type RecoveryCompletionInput = z.infer<typeof recoveryCompletion>;
+
+/* --- C03 : groupes, gouvernance, invitations, règles (2.1, 2.7, 4.1, 4.2) --- */
+
+export const createGroupBody = z.object({
+  groupId: z.string().min(1).max(120),
+  minimumMembers: z.number().int().min(2).max(1000).optional(),
+  requiredIndependentRoles: z.number().int().min(0).max(10).optional(),
+});
+export const groupTransitionBody = z.object({
+  to: z.enum(["active", "paused", "closed", "stopped_with_discrepancies", "archived"]),
+});
+export const membershipTerminationBody = z.object({ identityId });
+export const groupMutationBody = z.object({ identityId });
+export const rulesAcceptanceBody = z.object({ identityId });
+export const contributionDeclarationBody = z.object({ identityId });

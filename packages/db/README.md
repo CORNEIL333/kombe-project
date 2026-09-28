@@ -99,4 +99,19 @@ ligne + index partiel unique (un seul jeton actif par identité+finalité).
 Révocation en cascade des sessions : la validité exige `access_session.generation
 = identity_access.session_generation` ; la récupération incrémente la génération.
 **Aucun secret en clair** (ni mot de passe, ni OTP) : uniquement des empreintes.
-Ordre de rollback complet : `0003…down` → `0002…down` → `0001…down`.
+Ordre de rollback complet : `0004…down` → `0003…down` → `0002…down` → `0001…down`.
+
+## C03 — gouvernance des groupes (cycle de vie, invitations)
+Le lot C03 **élargit** le contrat : nouveaux états du groupe et table
+d'invitations tenant-scope ; l'exécution réelle reste `BLOCKED`.
+
+| Chemin | Rôle (C03) |
+|---|---|
+| `migrations/0004_group_governance.sql` | Migration **additive** : CHECK `group.state` élargie (`stopped_with_discrepancies`/`archived`, 2.7) + table `invitation` (bornée `max_uses`, expirante, révocable, 4.1) avec RLS `tenant_isolation`. |
+| `migrations/0004_group_governance.down.sql` | **Retour arrière** de 0004 (drop `invitation`, repose la CHECK d'origine ; échoue sans perte si des groupes occupent un état ajouté). |
+| `tests/isolation.pg.mjs` (étendu) | Scénarios **C03-STATE** (état élargi accepté), **C03-INVITE** (second usage d'une invitation `max_uses=1` refusé par la borne), **C03-TENANT** (invitation de A invisible au contexte de B). |
+
+La **porte de démarrage du cycle** (fonctions indépendantes acceptées + règles
+acceptées + suppléant nommé) et la **lecture seule** d'un groupe `closed`/
+`archived` sont des **décisions serveur** (`packages/domain/src/group.ts`) ; la
+base ne fait que borner les états et les usages, elle ne choisit pas la transition.

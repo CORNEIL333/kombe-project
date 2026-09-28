@@ -36,6 +36,11 @@ export type DomainErrorCode =
   | "SESSION_INVALID"
   | "CHANNEL_NOT_VERIFIED"
   | "PRIVILEGE_NOT_GRANTED"
+  | "GROUP_STATE_INVALID"
+  | "GROUP_READ_ONLY"
+  | "CYCLE_START_NOT_READY"
+  | "INVITATION_INVALID"
+  | "RULES_NOT_ACCEPTED"
   | "FEATURE_PILOT_FORBIDDEN";
 
 export class DomainError extends Error {

@@ -29,6 +29,8 @@ tags:
     description: Groupes et adhésions
   - name: roles
     description: Nominations et changements de rôles (approbateur distinct) — A19
+  - name: governance
+    description: Cycle de vie du groupe, porte d'amorçage, invitations et acceptation des règles (C03)
   - name: rules
     description: Versions de règles immuables et acceptations
   - name: contributions
@@ -417,6 +419,119 @@ paths:
             text/csv:
               schema: { type: string }
         "403": { $ref: "#/components/responses/Forbidden" }
+
+  # ── C03 — gouvernance des groupes (cycle de vie, amorçage, invitations, règles) ──
+  # NB : POST /groups (création en configuration) est déjà défini dans le socle C00.
+  /groups/{groupId}/cycle-readiness:
+    get:
+      tags: [governance]
+      operationId: readCycleReadiness
+      summary: Agrégats serveur évaluant la préparation au démarrage du cycle
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: >
+            Fonctions indépendantes acceptées / requises, acceptation des règles
+            par tous, suppléant du trésorier, effectif actif. Calculés côté
+            serveur, jamais fournis par le client.
+
+  /groups/{groupId}/cycle-starts:
+    post:
+      tags: [governance]
+      operationId: startCycle
+      summary: Démarrer le cycle — porte serveur (fondateur seul ⇒ 409)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "201": { description: Cycle démarré (configuration → active) }
+        "409":
+          description: CYCLE_START_NOT_READY — préconditions d'amorçage non remplies
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /groups/{groupId}/state-transitions:
+    post:
+      tags: [governance]
+      operationId: transitionGroupState
+      summary: Transition d'état du groupe, bornée (2.7)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to]
+              properties:
+                to:
+                  type: string
+                  enum: [active, paused, closed, stopped_with_discrepancies, archived]
+      responses:
+        "200": { description: Nouvel état appliqué }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/membership-terminations:
+    post:
+      tags: [governance]
+      operationId: terminateMembership
+      summary: Terminer une adhésion (départ/révocation) avant la prochaine commande
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identityId]
+              properties:
+                identityId: { type: string }
+      responses:
+        "200": { description: Adhésion terminée (état terminal) }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /groups/{groupId}/rules-acceptances:
+    post:
+      tags: [governance]
+      operationId: acceptCurrentRules
+      summary: Accepter la version courante des règles (consentement horodaté, 4.2)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identityId]
+              properties:
+                identityId: { type: string }
+      responses:
+        "201": { description: Acceptation enregistrée à la version en vigueur }
+
+  /invitations/{invitationId}/redemptions:
+    post:
+      tags: [governance]
+      operationId: redeemInvitation
+      summary: Racheter une invitation bornée/expirante/révocable (4.1)
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Usage consommé (vue publique, aucun registre révélé) }
+        "410":
+          description: >
+            INVITATION_INVALID — erreur unique non divulguante (expirée, révoquée
+            ou épuisée ne sont pas distinguées pour un observateur externe)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
 components:
   securitySchemes:

@@ -79,6 +79,7 @@ async function main() {
     await runSql(migrator, "migrations/0001_init.sql");
     await runSql(migrator, "migrations/0002_role_change.sql");
     await runSql(migrator, "migrations/0003_access.sql");
+    await runSql(migrator, "migrations/0004_group_governance.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
@@ -207,6 +208,47 @@ async function main() {
     });
     observations.C02_SELFSCOPE = { rows_visible_to_other_identity: selfScope };
 
+    // ── C03-STATE : le groupe accepte un état ajouté par 0004 (2.7). ─────────
+    let extendedStateAccepted = true;
+    try {
+      await migrator.query("UPDATE \"group\" SET state = 'stopped_with_discrepancies' WHERE group_id = 'grpA'");
+    } catch {
+      extendedStateAccepted = false;
+    }
+    observations.C03_STATE = { extended_state_accepted: extendedStateAccepted };
+
+    // ── C03-INVITE : une invitation bornée à 1 usage refuse le second. ───────
+    await migrator.query("SET kombe.group_id = 'grpA'");
+    await migrator.query(
+      `DELETE FROM invitation WHERE invitation_id = 'inv_a';
+       INSERT INTO invitation (invitation_id, group_id, channel, max_uses, used_count, expires_at)
+         VALUES ('inv_a','grpA','link',1,0, now() + interval '1 hour');`,
+    );
+    const redeemOnce = async () => {
+      await app.query("BEGIN");
+      await app.query("SET LOCAL kombe.group_id = 'grpA'");
+      const res = await app.query(
+        `UPDATE invitation SET used_count = used_count + 1
+         WHERE invitation_id = 'inv_a' AND used_count < max_uses
+         RETURNING invitation_id`,
+      );
+      await app.query("COMMIT");
+      return res.rowCount;
+    };
+    const inviteFirst = await redeemOnce();
+    const inviteSecond = await redeemOnce();
+    observations.C03_INVITE = {
+      first_redeem_accepted: inviteFirst === 1,
+      second_redeem_accepted: inviteSecond === 1, // attendu false (borne max_uses)
+    };
+
+    // ── C03-TENANT : l'invitation de A est invisible au contexte de B. ───────
+    const inviteCross = await withTenant(app, "grpB", async () => {
+      const res = await app.query("SELECT count(*)::int AS n FROM invitation");
+      return res.rows[0].n;
+    });
+    observations.C03_TENANT = { cross_group_invitation_rows: inviteCross };
+
     await app.end();
 
     const pass =
@@ -216,7 +258,11 @@ async function main() {
       observations.C02_RECOVERY.first_use_accepted === true &&
       observations.C02_RECOVERY.second_use_accepted === false &&
       observations.C02_SESSION.old_session_accepted === false &&
-      observations.C02_SELFSCOPE.rows_visible_to_other_identity === 0;
+      observations.C02_SELFSCOPE.rows_visible_to_other_identity === 0 &&
+      observations.C03_STATE.extended_state_accepted === true &&
+      observations.C03_INVITE.first_redeem_accepted === true &&
+      observations.C03_INVITE.second_redeem_accepted === false &&
+      observations.C03_TENANT.cross_group_invitation_rows === 0;
 
     process.stdout.write(
       JSON.stringify(
