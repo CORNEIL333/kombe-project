@@ -1,4 +1,4 @@
-# Dictionnaire de données — `@kombe/db` (C00 socle + C01→C05, C11 gouvernance, accès, calendrier et journal)
+# Dictionnaire de données — `@kombe/db` (C00 socle + C01→C06, C11 gouvernance, accès, calendrier, journal et idempotence)
 
 Registre de tontines fermées. Toutes les tables métier portent `group_id` ; les
 relations composées sont `UNIQUE`/`FK` sur `(group_id, id)` (isolation
@@ -124,11 +124,32 @@ Renforce `journal` (socle 0001) sans le redéfinir : enveloppe d'audit requeryab
 > `partial_commit_count = 0`) = scénarios C11-APPEND-ONLY / C11-CHECKPOINT /
 > C11-ROLLBACK de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
 
+## Déclarations et idempotence (migration additive `0008_contribution_idempotency.sql`, lot C06)
+Ajoute le **registre durable d'idempotence** et les **champs de preuve** des
+déclarations, sans redéfinir `obligation`/`contribution`/`command`/`outbox`.
+
+| Objet | Rôle | Clés / contraintes clés |
+|---|---|---|
+| `idempotency_registry` | Registre **durable** acteur/groupe/type/clé + hash de corps (18.1). | UNIQUE `(actor_identity_id, group_id, command_type, idempotency_key)` ; `body_hash`/`event_hash` ~ `^[0-9a-f]{64}$` ; FK vers `command` ; `result_status IN ('applied')` ; **trigger append-only** (`UPDATE/DELETE` refusés au chemin applicatif) + **`REVOKE UPDATE, DELETE … FROM kombe_app`** (le registre posé ne se défait pas) ; RLS `tenant_isolation` |
+| `command` (élargi) | Exposition du statut de commande (18.1/18.2). | + `actor_identity_id`, `command_type`, `body_hash` (~ hex 64, nullable) — déjà porteur de `idempotency_key UNIQUE` et `status` du socle `0001` |
+| `contribution` (élargi) | Champs de preuve d'une déclaration partielle (6.1). | + `channel` (CHECK ∈ cash/electronic), `reference`, `justification`, `alleged_date` (date client) et `server_date` (horodatage **serveur**, distinct) — nullables ; CHECK `contribution_electronic_reference` : électronique **sans référence exige un motif** non vide |
+| capacité sous verrou | **Excédent bloqué**, restant dû sur validé net (18.3). | Gardé par le CHECK hérité de `0001` sur `obligation` : `validated_net <= active_reserved <= due_amount` ; la réservation se fait sous `SELECT … FOR UPDATE` (verrou réel, BLOCKED sans base) |
+
+> Le **hash canonique du corps** (RFC 8785), la décision **rejeu/conflit**
+> (même clé/même corps = rejeu sans second événement ; corps différent = 409) et
+> la **réservation sous la capacité restante** sont des **décisions serveur**
+> (`packages/domain/src/contribution.ts`). La base rend le registre **durable et
+> incompressible** et borne structurellement la capacité. Preuve effective
+> (UPDATE du registre refusé ; seconde application d'une même clé scopée refusée
+> par l'UNIQUE ; rejeu ⇒ `contribution_count = 1` ; deux courses de 3000 sur 5000
+> ⇒ `accepted_total = 3000`) = scénarios C06-IDEMPOTENCE / C06-REPLAY / C06-RACE
+> de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
+
 ## Provisionnement (`provision/roles.sql`)
 | Rôle | Privilèges | But |
 |---|---|---|
 | `kombe_migrateur` | DDL, propriétaire du schéma | Appliquer migrations up/down |
-| `kombe_app` | DML seulement, **non-owner**, **sans BYPASSRLS**, NOLOGIN ; **pas de UPDATE/DELETE sur `journal`**, **aucune écriture sur `checkpoint`** (0007) | RLS effective côté applicatif ; journal append-only |
+| `kombe_app` | DML seulement, **non-owner**, **sans BYPASSRLS**, NOLOGIN ; **pas de UPDATE/DELETE sur `journal`**, **aucune écriture sur `checkpoint`** (0007) ; **pas de UPDATE/DELETE sur `idempotency_registry`** (0008) | RLS effective côté applicatif ; journal et registre d'idempotence append-only |
 | `kombe_worker` | SELECT/UPDATE sur `outbox` + `command` | Consommation d'outbox minimale |
 
 > Aucun secret de service-role exposé au navigateur : le navigateur ne parle

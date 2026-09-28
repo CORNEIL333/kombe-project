@@ -166,3 +166,20 @@ l'**outil de vérification** indépendant et la **timeline filtrée par droits**
 base rend l'append-only **incompressible** et le checkpoint **hors de portée** de
 l'app. Ordre de rollback complet : `0007…down` → `0006…down` → `0005…down` →
 `0004…down` → `0003…down` → `0002…down` → `0001…down`.
+
+## C06 — déclarations partielles et idempotence (registre durable)
+Le lot C06 **ajoute** le registre durable d'idempotence et les champs de preuve
+des déclarations, sans redéfinir `obligation`/`contribution`/`command`/`outbox` ;
+l'exécution réelle reste `BLOCKED`.
+
+| Chemin | Rôle (C06) |
+|---|---|
+| `migrations/0008_contribution_idempotency.sql` | Migration **additive** : table `idempotency_registry` (clé **scopée** `(acteur,groupe,type,clé)` UNIQUE, `body_hash` 64-hex, FK vers `command`, **trigger append-only** + **`REVOKE UPDATE, DELETE`** pour `kombe_app`, RLS) ; colonnes `command` (`actor_identity_id`, `command_type`, `body_hash`) ; champs de preuve `contribution` (`channel` CHECK, `reference`, `justification`, `alleged_date`, `server_date`) et CHECK « électronique sans référence exige un motif ». La capacité sous verrou / excédent bloqué reste gardée par le CHECK hérité de `0001` (`active_reserved <= due_amount`). |
+| `migrations/0008_contribution_idempotency.down.sql` | **Retour arrière** de 0008 (drop `idempotency_registry`, contrainte et colonnes `contribution`/`command` — ordre inverse ; la fonction partagée `kombe_journal_append_only` appartient à 0007). |
+| `tests/isolation.pg.mjs` (étendu) | Scénarios **C06-IDEMPOTENCE** (UPDATE du registre posé refusé à `kombe_app` ; seconde application d'une même clé scopée refusée par l'UNIQUE), **C06-REPLAY** (rejeu → `contribution_count = 1`, pas de second événement), **C06-RACE** (deux courses de 3000 sur 5000 → `second_course_accepted = false`, `accepted_total = 3000` par le CHECK de capacité sous verrou). |
+
+Le **hash de corps**, la décision **rejeu/conflit** et la **réservation sous
+capacité** sont des **décisions serveur** (`packages/domain/src/contribution.ts`) ;
+la base rend le registre **durable et incompressible** et borne **structurellement**
+la capacité. Ordre de rollback complet : `0008…down` → `0007…down` → `0006…down` →
+`0005…down` → `0004…down` → `0003…down` → `0002…down` → `0001…down`.

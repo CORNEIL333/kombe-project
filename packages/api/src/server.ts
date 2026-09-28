@@ -8,7 +8,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import { DomainError, type DomainErrorCode } from "@kombe/domain";
-import type { CycleSchedule } from "@kombe/domain";
+import type { CycleSchedule, ContributionDeclaration } from "@kombe/domain";
 import {
   FictitiousCommandStore,
   type Actor,
@@ -20,7 +20,13 @@ import { FictitiousRulesStore } from "./rulesStore.js";
 import { FictitiousScheduleStore } from "./scheduleStore.js";
 import { FictitiousJournalStore } from "./journalStore.js";
 import {
+  FictitiousContributionStore,
+  type DeclareContext,
+} from "./contributionStore.js";
+import {
   declareContributionBody,
+  declareContributionBody_c06,
+  contributionDraftBody,
   idempotencyKey,
   expectedVersion,
   registrationRequest,
@@ -78,6 +84,9 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   SCHEDULE_FROZEN: 409,
   REPLAY_VERSION_UNKNOWN: 422,
   CHECKPOINT_MISMATCH: 409,
+  IDEMPOTENCY_BODY_CONFLICT: 409,
+  CONTRIBUTION_EXCEEDS_REMAINING: 409,
+  REFERENCE_JUSTIFICATION_REQUIRED: 422,
   MEMBERSHIP_STATE_INVALID: 422,
   PASSWORD_TOO_WEAK: 422,
   PASSWORD_COMPROMISED: 422,
@@ -96,6 +105,7 @@ export interface BuildAppOptions {
   readonly rules?: FictitiousRulesStore;
   readonly schedule?: FictitiousScheduleStore;
   readonly journal?: FictitiousJournalStore;
+  readonly contribution?: FictitiousContributionStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -117,6 +127,31 @@ function ctxFrom(
   };
 }
 
+/**
+ * Contexte C06 : la date SERVEUR (`x-server-date`, défaut fictif fixe) est
+ * distincte de la date alléguée fournie dans le corps ; l'identité et les
+ * groupes actifs de l'acteur viennent de l'en-tête fictif (C01 les résoudra
+ * depuis une session réelle + RLS). `commandId` defaulted to the idempotency
+ * key keeps the receipt deterministic without a clock.
+ */
+function declareCtxFrom(
+  request: { headers: Record<string, unknown> },
+): DeclareContext {
+  const actor = actorFrom(request);
+  const key = idempotencyKey.parse(request.headers["idempotency-key"]);
+  const serverDateHeader = request.headers["x-server-date"];
+  const commandIdHeader = request.headers["x-command-id"];
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    actorGroupIds: actor.groupIds,
+    idempotencyKey: key,
+    expectedVersion: expectedVersion.parse(request.headers["if-match-version"]),
+    serverDate: typeof serverDateHeader === "string" ? serverDateHeader : "2026-09-28",
+    commandId: typeof commandIdHeader === "string" ? commandIdHeader : `cmd-${key}`,
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   const store = options.store ?? new FictitiousCommandStore();
@@ -125,6 +160,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const rules = options.rules ?? new FictitiousRulesStore();
   const schedule = options.schedule ?? new FictitiousScheduleStore();
   const journal = options.journal ?? new FictitiousJournalStore();
+  const contribution = options.contribution ?? new FictitiousContributionStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -469,6 +505,61 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return reply
       .code(200)
       .send({ tamper_detected: !copyResult.intact, error: copyResult.error ?? null, internal_chain_intact: stillIntact });
+  });
+
+  /* --- C06 : déclarations partielles, idempotence, capacité sous verrou --- */
+
+  // Déclaration idempotente d'une cotisation partielle. Rejeu (même clé/même
+  // corps) renvoie le résultat d'origine SANS second événement ; corps
+  // différent → 409 ; excédent → 409 (aucune écriture). 18.1 / 18.3.
+  app.post("/v1/groups/:groupId/declarations", async (request, reply) => {
+    const body = declareContributionBody_c06.parse(request.body);
+    const decl: ContributionDeclaration = {
+      obligationId: body.obligationId,
+      amountMinor: body.amount,
+      channel: body.channel,
+      allegedDate: body.allegedDate,
+      ...(body.reference !== undefined ? { reference: body.reference } : {}),
+      ...(body.justification !== undefined ? { justification: body.justification } : {}),
+    };
+    const ctx = declareCtxFrom(request);
+    const r = contribution.declare(ctx, decl);
+    return reply
+      .code(r.status === "applied" ? 201 : 200)
+      .send({
+        commandId: r.commandId,
+        status: r.status,
+        resultVersion: r.resultVersion,
+        eventHash: r.eventHash,
+        obligationId: r.obligationId,
+        remainingDue: r.remainingDue.toString(),
+        availableToDeclare: r.availableToDeclare.toString(),
+      });
+  });
+
+  // Brouillon local (6.9) : action DISTINCTE de la soumission ; n'écrit ni
+  // événement, ni réservation, ni registre (absence d'effet prouvée en test).
+  app.post("/v1/groups/:groupId/drafts", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = contributionDraftBody.parse(request.body);
+    const actor = actorFrom(request);
+    const decl: ContributionDeclaration = {
+      obligationId: body.obligationId,
+      amountMinor: body.amount,
+      channel: body.channel,
+      allegedDate: body.allegedDate,
+      ...(body.reference !== undefined ? { reference: body.reference } : {}),
+      ...(body.justification !== undefined ? { justification: body.justification } : {}),
+    };
+    return reply
+      .code(200)
+      .send(contribution.saveDraft(actor.identityId ?? actor.handle, `${groupId}:${decl.obligationId}`, decl));
+  });
+
+  // Vue de l'obligation : capacité sous verrou et restant dû sur validé net.
+  app.get("/v1/groups/:groupId/obligations/:obligationId", async (request, reply) => {
+    const { obligationId } = request.params as { obligationId: string };
+    return reply.code(200).send(contribution.view(obligationId));
   });
 
   return app;

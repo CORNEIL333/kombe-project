@@ -28,7 +28,8 @@ Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats ac
 | [0014](./0014_regles_versionnees_non_retroactives.md) | Moteur de règles versionnées, immuables (hash canonique) et non rétroactives ; barre pilote sur pénalités | **ADOPTÉ** (C04) — preuve base réelle **BLOCKED** | Lead C04 |
 | [0015](./0015_calendrier_cycles_tours_beneficiaires.md) | Calendrier des cycles : N tours/N membres, bénéficiaire unique, échéances datées (Africa/Douala↔UTC), ordre figé | **ADOPTÉ** (C05) — preuve base réelle **BLOCKED** | Lead C05 |
 | [0016](./0016_journal_evenements_projections_integrite.md) | Journal d'événements : append-only réel, replay versionné des totaux, checkpoints hors privilèges app, timeline filtrée | **ADOPTÉ** (C11) — preuve base réelle **BLOCKED** | Lead C11 |
-| 0017–0020 | Réservés (sauvegarde/RPO, régions, IA, paiement…) | `[OUVERT]` — aucune installation présumée | Décideurs des portes G0/G1 |
+| [0017](./0017_idempotence_registre_capacite_sous_verrou.md) | Déclarations partielles et idempotence : registre durable (scope acteur/groupe/type/clé + hash de corps), rejeu/conflit 409, droits relus avant rejeu, capacité sous verrou, excédent bloqué | **ADOPTÉ** (C06) — preuve base réelle **BLOCKED** | Lead C06 |
+| 0018–0020 | Réservés (sauvegarde/RPO, régions, IA, paiement…) | `[OUVERT]` — aucune installation présumée | Décideurs des portes G0/G1 |
 
 > Slots 0016–0020 restent vides tant qu'une décision n'est pas prise ; les
 > décisions ouvertes `[OPEN-D01..D10]` de STACK.md y seront rattachées.

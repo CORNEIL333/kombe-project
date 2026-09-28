@@ -23,3 +23,4 @@ export * from "./governance.js";
 export * from "./rules.js";
 export * from "./schedule.js";
 export * from "./journal.js";
+export * from "./contribution.js";

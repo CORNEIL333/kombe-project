@@ -75,6 +75,7 @@ async function main() {
 
   try {
     // État initial reproductible : on repart d'un schéma propre en base de test.
+    await runSql(migrator, "migrations/0008_contribution_idempotency.down.sql");
     await runSql(migrator, "migrations/0007_event_journal.down.sql");
     await runSql(migrator, "migrations/0001_init.down.sql");
     await runSql(migrator, "migrations/0001_init.sql");
@@ -84,6 +85,7 @@ async function main() {
     await runSql(migrator, "migrations/0005_rules_engine.sql");
     await runSql(migrator, "migrations/0006_cycle_schedule.sql");
     await runSql(migrator, "migrations/0007_event_journal.sql");
+    await runSql(migrator, "migrations/0008_contribution_idempotency.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
@@ -412,6 +414,125 @@ async function main() {
     );
     observations.C11_ROLLBACK = { partial_commit_count: Number(partialCommitCount.rows[0].n) };
 
+    // ── C06-IDEMPOTENCE : le registre d'idempotence est append-only côté app ──
+    // et scopé. kombe_app peut INSERT une réservation appliquée, JAMAIS la
+    // modifier ni l'effacer (trigger + REVOKE UPDATE/DELETE de 0008) ; une
+    // seconde exécution de la même (acteur,groupe,type,clé) bute sur l'UNIQUE,
+    // donc une rejouabilité après timeout/coupure n'ajoute AUCUN second résultat.
+    const HASH_A = "4".repeat(64);
+    const HASH_B = "5".repeat(64);
+    await withTenant(app, "grpA", async () => {
+      await app.query(
+        `INSERT INTO idempotency_registry
+           (actor_identity_id, group_id, command_type, idempotency_key, body_hash, result_status)
+         VALUES ('idn_a','grpA','contribution.declare','idem_c06_a',$1,'applied')`,
+        [HASH_A],
+      );
+    });
+    let registryUpdateRefused = false;
+    try {
+      await app.query("BEGIN");
+      await app.query("SET LOCAL kombe.group_id = 'grpA'");
+      await app.query(
+        `UPDATE idempotency_registry SET body_hash = $1
+         WHERE group_id='grpA' AND idempotency_key='idem_c06_a'`,
+        [HASH_B],
+      );
+      await app.query("ROLLBACK");
+    } catch {
+      registryUpdateRefused = true;
+      await app.query("ROLLBACK").catch(() => {});
+    }
+    // Corps différent sur la même clé scopée : l'UNIQUE bloque la seconde
+    // application durable (le 409 corps-différent est décidé serveur, 18.1).
+    let duplicateScopedKeyAccepted = true;
+    try {
+      await withTenant(app, "grpA", async () => {
+        await app.query(
+          `INSERT INTO idempotency_registry
+             (actor_identity_id, group_id, command_type, idempotency_key, body_hash, result_status)
+           VALUES ('idn_a','grpA','contribution.declare','idem_c06_a',$1,'applied')`,
+          [HASH_B],
+        );
+      });
+    } catch {
+      duplicateScopedKeyAccepted = false;
+    }
+    observations.C06_IDEMPOTENCE = {
+      registry_update_refused: registryUpdateRefused,
+      duplicate_scoped_key_accepted: duplicateScopedKeyAccepted,
+    };
+
+    // ── C06-REPLAY : la déclaration n'est appliquée qu'une fois (compte = 1) ──
+    // Transaction d'application (commande + registre + contribution) posée une
+    // fois ; toute re-application bute sur l'UNIQUE du registre ⇒ pas de second
+    // événement. Scénario éponyme : `contribution_count = 1` malgré 20 rejeux.
+    await migrator.query("SET kombe.group_id = 'grpA'");
+    await migrator.query("BEGIN");
+    await migrator.query(
+      `INSERT INTO command (command_id, idempotency_key, group_id, status)
+       VALUES ('cmd_c06','idem_c06_r','grpA','applied')`,
+    );
+    await migrator.query(
+      `INSERT INTO idempotency_registry
+         (actor_identity_id, group_id, command_type, idempotency_key, body_hash, command_id, result_status)
+       VALUES ('idn_a','grpA','contribution.declare','idem_c06_r',$1,'cmd_c06','applied')`,
+      [HASH_A],
+    );
+    await migrator.query(
+      `INSERT INTO contribution (contribution_id, group_id, obligation_id, declared_amount, state)
+       VALUES ('ctr_c06','grpA','obl_a',1000,'declared')`,
+    );
+    await migrator.query("COMMIT");
+    let replaySecondInsertAccepted = true;
+    try {
+      await migrator.query("BEGIN");
+      await migrator.query(
+        `INSERT INTO idempotency_registry
+           (actor_identity_id, group_id, command_type, idempotency_key, body_hash, result_status)
+         VALUES ('idn_a','grpA','contribution.declare','idem_c06_r',$1,'applied')`,
+        [HASH_A],
+      );
+      await migrator.query("COMMIT");
+    } catch {
+      replaySecondInsertAccepted = false;
+      await migrator.query("ROLLBACK").catch(() => {});
+    }
+    const contributionCount = await migrator.query(
+      `SELECT count(*)::int AS n FROM contribution WHERE group_id='grpA' AND contribution_id='ctr_c06'`,
+    );
+    observations.C06_REPLAY = {
+      replay_second_registry_insert_accepted: replaySecondInsertAccepted,
+      contribution_count: Number(contributionCount.rows[0].n),
+    };
+
+    // ── C06-RACE : excédent bloqué par le CHECK de capacité sous verrou ──────
+    // Obligation de 5000 : deux courses de 3000. La première porte active_reserved
+    // à 3000 ; la seconde tenterait 6000 > due ⇒ refusée par le CHECK hérité de
+    // 0001 (`active_reserved <= due_amount`), sous le verrou de la ligne. Le total
+    // accepté reste 3000.
+    await migrator.query(
+      `INSERT INTO round (round_id, group_id, seq) VALUES ('rnd_race','grpA',2) ON CONFLICT DO NOTHING`,
+    );
+    await migrator.query(
+      `INSERT INTO obligation (obligation_id, group_id, round_id, member_membership_id, due_amount)
+       VALUES ('obl_race','grpA','rnd_race','mem_a',5000) ON CONFLICT DO NOTHING`,
+    );
+    await migrator.query(`UPDATE obligation SET active_reserved = 3000 WHERE obligation_id = 'obl_race'`);
+    let excessAccepted = true;
+    try {
+      await migrator.query(`UPDATE obligation SET active_reserved = 6000 WHERE obligation_id = 'obl_race'`);
+    } catch {
+      excessAccepted = false;
+    }
+    const raceReserved = await migrator.query(
+      `SELECT active_reserved::int AS n FROM obligation WHERE obligation_id = 'obl_race'`,
+    );
+    observations.C06_RACE = {
+      second_course_accepted: excessAccepted,
+      accepted_total: Number(raceReserved.rows[0].n),
+    };
+
     await app.end();
 
     const pass =
@@ -434,7 +555,13 @@ async function main() {
       observations.C11_APPEND_ONLY.delete_refused === true &&
       observations.C11_APPEND_ONLY.row_present_after === 1 &&
       observations.C11_CHECKPOINT.app_insert_accepted === false &&
-      observations.C11_ROLLBACK.partial_commit_count === 0;
+      observations.C11_ROLLBACK.partial_commit_count === 0 &&
+      observations.C06_IDEMPOTENCE.registry_update_refused === true &&
+      observations.C06_IDEMPOTENCE.duplicate_scoped_key_accepted === false &&
+      observations.C06_REPLAY.replay_second_registry_insert_accepted === false &&
+      observations.C06_REPLAY.contribution_count === 1 &&
+      observations.C06_RACE.second_course_accepted === false &&
+      observations.C06_RACE.accepted_total === 3000;
 
     process.stdout.write(
       JSON.stringify(

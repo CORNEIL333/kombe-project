@@ -191,3 +191,23 @@ export const tamperBody = z.object({
   seq: z.number().int().min(1),
   amount: z.number().int().min(0).max(9007199254740991),
 });
+
+/* --- C06 : déclarations partielles, idempotence, capacité sous verrou --- */
+
+const c06ObligationId = z.string().min(1).max(120);
+
+// Déclaration serveur (6.1/18.1/18.3). La date SERVEUR est injectée séparément
+// (en-tête), jamais fournie ici : `allegedDate` est l'affirmation du client.
+export const declareContributionBody_c06 = z.object({
+  obligationId: c06ObligationId,
+  amount: moneyInput,
+  channel: z.enum(["cash", "electronic"]),
+  reference: z.string().min(1).max(120).optional(),
+  justification: z.string().min(1).max(500).optional(),
+  allegedDate: z.string().date(),
+});
+
+// Brouillon local (6.9) : même forme, action DISTINCTE de la soumission.
+export const contributionDraftBody = declareContributionBody_c06;
+
+export type DeclareContributionC06Input = z.infer<typeof declareContributionBody_c06>;

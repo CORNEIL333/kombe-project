@@ -878,6 +878,87 @@ paths:
               schema: { $ref: "#/components/schemas/RebuildResult" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /groups/{groupId}/declarations:
+    post:
+      tags: [contributions]
+      operationId: declareContribution
+      summary: >
+        Déclaration partielle idempotente (6.1, 18.1, 18.3). La clé
+        d'idempotence est scopée (acteur, groupe, type) et compare un hash
+        canonique du corps : même clé/même corps = rejeu du résultat d'origine
+        sans second événement ; même clé/corps différent = 409. Le montant est
+        réservé sous la capacité restante (dû − réservations) ; un excédent est
+        bloqué (409). Date serveur distincte de la date alléguée.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContributionDeclaration" }
+      responses:
+        "201":
+          description: Déclaration appliquée (première exécution).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeclarationReceipt" }
+        "200":
+          description: Rejeu idempotent du résultat d'origine (aucun second événement).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeclarationReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/drafts:
+    post:
+      tags: [contributions]
+      operationId: saveContributionDraft
+      summary: >
+        Enregistrement d'un brouillon de déclaration SANS soumission ni mutation
+        (6.1) : ne réserve aucune capacité, ne pose aucun événement, ne consomme
+        aucune clé d'idempotence.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContributionDeclaration" }
+      responses:
+        "200":
+          description: Brouillon enregistré, rien n'est soumis.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DraftReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /groups/{groupId}/obligations/{obligationId}:
+    get:
+      tags: [contributions]
+      operationId: getObligation
+      summary: >
+        Vue d'une obligation (lecture seule, sans mutation) : dû, validé net,
+        réservations actives, restant dû (dû − validé net) et capacité à déclarer
+        (dû − réservations). Montants rendus en entiers (18.3).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: obligationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Solde de l'obligation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContributionObligationView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -947,6 +1028,9 @@ components:
         - SCHEDULE_FROZEN
         - REPLAY_VERSION_UNKNOWN
         - CHECKPOINT_MISMATCH
+        - IDEMPOTENCY_BODY_CONFLICT
+        - CONTRIBUTION_EXCEEDS_REMAINING
+        - REFERENCE_JUSTIFICATION_REQUIRED
     Error:
       type: object
       required: [code, message]
@@ -1211,6 +1295,61 @@ components:
       properties:
         projectionMatches: { type: boolean }
         throughSeq: { type: integer, minimum: 0 }
+    ContributionDeclaration:
+      type: object
+      description: >
+        Corps sémantique d'une déclaration partielle (6.1). Le montant est un
+        entier XAF (jamais de flottant) ; `allegedDate` est la date affirmée par
+        le client, distincte de la date serveur. Une preuve électronique sans
+        `reference` exige un `justification` non vide ; une référence ne vaut
+        jamais preuve authentifiée.
+      required: [obligationId, amount, channel, allegedDate]
+      properties:
+        obligationId: { type: string, minLength: 1 }
+        amount: { $ref: "#/components/schemas/Money" }
+        channel: { type: string, enum: [cash, electronic] }
+        reference: { type: string, minLength: 1, maxLength: 120 }
+        justification: { type: string, minLength: 1, maxLength: 500 }
+        allegedDate: { type: string, format: date }
+    DeclarationReceipt:
+      type: object
+      description: >
+        Reçu d'une déclaration (première application ou rejeu idempotent). Les
+        montants sont rendus en chaînes pour préserver l'entier au-delà de JSON
+        number ; `status` distingue `applied` (201) de `duplicate` (rejeu, 200).
+      required: [status, commandId, obligationId, remainingDue, availableToDeclare]
+      properties:
+        status: { type: string, enum: [applied, duplicate] }
+        commandId: { type: string }
+        obligationId: { type: string }
+        resultVersion: { type: integer, minimum: 1 }
+        eventHash: { type: string, pattern: "^[0-9a-f]{64}$" }
+        remainingDue: { type: string, description: dû − validé net (entier en chaîne). }
+        availableToDeclare: { type: string, description: dû − réservations actives (entier en chaîne). }
+    DraftReceipt:
+      type: object
+      description: Accusé d'un brouillon — aucun événement, aucune réservation, aucune soumission.
+      required: [draftSaved, submitted, obligationId]
+      properties:
+        draftSaved: { type: boolean }
+        submitted: { type: boolean }
+        obligationId: { type: string }
+    ContributionObligationView:
+      type: object
+      description: >
+        Solde d'une obligation en lecture seule (18.3). Montants en chaînes
+        (entiers). `remainingDue` naît du validé net, `availableToDeclare` de la
+        capacité sous verrou (dû − réservations).
+      required: [obligationId, groupId, due, validatedNet, activeReserved, remainingDue, availableToDeclare, version]
+      properties:
+        obligationId: { type: string }
+        groupId: { type: string }
+        due: { type: string }
+        validatedNet: { type: string }
+        activeReserved: { type: string }
+        remainingDue: { type: string }
+        availableToDeclare: { type: string }
+        version: { type: integer, minimum: 1 }
 
   responses:
     Forbidden:
