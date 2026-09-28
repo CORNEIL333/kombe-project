@@ -50,6 +50,8 @@ export type DomainErrorCode =
   | "SCHEDULE_MEMBER_UNKNOWN"
   | "SCHEDULE_OBLIGATION_DUPLICATE"
   | "SCHEDULE_FROZEN"
+  | "REPLAY_VERSION_UNKNOWN"
+  | "CHECKPOINT_MISMATCH"
   | "FEATURE_PILOT_FORBIDDEN";
 
 export class DomainError extends Error {

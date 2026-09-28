@@ -160,3 +160,34 @@ export const cycleRenewalBody = z.object({
 
 export type BuildScheduleInput = z.infer<typeof buildScheduleBody>;
 export type CycleRenewalInput = z.infer<typeof cycleRenewalBody>;
+
+/* --- C11 : journal d'événements, checkpoints, timeline (9.1 → 9.5) --- */
+
+export const checkpointBody = z.object({
+  issuedBy: z.string().min(1).max(120),
+  issuedAt: z.string().datetime({ offset: true }),
+});
+
+// Trace de test (marquée NON PROD) : injecte un événement d'audit dans la
+// chaîne fictive, avec enveloppe complète — acteur, rôle instantané, date
+// serveur, commande. Les montants du corps sont des entiers sûrs.
+export const journalAppendBody = z.object({
+  actorIdentityId: identityId,
+  actorRole: z.enum(["animator", "treasurer", "secretary", "auditor", "member"]),
+  serverDate: z.string().date(),
+  commandId: z.string().min(1).max(120),
+  type: z.string().min(1).max(120),
+  body: z.record(z.union([
+    z.number().int().min(0).max(9007199254740991),
+    z.string().max(120),
+  ])),
+});
+
+export type CheckpointInput = z.infer<typeof checkpointBody>;
+export type JournalAppendInput = z.infer<typeof journalAppendBody>;
+
+// TRACE DE TEST, NON PROD — C11-TAMPER : altération d'une copie du journal.
+export const tamperBody = z.object({
+  seq: z.number().int().min(1),
+  amount: z.number().int().min(0).max(9007199254740991),
+});

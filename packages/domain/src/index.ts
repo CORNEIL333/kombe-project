@@ -22,3 +22,4 @@ export * from "./group.js";
 export * from "./governance.js";
 export * from "./rules.js";
 export * from "./schedule.js";
+export * from "./journal.js";

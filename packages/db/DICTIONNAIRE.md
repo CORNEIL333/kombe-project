@@ -1,4 +1,4 @@
-# Dictionnaire de données — `@kombe/db` (C00 socle + C01/C02/C03 gouvernance et accès)
+# Dictionnaire de données — `@kombe/db` (C00 socle + C01→C05, C11 gouvernance, accès, calendrier et journal)
 
 Registre de tontines fermées. Toutes les tables métier portent `group_id` ; les
 relations composées sont `UNIQUE`/`FK` sur `(group_id, id)` (isolation
@@ -103,11 +103,32 @@ obligation unique membre/tour.
 > refusé par l'index ; doublon membre/tour refusé par la contrainte) = scénarios
 > C05-UNIQUE / C05-OBLIGATION de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
 
+## Journal d'événements (migration additive `0007_event_journal.sql`, lot C11)
+Renforce `journal` (socle 0001) sans le redéfinir : enveloppe d'audit requeryable,
+**append-only réel**, et table `checkpoint` scellée hors d'écriture applicative.
+
+| Objet | Rôle | Clés / contraintes clés |
+|---|---|---|
+| `journal` (élargi) | Enveloppe d'audit par ligne d'événement (9.1). | + `actor_identity_id`, `actor_role` (CHECK ∈ founder/animator/treasurer/secretary/auditor/member), `command_id`, `correlation_id`, `rules_version` — colonnes **nullables** (rejouables) ; la chaîne de hash (~ `^[0-9a-f]{64}$`) et la genèse restent du socle `0001` |
+| `journal_append_only` (trigger) | **Append-only effectif** (9.1/9.4). | Déclencheur `BEFORE UPDATE OR DELETE` levant `insufficient_privilege` SAUF session de maintenance tracée (`kombe.allow_journal_maintenance`) ; + **`REVOKE UPDATE, DELETE … FROM kombe_app`** (capacité retirée, pas seulement surveillée) |
+| `checkpoint` | Point de contrôle **externe** d'un préfixe de chaîne (9.2). | PK `(group_id, seq)` ; FK composite vers `journal(group_id, seq)` (un checkpoint ne précède aucun événement) ; `head_hash`/`hash` ~ `^[0-9a-f]{64}$` ; `REVOKE INSERT, UPDATE, DELETE … FROM kombe_app` ; trigger `checkpoint_append_only` (immuable) ; RLS `tenant_isolation` |
+
+> La **chaîne de hash RFC 8785**, le **replay versionné** reconstruisant les
+> totaux depuis les seuls événements (9.5), l'**outil de vérification** qui lit
+> sans jamais recalculer pour masquer, et la **timeline filtrée par droits sans
+> payload brut** (9.1/9.3) sont des **décisions serveur**
+> (`packages/domain/src/journal.ts`). La base ne fait que rendre l'append-only
+> **incompressible** et loger le checkpoint **hors de portée** de l'app. Preuve
+> effective (UPDATE/DELETE d'une ligne posée refusés ; écriture de checkpoint
+> refusée à `kombe_app` ; atomicité événement/commande/outbox au rollback ⇒
+> `partial_commit_count = 0`) = scénarios C11-APPEND-ONLY / C11-CHECKPOINT /
+> C11-ROLLBACK de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
+
 ## Provisionnement (`provision/roles.sql`)
 | Rôle | Privilèges | But |
 |---|---|---|
 | `kombe_migrateur` | DDL, propriétaire du schéma | Appliquer migrations up/down |
-| `kombe_app` | DML seulement, **non-owner**, **sans BYPASSRLS**, NOLOGIN | RLS effective côté applicatif |
+| `kombe_app` | DML seulement, **non-owner**, **sans BYPASSRLS**, NOLOGIN ; **pas de UPDATE/DELETE sur `journal`**, **aucune écriture sur `checkpoint`** (0007) | RLS effective côté applicatif ; journal append-only |
 | `kombe_worker` | SELECT/UPDATE sur `outbox` + `command` | Consommation d'outbox minimale |
 
 > Aucun secret de service-role exposé au navigateur : le navigateur ne parle

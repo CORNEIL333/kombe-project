@@ -149,3 +149,20 @@ le **renouvellement** (nouvelles acceptations si engagement changé) sont des
 réel du mois est **calculé en domaine** (`calendar.dueDate`). La base ne fait que
 borner la rotation et l'unicité membre/tour. Ordre de rollback complet :
 `0006…down` → `0005…down` → `0004…down` → `0003…down` → `0002…down` → `0001…down`.
+
+## C11 — journal d'événements (append-only réel, checkpoints)
+Le lot C11 **renforce** `journal` (socle 0001) sans le redéfinir et ajoute la
+table `checkpoint` ; l'exécution réelle reste `BLOCKED`.
+
+| Chemin | Rôle (C11) |
+|---|---|
+| `migrations/0007_event_journal.sql` | Migration **additive** : colonnes d'**enveloppe** (`actor_identity_id`, `actor_role` CHECK, `command_id`, `correlation_id`, `rules_version`) ; **trigger append-only** `journal_append_only` (`BEFORE UPDATE OR DELETE`, sauf session de maintenance tracée) ; **`REVOKE UPDATE, DELETE` sur `journal`** pour `kombe_app` ; table `checkpoint` (FK composite vers `journal`, hash 64-hex, **`REVOKE` écritures** pour `kombe_app`, trigger d'immutabilité, RLS). |
+| `migrations/0007_event_journal.down.sql` | **Retour arrière** de 0007 (drop `checkpoint`, trigger/fonction, restitution du droit, drop colonnes — ordre inverse). |
+| `tests/isolation.pg.mjs` (étendu) | Scénarios **C11-APPEND-ONLY** (UPDATE **et** DELETE d'une ligne posée refusés à `kombe_app`, ligne intacte = `row_present_after = 1`), **C11-CHECKPOINT** (écriture refusée au rôle applicatif), **C11-ROLLBACK** (commande + journal + outbox dans une transaction puis ROLLBACK ⇒ `partial_commit_count = 0`, atomicité). |
+
+La **chaîne de hash RFC 8785**, le **replay versionné** des totaux (9.5),
+l'**outil de vérification** indépendant et la **timeline filtrée par droits**
+(9.1/9.3) sont des **décisions serveur** (`packages/domain/src/journal.ts`) ; la
+base rend l'append-only **incompressible** et le checkpoint **hors de portée** de
+l'app. Ordre de rollback complet : `0007…down` → `0006…down` → `0005…down` →
+`0004…down` → `0003…down` → `0002…down` → `0001…down`.

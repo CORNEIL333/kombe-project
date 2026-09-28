@@ -75,6 +75,7 @@ async function main() {
 
   try {
     // État initial reproductible : on repart d'un schéma propre en base de test.
+    await runSql(migrator, "migrations/0007_event_journal.down.sql");
     await runSql(migrator, "migrations/0001_init.down.sql");
     await runSql(migrator, "migrations/0001_init.sql");
     await runSql(migrator, "migrations/0002_role_change.sql");
@@ -82,6 +83,7 @@ async function main() {
     await runSql(migrator, "migrations/0004_group_governance.sql");
     await runSql(migrator, "migrations/0005_rules_engine.sql");
     await runSql(migrator, "migrations/0006_cycle_schedule.sql");
+    await runSql(migrator, "migrations/0007_event_journal.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
@@ -95,6 +97,13 @@ async function main() {
       INSERT INTO round (round_id, group_id, seq) VALUES ('rnd_a','grpA',1), ('rnd_b','grpB',1) ON CONFLICT DO NOTHING;
       INSERT INTO obligation (obligation_id, group_id, round_id, member_membership_id, due_amount)
         VALUES ('obl_a','grpA','rnd_a','mem_a',1000), ('obl_b','grpB','rnd_b','mem_b',1000)
+        ON CONFLICT DO NOTHING;
+      -- Une ligne de journal posée (append), pour éprouver l'append-only côté app (C11).
+      INSERT INTO journal (group_id, seq, event_type, previous_hash, hash, payload)
+        VALUES ('grpA',1,'contribution.declared',
+                '0000000000000000000000000000000000000000000000000000000000000000',
+                '1111111111111111111111111111111111111111111111111111111111111111',
+                '{"body":{"obligationId":"obl_a","amount":1000}}'::jsonb)
         ON CONFLICT DO NOTHING;
     `);
 
@@ -321,6 +330,88 @@ async function main() {
     }
     observations.C05_OBLIGATION = { duplicate_member_round_accepted: duplicateObligationAccepted };
 
+    // ── C11-APPEND-ONLY : kombe_app ne peut ni modifier ni effacer une ligne ──
+    // posée (trigger append-only + REVOKE UPDATE/DELETE de 0007). La ligne reste
+    // présente intacte (aucun effet de bord, aucune divulgation silencieuse).
+    let journalUpdateRefused = false;
+    let journalDeleteRefused = false;
+    // Chaque tentative dans sa PROPRE transaction : sinon la première erreur
+    // « avorte » la transaction et la seconde échoue pour la mauvaise raison.
+    try {
+      await app.query("BEGIN");
+      await app.query("SET LOCAL kombe.group_id = 'grpA'");
+      await app.query("UPDATE journal SET payload = '{}'::jsonb WHERE group_id='grpA' AND seq=1");
+      await app.query("ROLLBACK");
+    } catch {
+      journalUpdateRefused = true;
+      await app.query("ROLLBACK").catch(() => {});
+    }
+    try {
+      await app.query("BEGIN");
+      await app.query("SET LOCAL kombe.group_id = 'grpA'");
+      await app.query("DELETE FROM journal WHERE group_id='grpA' AND seq=1");
+      await app.query("ROLLBACK");
+    } catch {
+      journalDeleteRefused = true;
+      await app.query("ROLLBACK").catch(() => {});
+    }
+    const rowPresentAfter = await withTenant(app, "grpA", async () => {
+      const res = await app.query("SELECT count(*)::int AS n FROM journal WHERE group_id='grpA' AND seq=1");
+      return res.rows[0].n;
+    });
+    observations.C11_APPEND_ONLY = {
+      update_refused: journalUpdateRefused,
+      delete_refused: journalDeleteRefused,
+      row_present_after: rowPresentAfter,
+    };
+
+    // ── C11-CHECKPOINT : le checkpoint est hors d'écriture du rôle applicatif ──
+    // (REVOKE INSERT de 0007) ; seul un vérificateur externe le pose.
+    let checkpointAppInsertAccepted = true;
+    try {
+      await withTenant(app, "grpA", async () => {
+        await app.query(
+          `INSERT INTO checkpoint (group_id, seq, head_hash, issued_at, issued_by, hash)
+           VALUES ('grpA',1,
+             '1111111111111111111111111111111111111111111111111111111111111111',
+             now(),'poseur_fictif',
+             '2222222222222222222222222222222222222222222222222222222222222222')`,
+        );
+      });
+    } catch {
+      checkpointAppInsertAccepted = false; // privilège retiré → refus
+    }
+    observations.C11_CHECKPOINT = { app_insert_accepted: checkpointAppInsertAccepted };
+
+    // ── C11-ROLLBACK : crash transactionnel après événement, avant outbox. ──
+    // On insère commande + journal + outbox dans UNE transaction puis on rollback :
+    // rien ne doit subsister (`partial_commit_count = 0`, atomicité 9.x / 18).
+    await migrator.query("SET kombe.group_id = 'grpA'");
+    await migrator.query("BEGIN");
+    await migrator.query(
+      `INSERT INTO command (command_id, idempotency_key, group_id, status)
+       VALUES ('cmd_rb','idem_rb','grpA','applied')`,
+    );
+    await migrator.query(
+      `INSERT INTO journal (group_id, seq, event_type, previous_hash, hash, payload)
+       VALUES ('grpA',2,'contribution.validated',
+         '1111111111111111111111111111111111111111111111111111111111111111',
+         '3333333333333333333333333333333333333333333333333333333333333333',
+         '{"body":{"obligationId":"obl_a","amount":1000}}'::jsonb)`,
+    );
+    await migrator.query(
+      `INSERT INTO outbox (command_id, topic, payload)
+       VALUES ('cmd_rb','notifications.internal','{}'::jsonb)`,
+    );
+    await migrator.query("ROLLBACK");
+    const partialCommitCount = await migrator.query(
+      `SELECT
+         (SELECT count(*) FROM journal WHERE group_id='grpA' AND seq=2)
+       + (SELECT count(*) FROM outbox  WHERE command_id='cmd_rb')
+       + (SELECT count(*) FROM command WHERE command_id='cmd_rb') AS n`,
+    );
+    observations.C11_ROLLBACK = { partial_commit_count: Number(partialCommitCount.rows[0].n) };
+
     await app.end();
 
     const pass =
@@ -338,7 +429,12 @@ async function main() {
       observations.C04_IMMUTABLE.immutable_update_accepted === false &&
       observations.C04_PENALTY.penalty_true_insert_accepted === false &&
       observations.C05_UNIQUE.second_round_same_beneficiary_accepted === false &&
-      observations.C05_OBLIGATION.duplicate_member_round_accepted === false;
+      observations.C05_OBLIGATION.duplicate_member_round_accepted === false &&
+      observations.C11_APPEND_ONLY.update_refused === true &&
+      observations.C11_APPEND_ONLY.delete_refused === true &&
+      observations.C11_APPEND_ONLY.row_present_after === 1 &&
+      observations.C11_CHECKPOINT.app_insert_accepted === false &&
+      observations.C11_ROLLBACK.partial_commit_count === 0;
 
     process.stdout.write(
       JSON.stringify(

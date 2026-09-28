@@ -18,6 +18,7 @@ import { FictitiousAccessStore } from "./accessStore.js";
 import { FictitiousGovernanceStore } from "./governanceStore.js";
 import { FictitiousRulesStore } from "./rulesStore.js";
 import { FictitiousScheduleStore } from "./scheduleStore.js";
+import { FictitiousJournalStore } from "./journalStore.js";
 import {
   declareContributionBody,
   idempotencyKey,
@@ -41,6 +42,9 @@ import {
   beneficiaryReassignmentBody,
   departureBody,
   cycleRenewalBody,
+  checkpointBody,
+  journalAppendBody,
+  tamperBody,
 } from "./schemas.js";
 
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
@@ -72,6 +76,8 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   SCHEDULE_MEMBER_UNKNOWN: 422,
   SCHEDULE_OBLIGATION_DUPLICATE: 409,
   SCHEDULE_FROZEN: 409,
+  REPLAY_VERSION_UNKNOWN: 422,
+  CHECKPOINT_MISMATCH: 409,
   MEMBERSHIP_STATE_INVALID: 422,
   PASSWORD_TOO_WEAK: 422,
   PASSWORD_COMPROMISED: 422,
@@ -89,6 +95,7 @@ export interface BuildAppOptions {
   readonly governance?: FictitiousGovernanceStore;
   readonly rules?: FictitiousRulesStore;
   readonly schedule?: FictitiousScheduleStore;
+  readonly journal?: FictitiousJournalStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -117,6 +124,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const governance = options.governance ?? new FictitiousGovernanceStore();
   const rules = options.rules ?? new FictitiousRulesStore();
   const schedule = options.schedule ?? new FictitiousScheduleStore();
+  const journal = options.journal ?? new FictitiousJournalStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -401,6 +409,66 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return reply
       .code(200)
       .send(schedule.renew(groupId, { version: body.version, memberCount: body.memberCount, contribution: body.contribution, rounds: body.rounds }));
+  });
+
+  /* --- C11 : journal d'événements, checkpoints, timeline (9.1 → 9.5) --- */
+
+  // Vérification indépendante de la chaîne : le serveur ne lit que ce qui
+  // est écrit, il ne recalcule jamais de quoi masquer une altération (9.2).
+  app.get("/v1/groups/:groupId/journal/verify", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    return reply.code(200).send(journal.verify(groupId));
+  });
+
+  // Timeline en langage clair, filtrée par les droits de l'acteur (9.1/9.3).
+  // Le paramètre `type` filtre par type d'événement ; le payload brut n'est
+  // jamais servi.
+  app.get("/v1/groups/:groupId/timeline", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const { type } = request.query as { type?: string };
+    const actor = actorFrom(request);
+    let entries = journal.timeline(groupId, actor.role);
+    if (type !== undefined) entries = entries.filter((e) => e.type === type);
+    return reply.code(200).send({ entries });
+  });
+
+  // Émission d'un checkpoint externe scellé — rôle tenant l'action
+  // `journal.checkpoint` uniquement (auditor/secretary/treasurer) (9.2).
+  app.post("/v1/groups/:groupId/journal-checkpoints", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = checkpointBody.parse(request.body);
+    const actor = actorFrom(request);
+    return reply.code(201).send(journal.checkpoint(groupId, actor.role, body.issuedBy, body.issuedAt));
+  });
+
+  // Reconstruction des projections par replay, réconciliée avec la projection
+  // de référence (C11-REBUILD, 9.5) : effacer une projection ne change rien.
+  app.post("/v1/groups/:groupId/projections-rebuild", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    return reply.code(200).send(journal.rebuild(groupId));
+  });
+
+  // TRACE DE TEST, NON PROD — injecte un événement d'audit dans la chaîne
+  // fictive (les commandes métier réelles écriront via C06/C07).
+  app.post("/v1/groups/:groupId/journal-appends", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = journalAppendBody.parse(request.body);
+    const ev = journal.append({ groupId, ...body });
+    return reply.code(201).send({ seq: ev.seq, hash: ev.hash });
+  });
+
+  // TRACE DE TEST, NON PROD — C11-TAMPER : altère une COPIE du journal puis
+  // la soumet au vérificateur. `tamper_detected` doit être vrai ; la chaîne
+  // interne reste intacte (re-verify ensuite = intact, absence d'effet).
+  app.post("/v1/groups/:groupId/journal-tamper-tests", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = tamperBody.parse(request.body);
+    const copy = journal.tamperCopyOf(groupId, body.seq, body.amount);
+    const copyResult = journal.verifyCopy(copy);
+    const stillIntact = journal.verify(groupId).intact;
+    return reply
+      .code(200)
+      .send({ tamper_detected: !copyResult.intact, error: copyResult.error ?? null, internal_chain_intact: stillIntact });
   });
 
   return app;

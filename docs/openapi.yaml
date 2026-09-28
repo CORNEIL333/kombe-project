@@ -45,6 +45,10 @@ tags:
     description: Clôtures de tour — A19
   - name: exports
     description: Exports privés filtrés
+  - name: journal
+    description: >
+      Journal d'événements append-only, vérification indépendante de la chaîne,
+      checkpoints externes et timeline filtrée par droits (C11, 9.1 → 9.5)
 
 paths:
   /commands/{commandId}:
@@ -789,6 +793,91 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/RenewalPlan" }
 
+  # ── C11 — journal d'événements, checkpoints, timeline (9.1 → 9.5) ──
+  /groups/{groupId}/journal/verify:
+    get:
+      tags: [journal]
+      operationId: verifyJournal
+      summary: >
+        Vérification INDÉPENDANTE de la chaîne (9.2/9.4) : intégrité de chaque
+        hash, continuité depuis la genèse, séquence incrémentale, alignement des
+        checkpoints. Le serveur lit sans jamais recalculer pour masquer une
+        altération.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: Résultat de vérification (intact ou rupture localisée).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JournalVerifyResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{groupId}/timeline:
+    get:
+      tags: [journal]
+      operationId: getGroupTimeline
+      summary: >
+        Timeline en langage clair, filtrée par les droits du rôle (9.1/9.3). Le
+        payload brut n'est jamais exposé ; un événement privé (litige) est
+        retiré pour un rôle non autorisé. Filtre optionnel par type d'événement.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: type
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Entrées de timeline lisibles.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimelineView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{groupId}/journal-checkpoints:
+    post:
+      tags: [journal]
+      operationId: issueJournalCheckpoint
+      summary: >
+        Émission d'un point de contrôle EXTERNE scellé sur le hash de tête (9.2).
+        Réservé aux rôles tenant l'action `journal.checkpoint`
+        (auditor/secretary/treasurer) ; refus 403 sinon.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CheckpointRequest" }
+      responses:
+        "201":
+          description: Checkpoint scellé.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Checkpoint" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{groupId}/projections-rebuild:
+    post:
+      tags: [journal]
+      operationId: rebuildProjections
+      summary: >
+        Reconstruction des projections par replay versionné et réconciliation
+        avec la projection de référence (C11-REBUILD, 9.5) : effacer une
+        projection ne change rien, le replay la régénère à l'identique.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: Résultat de réconciliation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RebuildResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -856,6 +945,8 @@ components:
         - SCHEDULE_MEMBER_UNKNOWN
         - SCHEDULE_OBLIGATION_DUPLICATE
         - SCHEDULE_FROZEN
+        - REPLAY_VERSION_UNKNOWN
+        - CHECKPOINT_MISMATCH
     Error:
       type: object
       required: [code, message]
@@ -1057,6 +1148,69 @@ components:
         essentialChange: { type: boolean }
         requiresNewAcceptances: { type: boolean }
         historyPreserved: { type: boolean }
+    JournalVerifyResult:
+      type: object
+      description: >
+        Résultat de la vérification indépendante de la chaîne (9.2/9.4). En cas de
+        rupture, `throughSeq` localise jusqu'où la chaîne est saine ; le `detail`
+        reste générique (aucune donnée réelle divulguée).
+      required: [intact, throughSeq]
+      properties:
+        intact: { type: boolean }
+        throughSeq: { type: integer, minimum: 0 }
+        error:
+          type: string
+          enum: [EVENT_HASH_MISMATCH, EVENT_CHAIN_BREAK, CHECKPOINT_MISMATCH]
+        detail: { type: string }
+    Checkpoint:
+      type: object
+      description: >
+        Point de contrôle externe scellé (9.2) — empreinte d'un préfixe de chaîne
+        (groupe, séquence, hash de tête). Posé hors des privilèges applicatifs ;
+        la table est immuable et en écriture refusée à `kombe_app` (0007).
+      required: [groupId, seq, headHash, issuedAt, issuedBy, hash]
+      properties:
+        groupId: { type: string }
+        seq: { type: integer, minimum: 1 }
+        headHash: { type: string, pattern: "^[0-9a-f]{64}$" }
+        issuedAt: { type: string, format: date-time }
+        issuedBy: { type: string }
+        hash: { type: string, pattern: "^[0-9a-f]{64}$" }
+    CheckpointRequest:
+      type: object
+      required: [issuedBy, issuedAt]
+      properties:
+        issuedBy: { type: string, maxLength: 120 }
+        issuedAt: { type: string, format: date-time }
+    TimelineEntry:
+      type: object
+      description: >
+        Entrée de timeline en langage clair (9.3). Le `label` n'est jamais le
+        jargon technique brut ; le `summary` n'expose que des champs entiers sûrs.
+        Le payload brut d'un événement privé n'apparaît jamais.
+      required: [seq, type, label]
+      properties:
+        seq: { type: integer, minimum: 1 }
+        type: { type: string }
+        occurredAt: { type: string }
+        label: { type: string }
+        summary:
+          type: object
+          additionalProperties: true
+    TimelineView:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/TimelineEntry" }
+    RebuildResult:
+      type: object
+      description: Réconciliation replay ↔ projection de référence (C11-REBUILD, 9.5).
+      required: [projectionMatches, throughSeq]
+      properties:
+        projectionMatches: { type: boolean }
+        throughSeq: { type: integer, minimum: 0 }
 
   responses:
     Forbidden:

@@ -40,6 +40,8 @@ export const ACTIONS = [
   "dispute.resolve",
   "export.private",
   "role.change.approve",
+  "journal.read",
+  "journal.checkpoint",
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 
@@ -56,6 +58,7 @@ const MATRIX: Record<Role, readonly Action[]> = {
     "rules.accept",
     "vote.open",
     "vote.cast",
+    "journal.read",
   ],
   animator: [
     "group.read",
@@ -65,6 +68,7 @@ const MATRIX: Record<Role, readonly Action[]> = {
     "vote.open",
     "vote.cast",
     "round.close",
+    "journal.read",
   ],
   treasurer: [
     "group.read",
@@ -73,12 +77,20 @@ const MATRIX: Record<Role, readonly Action[]> = {
     "disbursement.request",
     "disbursement.reverse",
     "export.private",
+    "journal.read",
+    "journal.checkpoint",
   ],
-  secretary: ["group.read", "vote.open", "export.private"],
+  secretary: ["group.read", "vote.open", "export.private", "journal.read", "journal.checkpoint"],
   // L'auditeur est l'approbateur INDÉPENDANT du circuit A19 : il détient
   // `role.change.approve`, distinct du fondateur/animator qui proposent. Le
   // fondateur ne l'a jamais (auto-approbation universelle exclue).
-  auditor: ["group.read", "export.private", "role.change.approve"],
+  auditor: [
+    "group.read",
+    "export.private",
+    "role.change.approve",
+    "journal.read",
+    "journal.checkpoint",
+  ],
   member: [
     "group.read",
     "role.accept",
@@ -86,6 +98,7 @@ const MATRIX: Record<Role, readonly Action[]> = {
     "contribution.declare",
     "vote.cast",
     "dispute.raise",
+    "journal.read",
   ],
 };
 
