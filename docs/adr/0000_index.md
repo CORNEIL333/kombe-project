@@ -26,9 +26,10 @@ Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats ac
 | [0012](./0012_acces_sessions_recuperation.md) | Accès des comptes : sessions, jetons à usage unique, récupération | **ADOPTÉ** (C02) — preuve base réelle **BLOCKED** | Lead C02 |
 | [0013](./0013_cycle_vie_groupe_amorcage.md) | Cycle de vie du groupe, porte d'amorçage, invitations, acceptation des règles | **ADOPTÉ** (C03) — preuve base réelle **BLOCKED** | Lead C03 |
 | [0014](./0014_regles_versionnees_non_retroactives.md) | Moteur de règles versionnées, immuables (hash canonique) et non rétroactives ; barre pilote sur pénalités | **ADOPTÉ** (C04) — preuve base réelle **BLOCKED** | Lead C04 |
-| 0015–0020 | Réservés (identité/fournisseurs, sauvegarde/RPO, régions, IA, paiement…) | `[OUVERT]` — aucune installation présumée | Décideurs des portes G0/G1 |
+| [0015](./0015_calendrier_cycles_tours_beneficiaires.md) | Calendrier des cycles : N tours/N membres, bénéficiaire unique, échéances datées (Africa/Douala↔UTC), ordre figé | **ADOPTÉ** (C05) — preuve base réelle **BLOCKED** | Lead C05 |
+| 0016–0020 | Réservés (identité/fournisseurs, sauvegarde/RPO, régions, IA, paiement…) | `[OUVERT]` — aucune installation présumée | Décideurs des portes G0/G1 |
 
-> Slots 0015–0020 restent vides tant qu'une décision n'est pas prise ; les
+> Slots 0016–0020 restent vides tant qu'une décision n'est pas prise ; les
 > décisions ouvertes `[OPEN-D01..D10]` de STACK.md y seront rattachées.
 
 ## Note de méthode

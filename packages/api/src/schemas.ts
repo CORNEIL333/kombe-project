@@ -129,3 +129,34 @@ export const penaltyRequestBody = z.object({ desired: z.boolean() });
 
 export type PublishRuleInput = z.infer<typeof publishRuleBody>;
 export type RuleChangeInput = z.infer<typeof ruleChangeBody>;
+
+/* --- C05 : cycles, tours, échéances, bénéficiaires (5.1 → 5.5) --- */
+
+const memberList = z.array(identityId).min(2);
+const groupId = z.string().min(1).max(120);
+
+export const buildScheduleBody = z.object({
+  groupId,
+  ruleVersion: z.number().int().min(1),
+  members: memberList,
+  contribution: moneyInput,
+  frequency: z.enum(["monthly", "weekly"]),
+  dueDay: z.number().int().min(1).max(31),
+  startYear: z.number().int().min(1).max(9999),
+  startMonth: z.number().int().min(1).max(12),
+  beneficiaryOrder: z.array(identityId).min(2),
+});
+export const beneficiaryReassignmentBody = z.object({
+  seq: z.number().int().min(1),
+  newBeneficiaryId: identityId,
+});
+export const departureBody = z.object({ identityId });
+export const cycleRenewalBody = z.object({
+  version: z.number().int().min(1),
+  memberCount: z.number().int().min(2),
+  contribution: moneyInput,
+  rounds: z.number().int().min(1),
+});
+
+export type BuildScheduleInput = z.infer<typeof buildScheduleBody>;
+export type CycleRenewalInput = z.infer<typeof cycleRenewalBody>;

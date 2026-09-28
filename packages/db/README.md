@@ -131,3 +131,21 @@ essentiel (accord de tous les concernés) sont des **décisions serveur**
 (`packages/domain/src/rules.ts`) ; la base ne scelle que l'immuabilité des versions
 et la barre pilote sur les pénalités. Ordre de rollback complet : `0005…down` →
 `0004…down` → `0003…down` → `0002…down` → `0001…down`.
+
+## C05 — calendrier des cycles (tours, bénéficiaires, échéances)
+Le lot C05 **élargit** `round` / `obligation` sans les redéfinir ; l'exécution
+réelle reste `BLOCKED`.
+
+| Chemin | Rôle (C05) |
+|---|---|
+| `migrations/0006_cycle_schedule.sql` | Migration **additive** : `round.beneficiary_membership_id` (FK composite), `due_date_business` + `due_at_utc` (instant UTC), `round.rules_version` (FK composite vers `rule_version`, 5.2) ; **index partiel unique** `round_one_beneficiary_per_group` (rotation égale, 5.3) ; `obligation_unique_member_round` (dette unique membre/tour, 5.2). |
+| `migrations/0006_cycle_schedule.down.sql` | **Retour arrière** de 0006 (drop contrainte d'unicité, index, FK/CHECK, colonnes — ordre inverse). |
+| `tests/isolation.pg.mjs` (étendu) | Scénarios **C05-UNIQUE** (second tour vers le même bénéficiaire refusé par l'index partiel unique), **C05-OBLIGATION** (doublon `(groupe, tour, membre)` refusé par la contrainte d'unicité). |
+
+La **génération** N tours / N membres, l'**unicité du bénéficiaire** (permutation),
+le **gel de l'ordre** après démarrage, le **départ sans réaffectation de dette** et
+le **renouvellement** (nouvelles acceptations si engagement changé) sont des
+**décisions serveur** (`packages/domain/src/schedule.ts`) ; l'arrondi au dernier jour
+réel du mois est **calculé en domaine** (`calendar.dueDate`). La base ne fait que
+borner la rotation et l'unicité membre/tour. Ordre de rollback complet :
+`0006…down` → `0005…down` → `0004…down` → `0003…down` → `0002…down` → `0001…down`.

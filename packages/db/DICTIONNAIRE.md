@@ -81,6 +81,28 @@ pilote sur les pénalités.
 > effective (trigger refusant un UPDATE ; CHECK refusant `penaltyEnabled=true`) =
 > scénarios C04-IMMUTABLE / C04-PENALTY de `tests/isolation.pg.mjs`, **BLOCKED**.
 
+## Calendrier des cycles (migration additive `0006_cycle_schedule.sql`, lot C05)
+Élargit `round` / `obligation` (socle 0001) sans les redéfinir : bénéficiaire
+désigné par tour, dates métier/UTC, version de règle rattachée, rotation égale et
+obligation unique membre/tour.
+
+| Objet | Rôle | Clés / contraintes clés |
+|---|---|---|
+| `round` (élargi) | Tour du calendrier avec bénéficiaire et échéance datée. | + `beneficiary_membership_id` (FK composite `(group_id, membership_id)`), `due_date_business` (date métier), `due_at_utc` (instant UTC), `rules_version` (FK composite `(group_id, rules_version)` vers `rule_version`, 5.2) |
+| `round_one_beneficiary_per_group` | **Rotation égale** (5.3, une part). | **index partiel unique** `(group_id, beneficiary_membership_id) WHERE beneficiary_membership_id IS NOT NULL` : un second tour vers le même bénéficiaire est refusé (C05-UNIQUE base) |
+| `obligation_unique_member_round` | **Obligation unique** membre/tour (5.2). | `UNIQUE (group_id, round_id, member_membership_id)` : une seule dette par membre et par tour |
+| `round_due_consistency` | Cohérence datation. | CHECK `due_at_utc IS NULL OR due_date_business IS NOT NULL` |
+
+> La **génération** N tours / N membres, l'**unicité du bénéficiaire** (permutation),
+> le **gel de l'ordre** après démarrage (`SCHEDULE_FROZEN`), le **départ sans
+> réaffectation de dette** et le **renouvellement** (nouvelles acceptations si
+> engagement changé) sont des **décisions serveur** (`packages/domain/src/schedule.ts`) ;
+> la base ne fait que **borner structurellement** (rotation, unicité membre/tour).
+> L'arrondi au dernier jour réel du mois est **calculé en domaine** (`calendar.dueDate`,
+> horodatage `Africa/Douala` persisté en UTC). Preuve effective (second bénéficiaire
+> refusé par l'index ; doublon membre/tour refusé par la contrainte) = scénarios
+> C05-UNIQUE / C05-OBLIGATION de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
+
 ## Provisionnement (`provision/roles.sql`)
 | Rôle | Privilèges | But |
 |---|---|---|

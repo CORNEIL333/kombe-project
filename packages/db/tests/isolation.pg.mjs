@@ -81,6 +81,7 @@ async function main() {
     await runSql(migrator, "migrations/0003_access.sql");
     await runSql(migrator, "migrations/0004_group_governance.sql");
     await runSql(migrator, "migrations/0005_rules_engine.sql");
+    await runSql(migrator, "migrations/0006_cycle_schedule.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
@@ -285,6 +286,41 @@ async function main() {
     }
     observations.C04_PENALTY = { penalty_true_insert_accepted: penaltyTrueInsertAccepted };
 
+    // ── C05-UNIQUE : un second tour avec le MÊME bénéficiaire est refusé (5.3). ─
+    // `round_one_beneficiary_per_group` (index partiel unique) borne la rotation
+    // égale : mem_a déjà bénéficiaire de rnd_a, un autre tour vers mem_a échoue.
+    await migrator.query("SET kombe.group_id = 'grpA'");
+    await migrator.query(
+      `UPDATE round SET beneficiary_membership_id = 'mem_a',
+                        due_date_business = DATE '2028-01-31',
+                        due_at_utc = TIMESTAMPTZ '2028-01-31T11:00:00Z'
+       WHERE round_id = 'rnd_a'`,
+    );
+    let secondRoundSameBeneficiaryAccepted = true;
+    try {
+      await migrator.query(
+        `INSERT INTO round (round_id, group_id, seq, beneficiary_membership_id)
+         VALUES ('rnd_a_dup','grpA',2,'mem_a')`,
+      );
+    } catch {
+      secondRoundSameBeneficiaryAccepted = false; // index partiel unique → refus
+    }
+    observations.C05_UNIQUE = {
+      second_round_same_beneficiary_accepted: secondRoundSameBeneficiaryAccepted,
+    };
+
+    // ── C05-OBLIGATION : obligation doublon (groupe, tour, membre) refusée (5.2). ─
+    let duplicateObligationAccepted = true;
+    try {
+      await migrator.query(
+        `INSERT INTO obligation (obligation_id, group_id, round_id, member_membership_id, due_amount)
+         VALUES ('obl_a_dup','grpA','rnd_a','mem_a',1000)`,
+      );
+    } catch {
+      duplicateObligationAccepted = false; // obligation_unique_member_round → refus
+    }
+    observations.C05_OBLIGATION = { duplicate_member_round_accepted: duplicateObligationAccepted };
+
     await app.end();
 
     const pass =
@@ -300,7 +336,9 @@ async function main() {
       observations.C03_INVITE.second_redeem_accepted === false &&
       observations.C03_TENANT.cross_group_invitation_rows === 0 &&
       observations.C04_IMMUTABLE.immutable_update_accepted === false &&
-      observations.C04_PENALTY.penalty_true_insert_accepted === false;
+      observations.C04_PENALTY.penalty_true_insert_accepted === false &&
+      observations.C05_UNIQUE.second_round_same_beneficiary_accepted === false &&
+      observations.C05_OBLIGATION.duplicate_member_round_accepted === false;
 
     process.stdout.write(
       JSON.stringify(

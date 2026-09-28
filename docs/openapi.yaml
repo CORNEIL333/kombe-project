@@ -654,6 +654,141 @@ paths:
             penalty_enabled = false au pilote quelle que soit la demande
             (rejected = true si demandée)
 
+  # ── C05 — cycles, tours, échéances, bénéficiaires (5.1 → 5.5) ──
+  /groups/{groupId}/schedules:
+    post:
+      tags: [rounds]
+      operationId: buildCycleSchedule
+      summary: >
+        Construit le calendrier d'un cycle (N tours / N membres, bénéficiaire
+        unique par tour, dates métier bornées, instants UTC). Deux tours au même
+        bénéficiaire ⇒ refus 422 SCHEDULE_BENEFICIARY_DUPLICATE (C05-UNIQUE,
+        schedule_accepted = false, aucune écriture).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScheduleBuildRequest" }
+      responses:
+        "201":
+          description: Calendrier (brouillon) avec totaux nés de l'oracle rotation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CycleScheduleView" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+    get:
+      tags: [rounds]
+      operationId: getCycleSchedule
+      summary: Lecture du calendrier courant d'un groupe.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: Calendrier mémorisé.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CycleScheduleView" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{groupId}/schedule-starts:
+    post:
+      tags: [rounds]
+      operationId: startCycleSchedule
+      summary: Démarre (gèle) le calendrier — ordre des bénéficiaires figé (5.3).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "201":
+          description: "state = started ; rounds conservé."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state: { type: string, enum: [started] }
+                  rounds: { type: integer, minimum: 1 }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/rounds/{seq}/beneficiary:
+    post:
+      tags: [rounds]
+      operationId: reassignRoundBeneficiary
+      summary: >
+        Réassignation d'un bénéficiaire. Après démarrage ⇒ 409 SCHEDULE_FROZEN ;
+        avant démarrage, la nouvelle liste reste une permutation valide (doublure
+        ⇒ 422 SCHEDULE_BENEFICIARY_DUPLICATE). Le changement voté (5.4) est P1.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: seq
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [seq, newBeneficiaryId]
+              properties:
+                seq: { type: integer, minimum: 1 }
+                newBeneficiaryId: { type: string }
+      responses:
+        "200":
+          description: Bénéficiaire réassigné (brouillon).
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/departures:
+    post:
+      tags: [rounds]
+      operationId: applyMemberDeparture
+      summary: >
+        Départ d'un membre — la dette déjà due reste affectée au partant
+        (debtReassigned = false) et le nombre de tours n'est PAS réduit
+        silencieusement (roundsUnchanged = true).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identityId]
+              properties:
+                identityId: { type: string }
+      responses:
+        "200":
+          description: Vue de départ (dette conservée, tours non réduits).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DepartureView" }
+
+  /groups/{groupId}/cycle-renewals:
+    post:
+      tags: [rounds]
+      operationId: planCycleRenewal
+      summary: >
+        Plan de renouvellement (5.5) — repart de la version acceptée ; exige de
+        nouvelles acceptations si l'engagement essentiel change ; historique
+        conservé. Ne crée pas le nouveau cycle (commande ultérieure).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CycleRenewalRequest" }
+      responses:
+        "200":
+          description: Plan de renouvellement.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RenewalPlan" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -716,6 +851,11 @@ components:
         - RULE_VERSION_IMMUTABLE
         - RULE_ACCEPT_HASH_MISMATCH
         - RULE_RETROACTIVE
+        - SCHEDULE_ROUNDS_MISMATCH
+        - SCHEDULE_BENEFICIARY_DUPLICATE
+        - SCHEDULE_MEMBER_UNKNOWN
+        - SCHEDULE_OBLIGATION_DUPLICATE
+        - SCHEDULE_FROZEN
     Error:
       type: object
       required: [code, message]
@@ -835,6 +975,88 @@ components:
             denominator: { type: integer, minimum: 1 }
         gracePeriodDays: { type: integer, minimum: 0 }
         penaltyEnabled: { type: boolean, description: "false force au pilote (penalites fermees, 6.7)." }
+    ScheduleBuildRequest:
+      type: object
+      description: >
+        Demande de construction du calendrier d'un cycle (C05, 5.1). `members` et
+        `beneficiaryOrder` sont des identifiants **fictifs** ; `contribution` un
+        entier XAF. `beneficiaryOrder` doit être une permutation de `members`
+        (rotation égale, une part). Dates métier calculées et bornées au dernier
+        jour réel du mois ; instants persistés en UTC.
+      required: [groupId, ruleVersion, members, contribution, frequency, dueDay, startYear, startMonth, beneficiaryOrder]
+      properties:
+        groupId: { type: string }
+        ruleVersion: { type: integer, minimum: 1 }
+        members: { type: array, minItems: 2, items: { type: string } }
+        contribution: { $ref: "#/components/schemas/Money" }
+        frequency: { type: string, enum: [monthly, weekly] }
+        dueDay: { type: integer, minimum: 1, maximum: 31 }
+        startYear: { type: integer, minimum: 1, maximum: 9999 }
+        startMonth: { type: integer, minimum: 1, maximum: 12 }
+        beneficiaryOrder: { type: array, minItems: 2, items: { type: string } }
+    ObligationView:
+      type: object
+      description: Dette de cotisation d'un membre pour un tour (obligation unique membre/tour, 5.2).
+      properties:
+        obligationId: { type: string }
+        memberId: { type: string }
+        amount: { type: string, description: Montant XAF entier (chaîne). }
+        dueDate: { type: string, description: Date métier ISO YYYY-MM-DD (Africa/Douala). }
+        dueAtMs: { type: integer, description: Instant UTC en millisecondes. }
+        ruleVersion: { type: integer, minimum: 1 }
+    ScheduledRoundView:
+      type: object
+      description: Tour avec bénéficiaire désigné, date d'échéance et obligations.
+      properties:
+        seq: { type: integer, minimum: 1 }
+        beneficiaryId: { type: string }
+        dueDate: { type: string }
+        dueAtMs: { type: integer }
+        roundPot: { type: string }
+        obligations: { type: array, items: { $ref: "#/components/schemas/ObligationView" } }
+    CycleScheduleView:
+      type: object
+      description: >
+        Calendrier complet d'un cycle ; totaux nés de l'oracle `rotation`
+        (`roundPot` = cotisation × N, `cycleExpectedTotal` = total attendu). Les
+        montants sont des chaînes (entiers XAF).
+      properties:
+        groupId: { type: string }
+        ruleVersion: { type: integer, minimum: 1 }
+        memberCount: { type: integer, minimum: 2 }
+        rounds: { type: integer, minimum: 1 }
+        frequency: { type: string, enum: [monthly, weekly] }
+        state: { type: string, enum: [draft, started] }
+        displayTz: { type: string, description: "Fuseau d'affichage contractuel : Africa/Douala." }
+        contribution: { type: string }
+        roundPot: { type: string }
+        cycleExpectedTotal: { type: string, description: "C05-SCHEDULE : 10 membres à 5000 ⇒ 500000." }
+        schedule: { type: array, items: { $ref: "#/components/schemas/ScheduledRoundView" } }
+    DepartureView:
+      type: object
+      description: Vue d'un départ — la dette n'est pas réaffectée, les tours non réduits.
+      properties:
+        departingId: { type: string }
+        roundsUnchanged: { type: boolean }
+        debtReassigned: { type: boolean }
+        retainedObligations: { type: integer, minimum: 0 }
+    CycleRenewalRequest:
+      type: object
+      required: [version, memberCount, contribution, rounds]
+      properties:
+        version: { type: integer, minimum: 1 }
+        memberCount: { type: integer, minimum: 2 }
+        contribution: { $ref: "#/components/schemas/Money" }
+        rounds: { type: integer, minimum: 1 }
+    RenewalPlan:
+      type: object
+      description: Plan de renouvellement (5.5) — nouvelles acceptations si engagement essentiel changé.
+      properties:
+        fromRuleVersion: { type: integer }
+        toRuleVersion: { type: integer }
+        essentialChange: { type: boolean }
+        requiresNewAcceptances: { type: boolean }
+        historyPreserved: { type: boolean }
 
   responses:
     Forbidden:

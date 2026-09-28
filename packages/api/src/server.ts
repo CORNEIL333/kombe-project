@@ -8,6 +8,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import { DomainError, type DomainErrorCode } from "@kombe/domain";
+import type { CycleSchedule } from "@kombe/domain";
 import {
   FictitiousCommandStore,
   type Actor,
@@ -16,6 +17,7 @@ import {
 import { FictitiousAccessStore } from "./accessStore.js";
 import { FictitiousGovernanceStore } from "./governanceStore.js";
 import { FictitiousRulesStore } from "./rulesStore.js";
+import { FictitiousScheduleStore } from "./scheduleStore.js";
 import {
   declareContributionBody,
   idempotencyKey,
@@ -35,6 +37,10 @@ import {
   ruleVersionAcceptanceBody,
   ruleChangeBody,
   penaltyRequestBody,
+  buildScheduleBody,
+  beneficiaryReassignmentBody,
+  departureBody,
+  cycleRenewalBody,
 } from "./schemas.js";
 
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
@@ -61,6 +67,11 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   RULE_VERSION_IMMUTABLE: 409,
   RULE_ACCEPT_HASH_MISMATCH: 412,
   RULE_RETROACTIVE: 409,
+  SCHEDULE_ROUNDS_MISMATCH: 422,
+  SCHEDULE_BENEFICIARY_DUPLICATE: 422,
+  SCHEDULE_MEMBER_UNKNOWN: 422,
+  SCHEDULE_OBLIGATION_DUPLICATE: 409,
+  SCHEDULE_FROZEN: 409,
   MEMBERSHIP_STATE_INVALID: 422,
   PASSWORD_TOO_WEAK: 422,
   PASSWORD_COMPROMISED: 422,
@@ -77,6 +88,7 @@ export interface BuildAppOptions {
   readonly access?: FictitiousAccessStore;
   readonly governance?: FictitiousGovernanceStore;
   readonly rules?: FictitiousRulesStore;
+  readonly schedule?: FictitiousScheduleStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -104,6 +116,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const access = options.access ?? new FictitiousAccessStore();
   const governance = options.governance ?? new FictitiousGovernanceStore();
   const rules = options.rules ?? new FictitiousRulesStore();
+  const schedule = options.schedule ?? new FictitiousScheduleStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -302,6 +315,92 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/groups/:groupId/penalty-requests", async (request, reply) => {
     const body = penaltyRequestBody.parse(request.body);
     return reply.code(200).send(rules.requestPenalty(body.desired));
+  });
+
+  /* --- C05 : cycles, tours, échéances, bénéficiaires (5.1 → 5.5) --- */
+
+  // Sérialise un calendrier en JSON : les montants bigints deviennent des chaînes.
+  const viewSchedule = (s: CycleSchedule) => ({
+    groupId: s.groupId,
+    ruleVersion: s.ruleVersion,
+    memberCount: s.memberCount,
+    rounds: s.rounds,
+    frequency: s.frequency,
+    state: s.state,
+    displayTz: s.displayTz,
+    contribution: s.contribution.toString(),
+    roundPot: s.roundPot.toString(),
+    cycleExpectedTotal: s.cycleExpectedTotal.toString(),
+    schedule: s.schedule.map((r) => ({
+      seq: r.seq,
+      beneficiaryId: r.beneficiaryId,
+      dueDate: r.dueDate,
+      dueAtMs: r.dueAtMs,
+      roundPot: r.roundPot.toString(),
+      obligations: r.obligations.map((o) => ({
+        obligationId: o.obligationId,
+        memberId: o.memberId,
+        amount: o.amount.toString(),
+        dueDate: o.dueDate,
+        dueAtMs: o.dueAtMs,
+        ruleVersion: o.ruleVersion,
+      })),
+    })),
+  });
+
+  // Construction du calendrier (brouillon) — refus si bénéficiaire dupliqué
+  // (C05-UNIQUE : `schedule_accepted = false` réalisé par refus 422, aucune écriture).
+  app.post("/v1/groups/:groupId/schedules", async (request, reply) => {
+    const body = buildScheduleBody.parse(request.body);
+    const s = schedule.build({
+      groupId: body.groupId,
+      ruleVersion: body.ruleVersion,
+      members: body.members,
+      contribution: body.contribution,
+      frequency: body.frequency,
+      dueDay: body.dueDay,
+      startYear: body.startYear,
+      startMonth: body.startMonth,
+      beneficiaryOrder: body.beneficiaryOrder,
+    });
+    return reply.code(201).send(viewSchedule(s));
+  });
+
+  // Lecture du calendrier courant d'un groupe.
+  app.get("/v1/groups/:groupId/schedules", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    return reply.code(200).send(viewSchedule(schedule.get(groupId)));
+  });
+
+  // Démarrage (gel) du calendrier — ordre des bénéficiaires figé (5.3).
+  app.post("/v1/groups/:groupId/schedule-starts", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    return reply.code(201).send(schedule.start(groupId));
+  });
+
+  // Réassignation d'un bénéficiaire — refusée après démarrage (SCHEDULE_FROZEN).
+  app.post("/v1/groups/:groupId/rounds/:seq/beneficiary", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const { seq } = request.params as { seq: string };
+    const body = beneficiaryReassignmentBody.parse(request.body);
+    const s = schedule.reassign(groupId, Number(seq), body.newBeneficiaryId);
+    return reply.code(200).send({ seq: Number(seq), beneficiaryId: s.schedule[Number(seq) - 1]!.beneficiaryId });
+  });
+
+  // Départ d'un membre — la dette reste affectée, les tours non réduits.
+  app.post("/v1/groups/:groupId/departures", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = departureBody.parse(request.body);
+    return reply.code(200).send(schedule.depart(groupId, body.identityId));
+  });
+
+  // Plan de renouvellement (5.5) — nouvelles acceptations si engagement changé.
+  app.post("/v1/groups/:groupId/cycle-renewals", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = cycleRenewalBody.parse(request.body);
+    return reply
+      .code(200)
+      .send(schedule.renew(groupId, { version: body.version, memberCount: body.memberCount, contribution: body.contribution, rounds: body.rounds }));
   });
 
   return app;
