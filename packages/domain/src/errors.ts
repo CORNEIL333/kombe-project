@@ -41,6 +41,10 @@ export type DomainErrorCode =
   | "CYCLE_START_NOT_READY"
   | "INVITATION_INVALID"
   | "RULES_NOT_ACCEPTED"
+  | "RULE_INVALID"
+  | "RULE_VERSION_IMMUTABLE"
+  | "RULE_ACCEPT_HASH_MISMATCH"
+  | "RULE_RETROACTIVE"
   | "FEATURE_PILOT_FORBIDDEN";
 
 export class DomainError extends Error {

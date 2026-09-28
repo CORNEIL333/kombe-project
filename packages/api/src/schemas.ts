@@ -96,3 +96,36 @@ export const membershipTerminationBody = z.object({ identityId });
 export const groupMutationBody = z.object({ identityId });
 export const rulesAcceptanceBody = z.object({ identityId });
 export const contributionDeclarationBody = z.object({ identityId });
+
+/* --- C04 : moteur de règles versionnées et acceptations (3.1 → 3.7, 6.7) --- */
+
+export const ruleSetInput = z.object({
+  memberCount: z.number().int().min(2),
+  contribution: moneyInput,
+  rounds: z.number().int().min(1),
+  frequency: z.enum(["monthly", "weekly"]),
+  dueDay: z.number().int().min(1).max(31),
+  quorum: z.object({
+    numerator: z.number().int().min(1),
+    denominator: z.number().int().min(1),
+  }),
+  gracePeriodDays: z.number().int().min(0),
+  penaltyEnabled: z.boolean(),
+});
+
+export const publishRuleBody = z.object({
+  snapshot: ruleSetInput,
+  supersedes: z.number().int().min(1).optional(),
+});
+export const ruleVersionAcceptanceBody = z.object({
+  identityId,
+  hash: z.string().regex(/^[0-9a-f]{64}$/),
+});
+export const ruleChangeBody = z.object({
+  version: z.number().int().min(1),
+  concerned: z.array(identityId).min(1),
+});
+export const penaltyRequestBody = z.object({ desired: z.boolean() });
+
+export type PublishRuleInput = z.infer<typeof publishRuleBody>;
+export type RuleChangeInput = z.infer<typeof ruleChangeBody>;

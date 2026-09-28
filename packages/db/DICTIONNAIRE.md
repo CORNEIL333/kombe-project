@@ -63,6 +63,24 @@ existent déjà dans le socle `0001` et ne sont pas redéfinis.
 > refusé, invitation de A invisible au contexte de B) = scénarios C03-STATE /
 > C03-INVITE / C03-TENANT de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
 
+## Moteur de règles (migration additive `0005_rules_engine.sql`, lot C04)
+Renforce `rule_version` / `rules_acceptance` (socle 0001) sans les redéfinir :
+versions **immuables** scellées par empreinte canonique, chaînées, et barre
+pilote sur les pénalités.
+
+| Objet | Rôle | Clés / contraintes clés |
+|---|---|---|
+| `rule_version` (élargi) | Version horodatée et **immuable** des règles. | + `snapshot_hash` (~ `^[0-9a-f]{64}$`, posée par le serveur), `supersedes` (auto-FK composite `(group_id, supersedes)`), `published_at` |
+| `rule_version_pilot_no_penalty` | Barre PILOTE en base (3.3, ADR-0005). | CHECK `snapshot->>'penaltyEnabled' = 'false'` : impossible de publier une version activant les pénalités au pilote |
+| `rule_version_no_update` (trigger) | Immuabilité **effective** (append-only). | Déclencheur `BEFORE UPDATE OR DELETE` levant une exception : corriger = nouvelle version, jamais un UPDATE |
+| `rules_acceptance` (bornée) | Acceptation horodatée d'une version exacte. | PK `(group_id, identity_id, rules_version)` (une fois par membre et version) ; + CHECK `accepted_at IS NOT NULL` |
+
+> La **non-rétroactivité** des échéances passées et l'**effectivité** d'un
+> engagement essentiel (accord de tous les concernés) sont des **décisions
+> serveur** (`packages/domain/src/rules.ts`), pas des contraintes SQL. Preuve
+> effective (trigger refusant un UPDATE ; CHECK refusant `penaltyEnabled=true`) =
+> scénarios C04-IMMUTABLE / C04-PENALTY de `tests/isolation.pg.mjs`, **BLOCKED**.
+
 ## Provisionnement (`provision/roles.sql`)
 | Rôle | Privilèges | But |
 |---|---|---|

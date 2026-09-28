@@ -115,3 +115,19 @@ La **porte de démarrage du cycle** (fonctions indépendantes acceptées + règl
 acceptées + suppléant nommé) et la **lecture seule** d'un groupe `closed`/
 `archived` sont des **décisions serveur** (`packages/domain/src/group.ts`) ; la
 base ne fait que borner les états et les usages, elle ne choisit pas la transition.
+
+## C04 — moteur de règles (versions immuables, barre pilote)
+Le lot C04 **renforce** `rule_version` / `rules_acceptance` sans les redéfinir ;
+l'exécution réelle reste `BLOCKED`.
+
+| Chemin | Rôle (C04) |
+|---|---|
+| `migrations/0005_rules_engine.sql` | Migration **additive** : `snapshot_hash` (empreinte 64-hex), `supersedes` (auto-FK), `published_at` ; **CHECK barre pilote** `snapshot->>'penaltyEnabled' = 'false'` ; **trigger d'immuabilité** `BEFORE UPDATE OR DELETE` ; `rules_acceptance.accepted_at NOT NULL`. |
+| `migrations/0005_rules_engine.down.sql` | **Retour arrière** de 0005 (drop trigger/fonction/contraintes/colonnes, ordre inverse). |
+| `tests/isolation.pg.mjs` (étendu) | Scénarios **C04-IMMUTABLE** (UPDATE de `rule_version` refusé par le déclencheur), **C04-PENALTY** (INSERT `penaltyEnabled=true` refusé par la CHECK). |
+
+La **non-rétroactivité** des échéances passées et l'**effectivité** d'un engagement
+essentiel (accord de tous les concernés) sont des **décisions serveur**
+(`packages/domain/src/rules.ts`) ; la base ne scelle que l'immuabilité des versions
+et la barre pilote sur les pénalités. Ordre de rollback complet : `0005…down` →
+`0004…down` → `0003…down` → `0002…down` → `0001…down`.

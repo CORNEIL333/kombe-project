@@ -533,6 +533,127 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  # ── C04 — moteur de règles versionnées et acceptations (3.1 → 3.7, 6.7) ──
+  /groups/{groupId}/rule-versions:
+    post:
+      tags: [rules]
+      operationId: publishRuleVersion
+      summary: Publier une version immuable des règles (hash canonique ; pénalités fermées au pilote)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [snapshot]
+              properties:
+                snapshot: { $ref: "#/components/schemas/RuleSet" }
+                supersedes: { type: integer, minimum: 1 }
+      responses:
+        "201":
+          description: Version scellée (penaltyEnabled normalisé à false au pilote)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: integer }
+                  hash: { type: string, pattern: "^[0-9a-f]{64}$" }
+                  penaltyEnabled: { type: boolean }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/rule-versions/{version}/acceptances:
+    post:
+      tags: [rules]
+      operationId: acceptRuleVersionByHash
+      summary: Accepter une version sur son hash EXACT (consentement horodaté)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: version
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identityId, hash]
+              properties:
+                identityId: { type: string }
+                hash: { type: string, pattern: "^[0-9a-f]{64}$" }
+      responses:
+        "201": { description: Acceptation enregistrée }
+        "412":
+          description: RULE_ACCEPT_HASH_MISMATCH — le hash soumis ne correspond pas à la version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /groups/{groupId}/rule-changes:
+    post:
+      tags: [rules]
+      operationId: evaluateRuleChange
+      summary: Effectivité d'un changement publié (essentiel ⇒ cycle suivant, accord de tous)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version, concerned]
+              properties:
+                version: { type: integer, minimum: 1 }
+                concerned: { type: array, items: { type: string }, minItems: 1 }
+      responses:
+        "200":
+          description: >
+            essential, appliesTo (next_cycle|immediate), new_rule_executed —
+            false si une personne concernée n'a pas accepté (C04-ACCEPT)
+
+  /groups/{groupId}/cycle-recalculations:
+    post:
+      tags: [rules]
+      operationId: recalculateCurrentCycle
+      summary: Recalcul du cycle courant sous garde de non-rétroactivité (C04-RETRO)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: "past_due_changed = false (aucune échéance passée réécrite)"
+        "409":
+          description: RULE_RETROACTIVE — une échéance déjà passée serait modifiée
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /groups/{groupId}/penalty-requests:
+    post:
+      tags: [rules]
+      operationId: requestPenalty
+      summary: Demande d'activation des pénalités — refusée au pilote (C04-PENALTY)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [desired]
+              properties:
+                desired: { type: boolean }
+      responses:
+        "200":
+          description: >
+            penalty_enabled = false au pilote quelle que soit la demande
+            (rejected = true si demandée)
+
 components:
   securitySchemes:
     sessionCookie:
@@ -591,6 +712,10 @@ components:
         - VOTE_HORS_LIMITES
         - JOUR_INVALIDE
         - FEATURE_PILOT_FORBIDDEN
+        - RULE_INVALID
+        - RULE_VERSION_IMMUTABLE
+        - RULE_ACCEPT_HASH_MISMATCH
+        - RULE_RETROACTIVE
     Error:
       type: object
       required: [code, message]
@@ -688,6 +813,28 @@ components:
         groupId: { type: string }
         electorateSize: { type: integer, minimum: 1 }
         state: { type: string, enum: [open, closed, cancelled] }
+    RuleSet:
+      type: object
+      description: >
+        Instantané **immuable** des règles d'un groupe (C04, 3.1). Scellé par
+        `canonicalHash` (RFC 8785). Montant entier kombe_money, jamais de FLOAT.
+        Au pilote, `penaltyEnabled` est normalisé à `false` (barre pilote, 6.7).
+      required: [memberCount, contribution, rounds, frequency, dueDay, quorum, gracePeriodDays, penaltyEnabled]
+      properties:
+        memberCount: { type: integer, minimum: 2 }
+        contribution: { $ref: "#/components/schemas/Money" }
+        rounds: { type: integer, minimum: 1, description: "Tours ; au pilote rounds = memberCount (rotation egale, un beneficiaire par tour)." }
+        frequency: { type: string, enum: [monthly, weekly] }
+        dueDay: { type: integer, minimum: 1, maximum: 31, description: Jour d'échéance ; borné à la fin de mois via dueDate (C05). }
+        quorum:
+          type: object
+          required: [numerator, denominator]
+          description: Quorum borné (numérateur ≤ dénominateur), cf. voteResult.
+          properties:
+            numerator: { type: integer, minimum: 0 }
+            denominator: { type: integer, minimum: 1 }
+        gracePeriodDays: { type: integer, minimum: 0 }
+        penaltyEnabled: { type: boolean, description: "false force au pilote (penalites fermees, 6.7)." }
 
   responses:
     Forbidden:

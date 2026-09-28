@@ -15,6 +15,7 @@ import {
 } from "./commandPipeline.js";
 import { FictitiousAccessStore } from "./accessStore.js";
 import { FictitiousGovernanceStore } from "./governanceStore.js";
+import { FictitiousRulesStore } from "./rulesStore.js";
 import {
   declareContributionBody,
   idempotencyKey,
@@ -30,6 +31,10 @@ import {
   groupMutationBody,
   rulesAcceptanceBody,
   contributionDeclarationBody,
+  publishRuleBody,
+  ruleVersionAcceptanceBody,
+  ruleChangeBody,
+  penaltyRequestBody,
 } from "./schemas.js";
 
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
@@ -52,6 +57,10 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   CYCLE_START_NOT_READY: 409,
   INVITATION_INVALID: 410,
   RULES_NOT_ACCEPTED: 403,
+  RULE_INVALID: 422,
+  RULE_VERSION_IMMUTABLE: 409,
+  RULE_ACCEPT_HASH_MISMATCH: 412,
+  RULE_RETROACTIVE: 409,
   MEMBERSHIP_STATE_INVALID: 422,
   PASSWORD_TOO_WEAK: 422,
   PASSWORD_COMPROMISED: 422,
@@ -67,6 +76,7 @@ export interface BuildAppOptions {
   readonly store?: FictitiousCommandStore;
   readonly access?: FictitiousAccessStore;
   readonly governance?: FictitiousGovernanceStore;
+  readonly rules?: FictitiousRulesStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -93,6 +103,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const store = options.store ?? new FictitiousCommandStore();
   const access = options.access ?? new FictitiousAccessStore();
   const governance = options.governance ?? new FictitiousGovernanceStore();
+  const rules = options.rules ?? new FictitiousRulesStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -248,6 +259,49 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/invitations/:invitationId/redemptions", async (request, reply) => {
     const { invitationId } = request.params as { invitationId: string };
     return reply.code(200).send(governance.redeemInvitation(invitationId));
+  });
+
+  /* --- C04 : moteur de règles versionnées et acceptations (3.1 → 3.7, 6.7) --- */
+
+  // Publication d'une version de règle (compiler pour le pilote ; pénalités forcées
+  // à false). Le hash canonique scelle l'instantané (immuabilité).
+  app.post("/v1/groups/:groupId/rule-versions", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = publishRuleBody.parse(request.body);
+    const pub = rules.publish(groupId, body.snapshot, body.supersedes);
+    return reply.code(201).send({
+      version: pub.version,
+      hash: pub.hash,
+      penaltyEnabled: pub.snapshot.penaltyEnabled,
+    });
+  });
+
+  // Acceptation horodatée portant sur le hash EXACT d'une version publiée.
+  app.post("/v1/groups/:groupId/rule-versions/:version/acceptances", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const { version } = request.params as { version: string };
+    const body = ruleVersionAcceptanceBody.parse(request.body);
+    const acc = rules.accept(groupId, body.identityId, Number(version), body.hash);
+    return reply.code(201).send(acc);
+  });
+
+  // Changement de règle déjà publié : plan d'application + effectivité (C04-ACCEPT).
+  app.post("/v1/groups/:groupId/rule-changes", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = ruleChangeBody.parse(request.body);
+    return reply.code(200).send(rules.evaluateChange(groupId, body.version, body.concerned));
+  });
+
+  // Recalcul du cycle courant sous garde de non-rétroactivité (C04-RETRO).
+  app.post("/v1/groups/:groupId/cycle-recalculations", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    return reply.code(200).send(rules.recalculateCurrentCycle(groupId));
+  });
+
+  // Demande d'activation des pénalités — barrière serveur du pilote (C04-PENALTY).
+  app.post("/v1/groups/:groupId/penalty-requests", async (request, reply) => {
+    const body = penaltyRequestBody.parse(request.body);
+    return reply.code(200).send(rules.requestPenalty(body.desired));
   });
 
   return app;

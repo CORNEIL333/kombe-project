@@ -20,3 +20,4 @@ export * from "./role_change.js";
 export * from "./access.js";
 export * from "./group.js";
 export * from "./governance.js";
+export * from "./rules.js";

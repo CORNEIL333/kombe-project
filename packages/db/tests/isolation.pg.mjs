@@ -80,6 +80,7 @@ async function main() {
     await runSql(migrator, "migrations/0002_role_change.sql");
     await runSql(migrator, "migrations/0003_access.sql");
     await runSql(migrator, "migrations/0004_group_governance.sql");
+    await runSql(migrator, "migrations/0005_rules_engine.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
@@ -249,6 +250,41 @@ async function main() {
     });
     observations.C03_TENANT = { cross_group_invitation_rows: inviteCross };
 
+    // ── C04-IMMUTABLE : un UPDATE de rule_version est refusé (append-only). ──
+    await migrator.query("SET kombe.group_id = 'grpA'");
+    await migrator.query(
+      `INSERT INTO rule_version (group_id, rules_version, snapshot, snapshot_hash)
+       VALUES ('grpA', 1, '{"penaltyEnabled": false}', $1)
+       ON CONFLICT DO NOTHING`,
+      ["a".repeat(64)],
+    );
+    let immutableUpdateAccepted = true;
+    try {
+      await app.query("BEGIN");
+      await app.query("SET LOCAL kombe.group_id = 'grpA'");
+      await app.query(
+        `UPDATE rule_version SET snapshot = '{"penaltyEnabled": false, "tampered": true}'::jsonb
+         WHERE group_id = 'grpA' AND rules_version = 1`,
+      );
+      await app.query("COMMIT");
+    } catch {
+      immutableUpdateAccepted = false; // déclencheur d'immuabilité → refus
+      await app.query("ROLLBACK").catch(() => {});
+    }
+    observations.C04_IMMUTABLE = { immutable_update_accepted: immutableUpdateAccepted };
+
+    // ── C04-PENALTY (base) : insérer penaltyEnabled=true est refusé (CHECK). ──
+    let penaltyTrueInsertAccepted = true;
+    try {
+      await migrator.query(
+        `INSERT INTO rule_version (group_id, rules_version, snapshot)
+         VALUES ('grpA', 99, '{"penaltyEnabled": true}')`,
+      );
+    } catch {
+      penaltyTrueInsertAccepted = false; // règle barre pilote → refus structurel
+    }
+    observations.C04_PENALTY = { penalty_true_insert_accepted: penaltyTrueInsertAccepted };
+
     await app.end();
 
     const pass =
@@ -262,7 +298,9 @@ async function main() {
       observations.C03_STATE.extended_state_accepted === true &&
       observations.C03_INVITE.first_redeem_accepted === true &&
       observations.C03_INVITE.second_redeem_accepted === false &&
-      observations.C03_TENANT.cross_group_invitation_rows === 0;
+      observations.C03_TENANT.cross_group_invitation_rows === 0 &&
+      observations.C04_IMMUTABLE.immutable_update_accepted === false &&
+      observations.C04_PENALTY.penalty_true_insert_accepted === false;
 
     process.stdout.write(
       JSON.stringify(
