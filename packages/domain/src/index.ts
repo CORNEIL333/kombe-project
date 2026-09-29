@@ -26,3 +26,4 @@ export * from "./journal.js";
 export * from "./contribution.js";
 export * from "./validation.js";
 export * from "./disputes.js";
+export * from "./disbursement.js";
