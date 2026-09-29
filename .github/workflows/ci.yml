@@ -1,0 +1,57 @@
+# KÓMBE — job CANDIDAT (build, typecheck, tests purs).
+#
+# Ce job ne produit AUCUNE preuve G-CONSTRUCTION : il compile et teste le code
+# candidat (domain/api/worker) sans base. La preuve d'assurance H00 est rendue
+# séparément par le job de confiance `h00-trusted.yml`, versionné hors du reach
+# du candidat (principe H20). Branch protection + environment protection sont
+# à activer à l'initialisation du dépôt distant (l'utilisateur l'fera plus tard).
+name: CI — candidat
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build / typecheck / tests (sans base)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm épinglé via la clause "packageManager" du package.json (corepack).
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # `pnpm install` (non --frozen) : le lockfile peut différer de package.json
+      # tant que l'ajout du pilote pg n'a pas été re-figé sur un réseau fiable.
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build
+        run: pnpm -r --if-present run build
+
+      - name: Typecheck
+        run: pnpm -r --if-present run typecheck
+
+      - name: Test (domain, api, worker — invariants purs sans PostgreSQL)
+        run: pnpm -r --if-present run test
+
+      # Protocole multi-harnais APPLIQUÉ (pas décoratif) : le tableau d'états et
+      # les messages handoff doivent respecter les invariants (owner connu,
+      # séparation auteur/relecteur H06, pas de double réservation, preuve réelle).
+      # exit 1 = violation ⇒ job candidat rouge.
+      - name: Vérifier la coordination inter-harnais
+        run: |
+          python3 COORDINATION_MULTI_HARNESS/verifier_coordination.py

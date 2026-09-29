@@ -1,0 +1,137 @@
+# KÓMBE — job de CONFIANCE H00 (chaîne d'assurance G-CONSTRUCTION).
+#
+# Rôle : exécuter le runner H00 sur PostgreSQL 16+ RÉEL (service container) pour
+# que H07 consomme la vraie preuve d'isolation (packages/db/tests/isolation.pg.mjs)
+# au lieu de rester BLOCKED. Le runner ne simule aucun PASS : il mappe le code de
+# sortie du test (0 PASS / 1 FAIL / 2 BLOCKED).
+#
+# Séparation H20 : ce fichier vit dans le job de confiance, distinct du job
+# candidat `ci.yml`. Affectivité forte : à verrouiller via GitHub Environments +
+# branch protection à l'initialisation du dépôt distant (fait par l'humain plus
+# tard). Tant que le dépôt n'a pas de remote protégé, H20 reste honnêtement
+# BLOCKED dans le rapport : ce workflow PRÉPARÉ l'exécution, il n'authentifie pas
+# encore l'auteur du contrôleur.
+#
+# VALIDATION : le provisionnement de rôles/ownership ci-dessous est best-effort
+# pour PostgreSQL 16 ; il peut nécessiter un ajustement au premier push pour que
+# la RLS s'applique à kombe_app (non-owner). Aucun PASS n'est affirmé sans run réel.
+name: H00 — trusted assurance
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write   # requis par upload-artifact@v4 ; sinon l'étape échoue et rend le job rouge même quand H00 est légitimement BLOCKED.
+
+jobs:
+  h00:
+    name: Runner H00 sur PostgreSQL 16 réel
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kombe_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kombe_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      # Connexion = rôle de migration (propriétaire des objets), pour que les
+      # default privileges de roles.sql s'appliquent réellement à kombe_app.
+      KOMBE_TEST_DATABASE_URL: postgresql://kombe_migrateur:kombe@localhost:5432/kombe_test
+      KOMBE_SUPERUSER_URL: postgresql://postgres:postgres@localhost:5432/kombe_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install (deps + pilote pg pour la preuve d'isolation)
+        run: pnpm install --no-frozen-lockfile
+
+      # Provisionnement des rôles attendus par isolation.pg.mjs + roles.sql :
+      # kombe_migrateur (LOGIN, propriétaire), kombe_app/kombe_worker (NOLOGIN,
+      # sans BYPASSRLS). roles.sql (IF NOT EXISTS) ne écrasera pas ces rôles.
+      - name: Provision PostgreSQL roles
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          psql "$KOMBE_SUPERUSER_URL" -v ON_ERROR_STOP=1 <<'SQL'
+            DO $$ BEGIN
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kombe_migrateur') THEN
+                CREATE ROLE kombe_migrateur LOGIN PASSWORD 'kombe';
+              END IF;
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kombe_app') THEN
+                CREATE ROLE kombe_app NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+              END IF;
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kombe_worker') THEN
+                CREATE ROLE kombe_worker NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+              END IF;
+            END $$;
+            GRANT kombe_app TO kombe_migrateur;   -- permet SET LOCAL role=kombe_app
+            GRANT kombe_worker TO kombe_migrateur;
+            ALTER DATABASE kombe_test OWNER TO kombe_migrateur;
+            GRANT ALL ON SCHEMA public TO kombe_migrateur;
+            GRANT USAGE ON SCHEMA public TO kombe_app;
+            -- CRITIQUE : poser les default privileges AVANT les migrations.
+            -- isolation.pg.mjs applique les migrations (crée les tables) PUIS
+            -- roles.sql ; or ALTER DEFAULT PRIVILEGES n'affecte que les objets
+            -- créés APRÈS l'instruction. Sans cette ligne en amont, kombe_app
+            -- n'a AUCUN droit sur les tables de migration → H07 échoue (FAIL)
+            -- au lieu de prouver la RLS. Les REVOKE append-only des migrations
+            -- 0007/0008 retireront ensuite les droits UPDATE/DELETE là où requis.
+            ALTER DEFAULT PRIVILEGES FOR ROLE kombe_migrateur IN SCHEMA public
+              GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO kombe_app;
+          SQL
+
+      - name: Runner H00 (20 cas H01–H20)
+        # run_h00 renvoie 0 (PASS), 1 (FAIL), 2 (BLOCKED). BLOCKED est un état
+        # honnête pendant la construction : continue-on-error évite le rouge ;
+        # seule la présence de FAIL≥1 rend le job rouge (étape résumé ci-dessous).
+        run: |
+          python3 harness/run_h00.py \
+            --commit "${{ github.sha }}" \
+            --out harness/reports/RAPPORT_G_CONSTRUCTION.json
+        continue-on-error: true
+
+      - name: Publier le rapport et le résumé
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const r = JSON.parse(fs.readFileSync('harness/reports/RAPPORT_G_CONSTRUCTION.json','utf8'));
+            const line = `G-CONSTRUCTION = **${r.status}** — ` +
+              `${r.counts.PASS} PASS / ${r.counts.FAIL} FAIL / ${r.counts.BLOCKED} BLOCKED`;
+            core.summary.addHeading('H00 — G-CONSTRUCTION', 2);
+            core.summary.addRaw(line);
+            core.summary.addRaw('\n\nCas BLOCKED : ' +
+              r.results.filter(x=>x.status==='BLOCKED').map(x=>x.id).join(', '));
+            core.summary.write();
+            if (r.counts.FAIL > 0) core.setFailed(`FAIL détectés : ${r.counts.FAIL}`);
+
+      - name: Artefact — rapport G-CONSTRUCTION
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RAPPORT_G_CONSTRUCTION
+          path: harness/reports/RAPPORT_G_CONSTRUCTION.json

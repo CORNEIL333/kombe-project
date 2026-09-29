@@ -2,7 +2,7 @@
   "runner": "H00",
   "commit": "c11279d51b37160f0b7bcafbcf14caac0f5fb1c2",
   "gate": "G-CONSTRUCTION",
-  "at_utc": "2026-09-29T11:55:40.697384+00:00",
+  "at_utc": "2026-09-29T23:11:13.934663+00:00",
   "status": "BLOCKED",
   "counts": {
     "PASS": 11,
@@ -33,7 +33,7 @@
       "detail": "SHA du runner identique avant/après exécution témoin",
       "evidence": {
         "runner": "C:\\Users\\migco\\Desktop\\kombe project\\harness\\run_h00.py",
-        "sha": "78acbc9c908e87b373cb9e498a962c15a8a30532724629c8b1aff1d1ac2711d8"
+        "sha": "86163cc31de14a5343f7bf6e430e3b1c385089f22945c479ed5a6b9e90ed0570"
       }
     },
     {
@@ -76,10 +76,11 @@
     {
       "id": "H07",
       "status": "BLOCKED",
-      "detail": "PostgreSQL non disponible sur cet hôte. Testcontainers ou instance locale requis pour prouver le verrouillage réel.",
+      "detail": "Preuve d'isolation non exécutable ici : KOMBE_TEST_DATABASE_URL absente : aucune base PostgreSQL de test joignable sur cet hôte. (Docker/PostgreSQL requis — Testcontainers en CI ou instance locale).",
       "evidence": {
-        "pg_available": false,
-        "note": "docker_ou_postgres_requis"
+        "exit_code": 2,
+        "status_json": "BLOCKED",
+        "note": "postgresql_reel_requis"
       }
     },
     {

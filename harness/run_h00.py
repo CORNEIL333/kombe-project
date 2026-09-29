@@ -28,7 +28,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 HARNESS_DIR = Path(__file__).parent.resolve()
+REPO_ROOT = HARNESS_DIR.parent
 WITNESS = HARNESS_DIR / "witness.py"
+ISOLATION_TEST = REPO_ROOT / "packages" / "db" / "tests" / "isolation.pg.mjs"
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -230,26 +232,70 @@ def h06_false_review() -> dict:
 
 
 def h07_mock_db() -> dict:
-    """PostgreSQL mock ne prouve pas un verrou réel — BLOCKED sans PostgreSQL disponible."""
-    # Vérification : PostgreSQL est-il disponible ?
-    pg_available = False
+    """Un mock PostgreSQL ne prouve pas un verrou réel : on exécute la preuve
+    d'isolation RÉELLE (packages/db/tests/isolation.pg.mjs) contre PostgreSQL 16+.
+
+    Le runner ne simule jamais un PASS. Il consomme le code de sortie du test :
+      0 → PASS (isolation/RLS/verrous réellement observés en base)
+      1 → FAIL (invariant violé en base réelle)
+      2 → BLOCKED (aucune base PostgreSQL / pilote pg absent sur cet hôte)
+    Convention de sortie alignée sur 04_Harness et isolation.pg.mjs.
+    """
+    if not ISOLATION_TEST.exists():
+        return result("H07", "BLOCKED",
+                      f"Test d'isolation introuvable : {ISOLATION_TEST}", {})
+
     try:
         proc = subprocess.run(
-            ["pg_isready", "-q"],
-            capture_output=True, timeout=5
+            ["node", str(ISOLATION_TEST)],
+            capture_output=True, text=True, timeout=180, env=os.environ.copy(),
         )
-        pg_available = proc.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        pg_available = False
-
-    if not pg_available:
+    except (OSError, subprocess.TimeoutExpired) as exc:
         return result("H07", "BLOCKED",
-                      "PostgreSQL non disponible sur cet hôte. "
-                      "Testcontainers ou instance locale requis pour prouver le verrouillage réel.",
-                      {"pg_available": False, "note": "docker_ou_postgres_requis"})
+                      f"Exécution du test d'isolation impossible : {exc}", {})
 
-    # Si PostgreSQL disponible (cas futur), un test de concurrence serait exécuté ici
-    return result("H07", "BLOCKED", "PostgreSQL disponible mais Testcontainers non configuré", {})
+    out = (proc.stdout or "").strip()
+    parsed = None
+    if out:
+        try:
+            parsed = json.loads(out)
+        except json.JSONDecodeError:
+            parsed = None
+
+    observations = (parsed or {}).get("observations", {})
+    status_json = (parsed or {}).get("status")
+    rc = proc.returncode
+
+    # PASS exigé seulement si le test confirme un PASS réel AVEC observations.
+    # Un rc==0 sans JSON valide n'est JAMAIS un PASS (principe : jamais de vert
+    # sans preuve).
+    if rc == 0 and status_json == "PASS" and observations:
+        return result("H07", "PASS",
+                      "Verrou/RLS/isolation prouvés sur PostgreSQL 16+ réel "
+                      "(isolation.pg.mjs, exit 0 — observations réelles, non mockées)",
+                      {"exit_code": rc, "observations": observations})
+    # FAIL = échec d'assertion réel : rc==1 avec observations (invariant violé).
+    if rc == 1 and observations:
+        return result("H07", "FAIL",
+                      "Test d'isolation en base réelle : un invariant a été violé",
+                      {"exit_code": rc, "observations": observations})
+    # rc==1 SANS observations = erreur d'exécution (base injoignable, pilote
+    # absent, SQL invalide) : dépendance non atteignable → BLOCKED honnête,
+    # pas un faux FAIL « invariant violé ».
+    if rc == 1:
+        return result("H07", "BLOCKED",
+                      "Test d'isolation interrompu par une erreur d'exécution "
+                      "(base/pilote/SQL indisponibles) : preuve non atteignable ici.",
+                      {"exit_code": rc, "note": "erreur_execution_non_assertion",
+                       "stderr": (proc.stderr or "")[:500],
+                       "error": (parsed or {}).get("error", "")})
+    # rc==2 (BLOCKED annoncé) ou rc==0 sans PASS valide, ou code inattendu.
+    reason = (parsed or {}).get("reason", "Base PostgreSQL ou pilote pg indisponible sur cet hôte.")
+    return result("H07", "BLOCKED",
+                  f"Preuve d'isolation non exécutable ici : {reason} "
+                  "(Docker/PostgreSQL requis — Testcontainers en CI ou instance locale).",
+                  {"exit_code": rc, "status_json": status_json,
+                   "note": "postgresql_reel_requis"})
 
 
 def h08_critical_mutants(commit: str) -> dict:
