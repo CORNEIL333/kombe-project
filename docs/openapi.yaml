@@ -335,13 +335,28 @@ paths:
     post:
       tags: [disputes]
       operationId: raiseDispute
-      summary: Ouvrir un litige (bloque la clôture)
+      summary: >
+        Ouvrir un litige sur une cotisation (6.5). Motif obligatoire ; fenêtre
+        ordinaire de 7 jours après notification ; signalement de fraude ou
+        d'erreur grave toujours recevable. Avant validation le litige bloque la
+        validation ; après validation il gèle clôture et opérations dépendantes
+        sans effacer aucune écriture.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisputeRequest" }
       responses:
-        "201": { description: Litige ouvert }
+        "201":
+          description: Litige ouvert.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DisputeReceipt" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
 
   /disputes/{disputeId}/reopenings:
     post:
@@ -959,6 +974,164 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /groups/{groupId}/contributions/{contributionId}:
+    get:
+      tags: [contributions]
+      operationId: getContributionValidation
+      summary: >
+        Vue de validation d'une cotisation (lecture seule, sans mutation) : état
+        de la machine à états, déclarant, confirmateur, contrôleurs, seuil
+        requis, et statut de compensation (original compensé, nombre de
+        contre-écritures). Montants rendus en entiers.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: contributionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: État de validation de la cotisation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContributionValidationView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{groupId}/contributions/{contributionId}/confirmations:
+    post:
+      tags: [contributions]
+      operationId: confirmContribution
+      summary: >
+        Confirmation d'une cotisation par un acteur INDÉPENDANT du déclarant
+        (6.3, 6.4). Le déclarant qui se confirme lui-même est refusé sans effet
+        (validation_accepted = false). Si aucun contrôle distinct n'est requis,
+        la confirmation valide atomiquement ; sinon la cotisation passe en
+        `confirmed`. Un litige ouvert sur l'obligation bloque la validation
+        finale (6.5).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: contributionId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200":
+          description: Reçu d'acte de confirmation (accepté/refusé, état, version).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationActReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/contributions/{contributionId}/control:
+    post:
+      tags: [contributions]
+      operationId: controlContribution
+      summary: >
+        Contrôle par un TIERS distinct du déclarant et du confirmateur (6.3,
+        6.4). Un acteur ne cumule pas confirmer puis contrôler
+        (validation_accepted = false). Au seuil de contrôleurs atteint, la
+        cotisation est validée.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: contributionId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200":
+          description: Reçu d'acte de contrôle.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationActReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/contributions/{contributionId}/rejections:
+    post:
+      tags: [contributions]
+      operationId: rejectContribution
+      summary: >
+        Rejet d'une cotisation **avant validation seulement** (6.2). Rejeter une
+        cotisation déjà validée est refusé (409 CONTRIBUTION_STATE_INVALID) ;
+        la correction d'un validé passe par compensation, jamais par effacement.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: contributionId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200":
+          description: Reçu de rejet.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ValidationActReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/contributions/{contributionId}/compensations:
+    post:
+      tags: [contributions]
+      operationId: compensateContribution
+      summary: >
+        Compensation d'un original validé par contre-écriture liée (6.2, 6.6) :
+        aucune suppression, l'écriture est conservée et l'événement inverse est
+        rattaché à l'original. Un original n'est compensé **qu'une seule fois**
+        (seconde tentative ⇒ 409 CONTRIBUTION_ALREADY_COMPENSATED, C07-REVERSE).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: contributionId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ExpectedVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompensationRequest" }
+      responses:
+        "201":
+          description: Contre-écriture appliquée.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CompensationReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/obligations/{obligationId}/dependent-operation-attempts:
+    post:
+      tags: [disputes]
+      operationId: attemptDependentOperation
+      summary: >
+        Sonde d'une opération dépendante d'un montant (clôture de tour, etc.) :
+        un litige ouvert sur l'obligation gèle l'opération (409
+        ROUND_CLOSE_BLOCKED_BY_DISPUTE) **sans** effacer écriture ni validation
+        (6.5). Lecture de garde, sans mutation.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: obligationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Opération dépendante autorisée (aucun litige ouvert).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DependentOperationReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -1031,6 +1204,12 @@ components:
         - IDEMPOTENCY_BODY_CONFLICT
         - CONTRIBUTION_EXCEEDS_REMAINING
         - REFERENCE_JUSTIFICATION_REQUIRED
+        - CONTRIBUTION_STATE_INVALID
+        - CONTRIBUTION_ALREADY_COMPENSATED
+        - VALIDATION_BLOCKED_BY_DISPUTE
+        - ROUND_CLOSE_BLOCKED_BY_DISPUTE
+        - DISPUTE_WINDOW_CLOSED
+        - DISPUTE_REASON_REQUIRED
     Error:
       type: object
       required: [code, message]
@@ -1350,6 +1529,90 @@ components:
         remainingDue: { type: string }
         availableToDeclare: { type: string }
         version: { type: integer, minimum: 1 }
+
+    ValidationActReceipt:
+      type: object
+      description: >
+        Reçu d'un acte de validation (confirmation, contrôle ou rejet). Les
+        échecs d'indépendance ou d'anti-cumul répondent 200 avec
+        `validationAccepted = false` et un `reason` stable, SANS écriture ; les
+        violations d'état/de droits/version lèvent un 4xx.
+      required: [validationAccepted, validationCompleted, contributionId, state, version]
+      properties:
+        validationAccepted: { type: boolean }
+        validationCompleted: { type: boolean }
+        contributionId: { type: string }
+        state: { type: string, enum: [declared, confirmed, validated, rejected, compensated] }
+        version: { type: integer, minimum: 1 }
+        reason: { type: string, description: Stable (SELF_DECLARANT, ACTOR_ALREADY_ACTED, AWAITING_CONTROLLERS) le cas échéant. }
+        eventHash: { type: string, pattern: "^[0-9a-f]{64}$" }
+    CompensationRequest:
+      type: object
+      description: Demande de compensation liée — identifiant de la contre-écriture à poser.
+      required: [reversalContributionId]
+      properties:
+        reversalContributionId: { type: string, minLength: 1, maxLength: 120 }
+    CompensationReceipt:
+      type: object
+      description: Reçu de compensation — contre-écriture appliquée au plus une fois par original.
+      required: [reversalAccepted, reversalCount, contributionId, reversalContributionId, state, version]
+      properties:
+        reversalAccepted: { type: boolean }
+        reversalCount: { type: integer, minimum: 0 }
+        contributionId: { type: string }
+        reversalContributionId: { type: string }
+        state: { type: string, enum: [declared, confirmed, validated, rejected, compensated] }
+        version: { type: integer, minimum: 1 }
+        eventHash: { type: string, pattern: "^[0-9a-f]{64}$" }
+    ContributionValidationView:
+      type: object
+      description: >
+        Vue de validation d'une cotisation en lecture seule. Montant en chaîne
+        (entier). `compensated`/`reversalCount` résument la correction (6.6).
+      required: [contributionId, obligationId, groupId, amount, declarantIdentityId, state, requiredControllers, confirmerIdentityId, controllerIdentityIds, compensated, reversalCount, version]
+      properties:
+        contributionId: { type: string }
+        obligationId: { type: string }
+        groupId: { type: string }
+        amount: { type: string }
+        declarantIdentityId: { type: string }
+        state: { type: string, enum: [declared, confirmed, validated, rejected, compensated] }
+        requiredControllers: { type: integer, minimum: 0 }
+        confirmerIdentityId: { type: [string, "null"] }
+        controllerIdentityIds: { type: array, items: { type: string } }
+        compensated: { type: boolean }
+        reversalCount: { type: integer, minimum: 0 }
+        version: { type: integer, minimum: 1 }
+    DisputeRequest:
+      type: object
+      description: >
+        Ouverture d'un litige (6.5). `reason` obligatoire et non vide ;
+        `category` ordinaire bornée à 7 jours après notification (fraude /
+        erreur grave exemptées). Horodatages en secondes since epoch.
+      required: [disputeId, obligationId, reason, category, notifiedAt, raisedAt]
+      properties:
+        disputeId: { type: string }
+        obligationId: { type: string }
+        reason: { type: string, maxLength: 500 }
+        category: { type: string, enum: [ordinary, fraud, serious_error] }
+        notifiedAt: { type: integer, minimum: 0 }
+        raisedAt: { type: integer, minimum: 0 }
+    DisputeReceipt:
+      type: object
+      required: [disputeId, groupId, obligationId, category, state]
+      properties:
+        disputeId: { type: string }
+        groupId: { type: string }
+        obligationId: { type: string }
+        category: { type: string, enum: [ordinary, fraud, serious_error] }
+        state: { type: string, enum: [open, resolved, reopened] }
+    DependentOperationReceipt:
+      type: object
+      description: Sonde d'opération dépendante — autorisée seulement si aucun litige ouvert.
+      required: [obligationId, allowed]
+      properties:
+        obligationId: { type: string }
+        allowed: { type: boolean }
 
   responses:
     Forbidden:

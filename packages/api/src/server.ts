@@ -24,9 +24,15 @@ import {
   type DeclareContext,
 } from "./contributionStore.js";
 import {
+  FictitiousValidationStore,
+  type ValidationContext,
+} from "./validationStore.js";
+import {
   declareContributionBody,
   declareContributionBody_c06,
   contributionDraftBody,
+  compensateBody,
+  disputeBody,
   idempotencyKey,
   expectedVersion,
   registrationRequest,
@@ -87,6 +93,12 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   IDEMPOTENCY_BODY_CONFLICT: 409,
   CONTRIBUTION_EXCEEDS_REMAINING: 409,
   REFERENCE_JUSTIFICATION_REQUIRED: 422,
+  CONTRIBUTION_STATE_INVALID: 409,
+  CONTRIBUTION_ALREADY_COMPENSATED: 409,
+  VALIDATION_BLOCKED_BY_DISPUTE: 409,
+  ROUND_CLOSE_BLOCKED_BY_DISPUTE: 409,
+  DISPUTE_WINDOW_CLOSED: 422,
+  DISPUTE_REASON_REQUIRED: 422,
   MEMBERSHIP_STATE_INVALID: 422,
   PASSWORD_TOO_WEAK: 422,
   PASSWORD_COMPROMISED: 422,
@@ -106,6 +118,7 @@ export interface BuildAppOptions {
   readonly schedule?: FictitiousScheduleStore;
   readonly journal?: FictitiousJournalStore;
   readonly contribution?: FictitiousContributionStore;
+  readonly validation?: FictitiousValidationStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -152,6 +165,28 @@ function declareCtxFrom(
   };
 }
 
+/**
+ * Contexte C07 : un acte de validation (confirmation/contrôle/rejet/
+ * compensation) est une commande MUTANTE — il porte la version d'objet
+ * attendue (`if-match-version`) et une date SERVEUR distincte. L'identité et
+ * les rôles viennent de l'en-tête fictif (C01 les résoudra depuis session + RLS).
+ */
+function validationCtxFrom(
+  request: { headers: Record<string, unknown> },
+): ValidationContext {
+  const actor = actorFrom(request);
+  const serverDateHeader = request.headers["x-server-date"];
+  const commandIdHeader = request.headers["x-command-id"];
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    actorGroupIds: actor.groupIds,
+    serverDate: typeof serverDateHeader === "string" ? serverDateHeader : "2026-09-28",
+    commandId: typeof commandIdHeader === "string" ? commandIdHeader : `cmd-${actor.identityId ?? actor.handle}`,
+    expectedVersion: expectedVersion.parse(request.headers["if-match-version"]),
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   const store = options.store ?? new FictitiousCommandStore();
@@ -161,6 +196,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const schedule = options.schedule ?? new FictitiousScheduleStore();
   const journal = options.journal ?? new FictitiousJournalStore();
   const contribution = options.contribution ?? new FictitiousContributionStore();
+  const validation = options.validation ?? new FictitiousValidationStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -560,6 +596,72 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/groups/:groupId/obligations/:obligationId", async (request, reply) => {
     const { obligationId } = request.params as { obligationId: string };
     return reply.code(200).send(contribution.view(obligationId));
+  });
+
+  /* --- C07 : validations, corrections et contestation (6.2 → 6.6) --- */
+
+  // Confirmation d'une cotisation. Indépendance : le déclarant qui se confirme
+  // lui-même est REFUSÉ (200, `validationAccepted = false`, aucune écriture).
+  app.post("/v1/groups/:groupId/contributions/:contributionId/confirmations", async (request, reply) => {
+    const { contributionId } = request.params as { contributionId: string };
+    const ctx = validationCtxFrom(request);
+    return reply.code(200).send(validation.confirm(ctx, contributionId));
+  });
+
+  // Contrôle par un tiers distinct ; parachève la validation au seuil requis.
+  app.post("/v1/groups/:groupId/contributions/:contributionId/control", async (request, reply) => {
+    const { contributionId } = request.params as { contributionId: string };
+    const ctx = validationCtxFrom(request);
+    return reply.code(200).send(validation.control(ctx, contributionId));
+  });
+
+  // Rejet seulement avant validation (après validation ⇒ 409, correction par
+  // compensation, jamais rejet rétroactif).
+  app.post("/v1/groups/:groupId/contributions/:contributionId/rejections", async (request, reply) => {
+    const { contributionId } = request.params as { contributionId: string };
+    const ctx = validationCtxFrom(request);
+    return reply.code(200).send(validation.reject(ctx, contributionId));
+  });
+
+  // Compensation d'un original validé — au plus une fois (C07-REVERSE) ; la
+  // seconde course sur le même original reçoit 409 et `reversalCount` reste 1.
+  app.post("/v1/groups/:groupId/contributions/:contributionId/compensations", async (request, reply) => {
+    const { contributionId } = request.params as { contributionId: string };
+    const body = compensateBody.parse(request.body);
+    const ctx = validationCtxFrom(request);
+    const r = validation.compensate(ctx, contributionId, body.reversalContributionId);
+    return reply.code(201).send(r);
+  });
+
+  // Ouverture d'un litige (fenêtre, motif) — permission `dispute.raise`.
+  app.post("/v1/groups/:groupId/disputes", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = disputeBody.parse(request.body);
+    const actor = actorFrom(request);
+    const ctx: ValidationContext = {
+      actorIdentityId: actor.identityId ?? actor.handle,
+      actorRole: actor.role,
+      actorGroupIds: actor.groupIds,
+      serverDate: "2026-09-28",
+      commandId: `cmd-${actor.identityId ?? actor.handle}`,
+      expectedVersion: 1,
+    };
+    return reply.code(201).send(validation.raise(ctx, { ...body, groupId, raisedBy: ctx.actorIdentityId }));
+  });
+
+  // Sonde d'opération dépendante (clôture de tour) gelée par un litige ouvert.
+  app.post(
+    "/v1/groups/:groupId/obligations/:obligationId/dependent-operation-attempts",
+    async (request, reply) => {
+      const { obligationId } = request.params as { obligationId: string };
+      return reply.code(200).send(validation.attemptDependentOperation(obligationId));
+    },
+  );
+
+  // Vue d'une cotisation : état, acteurs d'indépendance, compensation, version.
+  app.get("/v1/groups/:groupId/contributions/:contributionId", async (request, reply) => {
+    const { contributionId } = request.params as { contributionId: string };
+    return reply.code(200).send(validation.view(contributionId));
   });
 
   return app;

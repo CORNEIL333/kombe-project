@@ -211,3 +211,28 @@ export const declareContributionBody_c06 = z.object({
 export const contributionDraftBody = declareContributionBody_c06;
 
 export type DeclareContributionC06Input = z.infer<typeof declareContributionBody_c06>;
+
+/* --- C07 : validations, corrections et contestation (6.2 → 6.6) --- */
+
+const contributionIdC07 = z.string().min(1).max(120);
+
+// Compensation d'un original validé (6.6) : la contre-écriture liée porte une
+// identité fournie par le serveur (le client ne choisit pas l'identité appliquée).
+export const compensateBody = z.object({
+  reversalContributionId: contributionIdC07,
+});
+
+// Ouverture d'un litige (6.5) : motif obligatoire (validé par le domaine,
+// jamais pré-rempli ici), fenêtre ordinaire de 7 jours, pièces désactivées.
+// `raisedBy` est l'acteur résolu côté serveur, jamais fourni ici.
+export const disputeBody = z.object({
+  disputeId: z.string().min(1).max(120),
+  obligationId: z.string().min(1).max(120),
+  reason: z.string().max(500),
+  category: z.enum(["ordinary", "fraud", "serious_error"]),
+  notifiedAt: z.number().int().min(0),
+  raisedAt: z.number().int().min(0),
+});
+
+export type CompensateInput = z.infer<typeof compensateBody>;
+export type DisputeInput = z.infer<typeof disputeBody>;

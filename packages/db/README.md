@@ -183,3 +183,21 @@ capacité** sont des **décisions serveur** (`packages/domain/src/contribution.t
 la base rend le registre **durable et incompressible** et borne **structurellement**
 la capacité. Ordre de rollback complet : `0008…down` → `0007…down` → `0006…down` →
 `0005…down` → `0004…down` → `0003…down` → `0002…down` → `0001…down`.
+
+## C07 — validations, corrections et contestation (indépendance, fenêtre)
+Le lot C07 **élargit** `contribution` / `dispute` sans les redéfinir et ajoute la
+table append-only `contribution_act` ; l'exécution réelle reste `BLOCKED`.
+
+| Chemin | Rôle (C07) |
+|---|---|
+| `migrations/0009_contribution_validation.sql` | Migration **additive** : CHECK `contribution.state` **+= `confirmed`** (machine à états) + colonnes `declarant_identity_id` / `required_controllers` ; table `contribution_act` (`UNIQUE (group, contribution, actor)` anti-cumul, **trigger d'indépendance** refusant l'acte du déclarant, trigger append-only + **`REVOKE UPDATE, DELETE`** pour `kombe_app`, RLS) ; **index partiel unique** `contribution_one_reversal_per_original` (compensation unique) ; `dispute` enrichi (`category` CHECK, `reason`, `notified_at`, `raised_at`) + CHECK `dispute_reason_present` + CHECK `dispute_ordinary_window` (ordinaire ≤ 7 jours, fraude/erreur grave exemptées). |
+| `migrations/0009_contribution_validation.down.sql` | **Retour arrière** de 0009 (drop contraintes/colonnes `dispute`, drop `contribution_act` + fonction, drop index partiel + colonnes `contribution`, repose la CHECK d'état 0001 — ordre inverse ; la fonction partagée `kombe_journal_append_only` appartient à 0007). |
+| `tests/isolation.pg.mjs` (étendu) | Scénarios **C07-SELF** (le déclarant qui se confirme est refusé par le trigger ; acteur distinct accepté), **C07-TRIPLE** (second acte du même acteur refusé par l'UNIQUE ; tiers distinct accepté), **C07-REVERSE** (seconde compensation du même original refusée par l'index partiel ⇒ `reversal_count = 1`), **C07-DISPUTE** (litige ordinaire hors fenêtre refusé par le CHECK ; fraude hors fenêtre acceptée). |
+
+L'**ordre** confirmation→contrôle, le **seuil** de validateurs, le **gel des
+opérations dépendantes** après validation et la **résolution** d'un litige
+(gouvernance/vote) sont des **décisions serveur** (`packages/domain/src/validation.ts`) ;
+la base **borne structurellement** l'indépendance, l'anti-cumul, la compensation
+unique et la fenêtre. Ordre de rollback complet : `0009…down` → `0008…down` →
+`0007…down` → `0006…down` → `0005…down` → `0004…down` → `0003…down` → `0002…down` →
+`0001…down`.

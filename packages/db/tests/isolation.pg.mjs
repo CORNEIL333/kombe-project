@@ -75,6 +75,7 @@ async function main() {
 
   try {
     // État initial reproductible : on repart d'un schéma propre en base de test.
+    await runSql(migrator, "migrations/0009_contribution_validation.down.sql");
     await runSql(migrator, "migrations/0008_contribution_idempotency.down.sql");
     await runSql(migrator, "migrations/0007_event_journal.down.sql");
     await runSql(migrator, "migrations/0001_init.down.sql");
@@ -86,6 +87,7 @@ async function main() {
     await runSql(migrator, "migrations/0006_cycle_schedule.sql");
     await runSql(migrator, "migrations/0007_event_journal.sql");
     await runSql(migrator, "migrations/0008_contribution_idempotency.sql");
+    await runSql(migrator, "migrations/0009_contribution_validation.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
@@ -533,6 +535,112 @@ async function main() {
       accepted_total: Number(raceReserved.rows[0].n),
     };
 
+    // ── C07-SELF / C07-TRIPLE : indépendance et anti-cumul des actes ─────────
+    // Une cotisation déclarée par idn_a. Le trigger d'indépendance refuse qu'IDN_A
+    // pose un acte sur SA propre déclaration ; un acteur distinct (idn_b) passe.
+    // `UNIQUE (group, contribution, actor)` refuse ensuite qu'idn_b cumule un
+    // second acte (confirmer puis contrôler) ; un tiers distinct (idn_c) parachève.
+    await migrator.query("INSERT INTO identity (identity_id) VALUES ('idn_c') ON CONFLICT DO NOTHING");
+    await app.query("BEGIN");
+    await app.query("SET LOCAL kombe.group_id = 'grpA'");
+    await app.query(
+      `INSERT INTO contribution (contribution_id, group_id, obligation_id, declared_amount, state, declarant_identity_id)
+       VALUES ('ctr_c07','grpA','obl_a',1000,'declared','idn_a')`,
+    );
+    await app.query("COMMIT");
+
+    const tryAct = async (actor, act) => {
+      try {
+        await app.query("BEGIN");
+        await app.query("SET LOCAL kombe.group_id = 'grpA'");
+        await app.query(
+          `INSERT INTO contribution_act (contribution_id, group_id, actor_identity_id, act)
+           VALUES ('ctr_c07','grpA',$1,$2)`,
+          [actor, act],
+        );
+        await app.query("COMMIT");
+        return true;
+      } catch {
+        await app.query("ROLLBACK").catch(() => {});
+        return false;
+      }
+    };
+    const selfConfirmAccepted = await tryAct("idn_a", "confirm"); // attendu false (trigger)
+    const distinctConfirmAccepted = await tryAct("idn_b", "confirm"); // attendu true
+    const sameActorSecondAccepted = await tryAct("idn_b", "control"); // attendu false (UNIQUE)
+    const thirdActorAccepted = await tryAct("idn_c", "control"); // attendu true
+    observations.C07_SELF = { self_confirm_accepted: selfConfirmAccepted };
+    observations.C07_TRIPLE = {
+      distinct_confirm_accepted: distinctConfirmAccepted,
+      same_actor_second_accepted: sameActorSecondAccepted,
+      third_actor_accepted: thirdActorAccepted,
+    };
+
+    // ── C07-REVERSE : un original ne peut être compensé qu'une fois ──────────
+    // La contre-écriture POINTE l'original ; l'index partiel UNIQUE interdit une
+    // seconde compensation du même original (reversal_count = 1), même si deux
+    // courses serveur tentent de l'écrire.
+    await app.query("BEGIN");
+    await app.query("SET LOCAL kombe.group_id = 'grpA'");
+    await app.query(
+      `INSERT INTO contribution (contribution_id, group_id, obligation_id, declared_amount, state)
+       VALUES ('ctr_orig','grpA','obl_a',1000,'validated')`,
+    );
+    await app.query("COMMIT");
+    const tryReversal = async (reversalId) => {
+      try {
+        await app.query("BEGIN");
+        await app.query("SET LOCAL kombe.group_id = 'grpA'");
+        await app.query(
+          `INSERT INTO contribution (contribution_id, group_id, obligation_id, declared_amount, state, compensates_contribution_id)
+           VALUES ($1,'grpA','obl_a',1000,'declared','ctr_orig')`,
+          [reversalId],
+        );
+        await app.query("COMMIT");
+        return true;
+      } catch {
+        await app.query("ROLLBACK").catch(() => {});
+        return false;
+      }
+    };
+    const firstReversalAccepted = await tryReversal("ctr_rev");
+    const secondReversalAccepted = await tryReversal("ctr_rev2");
+    const reversalCount = await migrator.query(
+      `SELECT count(*)::int AS n FROM contribution WHERE compensates_contribution_id = 'ctr_orig'`,
+    );
+    observations.C07_REVERSE = {
+      first_reversal_accepted: firstReversalAccepted,
+      second_reversal_accepted: secondReversalAccepted,
+      reversal_count: Number(reversalCount.rows[0].n),
+    };
+
+    // ── C07-DISPUTE : fenêtre ordinaire bornée, fraude/erreur grave hors délai ─
+    // Un litige ORDINAIRE ouvert plus de 7 jours après notification est refusé par
+    // le CHECK ; la FRAUDE pour le même délai reste recevable (6.5).
+    const tryDispute = async (disputeId, category, gapDays) => {
+      try {
+        await app.query("BEGIN");
+        await app.query("SET LOCAL kombe.group_id = 'grpA'");
+        await app.query(
+          `INSERT INTO dispute (dispute_id, group_id, state, category, reason, obligation_id, notified_at, raised_at)
+           VALUES ($1,'grpA','open',$2,'motif fictif de contestation','obl_a',
+                   now(), now() + make_interval(days => $3))`,
+          [disputeId, category, gapDays],
+        );
+        await app.query("COMMIT");
+        return true;
+      } catch {
+        await app.query("ROLLBACK").catch(() => {});
+        return false;
+      }
+    };
+    const ordinaryLateAccepted = await tryDispute("dsp_ord_late", "ordinary", 40); // attendu false
+    const fraudLateAccepted = await tryDispute("dsp_fraud_late", "fraud", 40); // attendu true
+    observations.C07_DISPUTE = {
+      ordinary_late_accepted: ordinaryLateAccepted,
+      fraud_late_accepted: fraudLateAccepted,
+    };
+
     await app.end();
 
     const pass =
@@ -561,7 +669,16 @@ async function main() {
       observations.C06_REPLAY.replay_second_registry_insert_accepted === false &&
       observations.C06_REPLAY.contribution_count === 1 &&
       observations.C06_RACE.second_course_accepted === false &&
-      observations.C06_RACE.accepted_total === 3000;
+      observations.C06_RACE.accepted_total === 3000 &&
+      observations.C07_SELF.self_confirm_accepted === false &&
+      observations.C07_TRIPLE.distinct_confirm_accepted === true &&
+      observations.C07_TRIPLE.same_actor_second_accepted === false &&
+      observations.C07_TRIPLE.third_actor_accepted === true &&
+      observations.C07_REVERSE.first_reversal_accepted === true &&
+      observations.C07_REVERSE.second_reversal_accepted === false &&
+      observations.C07_REVERSE.reversal_count === 1 &&
+      observations.C07_DISPUTE.ordinary_late_accepted === false &&
+      observations.C07_DISPUTE.fraud_late_accepted === true;
 
     process.stdout.write(
       JSON.stringify(

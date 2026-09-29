@@ -1,4 +1,4 @@
-# Dictionnaire de données — `@kombe/db` (C00 socle + C01→C06, C11 gouvernance, accès, calendrier, journal et idempotence)
+# Dictionnaire de données — `@kombe/db` (C00 socle + C01→C07, C11 gouvernance, accès, calendrier, journal, idempotence et validations)
 
 Registre de tontines fermées. Toutes les tables métier portent `group_id` ; les
 relations composées sont `UNIQUE`/`FK` sur `(group_id, id)` (isolation
@@ -17,7 +17,7 @@ structurelle, cf. ADR-0007). Montants : domaine `kombe_money` = `bigint` borné
 | `rules_acceptance` | Acceptation des règles par une identité. | PK `(group_id, identity_id, rules_version)` ; FK composite vers `rule_version` |
 | `round` | Tour de rotation. | PK ; `UNIQUE(group_id, round_id)` ; `UNIQUE(group_id, seq)` ; `seq ≥ 1` |
 | `obligation` | Dette de cotisation d'un membre pour un tour. | `due_amount`/`validated_net`/`active_reserved` kombe_money ; **`validated_net ≤ active_reserved ≤ due_amount`** (cohérence sous verrou) ; `version ≥ 1` |
-| `contribution` | Cotisation déclarée sur une obligation. | FK composite `(group_id, obligation_id)` ; `state` ∈ declared/validated/rejected/compensated |
+| `contribution` | Cotisation déclarée sur une obligation. | FK composite `(group_id, obligation_id)` ; `state` ∈ declared/validated/rejected/compensated (**+ `confirmed`, machine à états élargie par `0009`**, cf. C07) |
 | `validation` | Validation d'une contribution **par rôle**. | PK `(contribution_id, role)` — une seule par rôle ; `role` ∈ animator/treasurer/secretary/auditor |
 | `disbursement` | Décaissement d'un tour. | `state` ∈ requested/reversal_requested/reversed/completed |
 | `vote` | Vote avec **électeurs figés** à l'ouverture. | `electorate_size ≥ 1` ; `quorum_num ≤ quorum_den` ; `frozen_electors bigint[]` |
@@ -145,11 +145,35 @@ déclarations, sans redéfinir `obligation`/`contribution`/`command`/`outbox`.
 > ⇒ `accepted_total = 3000`) = scénarios C06-IDEMPOTENCE / C06-REPLAY / C06-RACE
 > de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
 
+## Validations et corrections (migration additive `0009_contribution_validation.sql`, lot C07)
+Élargit `contribution` / `dispute` (socle 0001) sans les redéfinir et ajoute la
+table **append-only** `contribution_act` : machine à états, indépendance
+anti-collusion, compensation unique et fenêtre de contestation.
+
+| Objet | Rôle | Clés / contraintes clés |
+|---|---|---|
+| `contribution` (élargi) | Machine à états + rôles de validation (6.2, 6.3, 6.4). | `state` **+= `confirmed`** (CHECK reposée) ; + `declarant_identity_id` (auteur, source du contrôle d'indépendance), `required_controllers` (`≥ 0`, seuil de contrôles distincts) |
+| `contribution_act` | **Acte de validation par identité** (confirmer/contrôler), append-only (6.3, 6.4). | FK `contribution_id`/`group_id`/`actor_identity_id` ; **`UNIQUE (group_id, contribution_id, actor_identity_id)`** = un acteur ne cumule pas deux actes ; `act` ∈ confirm/control ; **trigger `contribution_act_independence`** refuse qu'un acteur pose un acte sur une cotisation dont il est le **déclarant** ; trigger append-only + **`REVOKE UPDATE, DELETE … FROM kombe_app`** ; RLS `tenant_isolation` |
+| `contribution_one_reversal_per_original` | **Compensation unique** d'un original (6.2, 6.6). | **index partiel unique** `(compensates_contribution_id) WHERE … IS NOT NULL` : une contre-écriture pointe l'original annulé, un second original compensé est refusé (`reversal_count = 1`) |
+| `dispute` (élargi) | Contestation bornée dans le temps (6.5). | + `obligation_id`, `category` (CHECK ∈ ordinary/fraud/serious_error), `reason`, `notified_at`, `raised_at`, `raised_by_identity_id` ; CHECK `dispute_reason_present` (motif non vide) ; CHECK `dispute_ordinary_window` : litige **ordinaire** ⇒ `raised_at - notified_at ≤ 7 days`, **fraude/erreur grave exemptées** |
+
+> L'**ordre** confirmation→contrôle, le **seuil** de validateurs, le **gel des
+> opérations dépendantes** après validation, et la **résolution** d'un litige
+> (gouvernance/vote, hors pilote) sont des **décisions serveur**
+> (`packages/domain/src/validation.ts`) ; la base **borne structurellement**
+> l'indépendance, l'anti-cumul, la compensation unique et la fenêtre, et rend les
+> actes **incompressibles**. Preuve effective (déclarant se confirmant refusé par
+> le trigger, acteur distinct accepté ; second acte du même acteur refusé par
+> l'UNIQUE ; seconde compensation du même original refusée par l'index partiel ⇒
+> `reversal_count = 1` ; litige ordinaire hors fenêtre refusé par le CHECK, fraude
+> hors fenêtre acceptée) = scénarios C07-SELF / C07-TRIPLE / C07-REVERSE /
+> C07-DISPUTE de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
+
 ## Provisionnement (`provision/roles.sql`)
 | Rôle | Privilèges | But |
 |---|---|---|
 | `kombe_migrateur` | DDL, propriétaire du schéma | Appliquer migrations up/down |
-| `kombe_app` | DML seulement, **non-owner**, **sans BYPASSRLS**, NOLOGIN ; **pas de UPDATE/DELETE sur `journal`**, **aucune écriture sur `checkpoint`** (0007) ; **pas de UPDATE/DELETE sur `idempotency_registry`** (0008) | RLS effective côté applicatif ; journal et registre d'idempotence append-only |
+| `kombe_app` | DML seulement, **non-owner**, **sans BYPASSRLS**, NOLOGIN ; **pas de UPDATE/DELETE sur `journal`**, **aucune écriture sur `checkpoint`** (0007) ; **pas de UPDATE/DELETE sur `idempotency_registry`** (0008) ; **pas de UPDATE/DELETE sur `contribution_act`** (0009) | RLS effective côté applicatif ; journal, registre d'idempotence et actes de validation append-only |
 | `kombe_worker` | SELECT/UPDATE sur `outbox` + `command` | Consommation d'outbox minimale |
 
 > Aucun secret de service-role exposé au navigateur : le navigateur ne parle
