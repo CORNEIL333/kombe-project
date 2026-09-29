@@ -75,6 +75,7 @@ async function main() {
 
   try {
     // État initial reproductible : on repart d'un schéma propre en base de test.
+    await runSql(migrator, "migrations/0010_dispute_cases.down.sql");
     await runSql(migrator, "migrations/0009_contribution_validation.down.sql");
     await runSql(migrator, "migrations/0008_contribution_idempotency.down.sql");
     await runSql(migrator, "migrations/0007_event_journal.down.sql");
@@ -88,6 +89,7 @@ async function main() {
     await runSql(migrator, "migrations/0007_event_journal.sql");
     await runSql(migrator, "migrations/0008_contribution_idempotency.sql");
     await runSql(migrator, "migrations/0009_contribution_validation.sql");
+    await runSql(migrator, "migrations/0010_dispute_cases.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
@@ -616,15 +618,18 @@ async function main() {
 
     // ── C07-DISPUTE : fenêtre ordinaire bornée, fraude/erreur grave hors délai ─
     // Un litige ORDINAIRE ouvert plus de 7 jours après notification est refusé par
-    // le CHECK ; la FRAUDE pour le même délai reste recevable (6.5).
+    // le CHECK ; la FRAUDE pour le même délai reste recevable (6.5). La ligne
+    // porte les colonnes ajoutées par `0010` (correction demandée, levant) pour
+    // que SEULE la fenêtre varie — le CHECK C10 ne doit pas masquer l'observation.
     const tryDispute = async (disputeId, category, gapDays) => {
       try {
         await app.query("BEGIN");
         await app.query("SET LOCAL kombe.group_id = 'grpA'");
         await app.query(
-          `INSERT INTO dispute (dispute_id, group_id, state, category, reason, obligation_id, notified_at, raised_at)
+          `INSERT INTO dispute (dispute_id, group_id, state, category, reason, obligation_id,
+                                notified_at, raised_at, raised_by_identity_id, requested_correction)
            VALUES ($1,'grpA','open',$2,'motif fictif de contestation','obl_a',
-                   now(), now() + make_interval(days => $3))`,
+                   now(), now() + make_interval(days => $3), 'idn_a', 'Compenser puis redeclarer')`,
           [disputeId, category, gapDays],
         );
         await app.query("COMMIT");
@@ -639,6 +644,127 @@ async function main() {
     observations.C07_DISPUTE = {
       ordinary_late_accepted: ordinaryLateAccepted,
       fraud_late_accepted: fraudLateAccepted,
+    };
+
+    // ── C10-CASE / C10-RESOLVE : dossier recevable, résolution documentée ─────
+    // Prolongement C10 du litige 0009 : ouverture avec correction demandée,
+    // résolution avec issue utile. Sans correction demandée, le CHECK
+    // `dispute_requested_correction_present` refuse la ligne ; `resolved` sans
+    // issue documentée est refusé par `dispute_resolution_documented` (la base
+    // ne laisse clore un dossier « au feeling »).
+    const tryCase = async (disputeId, over) => {
+      try {
+        await app.query("BEGIN");
+        await app.query("SET LOCAL kombe.group_id = 'grpA'");
+        await app.query(
+          `INSERT INTO dispute (dispute_id, group_id, state, category, reason, obligation_id,
+                                notified_at, raised_at, raised_by_identity_id, requested_correction)
+           VALUES ($1,'grpA','open','ordinary','motif fictif de contestation','obl_a',
+                   now(), now(), 'idn_a', $2)`,
+          [disputeId, over],
+        );
+        await app.query("COMMIT");
+        return true;
+      } catch {
+        await app.query("ROLLBACK").catch(() => {});
+        return false;
+      }
+    };
+    const caseNoCorrectionAccepted = await tryCase("dsp_c10_nocorr", "   "); // attendu false (CHECK)
+    const caseWithCorrectionAccepted = await tryCase("dsp_c10", "Compenser puis redeclarer"); // attendu true
+    let resolveNoOutcomeAccepted = true;
+    try {
+      await app.query("BEGIN");
+      await app.query("SET LOCAL kombe.group_id = 'grpA'");
+      await app.query(`UPDATE dispute SET state = 'resolved' WHERE dispute_id = 'dsp_c10'`);
+      await app.query("COMMIT");
+    } catch {
+      resolveNoOutcomeAccepted = false;
+      await app.query("ROLLBACK").catch(() => {});
+    }
+    observations.C10_CASE = {
+      case_no_correction_accepted: caseNoCorrectionAccepted,
+      case_with_correction_accepted: caseWithCorrectionAccepted,
+      resolve_no_outcome_accepted: resolveNoOutcomeAccepted,
+    };
+
+    // ── C10-INDEP : indépendance à la désignation du résolveur ───────────────
+    // Le trigger `dispute_assignment_independence` refuse qu'un résolveur
+    // désigné soit le LEVANT du litige ou le DÉCLARANT d'une cotisation de
+    // l'obligation contestée (ctr_c07 déclarée par idn_a sur obl_a) ; un
+    // indépendant (idn_c) passe. `UNIQUE (dispute, identity)` refuse la
+    // double désignation de la même identité.
+    const tryAssign = async (disputeId, actor) => {
+      try {
+        await app.query("BEGIN");
+        await app.query("SET LOCAL kombe.group_id = 'grpA'");
+        await app.query(
+          `INSERT INTO dispute_assignment (dispute_id, group_id, assigned_identity_id)
+           VALUES ($1,'grpA',$2)`,
+          [disputeId, actor],
+        );
+        await app.query("COMMIT");
+        return true;
+      } catch {
+        await app.query("ROLLBACK").catch(() => {});
+        return false;
+      }
+    };
+    const raiserAssigned = await tryAssign("dsp_c10", "idn_a"); // attendu false (levant)
+    const independentAssigned = await tryAssign("dsp_c10", "idn_c"); // attendu true
+    const duplicateAssigned = await tryAssign("dsp_c10", "idn_c"); // attendu false (UNIQUE)
+    let assignmentUpdateRefused = false;
+    try {
+      await app.query("BEGIN");
+      await app.query("SET LOCAL kombe.group_id = 'grpA'");
+      await app.query(
+        `UPDATE dispute_assignment SET assigned_identity_id = 'idn_b' WHERE dispute_id = 'dsp_c10'`,
+      );
+      await app.query("COMMIT");
+    } catch {
+      assignmentUpdateRefused = true;
+      await app.query("ROLLBACK").catch(() => {});
+    }
+    observations.C10_INDEP = {
+      raiser_assigned: raiserAssigned,
+      independent_assigned: independentAssigned,
+      duplicate_assigned: duplicateAssigned,
+      assignment_update_refused: assignmentUpdateRefused,
+    };
+
+    // ── C10-REOPEN : recours lié à l'original, jamais circulaire ─────────────
+    // Le self-lien (`reopened_from_dispute_id = dispute_id`) marque la
+    // réouverture du même original et passe ; un lien vers un AUTRE dossier
+    // est refusé par le CHECK `dispute_reopen_links_self` (pas de détournement
+    // d'un dossier vers un autre original).
+    let reopenSelfAccepted = true;
+    try {
+      await app.query("BEGIN");
+      await app.query("SET LOCAL kombe.group_id = 'grpA'");
+      await app.query(
+        `UPDATE dispute SET state = 'reopened', reopened_from_dispute_id = 'dsp_c10'
+          WHERE dispute_id = 'dsp_c10'`,
+      );
+      await app.query("COMMIT");
+    } catch {
+      reopenSelfAccepted = false;
+      await app.query("ROLLBACK").catch(() => {});
+    }
+    let reopenCrossAccepted = true;
+    try {
+      await app.query("BEGIN");
+      await app.query("SET LOCAL kombe.group_id = 'grpA'");
+      await app.query(
+        `UPDATE dispute SET reopened_from_dispute_id = 'dsp_fraud_late' WHERE dispute_id = 'dsp_c10'`,
+      );
+      await app.query("COMMIT");
+    } catch {
+      reopenCrossAccepted = false;
+      await app.query("ROLLBACK").catch(() => {});
+    }
+    observations.C10_REOPEN = {
+      reopen_self_link_accepted: reopenSelfAccepted,
+      reopen_cross_link_accepted: reopenCrossAccepted,
     };
 
     await app.end();
@@ -678,7 +804,16 @@ async function main() {
       observations.C07_REVERSE.second_reversal_accepted === false &&
       observations.C07_REVERSE.reversal_count === 1 &&
       observations.C07_DISPUTE.ordinary_late_accepted === false &&
-      observations.C07_DISPUTE.fraud_late_accepted === true;
+      observations.C07_DISPUTE.fraud_late_accepted === true &&
+      observations.C10_CASE.case_no_correction_accepted === false &&
+      observations.C10_CASE.case_with_correction_accepted === true &&
+      observations.C10_CASE.resolve_no_outcome_accepted === false &&
+      observations.C10_INDEP.raiser_assigned === false &&
+      observations.C10_INDEP.independent_assigned === true &&
+      observations.C10_INDEP.duplicate_assigned === false &&
+      observations.C10_INDEP.assignment_update_refused === true &&
+      observations.C10_REOPEN.reopen_self_link_accepted === true &&
+      observations.C10_REOPEN.reopen_cross_link_accepted === false;
 
     process.stdout.write(
       JSON.stringify(

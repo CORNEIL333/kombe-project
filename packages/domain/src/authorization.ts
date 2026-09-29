@@ -80,7 +80,11 @@ const MATRIX: Record<Role, readonly Action[]> = {
     "journal.read",
     "journal.checkpoint",
   ],
-  secretary: ["group.read", "vote.open", "export.private", "journal.read", "journal.checkpoint"],
+  // C10 (8.2/8.3) : la résolution est un acte de greffe — le secrétaire porte
+  // `dispute.resolve`, mais l'indépendance se vérifie PAR OBJET (le résolveur
+  // désigné ne doit être ni le levant ni un impliqué). Une hiérarchie de rôle
+  // ne remplace pas l'indépendance : le rôle ouvre la porte, l'objet la ferme.
+  secretary: ["group.read", "vote.open", "export.private", "journal.read", "journal.checkpoint", "dispute.resolve"],
   // L'auditeur est l'approbateur INDÉPENDANT du circuit A19 : il détient
   // `role.change.approve`, distinct du fondateur/animator qui proposent. Le
   // fondateur ne l'a jamais (auto-approbation universelle exclue).

@@ -1132,6 +1132,190 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  # ── C10 — Litiges et recours (stories 8.1 → 8.4) ──────────────────────────
+  # Aucun montant ne transite par ce lot : la résolution ferme le dossier sans
+  # toucher un total (correction exclusivement via compensation C07/C08).
+  /groups/{groupId}/dispute-cases:
+    post:
+      tags: [disputes]
+      operationId: openDisputeCase
+      summary: >
+        Ouvrir un DOSSIER de litige (8.1). Motif ET correction demandée
+        obligatoires et non vides ; pièces désactivées au pilote (aucun champ) ;
+        le levant est résolu serveur depuis le jeton d'acteur, jamais fourni.
+        Aucun montant acceptable : le schéma n'en porte pas.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisputeCaseRequest" }
+      responses:
+        "201":
+          description: Dossier ouvert (détail complet renvoyé au levant, partie).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DisputeRecord" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+    get:
+      tags: [disputes]
+      operationId: listDisputeCases
+      summary: >
+        Liste des VUES COMMUNES des dossiers du groupe (8.1) — le détail privé
+        n'y transite jamais ; lecture seule, sans divulgation inter-groupes.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: Tableau des vues communes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DisputeCommonView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /groups/{groupId}/dispute-cases/{disputeId}:
+    get:
+      tags: [disputes]
+      operationId: getDisputeCase
+      summary: >
+        Vue d'un dossier (C10-PRIVACY) : VUE COMMUNE pour un non-partie, DÉTAIL
+        complet réservé aux parties (levant, impliqués, résolveurs désignés). La
+        rétention est structurelle — la vue commune ne contient pas les champs
+        privés. 404 non divulguant si hors portée.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: disputeId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Vue commune (non-partie) ou détail (partie autorisée).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/DisputeCommonView"
+                  - $ref: "#/components/schemas/DisputeRecord"
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{groupId}/dispute-cases/{disputeId}/resolvers:
+    post:
+      tags: [disputes]
+      operationId: designateResolvers
+      summary: >
+        Désigner les résolveurs (8.2). Un résolveur IMPLIQUÉ (levant ou
+        impliqué) est refusé 403 DISPUTE_RESOLVER_NOT_INDEPENDENT ; une
+        hiérarchie de rôle ne remplace pas l'indépendance. La désignation vide
+        (tous impliqués) maintient le gel et la procédure externe.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: disputeId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ExpectedVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResolversRequest" }
+      responses:
+        "200":
+          description: Résolveurs désignés (dossier + version).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DisputeActReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/dispute-cases/{disputeId}/resolution:
+    post:
+      tags: [disputes]
+      operationId: resolveDisputeCase
+      summary: >
+        Résoudre le dossier (8.3, C10-RESOLVE) : ferme le ticket sans modifier
+        AUCUN montant (`validated_total_delta = 0`, structurel). Exige un
+        résolveur DÉSIGNÉ ET INDÉPENDANT et une ISSUE documentée non vide ;
+        l'issue peut RÉFÉRENCER des écritures de compensation C07/C08 (jamais
+        des montants). Double résolution ⇒ 409.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: disputeId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ExpectedVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisputeResolutionRequest" }
+      responses:
+        "200":
+          description: Dossier résolu (dossier + version) ; aucun total touché.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DisputeActReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/dispute-cases/{disputeId}/appeals:
+    post:
+      tags: [disputes]
+      operationId: appealDisputeCase
+      summary: >
+        Recours (8.3) : le LEVANT rouvre un dossier résolu, LIÉ à l'original ;
+        la première résolution reste historisée, le gel ciblé revient, aucun
+        montant n'est touché. Toute autre demande ⇒ 403 non révélateur (gated).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: disputeId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200":
+          description: Dossier rouvert lié à l'original (dossier + version).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DisputeActReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/round-close-attempts:
+    post:
+      tags: [disputes]
+      operationId: attemptRoundClose
+      summary: >
+        Sonde de clôture normale d'un tour (C10-FREEZE) : gelée 409
+        ROUND_CLOSE_BLOCKED_BY_DISPUTE si une seule obligation du tour porte un
+        litige OUVERT — sans effacement. Le gel se lève par résolution
+        indépendante. Lecture de garde, sans mutation.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoundCloseRequest" }
+      responses:
+        "200":
+          description: Clôture admise (aucun litige ouvert sur le tour).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoundCloseReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -1210,6 +1394,11 @@ components:
         - ROUND_CLOSE_BLOCKED_BY_DISPUTE
         - DISPUTE_WINDOW_CLOSED
         - DISPUTE_REASON_REQUIRED
+        - DISPUTE_NOT_RESOLVABLE
+        - DISPUTE_ALREADY_RESOLVED
+        - DISPUTE_RESOLVER_NOT_DESIGNATED
+        - DISPUTE_RESOLVER_NOT_INDEPENDENT
+        - DISPUTE_RESOLUTION_REQUIRED
     Error:
       type: object
       required: [code, message]
@@ -1613,6 +1802,102 @@ components:
       properties:
         obligationId: { type: string }
         allowed: { type: boolean }
+
+    # ── C10 — Litiges et recours (8.1 → 8.4) : AUCUN champ monétaire ─────────
+    DisputeCaseRequest:
+      type: object
+      description: >
+        Ouverture d'un dossier (8.1). `reason` ET `requestedCorrection` non
+        vides ; `raisedBy` résolu serveur (absent ici) ; pièces désactivées
+        (aucun champ). Aucun montant.
+      required: [disputeId, obligationId, reason, requestedCorrection, category, notifiedAt, raisedAt]
+      properties:
+        disputeId: { type: string, maxLength: 120 }
+        obligationId: { type: string, maxLength: 120 }
+        reason: { type: string, maxLength: 500 }
+        requestedCorrection: { type: string, maxLength: 500 }
+        category: { type: string, enum: [ordinary, fraud, serious_error] }
+        involvedIdentityIds: { type: array, maxItems: 20, items: { type: string, maxLength: 120 } }
+        notifiedAt: { type: integer, minimum: 0 }
+        raisedAt: { type: integer, minimum: 0 }
+    DisputeCommonView:
+      type: object
+      description: >
+        Vue COMMUNE (8.1) — `existence / statut / issue utile`, visible de tout
+        membre du groupe. Ne porte NI motif, NI correction demandée, NI
+        identité de partie (garde structurelle C10-PRIVACY).
+      required: [disputeId, obligationId, category, state, raisedAt]
+      properties:
+        disputeId: { type: string }
+        obligationId: { type: string }
+        category: { type: string, enum: [ordinary, fraud, serious_error] }
+        state: { type: string, enum: [open, resolved] }
+        outcome: { type: string, nullable: true }
+        raisedAt: { type: integer, minimum: 0 }
+        resolvedAt: { type: integer, minimum: 0, nullable: true }
+        reopenCount: { type: integer, minimum: 0 }
+    DisputeRecord:
+      type: object
+      description: >
+        Détail COMPLET, réservé aux parties (levant, impliqués, résolveurs
+        désignés). Les écritures de compensation sont des RÉFÉRENCES posées via
+        C07/C08, jamais des montants.
+      required: [disputeId, groupId, obligationId, category, raisedBy, reason, requestedCorrection, state]
+      properties:
+        disputeId: { type: string }
+        groupId: { type: string }
+        obligationId: { type: string }
+        category: { type: string, enum: [ordinary, fraud, serious_error] }
+        raisedBy: { type: string }
+        reason: { type: string }
+        requestedCorrection: { type: string }
+        involvedIdentityIds: { type: array, items: { type: string } }
+        resolverIdentityIds: { type: array, items: { type: string } }
+        notifiedAt: { type: integer, minimum: 0 }
+        raisedAt: { type: integer, minimum: 0 }
+        state: { type: string, enum: [open, resolved] }
+        outcome: { type: string, nullable: true }
+        resolvedBy: { type: string, nullable: true }
+        resolvedAt: { type: integer, minimum: 0, nullable: true }
+        correctionContributionIds: { type: array, items: { type: string } }
+        reopenedFromDisputeId: { type: string, nullable: true }
+        reopenCount: { type: integer, minimum: 0 }
+    ResolversRequest:
+      type: object
+      description: Désignation des résolveurs (8.2) — liste non vide, aucun impliqué.
+      required: [resolverIdentityIds]
+      properties:
+        resolverIdentityIds: { type: array, minItems: 1, maxItems: 10, items: { type: string, maxLength: 120 } }
+    DisputeResolutionRequest:
+      type: object
+      description: >
+        Résolution (8.3) — `outcome` documenté non vide ; les
+        `correctionContributionIds` RÉFÉRENCENT des écritures C07/C08 (aucun
+        montant).
+      required: [outcome, resolvedAt]
+      properties:
+        outcome: { type: string, maxLength: 500 }
+        resolvedAt: { type: integer, minimum: 0 }
+        correctionContributionIds: { type: array, maxItems: 10, items: { type: string, maxLength: 120 } }
+    RoundCloseRequest:
+      type: object
+      description: Sonde de clôture d'un tour (C10-FREEZE) — obligations, pas de montant.
+      required: [obligationIds]
+      properties:
+        obligationIds: { type: array, minItems: 1, maxItems: 50, items: { type: string, maxLength: 120 } }
+    DisputeActReceipt:
+      type: object
+      description: Reçu d'acte sur dossier (désignation / résolution / recours).
+      required: [record, version]
+      properties:
+        record: { $ref: "#/components/schemas/DisputeRecord" }
+        version: { type: integer, minimum: 1 }
+    RoundCloseReceipt:
+      type: object
+      description: Clôture normale admise (aucun litige ouvert) — sans écriture.
+      required: [normalCloseAccepted]
+      properties:
+        normalCloseAccepted: { type: boolean, enum: [true] }
 
   responses:
     Forbidden:

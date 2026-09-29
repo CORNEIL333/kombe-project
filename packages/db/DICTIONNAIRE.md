@@ -1,4 +1,4 @@
-# Dictionnaire de données — `@kombe/db` (C00 socle + C01→C07, C11 gouvernance, accès, calendrier, journal, idempotence et validations)
+# Dictionnaire de données — `@kombe/db` (C00 socle + C01→C07, C10→C11 gouvernance, accès, calendrier, journal, idempotence, validations et litiges)
 
 Registre de tontines fermées. Toutes les tables métier portent `group_id` ; les
 relations composées sont `UNIQUE`/`FK` sur `(group_id, id)` (isolation
@@ -22,7 +22,7 @@ structurelle, cf. ADR-0007). Montants : domaine `kombe_money` = `bigint` borné
 | `disbursement` | Décaissement d'un tour. | `state` ∈ requested/reversal_requested/reversed/completed |
 | `vote` | Vote avec **électeurs figés** à l'ouverture. | `electorate_size ≥ 1` ; `quorum_num ≤ quorum_den` ; `frozen_electors bigint[]` |
 | `ballot` | Bulletin d'un électeur. | PK `(vote_id, identity_id)` — un bulletin par électeur ; `choice` ∈ yes/no/abstain |
-| `dispute` | Litige. | `state` ∈ open/resolved/reopened |
+| `dispute` | Litige. | `state` ∈ open/resolved/reopened (enrichi par `0009` fenêtre/catégorie et `0010` dossier/recours, cf. C07/C10) |
 | `journal` | Journal **append-only** (chaîne de hash, genèse = 64 zéros). | PK `(group_id, seq)` ; `hash`/`previous_hash` ~ `^[0-9a-f]{64}$` |
 | `command` | Registre d'**idempotence** des commandes. | `idempotency_key` UNIQUE ; `status` ∈ queued/applied/rejected/conflict |
 | `outbox` | **Outbox transactionnelle** (effets externes différés). | FK `command_id` ; `processed_at`nullable |
@@ -169,11 +169,34 @@ anti-collusion, compensation unique et fenêtre de contestation.
 > hors fenêtre acceptée) = scénarios C07-SELF / C07-TRIPLE / C07-REVERSE /
 > C07-DISPUTE de `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
 
+## Litiges et recours (migration additive `0010_dispute_cases.sql`, lot C10)
+Élargit `dispute` (socle 0001, précisé par `0009`) sans le redéfinir et ajoute la
+table **append-only** `dispute_assignment` : dossier recevable, résolution
+documentée, indépendance à la désignation, recours lié à l'original. **Aucune
+colonne monétaire** : le litige ne peut pas toucher un total (C10-RESOLVE est
+structurel en base).
+
+| Objet | Rôle | Clés / contraintes clés |
+|---|---|---|
+| `dispute` (élargi) | Dossier 8.1/8.3 : correction demandée, issue utile, résolution tracée, lien de recours. | + `requested_correction`, `outcome`, `resolved_at`, `resolved_by_identity_id`, `reopened_from_dispute_id` (auto-FK) ; CHECK `dispute_requested_correction_present` (ouverture avec demande non vide) ; CHECK `dispute_resolution_documented` (`resolved` ⇒ issue non vide + résolveur + horodatage) ; CHECK `dispute_reopen_links_self` (la réouverture pointe SON original, jamais un autre dossier) |
+| `dispute_assignment` | **Désignation des résolveurs** (8.2), append-only. | FK `dispute_id`/`group_id`/`assigned_identity_id` ; **`UNIQUE (dispute_id, assigned_identity_id)`** (une désignation par identité) ; **trigger `dispute_assignment_independence`** refusant le levant du litige ou le déclarant d'une cotisation de l'obligation contestée ; trigger append-only + **`REVOKE UPDATE, DELETE … FROM kombe_app`** ; RLS `tenant_isolation` |
+
+> La **vue commune vs détail privé** (C10-PRIVACY), le **gel de clôture** du tour
+> et des opérations dépendantes, les **fenêtres** (déjà `0009`) et la logique de
+> **recours** sont des **décisions serveur** (`packages/domain/src/disputes.ts`) ;
+> la base **borne** la recevabilité du dossier, documente la résolution, rend les
+> désignations **incompressibles** et **indépendantes**. Preuve effective
+> (correction demandée vide refusée par le CHECK ; `resolved` sans issue refusé ;
+> désignation du levant refusée par le trigger, indépendant accepté, doublon
+> refusé par l'UNIQUE, UPDATE refusé ; self-lien de recours accepté, lien croisé
+> refusé) = scénarios C10-CASE / C10-INDEP / C10-REOPEN de
+> `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
+
 ## Provisionnement (`provision/roles.sql`)
 | Rôle | Privilèges | But |
 |---|---|---|
 | `kombe_migrateur` | DDL, propriétaire du schéma | Appliquer migrations up/down |
-| `kombe_app` | DML seulement, **non-owner**, **sans BYPASSRLS**, NOLOGIN ; **pas de UPDATE/DELETE sur `journal`**, **aucune écriture sur `checkpoint`** (0007) ; **pas de UPDATE/DELETE sur `idempotency_registry`** (0008) ; **pas de UPDATE/DELETE sur `contribution_act`** (0009) | RLS effective côté applicatif ; journal, registre d'idempotence et actes de validation append-only |
+| `kombe_app` | DML seulement, **non-owner**, **sans BYPASSRLS**, NOLOGIN ; **pas de UPDATE/DELETE sur `journal`**, **aucune écriture sur `checkpoint`** (0007) ; **pas de UPDATE/DELETE sur `idempotency_registry`** (0008) ; **pas de UPDATE/DELETE sur `contribution_act`** (0009) ; **pas de UPDATE/DELETE sur `dispute_assignment`** (0010) | RLS effective côté applicatif ; journal, registre d'idempotence, actes de validation et désignations de résolveurs append-only |
 | `kombe_worker` | SELECT/UPDATE sur `outbox` + `command` | Consommation d'outbox minimale |
 
 > Aucun secret de service-role exposé au navigateur : le navigateur ne parle

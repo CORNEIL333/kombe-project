@@ -236,3 +236,42 @@ export const disputeBody = z.object({
 
 export type CompensateInput = z.infer<typeof compensateBody>;
 export type DisputeInput = z.infer<typeof disputeBody>;
+
+/* --- C10 : litiges, recours et résolution (8.1 → 8.4) --- */
+
+// Ouverture d'un DOSSIER de litige (8.1) : motif ET correction demandée ;
+// `raisedBy` est résolu côté serveur, jamais fourni ici. Pièces désactivées
+// au pilote : aucun champ de pièce n'existe. Aucun montant : un litige ne
+// touche jamais un total (C10-RESOLVE).
+export const disputeCaseBody = z.object({
+  disputeId: z.string().min(1).max(120),
+  obligationId: z.string().min(1).max(120),
+  reason: z.string().max(500),
+  requestedCorrection: z.string().max(500),
+  category: z.enum(["ordinary", "fraud", "serious_error"]),
+  involvedIdentityIds: z.array(z.string().min(1).max(120)).max(20).default([]),
+  notifiedAt: z.number().int().min(0),
+  raisedAt: z.number().int().min(0),
+});
+export type DisputeCaseInput = z.infer<typeof disputeCaseBody>;
+
+// Désignation des résolveurs (8.2) — jamais un impliqué ; liste vide refusée.
+export const resolversBody = z.object({
+  resolverIdentityIds: z.array(z.string().min(1).max(120)).min(1).max(10),
+});
+export type ResolversInput = z.infer<typeof resolversBody>;
+
+// Résolution (8.3) : décision documentée ; les identifiants de compensation
+// sont des RÉFÉRENCES à des écritures posées via C07/C08, jamais des montants.
+export const disputeResolutionBody = z.object({
+  outcome: z.string().max(500),
+  resolvedAt: z.number().int().min(0),
+  correctionContributionIds: z.array(z.string().min(1).max(120)).max(10).default([]),
+});
+export type DisputeResolutionInput = z.infer<typeof disputeResolutionBody>;
+
+// Clôture de tour sondée (C10-FREEZE) : les obligations du tour, pas de montant.
+export const roundCloseBody = z.object({
+  obligationIds: z.array(z.string().min(1).max(120)).min(1).max(50),
+});
+export type RoundCloseInput = z.infer<typeof roundCloseBody>;

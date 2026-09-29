@@ -28,11 +28,19 @@ import {
   type ValidationContext,
 } from "./validationStore.js";
 import {
+  FictitiousDisputeStore,
+  type DisputeActor,
+} from "./disputeStore.js";
+import {
   declareContributionBody,
   declareContributionBody_c06,
   contributionDraftBody,
   compensateBody,
   disputeBody,
+  disputeCaseBody,
+  disputeResolutionBody,
+  resolversBody,
+  roundCloseBody,
   idempotencyKey,
   expectedVersion,
   registrationRequest,
@@ -99,6 +107,11 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   ROUND_CLOSE_BLOCKED_BY_DISPUTE: 409,
   DISPUTE_WINDOW_CLOSED: 422,
   DISPUTE_REASON_REQUIRED: 422,
+  DISPUTE_NOT_RESOLVABLE: 409,
+  DISPUTE_ALREADY_RESOLVED: 409,
+  DISPUTE_RESOLVER_NOT_DESIGNATED: 403,
+  DISPUTE_RESOLVER_NOT_INDEPENDENT: 403,
+  DISPUTE_RESOLUTION_REQUIRED: 422,
   MEMBERSHIP_STATE_INVALID: 422,
   PASSWORD_TOO_WEAK: 422,
   PASSWORD_COMPROMISED: 422,
@@ -119,6 +132,7 @@ export interface BuildAppOptions {
   readonly journal?: FictitiousJournalStore;
   readonly contribution?: FictitiousContributionStore;
   readonly validation?: FictitiousValidationStore;
+  readonly disputes?: FictitiousDisputeStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -166,6 +180,22 @@ function declareCtxFrom(
 }
 
 /**
+ * Acteur C10 : un acte sur dossier de litige (ouverture, désignation,
+ * résolution, recours, sondes) — identité et groupes viennent de l'en-tête
+ * fictif (C01 les résoudra depuis session + RLS). Aucun montant n'entre.
+ */
+function disputeActorFrom(
+  request: { headers: Record<string, unknown> },
+): DisputeActor {
+  const actor = actorFrom(request);
+  return {
+    identityId: actor.identityId ?? actor.handle,
+    role: actor.role,
+    groupIds: actor.groupIds,
+  };
+}
+
+/**
  * Contexte C07 : un acte de validation (confirmation/contrôle/rejet/
  * compensation) est une commande MUTANTE — il porte la version d'objet
  * attendue (`if-match-version`) et une date SERVEUR distincte. L'identité et
@@ -197,6 +227,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const journal = options.journal ?? new FictitiousJournalStore();
   const contribution = options.contribution ?? new FictitiousContributionStore();
   const validation = options.validation ?? new FictitiousValidationStore();
+  const disputes = options.disputes ?? new FictitiousDisputeStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -662,6 +693,97 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/groups/:groupId/contributions/:contributionId", async (request, reply) => {
     const { contributionId } = request.params as { contributionId: string };
     return reply.code(200).send(validation.view(contributionId));
+  });
+
+  /* --- C10 : litiges, recours et résolution (8.1 → 8.4) --- */
+
+  // Ouverture d'un DOSSIER (8.1) : motif + correction demandée, pièces
+  // désactivées, aucun montant acceptable (le schéma n'en porte pas).
+  app.post("/v1/groups/:groupId/dispute-cases", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = disputeCaseBody.parse(request.body);
+    const actor = disputeActorFrom(request);
+    const record = disputes.open(actor, { ...body, groupId, raisedBy: actor.identityId });
+    return reply.code(201).send(record);
+  });
+
+  // Liste des vues COMMUNES du groupe (8.1) — le détail privé n'y transite
+  // jamais ; lecture seule, sans mutation ni divulgation d'un autre groupe.
+  app.get("/v1/groups/:groupId/dispute-cases", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const actor = disputeActorFrom(request);
+    return reply.code(200).send(disputes.listCommon(actor, groupId));
+  });
+
+  // Vue d'un dossier (C10-PRIVACY) : commune pour un non-partie, détail
+  // complet pour les parties seules (levant, impliqués, résolveurs désignés).
+  app.get("/v1/groups/:groupId/dispute-cases/:disputeId", async (request, reply) => {
+    const { disputeId } = request.params as { disputeId: string };
+    const actor = disputeActorFrom(request);
+    return reply.code(200).send(disputes.view(actor, disputeId));
+  });
+
+  // Désignation des résolveurs (8.2) — un impliqué est refusé 403 par le
+  // domaine ; une hiérarchie de rôle ne remplace pas l'indépendance.
+  app.post(
+    "/v1/groups/:groupId/dispute-cases/:disputeId/resolvers",
+    async (request, reply) => {
+      const { disputeId } = request.params as { disputeId: string };
+      const body = resolversBody.parse(request.body);
+      const actor = disputeActorFrom(request);
+      const { record, version } = disputes.assignResolvers(
+        actor,
+        disputeId,
+        body.resolverIdentityIds,
+        expectedVersion.parse(request.headers["if-match-version"]),
+      );
+      return reply.code(200).send({ record, version });
+    },
+  );
+
+  // Résolution (8.3, C10-RESOLVE) : ferme le dossier, ne touche AUCUN total —
+  // structurel : ce routeur n'a aucun canal vers une chaîne d'événements.
+  app.post(
+    "/v1/groups/:groupId/dispute-cases/:disputeId/resolution",
+    async (request, reply) => {
+      const { disputeId } = request.params as { disputeId: string };
+      const body = disputeResolutionBody.parse(request.body);
+      const actor = disputeActorFrom(request);
+      const { record, version } = disputes.resolve(
+        actor,
+        disputeId,
+        body.outcome,
+        body.resolvedAt,
+        expectedVersion.parse(request.headers["if-match-version"]),
+        body.correctionContributionIds,
+      );
+      return reply.code(200).send({ record, version });
+    },
+  );
+
+  // Recours (8.3) : le levant rouvre le dossier résolu, lié à l'original ;
+  // la première résolution reste historisée, le gel ciblé revient.
+  app.post(
+    "/v1/groups/:groupId/dispute-cases/:disputeId/appeals",
+    async (request, reply) => {
+      const { disputeId } = request.params as { disputeId: string };
+      const actor = disputeActorFrom(request);
+      const { record, version } = disputes.appeal(
+        actor,
+        disputeId,
+        expectedVersion.parse(request.headers["if-match-version"]),
+      );
+      return reply.code(200).send({ record, version });
+    },
+  );
+
+  // Sonde de clôture normale d'un tour (C10-FREEZE) : gelée si une obligation
+  // du tour porte un litige ouvert — sans écriture ni effacement.
+  app.post("/v1/groups/:groupId/round-close-attempts", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = roundCloseBody.parse(request.body);
+    const actor = disputeActorFrom(request);
+    return reply.code(200).send(disputes.attemptRoundClose(actor, groupId, body.obligationIds));
   });
 
   return app;

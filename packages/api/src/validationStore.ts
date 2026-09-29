@@ -359,6 +359,12 @@ export class FictitiousValidationStore {
     return this.journalFor(groupId).filter((e) => e.type === "contribution.validated").length;
   }
 
+  /** Hash de tête de chaîne (sonde d'intégrité — C10-RESOLVE : doit rester invariant). */
+  journalTailHash(groupId: string): string | null {
+    const chain = this.journalFor(groupId);
+    return chain.length ? (chain[chain.length - 1] as JournalEventV1).hash : null;
+  }
+
   compensatedEventCount(groupId: string): number {
     return this.journalFor(groupId).filter((e) => e.type === "contribution.compensated").length;
   }

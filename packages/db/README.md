@@ -201,3 +201,21 @@ la base **borne structurellement** l'indépendance, l'anti-cumul, la compensatio
 unique et la fenêtre. Ordre de rollback complet : `0009…down` → `0008…down` →
 `0007…down` → `0006…down` → `0005…down` → `0004…down` → `0003…down` → `0002…down` →
 `0001…down`.
+
+## C10 — litiges et recours (indépendance à la désignation, résolution sans montant)
+Le lot C10 **prolonge** `dispute` (0009) sans le redéfinir et ajoute la table
+append-only `dispute_assignment` ; l'exécution réelle reste `BLOCKED`.
+
+| Chemin | Rôle (C10) |
+|---|---|
+| `migrations/0010_dispute_cases.sql` | Migration **additive** : colonnes `dispute` (`requested_correction`, `outcome`, `resolved_at`, `resolved_by_identity_id`, `reopened_from_dispute_id` FK) + CHECK `dispute_requested_correction_present` (ouverture recevable, 8.1), CHECK `dispute_resolution_documented` (`resolved` exige issue utile + résolveur tracé, 8.3), CHECK `dispute_reopen_links_self` (recours lié à l'original, 8.3) ; table `dispute_assignment` (`UNIQUE (dispute, identity)` anti-double-désignation, **trigger d'indépendance** refusant le levant ou le déclarant d'une cotisation de l'obligation contestée, trigger append-only + **`REVOKE UPDATE, DELETE`** pour `kombe_app`, RLS). **Aucune colonne monétaire** : le dossier ne peut toucher un total. |
+| `migrations/0010_dispute_cases.down.sql` | **Retour arrière** de 0010 (drop `dispute_assignment` + trigger/fonction d'indépendance, drop contraintes et colonnes `dispute` — ordre inverse ; la fonction partagée `kombe_journal_append_only` appartient à 0007). |
+| `tests/isolation.pg.mjs` (étendu) | Scénarios **C10-CASE** (ouverture sans correction refusée par le CHECK, avec correction acceptée ; `resolved` sans issue refusé), **C10-RESOLVE** (la base n'a **aucun canal vers un total** — le dossier ne porte pas de colonne monétaire), **C10-INDEP** (désignation du levant/déclarant refusée par le trigger, indépendant accepté, double désignation refusée par l'UNIQUE, `UPDATE` refusé), **C10-REOPEN** (self-lien accepté, lien vers un autre dossier refusé). |
+
+La **vue commune vs détail privé**, le **gel de clôture** d'un tour dès qu'une
+obligation porte un litige ouvert, et la **résolution de décision** sont des
+**décisions serveur** (`packages/domain/src/disputes.ts`) ; la base **borne** la
+recevabilité, l'indépendance à la désignation et le lien de recours, et rend la
+désignation **incompressible**. Ordre de rollback complet : `0010…down` →
+`0009…down` → `0008…down` → `0007…down` → `0006…down` → `0005…down` →
+`0004…down` → `0003…down` → `0002…down` → `0001…down`.

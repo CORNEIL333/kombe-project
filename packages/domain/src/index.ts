@@ -25,3 +25,4 @@ export * from "./schedule.js";
 export * from "./journal.js";
 export * from "./contribution.js";
 export * from "./validation.js";
+export * from "./disputes.js";
