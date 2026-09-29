@@ -1,0 +1,47 @@
+{
+  "$comment": "Tableau d'états des lots = SOURCE DE VÉRITÉ UNIQUE de coordination inter-harnais. Mis à jour par commits. Initialisé d'après l'état RÉEL vérifié : `git log` + existence des fichiers docs/PREUVES_*.md. Les lots 'done' n'ont PREUVE que si leur PREUVES_Cxx.md existe ; les preuves de verrou/isolation base réelle restent BLOCKED tant que PostgreSQL/CI ne sont pas branchés. Reconnaître avant usage : `git log --oneline` + `ls docs/PREUVES_*.md`.",
+  "version": 1,
+  "legend": {
+    "status": ["todo", "in_progress", "in_review", "blocked", "done", "deferred"],
+    "evidence_ref": "chemin vers docs/PREUVES_Cxx.md OU SHA de preuve ; obligatoire pour done",
+    "owner_harness_id": "doit exister dans REGISTRE_HARNESS.json dès que status != todo"
+  },
+  "lots": [
+    { "lot": "C00", "mission": "Socle dépôt/contrats", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C00.md" },
+    { "lot": "C01", "mission": "Migrations + isolation RLS", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C01.md", "notes": "Preuves base réelle BLOCKED sans PostgreSQL (H07)" },
+    { "lot": "C02", "mission": "Identité/sessions/récup", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C02.md" },
+    { "lot": "C03", "mission": "Groupes/membres/séparation pouvoirs", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C03.md" },
+    { "lot": "C04", "mission": "Moteur de règles/acceptations", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C04.md" },
+    { "lot": "C05", "mission": "Cycles/tours/échéances", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C05.md" },
+    { "lot": "C06", "mission": "Déclarations/idempotence", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C06.md" },
+    { "lot": "C07", "mission": "Validations/corrections cotisations", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C07.md" },
+    {
+      "lot": "C08", "mission": "Décaissements/frais/rapprochement/clôture", "gate": "G0",
+      "status": "in_progress", "owner_harness_id": "qoder", "owner_branch": "master",
+      "files": ["packages/domain/src/disbursement.ts", "packages/domain/src/errors.ts", "packages/domain/src/index.ts", "packages/api/**", "packages/db/migrations/0011*.sql"],
+      "depends_on": ["C07", "C10", "C11"],
+      "notes": "Module décaissements (384 l.) écrit, compile, tests verts ; PREUVES_C08.md + recette base réelle (verrous/atomicité) à produire. Non 'done' sans preuve."
+    },
+    { "lot": "C09", "mission": "Propositions/votes/décisions", "gate": "G0", "status": "todo", "owner_harness_id": null, "notes": "Code vote.ts/governance.ts présent mais AUCUN commit ni PREUVES_C09 : lot à reprendre/officiellement non recette." },
+    { "lot": "C10", "mission": "Litiges/recours", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C10.md" },
+    { "lot": "C11", "mission": "Journal/projections/intégrité", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C11.md" },
+    { "lot": "C12", "mission": "Exports PDF/CSV/vérification", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C03", "C08", "C11"], "notes": "csv.ts présent, preuve à produire." },
+    { "lot": "C13", "mission": "Outbox worker + notifications internes", "gate": "G0", "status": "todo", "owner_harness_id": null, "notes": "worker/src/outbox.ts contrat posé." },
+    { "lot": "C14", "mission": "Interface parcours/accessibilité/langues", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C04", "C05"], "notes": "Client quasi vide ; contrat C00 interdit dépendance UI avant build+Playwright raccordés." },
+    { "lot": "C15", "mission": "Cache hors-ligne + synchronisation", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C06", "C14"] },
+    { "lot": "C16", "mission": "Données personnelles/notices/droits", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C12"] },
+    { "lot": "C17", "mission": "Administration/support/sécurité opé.", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C11"] },
+    { "lot": "C18", "mission": "Mesure pilote/économie unitaire", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C05", "C11"] },
+    { "lot": "C19", "mission": "Abonnements/quotas/réversibilité", "gate": "G2", "status": "deferred", "owner_harness_id": null, "notes": "Reporté phase 2 (triage calendrier)." },
+    { "lot": "C20", "mission": "Canaux WhatsApp/SMS/email", "gate": "G1", "status": "deferred", "owner_harness_id": null, "notes": "Reporté phase 2." },
+    { "lot": "C21", "mission": "Association/import papier/mode réunion", "gate": "G2", "status": "deferred", "owner_harness_id": null },
+    { "lot": "C22", "mission": "Aide déterministe/glossaire", "gate": "G1", "status": "deferred", "owner_harness_id": null },
+    { "lot": "C23", "mission": "IA locale/RAG/benchmark", "gate": "G1", "status": "deferred", "owner_harness_id": null },
+    { "lot": "C24", "mission": "API partenaires/autorisations déléguées", "gate": "G3", "status": "deferred", "owner_harness_id": null },
+    { "lot": "C25", "mission": "Connecteur paiement du pot", "gate": "G3", "status": "deferred", "owner_harness_id": null },
+    { "lot": "C26", "mission": "Scoring/passeport financier", "gate": "V2", "status": "deferred", "owner_harness_id": null },
+    { "lot": "C27", "mission": "Assurance/extensions financières", "gate": "V2", "status": "deferred", "owner_harness_id": null },
+    { "lot": "C28", "mission": "Harness QA/sécurité/chaîne livraison", "gate": "G0", "status": "blocked", "owner_harness_id": "qoder", "owner_branch": "master", "notes": "Débloque H03/H06/H09/H10/H13/H20 : isolation contrôleur + identité authentifiée. Prérequis : remote protégé + GitHub Environments (en cours d'init par le lead)." },
+    { "lot": "C29", "mission": "Déploiement/sauvegarde/reprise", "gate": "G0", "status": "blocked", "owner_harness_id": null, "depends_on": ["C13", "C16", "C17", "C28"], "notes": "Déblocage H18 (reprise PostgreSQL) via Testcontainers en CI." }
+  ]
+}

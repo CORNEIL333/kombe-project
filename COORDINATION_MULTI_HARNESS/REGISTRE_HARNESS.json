@@ -1,0 +1,51 @@
+{
+  "$comment": "Registre des harnais CLI co-opérants. L'identity_key est une EMPREINTE PUBLIQUE (traçabilité d'auteur), pas un secret. Tant que le remote n'est pas protégé (C28), l'identité est déclarative/auto-signée ; elle devient vérifiable via GitHub Environments + branch protection sans changer ce schéma.",
+  "version": 1,
+  "harnesses": [
+    {
+      "harness_id": "corneil333",
+      "cli": "humain / lead",
+      "role": "lead",
+      "identity_key": "human:CORNEIL333",
+      "can_sign_off": true,
+      "can_touch_trusted_controller": true,
+      "notes": "Responsable du dépôt ; seul à pouvoir promouvoir une modification des critères de recette (job de confiance)."
+    },
+    {
+      "harness_id": "qoder",
+      "cli": "Qoder",
+      "role": "builder+reviewer",
+      "identity_key": "qoder:pending",
+      "can_sign_off": true,
+      "can_touch_trusted_controller": false,
+      "notes": "Peut produire ET relire des lots d'AUTRES harnais ; ne signe pas sa propre production (règle H06)."
+    },
+    {
+      "harness_id": "codex",
+      "cli": "OpenAI Codex",
+      "role": "builder",
+      "identity_key": "codex:pending",
+      "can_sign_off": false,
+      "can_touch_trusted_controller": false,
+      "notes": "Producteur candidat ; sa sortie passe par in_review avant done."
+    },
+    {
+      "harness_id": "claude-code",
+      "cli": "Anthropic Claude Code",
+      "role": "builder+reviewer",
+      "identity_key": "claude-code:pending",
+      "can_sign_off": true,
+      "can_touch_trusted_controller": false,
+      "notes": "Peut relire des lots produits par d'autres (qoder/codex)."
+    },
+    {
+      "harness_id": "historique",
+      "cli": "pré-protocole (hérité)",
+      "role": "synthetic",
+      "identity_key": "N/A",
+      "can_sign_off": false,
+      "can_touch_trusted_controller": false,
+      "notes": "Entrée synthétique pour les lots livrés avant l'adoption de ce protocole (C00–C12). Permet au validateur de rester vert sans ré-attribuer falsairement une CLI."
+    }
+  ]
+}

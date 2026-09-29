@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "kombe://coordination/messagerie",
+  "title": "Message d'échange inter-harnais KÓMBE",
+  "description": "Un message = une intention de coordination (réserver, livrer, transmettre, bloquer, relire). Déposé dans handoff/<message_id>.json. Validé par verifier_coordination.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["message_id", "from_harness_id", "lot", "action", "commit_sha", "base_head_sha", "signature"],
+  "properties": {
+    "message_id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" },
+    "from_harness_id": { "type": "string", "minLength": 1 },
+    "to_harness_id": { "type": ["string", "null"], "description": "null = broadcast / aucune cible nominative" },
+    "lot": { "type": "string", "pattern": "^C[0-9]{2}$" },
+    "action": { "enum": ["claim", "release", "handoff", "block", "pass", "review", "escalate"] },
+    "commit_sha": { "type": "string", "pattern": "^[0-9a-f]{7,40}$", "description": "SHA du travail référencé" },
+    "base_head_sha": { "type": "string", "pattern": "^[0-9a-f]{7,40}$", "description": "SHA que l'émetteur croyait être HEAD ; si HEAD réel diffère, la preuve est périmée (H16)." },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "ref"],
+      "properties": {
+        "type": { "enum": ["h00_report", "test_run", "ci_run", "prevues_md", "manual"] },
+        "ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "signature": { "type": "string", "minLength": 1, "description": "identity_key de l'émetteur, doit exister dans REGISTRE_HARNESS.json" },
+    "reason": { "type": "string", "description": "obligatoire pour action=block ou escalate" },
+    "at_utc": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "action": { "enum": ["block", "escalate"] } } },
+      "then": { "required": ["reason"] }
+    },
+    {
+      "if": { "properties": { "action": { "enum": ["handoff", "review", "pass"] } } },
+      "then": { "required": ["evidence"] }
+    }
+  ]
+}

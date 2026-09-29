@@ -1,0 +1,12 @@
+{
+  "message_id": "3f2a1c9e-7b64-4d1a-9c3e-5a2f8b1d6e70",
+  "from_harness_id": "qoder",
+  "to_harness_id": null,
+  "lot": "C08",
+  "action": "claim",
+  "commit_sha": "ba0f2ef",
+  "base_head_sha": "ba0f2ef",
+  "signature": "qoder:pending",
+  "reason": "Réservation C08 (module décaissements) pour finalisation + PREUVES_C08.",
+  "at_utc": "2026-09-30T00:00:00Z"
+}
