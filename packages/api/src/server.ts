@@ -36,6 +36,10 @@ import {
   type DisbursementContext,
 } from "./disbursementStore.js";
 import {
+  FictitiousProposalStore,
+  type ProposalContext,
+} from "./proposalStore.js";
+import {
   declareContributionBody,
   declareContributionBody_c06,
   contributionDraftBody,
@@ -71,6 +75,9 @@ import {
   tamperBody,
   declareDisbursementBody,
   reversalRequestBody,
+  openVoteBody,
+  castBallotBody,
+  cancelProposalBody,
 } from "./schemas.js";
 
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
@@ -123,6 +130,15 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   DISBURSEMENT_ALREADY_REVERSED: 409,
   DISBURSEMENT_REVERSAL_NOT_INDEPENDENT: 403,
   DISBURSEMENT_SERVER_DATE_INVALID: 422,
+  PROPOSAL_REASON_REQUIRED: 422,
+  PROPOSAL_DEADLINE_INVALID: 422,
+  PROPOSAL_STATE_INVALID: 409,
+  PROPOSAL_NOT_DUE: 409,
+  PROPOSAL_NOT_APPROVED: 409,
+  PROPOSAL_CANCEL_REASON_REQUIRED: 422,
+  PROPOSAL_SERVER_DATE_INVALID: 422,
+  ELECTORATE_INVALIDE: 422,
+  VOTE_HORS_LIMITES: 422,
   MEMBERSHIP_STATE_INVALID: 422,
   PASSWORD_TOO_WEAK: 422,
   PASSWORD_COMPROMISED: 422,
@@ -145,6 +161,7 @@ export interface BuildAppOptions {
   readonly validation?: FictitiousValidationStore;
   readonly disputes?: FictitiousDisputeStore;
   readonly disbursements?: FictitiousDisbursementStore;
+  readonly proposals?: FictitiousProposalStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -301,6 +318,73 @@ function disbursementDeclareCtxFrom(
   };
 }
 
+/**
+ * Contexte C09 pour une MUTATION sur proposition existante (bulletin, clôture,
+ * annulation, exécution) : version d'objet EXIGÉE (`if-match-version`), date
+ * SERVEUR distincte. Identité/rôles viennent de l'en-tête fictif (C01 les
+ * résoudra via session + RLS). L'absence de version est un refus 422, jamais un
+ * défaut silencieux (concurrence optimiste, ADR-0006 / règle 18.2).
+ */
+function proposalCtxFrom(
+  request: { headers: Record<string, unknown> },
+): ProposalContext {
+  const actor = actorFrom(request);
+  const serverDateHeader = request.headers["x-server-date"];
+  const commandIdHeader = request.headers["x-command-id"];
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    actorGroupIds: actor.groupIds,
+    serverDate: typeof serverDateHeader === "string" ? serverDateHeader : "2026-09-28",
+    commandId:
+      typeof commandIdHeader === "string"
+        ? commandIdHeader
+        : `cmd-${actor.identityId ?? actor.handle}`,
+    expectedVersion: expectedVersion.parse(request.headers["if-match-version"]),
+  };
+}
+
+/**
+ * Contexte C09 à l'OUVERTURE (CREATE) : aucun objet préexistant, donc aucune
+ * version à vérifier (doublon ⇒ 409 par registre d'objet, pas par version).
+ */
+function proposalOpenCtxFrom(
+  request: { headers: Record<string, unknown> },
+): ProposalContext {
+  const actor = actorFrom(request);
+  const serverDateHeader = request.headers["x-server-date"];
+  const commandIdHeader = request.headers["x-command-id"];
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    actorGroupIds: actor.groupIds,
+    serverDate: typeof serverDateHeader === "string" ? serverDateHeader : "2026-09-28",
+    commandId:
+      typeof commandIdHeader === "string"
+        ? commandIdHeader
+        : `cmd-${actor.identityId ?? actor.handle}`,
+    expectedVersion: 0,
+  };
+}
+
+/**
+ * Contexte C09 en LECTURE (vue, historique) : authentification + scopage
+ * anti-IDOR uniquement, sans version d'objet — une lecture ne mute rien.
+ */
+function proposalReadCtxFrom(
+  request: { headers: Record<string, unknown> },
+): ProposalContext {
+  const actor = actorFrom(request);
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    actorGroupIds: actor.groupIds,
+    serverDate: "2026-09-28",
+    commandId: `read-${actor.identityId ?? actor.handle}`,
+    expectedVersion: 0,
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   const store = options.store ?? new FictitiousCommandStore();
@@ -313,6 +397,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const validation = options.validation ?? new FictitiousValidationStore();
   const disputes = options.disputes ?? new FictitiousDisputeStore();
   const disbursements = options.disbursements ?? new FictitiousDisbursementStore();
+  const proposals = options.proposals ?? new FictitiousProposalStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -970,6 +1055,77 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
         });
     },
   );
+
+  /* --- C09 : propositions, votes et décisions (7.1 → 7.5, 18.5) --- */
+
+  // Ouverture d'une proposition (7.1). L'électorat est scellé côté SERVEUR
+  // (membres actifs du groupe), jamais fourni par le client. Ouvreur gardé par
+  // l'action objet `vote.open` ; le corps ne porte aucun acteur.
+  app.post("/v1/groups/:groupId/votes", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = openVoteBody.parse(request.body);
+    const ctx = proposalOpenCtxFrom(request);
+    const view = proposals.open(ctx, groupId, {
+      proposalId: body.proposalId,
+      subjectKind: body.subjectKind,
+      subjectRef: body.subjectRef,
+      reason: body.reason,
+      durationSeconds: body.durationSeconds,
+    });
+    return reply.code(201).send(view);
+  });
+
+  // Bulletin (7.2) : votant = identité résolue serveur ; refus sans écriture
+  // (non-électeur, double vote, hors échéance). Voie A19 `/votes/{voteId}/ballots`.
+  // Un bulletin ACCEPTÉ crée une ressource (201) ; un refus (double vote, hors
+  // échéance, non-électeur) n'écrit rien et répond 200 + voteAccepted=false
+  // (convention C07/C08), pas une création.
+  app.post("/v1/votes/:voteId/ballots", async (request, reply) => {
+    const { voteId } = request.params as { voteId: string };
+    const body = castBallotBody.parse(request.body);
+    const ctx = proposalCtxFrom(request);
+    const receipt = proposals.cast(ctx, voteId, body.choice);
+    return reply.code(receipt.voteAccepted ? 201 : 200).send(receipt);
+  });
+
+  // Clôture (7.3, 7.4) : seulement échéance serveur atteinte ; résultat figé
+  // via l'oracle indépendant. Voie A19 `/proposals/{proposalId}/closures`.
+  app.post("/v1/proposals/:voteId/closures", async (request, reply) => {
+    const { voteId } = request.params as { voteId: string };
+    const ctx = proposalCtxFrom(request);
+    return reply.code(200).send(proposals.close(ctx, voteId));
+  });
+
+  // Annulation motivée (7.3, 18.5). Voie A19 `/proposals/{proposalId}/cancellations`.
+  app.post("/v1/proposals/:voteId/cancellations", async (request, reply) => {
+    const { voteId } = request.params as { voteId: string };
+    const body = cancelProposalBody.parse(request.body);
+    const ctx = proposalCtxFrom(request);
+    return reply.code(200).send(proposals.cancel(ctx, voteId, body.reason));
+  });
+
+  // Exécution idempotente (7.4) : seulement une décision approuvée ; une
+  // seconde exécution rend le même état sans nouvel effet.
+  app.post("/v1/votes/:voteId/executions", async (request, reply) => {
+    const { voteId } = request.params as { voteId: string };
+    const ctx = proposalCtxFrom(request);
+    return reply.code(200).send(proposals.execute(ctx, voteId));
+  });
+
+  // Vue scopée et authentifiée d'une proposition (anti-IDOR : un objet d'un
+  // autre groupe sous un chemin tiers → 404 non-divulgation).
+  app.get("/v1/groups/:groupId/votes/:voteId", async (request, reply) => {
+    const { groupId, voteId } = request.params as { groupId: string; voteId: string };
+    const ctx = proposalReadCtxFrom(request);
+    return reply.code(200).send(proposals.view(ctx, groupId, voteId));
+  });
+
+  // Historique des décisions d'un groupe (7.5) : closes / exécutées / annulées.
+  app.get("/v1/groups/:groupId/decisions", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const ctx = proposalReadCtxFrom(request);
+    return reply.code(200).send({ decisions: proposals.history(ctx, groupId) });
+  });
 
   return app;
 }

@@ -47,14 +47,31 @@ export const declareContributionBody = z.object({
   amount: moneyInput,
 });
 
+// Ouverture d'une proposition/volée (7.1, 18.5). Ni l'électorat NI les règles
+// (quorum, version) ne sont fournis ici : l'électorat est scellé côté serveur
+// depuis les membres actifs du groupe, et le quorum/version des règles sont
+// résolus côté serveur (règles versionnées C04/C05). Un client ne choisit
+// jamais son corps électoral ni son quorum. L'identité de l'ouvreur vient de
+// l'en-tête résolu (C01), jamais du corps. Durée = volée gouvernée par
+// l'horloge serveur (échéance = ouverture + durée).
 export const openVoteBody = z.object({
-  subject: z.string().min(1).max(200),
-  quorumNumerator: z.number().int().min(0),
-  quorumDenominator: z.number().int().min(1),
+  proposalId: z.string().min(1).max(120),
+  subjectKind: z.string().min(1).max(60),
+  subjectRef: z.string().min(1).max(120),
+  reason: z.string().min(1).max(500),
+  durationSeconds: z.number().int().min(1).max(31_536_000),
 });
 
+// Bulletin (7.2) : le votant est l'identité résolue côté serveur (en-tête),
+// jamais un champ du corps — d'où l'absence de tout `voterIdentityId`.
 export const castBallotBody = z.object({
   choice: z.enum(["yes", "no", "abstain"]),
+});
+
+// Annulation motivée (7.3, 18.5) : motif obligatoire, la voie légale pour
+// reprendre un électorat en cours de volée (puis rouvrir une nouvelle proposition).
+export const cancelProposalBody = z.object({
+  reason: z.string().min(1).max(500),
 });
 
 export type InviteMemberInput = z.infer<typeof inviteMemberBody>;

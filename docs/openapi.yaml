@@ -279,13 +279,14 @@ paths:
     post:
       tags: [votes]
       operationId: castBallot
-      summary: Émettre un bulletin (unicité vote/électeur)
+      summary: Émettre un bulletin (unicité vote/électeur ; votant = identité serveur)
       parameters:
         - name: voteId
           in: path
           required: true
           schema: { type: string }
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
       requestBody:
         required: true
         content:
@@ -296,9 +297,15 @@ paths:
               properties:
                 choice: { type: string, enum: [yes, no, abstain] }
       responses:
-        "201": { description: Bulletin enregistré }
+        "201": { description: Bulletin enregistré (accepté) }
+        "200":
+          description: >
+            Bulletin refusé sans écriture (non-électeur, double vote, hors
+            échéance serveur) — voteAccepted=false, aucune mutation, aucune
+            version incrémentée (convention C07/C08).
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
 
   /proposals/{proposalId}/closures:
     post:
@@ -320,15 +327,93 @@ paths:
     post:
       tags: [votes]
       operationId: cancelProposal
-      summary: Annuler une proposition (A19)
+      summary: Annuler une proposition (A19, motif obligatoire — 7.3/18.5)
       parameters:
         - name: proposalId
           in: path
           required: true
           schema: { type: string }
         - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 500 }
       responses:
         "200": { description: Proposition annulée }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /votes/{voteId}/executions:
+    post:
+      tags: [votes]
+      operationId: executeProposal
+      summary: >
+        Exécuter une décision clôturée et approuvée (7.4). Idempotent : une
+        seconde exécution rend le même état sans nouvel effet. Aucune entrée de
+        décision n'est acceptée du client (résultat figé à la clôture par
+        l'oracle serveur).
+      parameters:
+        - name: voteId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200": { description: Décision exécutée (ou déjà exécutée — idempotent) }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/votes/{voteId}:
+    get:
+      tags: [votes]
+      operationId: readVote
+      summary: >
+        Vue authentifiée et SCOPEE d'une proposition (électorat, résultat figé,
+        dates serveur, version). Anti-IDOR : un objet d'un autre groupe sous un
+        chemin tiers répond 404 (non-divulgation), jamais son contenu.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: voteId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Vue de la proposition
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Vote" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{groupId}/decisions:
+    get:
+      tags: [votes]
+      operationId: listDecisions
+      summary: >
+        Historique chronologique des décisions d'un groupe (7.5) : propositions
+        closes, exécutées ou annulées (une volée encore ouverte n'est pas une
+        décision). Lecture authentifiée et scopée.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: Liste des décisions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decisions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Vote" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
   /groups/{groupId}/disputes:
@@ -1682,11 +1767,21 @@ components:
         version: { type: integer }
     OpenVoteRequest:
       type: object
-      required: [subject, quorumNumerator, quorumDenominator]
+      description: >
+        Ouverture d'une proposition/volée (7.1, 18.5). Ni l'électorat NI les
+        règles (quorum, version) ne sont fournis ici : l'électorat est scellé
+        côté serveur depuis les membres actifs du groupe, et le quorum/version
+        des règles sont résolus côté serveur (règles versionnées C04/C05). Un
+        client ne choisit jamais son corps électoral ni son quorum (règle 18 /
+        ADR-0005). L'identité de l'ouvreur vient de la session résolue serveur,
+        jamais du corps. La durée borne l'échéance SERVEUR (ouverture + durée).
+      required: [proposalId, subjectKind, subjectRef, reason, durationSeconds]
       properties:
-        subject: { type: string }
-        quorumNumerator: { type: integer, minimum: 0 }
-        quorumDenominator: { type: integer, minimum: 1 }
+        proposalId: { type: string, maxLength: 120 }
+        subjectKind: { type: string, maxLength: 60 }
+        subjectRef: { type: string, maxLength: 120 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        durationSeconds: { type: integer, minimum: 1, maximum: 31536000 }
     Vote:
       type: object
       required: [voteId, groupId, electorateSize, state]
@@ -1694,7 +1789,32 @@ components:
         voteId: { type: string }
         groupId: { type: string }
         electorateSize: { type: integer, minimum: 1 }
-        state: { type: string, enum: [open, closed, cancelled] }
+        state: { type: string, enum: [open, closed, executed, cancelled] }
+        subjectKind: { type: string }
+        subjectRef: { type: string }
+        reason: { type: string }
+        rulesVersion: { type: integer }
+        canonicalHash: { type: string, description: Empreinte RFC 8785 de la proposition (C00). }
+        quorumNumerator: { type: integer }
+        quorumDenominator: { type: integer }
+        openedAt: { type: integer, format: int64 }
+        deadline: { type: integer, format: int64, description: Échéance SERVEUR (epoch ms). }
+        tally:
+          nullable: true
+          type: object
+          properties:
+            yes: { type: integer }
+            no: { type: integer }
+            abstain: { type: integer }
+            turnout: { type: integer }
+            quorum: { type: integer }
+            approved: { type: boolean }
+        closedAt: { type: integer, format: int64, nullable: true }
+        effectiveAt: { type: integer, format: int64, nullable: true, description: Date d'effet SERVEUR, jamais rétroactive. }
+        executedAt: { type: integer, format: int64, nullable: true }
+        cancelReason: { type: string, nullable: true }
+        version: { type: integer }
+
     RuleSet:
       type: object
       description: >
