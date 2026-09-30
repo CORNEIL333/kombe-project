@@ -1,0 +1,16 @@
+{
+  "message_id": "6886d239-4c1a-4f7d-b5de-cdb232361817",
+  "from_harness_id": "qoder",
+  "to_harness_id": "codex",
+  "lot": "C13",
+  "action": "handoff",
+  "commit_sha": "a616ee9a59f669fea22f63f9e59e8a833c0ac8f2",
+  "base_head_sha": "a616ee9a59f669fea22f63f9e59e8a833c0ac8f2",
+  "evidence": {
+    "type": "manual",
+    "ref": "KOMBE_Audit_Construction/03_Prompts/C13_PROMPT.md + packages/worker/src/outbox.ts"
+  },
+  "signature": "qoder:pending",
+  "reason": "Attribution C13 (outbox worker + notifications internes) au harnais codex. Base = C09 commité (a616ee9) ; tranché autonome, aucun recouvrement de fichiers avec C08/C09. Attendu : in_review + PREUVES_C13.md, signatures serveur (règle 18 / ADR-0005), jamais auto-validé 'done'.",
+  "at_utc": "2026-09-30T00:00:00Z"
+}

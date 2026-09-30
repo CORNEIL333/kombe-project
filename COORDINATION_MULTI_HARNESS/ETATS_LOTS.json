@@ -24,11 +24,24 @@
       "commit": "ea119eb51f8e5615fc0f331897d8e443fb6f5184",
       "notes": "Tranche C08 code commitée (ea119eb), revue CodeReview appliquée (2 blocants/5 majeurs/mineurs réglés ; 2e revue : aucun bloquant de sécurité). Tests domaine 231 / API 123, build OK, H00 11 PASS/0 FAIL/9 BLOCKED. PREUVES_C08.md produit. Non 'done' : un 'done' exige la relecture/signature d'un harnais DISTINCT du lead. Preuves base réelle (verrous/sérialisation/atomicité/append-only/indépendance SQL) BLOCKED sans PostgreSQL."
     },
-    { "lot": "C09", "mission": "Propositions/votes/décisions", "gate": "G0", "status": "todo", "owner_harness_id": null, "notes": "Code vote.ts/governance.ts présent mais AUCUN commit ni PREUVES_C09 : lot à reprendre/officiellement non recette." },
+    {
+      "lot": "C09", "mission": "Propositions/votes/décisions", "gate": "G0",
+      "status": "in_review", "owner_harness_id": "qoder", "owner_branch": "master",
+      "evidence_ref": "docs/PREUVES_C09.md",
+      "files": ["packages/domain/src/proposal.ts", "packages/domain/src/errors.ts", "packages/domain/src/index.ts", "packages/api/src/proposalStore.ts", "packages/api/src/server.ts", "packages/api/src/schemas.ts", "packages/db/migrations/0012*.sql", "docs/openapi.yaml"],
+      "depends_on": ["C03", "C04", "C11"],
+      "commit": "a616ee9a59f669fea22f63f9e59e8a833c0ac8f2",
+      "notes": "Tranche C09 code commitée (a616ee9), revue CodeReview appliquée (bloquant quorum/version pilotés par le client → résolus serveur ; 5 avertissements réglés : statuts bulletin 200/201, ExpectedVersion ballots, /decisions vues conformes+triées, deadline NOT NULL, down rétrograde executed→closed). Tests domaine 256 / API 144, build OK, H00 11 PASS/0 FAIL/9 BLOCKED. PREUVES_C09.md produit. Non 'done' : un 'done' exige la relecture/signature d'un harnais DISTINCT du lead. Preuves base réelle (PK bulletin, triggers ballot/transition, append-only+RLS électorat) BLOCKED sans PostgreSQL."
+    },
     { "lot": "C10", "mission": "Litiges/recours", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C10.md" },
     { "lot": "C11", "mission": "Journal/projections/intégrité", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C11.md" },
     { "lot": "C12", "mission": "Exports PDF/CSV/vérification", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C03", "C08", "C11"], "notes": "csv.ts présent, preuve à produire." },
-    { "lot": "C13", "mission": "Outbox worker + notifications internes", "gate": "G0", "status": "todo", "owner_harness_id": null, "notes": "worker/src/outbox.ts contrat posé." },
+    {
+      "lot": "C13", "mission": "Outbox worker + notifications internes", "gate": "G0",
+      "status": "in_progress", "owner_harness_id": "codex", "owner_branch": "master",
+      "files": ["packages/worker/src/**", "packages/db/migrations/0013*.sql"],
+      "notes": "Attribué au harnais codex (OpenAI Codex) par handoff qoder→codex. Tranché autonome (aucun recouvrement de fichiers avec C08/C09) : contrat outbox posé dans worker/src/outbox.ts, à souder sur le journal C11 (events → outbox → distribution interne) + migration 0013 explicite dans isolation.pg.mjs. Le client ne décide ni la distribution ni l'idempotence (règle 18 / ADR-0005). Sortie attendue : in_review + PREUVES_C13.md, jamais auto-validé 'done' (H06 : signature par un harnais distinct)."
+    },
     { "lot": "C14", "mission": "Interface parcours/accessibilité/langues", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C04", "C05"], "notes": "Client quasi vide ; contrat C00 interdit dépendance UI avant build+Playwright raccordés." },
     { "lot": "C15", "mission": "Cache hors-ligne + synchronisation", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C06", "C14"] },
     { "lot": "C16", "mission": "Données personnelles/notices/droits", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C12"] },
