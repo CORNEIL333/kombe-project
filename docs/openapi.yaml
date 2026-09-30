@@ -1132,6 +1132,205 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  # ── C08 — Décaissements, corrections, rapprochement et clôture (6.10, 18.4, 18.9, 2.8) ──
+  # KÓMBE ne transfère AUCUN fonds : un décaissement documente une sortie déjà
+  # effectuée hors système. Le déclarant n'est jamais le bénéficiaire (séparation
+  # des pouvoirs) ; la correction suit demande → approbation INDÉPENDANTE →
+  # contre-écriture UNIQUE ; `refundedExternally` reste structurellement false.
+  /groups/{groupId}/disbursements:
+    post:
+      tags: [disbursements]
+      operationId: declareDisbursement
+      summary: >
+        Déclarer un décaissement externe (6.10) : bénéficiaire, montant net,
+        frais de groupe (et frais personnels HORS pot, séparés et jamais déduits
+        du rapprochement). Le déclarant est l'acteur résolu serveur ; s'il est le
+        bénéficiaire, un suppléant doit déclarer (422 DISBURSEMENT_SUBSTITUTE_REQUIRED).
+        Montants entiers XAF (ADR-0002). Aucun transfert exécuté par KÓMBE.
+        NOTE : la clé d'idempotence n'est PAS encore consommée par ce lot
+        (registre d'idempotence = lot C13) — aucun en-tête IdempotencyKey n'est
+        documenté ici pour ne pas promettre une rejouabilité non implémentée.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "201":
+          description: Décaissement déclaré (état `requested`, version 1).
+          content:
+            application/json:
+              schema: { type: object }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/disbursements/{disbursementId}:
+    get:
+      tags: [disbursements]
+      operationId: getDisbursement
+      summary: >
+        Vue d'un décaissement (état, acteurs d'indépendance, correction, version).
+        Lecture authentifiée et scopée : un acteur d'un autre groupe est refusé
+        (403) ; un objet dont le groupe réel diffère du groupe du chemin répond
+        404 non-divulgation — jamais les données d'un autre groupe.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: disbursementId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Décaissement.
+          content:
+            application/json:
+              schema: { type: object }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{groupId}/disbursements/{disbursementId}/confirmations:
+    post:
+      tags: [disbursements]
+      operationId: confirmDisbursement
+      summary: >
+        Confirmation par le BÉNÉFICIAIRE seul (6.10). Un acteur autre que le
+        bénéficiaire est refusé sans écriture (actAccepted = false, NOT_BENEFICIARY).
+        Sans contrôleur requis, la confirmation parachève (`completed`) ; sinon la
+        demande reste en attente d'un contrôleur distinct.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: disbursementId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200":
+          description: Reçu d'acte (accepté/refusé, état, version).
+          content:
+            application/json:
+              schema: { type: object }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/disbursements/{disbursementId}/control:
+    post:
+      tags: [disbursements]
+      operationId: controlDisbursement
+      summary: >
+        Contrôle distinct et indépendant (6.10) : ni déclarant ni bénéficiaire
+        (NOT_INDEPENDENT), pas de cumul d'un même contrôleur (ACTOR_ALREADY_ACTED),
+        et suppose la confirmation préalable du bénéficiaire. Au seuil atteint, le
+        décaissement s'achève.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: disbursementId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200":
+          description: Reçu d'acte de contrôle.
+          content:
+            application/json:
+              schema: { type: object }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/disbursements/{disbursementId}/reversal-requests:
+    post:
+      tags: [disbursements]
+      operationId: requestDisbursementReversalC08
+      summary: >
+        Demande de correction d'un décaissement ACHEVÉ (6.10, 18.9). Motif non
+        vide requis ; l'état passe en `reversal_requested` dans l'attente d'une
+        approbation indépendante. Jamais de remboursement automatique externe
+        (`refundedExternally` = false).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: disbursementId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ExpectedVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "200":
+          description: Demande de correction enregistrée.
+          content:
+            application/json:
+              schema: { type: object }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/disbursements/{disbursementId}/reversals:
+    post:
+      tags: [disbursements]
+      operationId: confirmDisbursementReversalC08
+      summary: >
+        Approbation INDÉPENDANTE → contre-écriture UNIQUE (C08-CORRECTION, 6.10).
+        L'approbateur ne peut être ni le demandeur, ni le déclarant, ni le
+        bénéficiaire (403 DISBURSEMENT_REVERSAL_NOT_INDEPENDENT — il jugerait sa
+        propre cause) ; un original déjà reversé ne l'est qu'une fois (409
+        DISBURSEMENT_ALREADY_REVERSED, reversalCount figé à 1). La sérialisation
+        concurrente sous verrou est une preuve base réelle (BLOCKED).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: disbursementId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ExpectedVersion"
+      responses:
+        "200":
+          description: Contre-écriture appliquée (une seule).
+          content:
+            application/json:
+              schema: { type: object }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/rounds/{roundId}/reconciliation:
+    get:
+      tags: [rounds]
+      operationId: reconcileRound
+      summary: >
+        Rapprochement d'un tour et décision de clôture normale (18.4, 18.9) via
+        l'oracle indépendant : `écart = validé net − décaissements nets − frais
+        groupe`. TOUTES les entrées de décision sont DÉTENUES SERVEUR : totaux
+        recalculés depuis les écritures stockées, total validé net et bloqueurs
+        (litige bloquant, impayé affectant le pot) posés par les flux serveur.
+        Aucun paramètre de décision n'est accepté du client — un client ne peut
+        ni forcer `normalCloseAccepted`, ni masquer un écart, ni cacher un
+        litige (barrières serveur, règle 18 ; ADR-0005). La clôture normale
+        n'est admise que si écart nul ET sans litige bloquant ET sans impayé
+        affectant le pot ; l'écart reste visible, jamais masqué.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: roundId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Rapprochement (écart, clôture normale admise ou non, motifs).
+          content:
+            application/json:
+              schema: { type: object }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   # ── C10 — Litiges et recours (stories 8.1 → 8.4) ──────────────────────────
   # Aucun montant ne transite par ce lot : la résolution ferme le dossier sans
   # toucher un total (correction exclusivement via compensation C07/C08).

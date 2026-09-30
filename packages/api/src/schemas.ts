@@ -275,3 +275,33 @@ export const roundCloseBody = z.object({
   obligationIds: z.array(z.string().min(1).max(120)).min(1).max(50),
 });
 export type RoundCloseInput = z.infer<typeof roundCloseBody>;
+
+/* --- C08 : décaissements, corrections et rapprochement (6.10, 18.4, 18.9, 2.8) --- */
+
+const disbursementIdC08 = z.string().min(1).max(120);
+
+// Déclaration d'un décaissement externe (6.10). KÓMBE ne transfère rien : ce
+// corps documente une sortie déjà effectuée hors système. La date SERVEUR vient
+// de l'en-tête (jamais d'ici) ; `allegedDate` est l'affirmation du déclarant. Le
+// déclarant est l'acteur résolu côté serveur, jamais fourni — d'où l'absence de
+// champ `declarantIdentityId` (impossible de se déclarer soi-même bénéficiaire).
+export const declareDisbursementBody = z.object({
+  disbursementId: disbursementIdC08,
+  roundId: z.string().min(1).max(120),
+  obligationId: z.string().min(1).max(120),
+  beneficiaryIdentityId: identityId,
+  netAmount: moneyInput,
+  groupFees: moneyInput,
+  // Frais personnels hors pot : séparés, JAMAIS déduits du rapprochement (18.4).
+  personalFeesOutOfPot: moneyInput.optional(),
+  requiredControllers: z.number().int().min(0).max(10),
+  allegedDate: z.number().int().min(0),
+});
+export type DeclareDisbursementC08Input = z.infer<typeof declareDisbursementBody>;
+
+// Demande de correction (6.10, 18.9) : motif obligatoire, approuvé ensuite par
+// un acteur INDÉPENDANT. Aucun montant, aucune référence de remboursement.
+export const reversalRequestBody = z.object({
+  reason: z.string().min(1).max(500),
+});
+export type ReversalRequestInput = z.infer<typeof reversalRequestBody>;

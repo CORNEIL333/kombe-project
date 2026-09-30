@@ -26,7 +26,7 @@
  *    mouvement externe (`refundedExternally = false`, structurel).
  */
 import { DomainError } from "./errors.js";
-import { money } from "./money.js";
+import { money, perAmount } from "./money.js";
 import { reconciliation } from "./reconciliation.js";
 
 /** États du décaissement — miroir exact de la CHECK SQL `disbursement.state` (0001). */
@@ -89,10 +89,12 @@ export interface DeclareDisbursementInput {
  * `reversalCount = 0`, `refundedExternally = false`.
  */
 export function declareDisbursement(input: DeclareDisbursementInput): DisbursementRecord {
-  money(input.netAmount);
-  money(input.groupFees);
+  // Plafond par montant (ADR-0002, `kombe_money` ≤ 1 000 000 000) : la borne
+  // basse `money()` seule acceptait un montant irréalisable en base.
+  perAmount(input.netAmount);
+  perAmount(input.groupFees);
   const personal = input.personalFeesOutOfPot ?? 0n;
-  money(personal);
+  perAmount(personal);
   if (!Number.isInteger(input.requiredControllers) || input.requiredControllers < 0) {
     throw new DomainError("DISBURSEMENT_STATE_INVALID", "Nombre de contrôleurs requis invalide");
   }
@@ -237,9 +239,10 @@ export function requestDisbursementReversal(
 
 /**
  * **Approbation indépendante → contre-écriture unique** (contrat manquant posé
- * par C08, 6.10). L'approbateur ne peut être ni le demandeur de la correction
- * ni le déclarant d'origine (`DISBURSEMENT_REVERSAL_NOT_INDEPENDENT`, 403) ; la
- * contre-écriture n'est **jamais automatique** sur le mouvement externe. Un
+ * par C08, 6.10). L'approbateur ne peut être ni le demandeur de la correction,
+ * ni le déclarant d'origine, **ni le bénéficiaire** (il jugerait sa propre
+ * cause — `DISBURSEMENT_REVERSAL_NOT_INDEPENDENT`, 403) ; la contre-écriture
+ * n'est **jamais automatique** sur le mouvement externe. Un
  * original **déjà reversé** ne l'est **qu'une fois**
  * (`DISBURSEMENT_ALREADY_REVERSED`, 409) — c'est la garde qui borne
  * `reversalCount` à 1 sous deux courses (C08-CORRECTION ; sérialisation réelle =
@@ -258,7 +261,8 @@ export function approveDisbursementReversal(
   }
   if (
     approverIdentityId === original.reversalRequestedBy ||
-    approverIdentityId === original.declarantIdentityId
+    approverIdentityId === original.declarantIdentityId ||
+    approverIdentityId === original.beneficiaryIdentityId
   ) {
     throw new DomainError(
       "DISBURSEMENT_REVERSAL_NOT_INDEPENDENT",
@@ -351,20 +355,25 @@ export function reconcileRound(input: RoundReconciliationInput): RoundReconcilia
   };
 }
 
-/** Somme des décaissements **nets** effectivement sortis (achevés, non reversés). */
+/**
+ * Somme des décaissements **nets** effectivement sortis. Un décaissement
+ * `reversal_requested` compte **encore** : les fonds sont physiquement sortis
+ * et ne réintègrent le pot qu'**une fois** la contre-écriture approuvée
+ * (sinon l'écart serait masqué pendant la correction — 18.4, jamais masqué).
+ */
 export function sumNetDisbursed(records: readonly DisbursementRecord[]): bigint {
   let total = 0n;
   for (const r of records) {
-    if (r.state === "completed") total += r.netAmount;
+    if (r.state === "completed" || r.state === "reversal_requested") total += r.netAmount;
   }
   return total;
 }
 
-/** Somme des **frais groupe** des décaissements achevés (les frais personnels en sont exclus). */
+/** Somme des **frais groupe** des décaissements sortis (les frais personnels en sont exclus). */
 export function sumGroupFees(records: readonly DisbursementRecord[]): bigint {
   let total = 0n;
   for (const r of records) {
-    if (r.state === "completed") total += r.groupFees;
+    if (r.state === "completed" || r.state === "reversal_requested") total += r.groupFees;
   }
   return total;
 }

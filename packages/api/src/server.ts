@@ -32,6 +32,10 @@ import {
   type DisputeActor,
 } from "./disputeStore.js";
 import {
+  FictitiousDisbursementStore,
+  type DisbursementContext,
+} from "./disbursementStore.js";
+import {
   declareContributionBody,
   declareContributionBody_c06,
   contributionDraftBody,
@@ -65,6 +69,8 @@ import {
   checkpointBody,
   journalAppendBody,
   tamperBody,
+  declareDisbursementBody,
+  reversalRequestBody,
 } from "./schemas.js";
 
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
@@ -112,6 +118,11 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   DISPUTE_RESOLVER_NOT_DESIGNATED: 403,
   DISPUTE_RESOLVER_NOT_INDEPENDENT: 403,
   DISPUTE_RESOLUTION_REQUIRED: 422,
+  DISBURSEMENT_STATE_INVALID: 409,
+  DISBURSEMENT_SUBSTITUTE_REQUIRED: 422,
+  DISBURSEMENT_ALREADY_REVERSED: 409,
+  DISBURSEMENT_REVERSAL_NOT_INDEPENDENT: 403,
+  DISBURSEMENT_SERVER_DATE_INVALID: 422,
   MEMBERSHIP_STATE_INVALID: 422,
   PASSWORD_TOO_WEAK: 422,
   PASSWORD_COMPROMISED: 422,
@@ -133,6 +144,7 @@ export interface BuildAppOptions {
   readonly contribution?: FictitiousContributionStore;
   readonly validation?: FictitiousValidationStore;
   readonly disputes?: FictitiousDisputeStore;
+  readonly disbursements?: FictitiousDisbursementStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -217,6 +229,78 @@ function validationCtxFrom(
   };
 }
 
+/**
+ * Contexte C08 : un acte sur décaissement (déclaration/confirmation/contrôle/
+ * correction) est une commande MUTANTE — version d'objet attendue et date
+ * SERVEUR distincte de la date alléguée. Identité et rôles viennent de l'en-tête
+ * fictif (C01 les résoudra depuis session + RLS). Aucun transfert de fonds.
+ * La version est EXIGÉE sur les mutations (18.2) : pas de défaut silencieux.
+ */
+function disbursementCtxFrom(
+  request: { headers: Record<string, unknown> },
+): DisbursementContext {
+  const actor = actorFrom(request);
+  const serverDateHeader = request.headers["x-server-date"];
+  const commandIdHeader = request.headers["x-command-id"];
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    actorGroupIds: actor.groupIds,
+    serverDate: typeof serverDateHeader === "string" ? serverDateHeader : "2026-09-28",
+    commandId:
+      typeof commandIdHeader === "string"
+        ? commandIdHeader
+        : `cmd-${actor.identityId ?? actor.handle}`,
+    // Mutation : `if-match-version` OBLIGATOIRE — l'absence ou une valeur
+    // invalide est un refus 422, jamais un défaut à 1 qui affaiblirait la
+    // concurrence optimiste (ADR-0006, règle 18.2).
+    expectedVersion: expectedVersion.parse(request.headers["if-match-version"]),
+  };
+}
+
+/**
+ * Contexte C08 en LECTURE (vue, rapprochement) : authentification + scopage
+ * anti-IDOR uniquement, sans version d'objet — une lecture ne mute rien et le
+ * verrou optimiste ne s'applique pas.
+ */
+function disbursementReadCtxFrom(
+  request: { headers: Record<string, unknown> },
+): DisbursementContext {
+  const actor = actorFrom(request);
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    actorGroupIds: actor.groupIds,
+    serverDate: "2026-09-28",
+    commandId: `read-${actor.identityId ?? actor.handle}`,
+    expectedVersion: 0,
+  };
+}
+
+/**
+ * Contexte C08 pour une DÉCLARATION (CREATE) : aucun objet préexistant, donc
+ * aucune version d'objet à vérifier — le store n'évalue pas `expectedVersion`
+ * sur cette voie (doublon ⇒ 409 par registre d'objet, pas par version).
+ */
+function disbursementDeclareCtxFrom(
+  request: { headers: Record<string, unknown> },
+): DisbursementContext {
+  const actor = actorFrom(request);
+  const serverDateHeader = request.headers["x-server-date"];
+  const commandIdHeader = request.headers["x-command-id"];
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    actorGroupIds: actor.groupIds,
+    serverDate: typeof serverDateHeader === "string" ? serverDateHeader : "2026-09-28",
+    commandId:
+      typeof commandIdHeader === "string"
+        ? commandIdHeader
+        : `cmd-${actor.identityId ?? actor.handle}`,
+    expectedVersion: 0,
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   const store = options.store ?? new FictitiousCommandStore();
@@ -228,6 +312,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const contribution = options.contribution ?? new FictitiousContributionStore();
   const validation = options.validation ?? new FictitiousValidationStore();
   const disputes = options.disputes ?? new FictitiousDisputeStore();
+  const disbursements = options.disbursements ?? new FictitiousDisbursementStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -785,6 +870,106 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const actor = disputeActorFrom(request);
     return reply.code(200).send(disputes.attemptRoundClose(actor, groupId, body.obligationIds));
   });
+
+  /* --- C08 : décaissements, corrections, rapprochement et clôture (6.10, 18.4, 18.9, 2.8) --- */
+
+  // Déclaration d'un décaissement externe (6.10). KÓMBE ne transfère RIEN : la
+  // sortie est documentée. Séparation des pouvoirs gardée par le domaine (le
+  // déclarant n'est jamais le bénéficiaire). Le membre sans droit → 403.
+  app.post("/v1/groups/:groupId/disbursements", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = declareDisbursementBody.parse(request.body);
+    const ctx = disbursementDeclareCtxFrom(request);
+    const view = disbursements.declare(ctx, groupId, {
+      disbursementId: body.disbursementId,
+      roundId: body.roundId,
+      obligationId: body.obligationId,
+      beneficiaryIdentityId: body.beneficiaryIdentityId,
+      netAmount: body.netAmount,
+      groupFees: body.groupFees,
+      ...(body.personalFeesOutOfPot !== undefined
+        ? { personalFeesOutOfPot: body.personalFeesOutOfPot }
+        : {}),
+      requiredControllers: body.requiredControllers,
+      allegedDate: body.allegedDate,
+    });
+    return reply.code(201).send(view);
+  });
+
+  // Confirmation par le bénéficiaire (6.10). Refus non-bénéficiaire = 200,
+  // `actAccepted = false`, aucune écriture (vérifiée en test par compteur d'événements).
+  app.post(
+    "/v1/groups/:groupId/disbursements/:disbursementId/confirmations",
+    async (request, reply) => {
+      const { disbursementId } = request.params as { disbursementId: string };
+      const ctx = disbursementCtxFrom(request);
+      return reply.code(200).send(disbursements.confirm(ctx, disbursementId));
+    },
+  );
+
+  // Contrôle par un tiers distinct et indépendant (6.10) ; parachève au seuil.
+  app.post(
+    "/v1/groups/:groupId/disbursements/:disbursementId/control",
+    async (request, reply) => {
+      const { disbursementId } = request.params as { disbursementId: string };
+      const ctx = disbursementCtxFrom(request);
+      return reply.code(200).send(disbursements.control(ctx, disbursementId));
+    },
+  );
+
+  // Demande de correction d'un décaissement achevé (6.10, 18.9) ; motif requis,
+  // jamais de remboursement automatique externe (`refundedExternally = false`).
+  app.post(
+    "/v1/groups/:groupId/disbursements/:disbursementId/reversal-requests",
+    async (request, reply) => {
+      const { disbursementId } = request.params as { disbursementId: string };
+      const body = reversalRequestBody.parse(request.body);
+      const ctx = disbursementCtxFrom(request);
+      return reply.code(200).send(disbursements.requestReversal(ctx, disbursementId, body.reason));
+    },
+  );
+
+  // Approbation INDÉPENDANTE → contre-écriture unique (C08-CORRECTION) ; une
+  // seconde approbation sur le même original → 409, `reversalCount` figé à 1.
+  // Feuille `reversals` alignée sur le contrat C00 (`confirmDisbursementReversal`).
+  app.post(
+    "/v1/groups/:groupId/disbursements/:disbursementId/reversals",
+    async (request, reply) => {
+      const { disbursementId } = request.params as { disbursementId: string };
+      const ctx = disbursementCtxFrom(request);
+      return reply.code(200).send(disbursements.approveReversal(ctx, disbursementId));
+    },
+  );
+
+  // Vue d'un décaissement : état, acteurs d'indépendance, correction, version.
+  // Lecture authentifiée et SCOPEE par le groupe du chemin (anti-IDOR : un
+  // objet d'un autre groupe répond 404 non-divulgation, jamais ses données).
+  app.get("/v1/groups/:groupId/disbursements/:disbursementId", async (request, reply) => {
+    const { groupId, disbursementId } = request.params as { groupId: string; disbursementId: string };
+    const ctx = disbursementReadCtxFrom(request);
+    return reply.code(200).send(disbursements.view(ctx, groupId, disbursementId));
+  });
+
+  // Rapprochement d'un tour et décision de clôture normale (18.4, 18.9), via
+  // l'oracle indépendant. TOUTES les entrées de décision sont SERVEUR : totaux
+  // recalculés depuis les écritures stockées, total validé net et bloqueurs
+  // posés par les flux serveur. Aucun paramètre client n'est accepté — un
+  // client ne peut ni forcer une clôture ni masquer un écart (barrières serveur,
+  // règle 18 ; ADR-0005).
+  app.get(
+    "/v1/groups/:groupId/rounds/:roundId/reconciliation",
+    async (request, reply) => {
+      const { groupId, roundId } = request.params as { groupId: string; roundId: string };
+      const ctx = disbursementReadCtxFrom(request);
+      const out = disbursements.reconcile(ctx, groupId, roundId);
+      return reply
+        .code(200)
+        .send({
+          ...out,
+          reconciliationGap: out.reconciliationGap.toString(),
+        });
+    },
+  );
 
   return app;
 }

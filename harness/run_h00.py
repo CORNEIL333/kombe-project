@@ -250,7 +250,16 @@ def h07_mock_db() -> dict:
             ["node", str(ISOLATION_TEST)],
             capture_output=True, text=True, timeout=180, env=os.environ.copy(),
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
+    except subprocess.TimeoutExpired:
+        # Un hang du runner n'est PAS une dépendance annoncée indisponible : le
+        # contrat de preuve est violé → FAIL (jamais un BLOCKED confortable qui
+        # garderait le job de confiance vert sur une exécution bloquée).
+        return result("H07", "FAIL",
+                      "Test d'isolation interrompu par dépassement de délai (180 s) : "
+                      "le contrat de preuve est violé, ce n'est pas une indisponibilité annoncée.",
+                      {"note": "timeout_contrat_viole"})
+    except OSError as exc:
+        # `node` introuvable / non lançable : dépendance d'exécution absente → BLOCKED.
         return result("H07", "BLOCKED",
                       f"Exécution du test d'isolation impossible : {exc}", {})
 
@@ -279,23 +288,28 @@ def h07_mock_db() -> dict:
         return result("H07", "FAIL",
                       "Test d'isolation en base réelle : un invariant a été violé",
                       {"exit_code": rc, "observations": observations})
-    # rc==1 SANS observations = erreur d'exécution (base injoignable, pilote
-    # absent, SQL invalide) : dépendance non atteignable → BLOCKED honnête,
-    # pas un faux FAIL « invariant violé ».
-    if rc == 1:
+    # BLOCKED honnête : le test annonce lui-même l'indisponibilité de sa
+    # dépendance (rc==2 — base/pilote absents, convention isolation.pg.mjs).
+    # Tout autre code non-zero (rc==1 SANS observations = exception non
+    # capturée, SQL invalide, crash du runner ; codes inattendus) est un
+    # échec du contrat de preuve → FAIL. Une migration cassée ne peut plus
+    # rendre ce cas vert silencieux ni se cacher derrière BLOCKED : le
+    # principe « jamais de confiance sans preuve » s'applique aussi aux
+    # erreurs d'exécution (revue C08, major n°7).
+    if rc == 2 or status_json == "BLOCKED":
+        reason = (parsed or {}).get("reason", "Base PostgreSQL ou pilote pg indisponible sur cet hôte.")
         return result("H07", "BLOCKED",
-                      "Test d'isolation interrompu par une erreur d'exécution "
-                      "(base/pilote/SQL indisponibles) : preuve non atteignable ici.",
-                      {"exit_code": rc, "note": "erreur_execution_non_assertion",
-                       "stderr": (proc.stderr or "")[:500],
-                       "error": (parsed or {}).get("error", "")})
-    # rc==2 (BLOCKED annoncé) ou rc==0 sans PASS valide, ou code inattendu.
-    reason = (parsed or {}).get("reason", "Base PostgreSQL ou pilote pg indisponible sur cet hôte.")
-    return result("H07", "BLOCKED",
-                  f"Preuve d'isolation non exécutable ici : {reason} "
-                  "(Docker/PostgreSQL requis — Testcontainers en CI ou instance locale).",
-                  {"exit_code": rc, "status_json": status_json,
-                   "note": "postgresql_reel_requis"})
+                      f"Preuve d'isolation non exécutable ici : {reason} "
+                      "(Docker/PostgreSQL requis — Testcontainers en CI ou instance locale).",
+                      {"exit_code": rc, "status_json": status_json,
+                       "note": "postgresql_reel_requis"})
+    return result("H07", "FAIL",
+                  "Test d'isolation interrompu par une erreur d'exécution "
+                  "(SQL invalide, crash, rc==0 sans PASS observé) : le contrat de "
+                  "preuve est violé, ce n'est pas une dépendance annoncée indisponible.",
+                  {"exit_code": rc, "note": "erreur_execution_contrat_viole",
+                   "stderr": (proc.stderr or "")[:500],
+                   "error": (parsed or {}).get("error", "")})
 
 
 def h08_critical_mutants(commit: str) -> dict:
