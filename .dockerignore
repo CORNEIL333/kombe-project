@@ -1,0 +1,13 @@
+# KÓMBE — contexte de build Docker : on exclut tout artefact hôte (notamment les
+# node_modules Windows, incompatibles avec l'image Linux) et les données locales.
+node_modules
+**/node_modules
+**/dist
+.git
+.env
+.env.*
+!.env.example
+*.log
+harness/reports/*.json
+KOMBE_Audit_Construction
+COORDINATION_MULTI_HARNESS

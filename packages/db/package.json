@@ -5,8 +5,8 @@
   "type": "module",
   "description": "KÓMBE — schéma PostgreSQL canonique (migrations + fixtures fictives). Contrat C00 ; exécution et preuves réelles (RLS/verrous/pool) = lot C01 sur base réelle.",
   "scripts": {
-    "migrate": "node scripts/blocked.mjs migrate",
-    "seed": "node scripts/blocked.mjs seed",
+    "migrate": "node scripts/migrate.mjs migrate",
+    "seed": "node scripts/migrate.mjs seed",
     "test:integration": "node tests/isolation.pg.mjs",
     "test:isolation": "node tests/isolation.pg.mjs"
   },

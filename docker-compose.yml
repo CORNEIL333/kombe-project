@@ -1,0 +1,76 @@
+# KÓMBE — pile de déploiement locale / hôte Docker (socle déployable).
+#
+# HONNÊTETÉ (à lire) :
+#   * `api` démarre l'API C00 sur ses stores FICTIFS en mémoire : l'état se
+#     réinitialise au redémarrage et l'API NE LIT/ÉCRIT PAS encore PostgreSQL
+#     (la persistance est un lot ultérieur). KOMBE_DATABASE_URL est fourni en
+#     anticipation, pas consommé aujourd'hui.
+#   * `postgres` + `migrate` + `dbtest` sont, eux, RÉELS : ils appliquent le
+#     schéma et exécutent les preuves base réelle (RLS/verrous/pool) dès que
+#     Docker est disponible — c'est ce qui fait passer ces preuves de BLOCKED
+#     (Windows sans base) à un PASS vérifiable sur tout hôte conteneurisé.
+#
+# Démarrage :  docker compose up --build            (postgres + api)
+# Migrations : docker compose --profile tools run --rm migrate
+# Preuve base réelle : docker compose --profile test run --rm dbtest
+
+name: kombe
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kombe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kombe_dev_only}
+      POSTGRES_DB: ${POSTGRES_DB:-kombe}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./packages/db/provision/docker-init.sql:/docker-entrypoint-initdb.d/99-create-test-db.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"   # exposition locale uniquement (jamais 0.0.0.0 en dev)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kombe} -d ${POSTGRES_DB:-kombe}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    # L'API C00 sert ses stores FICTIFS en mémoire et ne CONSOMME PAS PostgreSQL
+    # aujourd'hui : elle ne doit donc PAS être bloquée par la santé de la base.
+    # KOMBE_DATABASE_URL est fourni en anticipation de la persistance (lot ult.).
+    environment:
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      KOMBE_DATABASE_URL: postgresql://${POSTGRES_USER:-kombe}:${POSTGRES_PASSWORD:-kombe_dev_only}@postgres:5432/${POSTGRES_DB:-kombe}
+    ports:
+      - "127.0.0.1:3000:3000"   # exposition locale uniquement
+
+  # One-shot d'application du schéma (idempotent, suit les jalons kombe_migration).
+  migrate:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KOMBE_DATABASE_URL: postgresql://${POSTGRES_USER:-kombe}:${POSTGRES_PASSWORD:-kombe_dev_only}@postgres:5432/${POSTGRES_DB:-kombe}
+    command: ["node", "packages/db/scripts/migrate.mjs", "migrate"]
+    profiles: ["tools"]
+
+  # One-shot des preuves base réelle (C01 : RLS kombe_app, verrous, pool A/B, FK).
+  # isolation.pg.mjs RECONSTRUIT le schéma (down→up) et pose `SET ROLE kombe_app` :
+  # il faut donc une base DÉJÀ migrée au départ, sinon le premier .down.sql échoue
+  # sur des objets absents. On migre kombe_test puis on lance isolation.
+  dbtest:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KOMBE_DATABASE_URL: postgresql://${POSTGRES_USER:-kombe}:${POSTGRES_PASSWORD:-kombe_dev_only}@postgres:5432/kombe_test
+      KOMBE_TEST_DATABASE_URL: postgresql://${POSTGRES_USER:-kombe}:${POSTGRES_PASSWORD:-kombe_dev_only}@postgres:5432/kombe_test
+    command: ["/bin/sh", "-c", "node packages/db/scripts/migrate.mjs migrate && node packages/db/tests/isolation.pg.mjs"]
+    profiles: ["test"]
+
+volumes:
+  pgdata:

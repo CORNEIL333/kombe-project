@@ -57,6 +57,6 @@
     { "lot": "C26", "mission": "Scoring/passeport financier", "gate": "V2", "status": "deferred", "owner_harness_id": null },
     { "lot": "C27", "mission": "Assurance/extensions financières", "gate": "V2", "status": "deferred", "owner_harness_id": null },
     { "lot": "C28", "mission": "Harness QA/sécurité/chaîne livraison", "gate": "G0", "status": "blocked", "owner_harness_id": "qoder", "owner_branch": "master", "notes": "Débloque H03/H06/H09/H10/H13/H20 : isolation contrôleur + identité authentifiée. Prérequis : remote protégé + GitHub Environments (en cours d'init par le lead)." },
-    { "lot": "C29", "mission": "Déploiement/sauvegarde/reprise", "gate": "G0", "status": "blocked", "owner_harness_id": null, "depends_on": ["C13", "C16", "C17", "C28"], "notes": "Déblocage H18 (reprise PostgreSQL) via Testcontainers en CI." }
+    { "lot": "C29", "mission": "Déploiement/sauvegarde/reprise", "gate": "G0", "status": "blocked", "owner_harness_id": null, "depends_on": ["C13", "C16", "C17", "C28"], "notes": "Déblocage H18 (reprise PostgreSQL) via Testcontainers en CI. SOCLE DÉPLOYABLE PRÉPARÉ (qoder, hors lot) : API à l'écoute (packages/api/src/main.ts, santé 200 vérifiée), runner migrate.mjs réel (exit 2 honnête sans base), Dockerfile + docker-compose (postgres 16 + api + migrate + dbtest), DEPLOY.md. Le lot complet reste blocked : persistance API↔base, sauvegarde/reprise et protection des environnements (C28) non livrées." }
   ]
 }
