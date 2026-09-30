@@ -1,8 +1,8 @@
 {
   "runner": "H00",
-  "commit": "a616ee9a59f669fea22f63f9e59e8a833c0ac8f2",
+  "commit": "e00f93d66170385c8c552b757702754931e717a6",
   "gate": "G-CONSTRUCTION",
-  "at_utc": "2026-09-30T01:26:07.447238+00:00",
+  "at_utc": "2026-09-30T02:00:22.579847+00:00",
   "status": "BLOCKED",
   "counts": {
     "PASS": 11,
@@ -32,7 +32,7 @@
       "status": "PASS",
       "detail": "SHA du runner identique avant/après exécution témoin",
       "evidence": {
-        "runner": "C:\\Users\\migco\\Desktop\\kombe project\\harness\\run_h00.py",
+        "runner": "/workspace/scratch/afab0fc8cd1d/kombe-project/harness/run_h00.py",
         "sha": "1cd4e9e2f36bfc9986a8a36c2f6f5d09d6af2265791876f226549550b12b7eb5"
       }
     },
@@ -50,7 +50,7 @@
       "status": "PASS",
       "detail": "SHA déclaré != SHA du contrôleur → rejet correct",
       "evidence": {
-        "expected_commit": "a616ee9a59f669fea22f63f9e59e8a833c0ac8f2",
+        "expected_commit": "e00f93d66170385c8c552b757702754931e717a6",
         "declared_commit": "0000000000000000000000000000000000000000"
       }
     },
@@ -60,7 +60,7 @@
       "detail": "Rapport PASS d'un autre commit rejeté par vérification d'identité",
       "evidence": {
         "report_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "current_commit": "a616ee9a59f669fea22f63f9e59e8a833c0ac8f2"
+        "current_commit": "e00f93d66170385c8c552b757702754931e717a6"
       }
     },
     {

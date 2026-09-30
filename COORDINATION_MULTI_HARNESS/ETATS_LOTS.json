@@ -37,10 +37,22 @@
     { "lot": "C11", "mission": "Journal/projections/intégrité", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C11.md" },
     { "lot": "C12", "mission": "Exports PDF/CSV/vérification", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C03", "C08", "C11"], "notes": "csv.ts présent, preuve à produire." },
     {
-      "lot": "C13", "mission": "Outbox worker + notifications internes", "gate": "G0",
-      "status": "in_progress", "owner_harness_id": "codex", "owner_branch": "master",
-      "files": ["packages/worker/src/**", "packages/db/migrations/0013*.sql"],
-      "notes": "Attribué au harnais codex (OpenAI Codex) par handoff qoder→codex. Tranché autonome (aucun recouvrement de fichiers avec C08/C09) : contrat outbox posé dans worker/src/outbox.ts, à souder sur le journal C11 (events → outbox → distribution interne) + migration 0013 explicite dans isolation.pg.mjs. Le client ne décide ni la distribution ni l'idempotence (règle 18 / ADR-0005). Sortie attendue : in_review + PREUVES_C13.md, jamais auto-validé 'done' (H06 : signature par un harnais distinct)."
+      "lot": "C13",
+      "mission": "Outbox worker + notifications internes",
+      "gate": "G0",
+      "status": "in_review",
+      "owner_harness_id": "codex",
+      "owner_branch": "master",
+      "files": [
+        "packages/worker/src/**",
+        "packages/worker/test/**",
+        "packages/db/migrations/0013*.sql",
+        "packages/db/tests/isolation.pg.mjs",
+        "docs/PREUVES_C13.md"
+      ],
+      "notes": "Livraison codex C13 : worker PostgreSQL, migration 0013, notifications internes atomiques, lease/backoff/dead-letter, droits relus et simulateur. Domaine 256/API 144/worker 10 PASS ; H00 11 PASS/0 FAIL/9 BLOCKED. Recettes PostgreSQL BLOCKED sans base. Revue qoder requise ; aucun done auto-signe.",
+      "evidence_ref": "docs/PREUVES_C13.md",
+      "commit": "e00f93d66170385c8c552b757702754931e717a6"
     },
     { "lot": "C14", "mission": "Interface parcours/accessibilité/langues", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C04", "C05"], "notes": "Client quasi vide ; contrat C00 interdit dépendance UI avant build+Playwright raccordés." },
     { "lot": "C15", "mission": "Cache hors-ligne + synchronisation", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C06", "C14"] },
