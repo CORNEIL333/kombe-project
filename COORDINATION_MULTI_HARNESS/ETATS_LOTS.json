@@ -66,7 +66,13 @@
     },
     { "lot": "C14", "mission": "Interface parcours/accessibilité/langues", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C04", "C05"], "notes": "Client quasi vide ; contrat C00 interdit dépendance UI avant build+Playwright raccordés." },
     { "lot": "C15", "mission": "Cache hors-ligne + synchronisation", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C06", "C14"] },
-    { "lot": "C16", "mission": "Données personnelles/notices/droits", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C12"] },
+    {
+      "lot": "C16", "mission": "Données personnelles/notices/droits", "gate": "G0",
+      "status": "in_progress", "owner_harness_id": "qoder", "owner_branch": "master",
+      "depends_on": ["C02", "C03", "C12"],
+      "files": ["packages/domain/src/privacy.ts", "packages/domain/src/errors.ts", "packages/domain/src/index.ts", "packages/domain/test/privacy.test.ts", "packages/api/src/privacyStore.ts", "packages/api/src/server.ts", "packages/api/src/schemas.ts", "packages/api/test/privacy.test.ts", "packages/db/migrations/0016*.sql", "packages/db/scripts/migrate.mjs", "packages/db/tests/isolation.pg.mjs", "docs/PREUVES_C16.md", "docs/openapi.yaml"],
+      "notes": "Réservé par qoder. C16 dépend de C12 (in_review, code committé f61ae19, tests verts) traité comme stable pour le socle (même règle divulguée qu C08->C12). Périmètre pur domaine+API : notices légales versionnées sans placeholder ni promesse de garantie/preuve, registre des traitements factuel (base à confirmer exigée, durée entière), consentement recherche/marketing/IA séparé du service cceur (retrait sans perte d'acces — C16-CONSENT), demandes de droits a verification proportionnee (jamais de refus automatique, gel motive et date), export personnel filtre ne divulguant AUCUN champ prive d'autrui (C16-EXPORT third_party_private_fields=0), purge/tombstones et restauration reappliquant effacements ET revocations (C16-RESTORE deleted_identity_visible=false), ecart journal pseudonymise != anonyme. Preuves base réelle (tombstones append-only, RLS, CHECK) BLOCKED sans PostgreSQL."
+    },
     {
       "lot": "C17", "mission": "Administration/support/sécurité opé.", "gate": "G0",
       "status": "in_review", "owner_harness_id": "qoder", "owner_branch": "master",

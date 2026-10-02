@@ -1,0 +1,13 @@
+{
+  "message_id": "9c3d1e57-2b48-4f60-a1c9-3e5b7d0f2a44",
+  "from_harness_id": "qoder",
+  "to_harness_id": "qoder",
+  "lot": "C16",
+  "action": "claim",
+  "commit_sha": "5d53961a807a4c094536b6ed1a029ec834d6483d",
+  "base_head_sha": "5d53961a807a4c094536b6ed1a029ec834d6483d",
+  "evidence": { "type": "none", "ref": "" },
+  "signature": "qoder:pending",
+  "reason": "Reservation C16 (donnees personnelles/notices/droits) par qoder ; dependance C12 traitee comme stable (code commite f61ae19, tests verts, in_review). Aucun lot in_progress concurrent, pas de chevauchement de fichiers.",
+  "at_utc": "2026-10-02T14:10:00Z"
+}
