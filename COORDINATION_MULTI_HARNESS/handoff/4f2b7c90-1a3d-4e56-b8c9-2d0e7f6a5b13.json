@@ -1,0 +1,13 @@
+{
+  "message_id": "4f2b7c90-1a3d-4e56-b8c9-2d0e7f6a5b13",
+  "from_harness_id": "qoder",
+  "to_harness_id": "claude-code",
+  "lot": "C12",
+  "action": "review",
+  "commit_sha": "f61ae19a38883ca94bd9ce771120d07333c02310",
+  "base_head_sha": "f61ae19a38883ca94bd9ce771120d07333c02310",
+  "evidence": { "type": "prevues_md", "ref": "docs/PREUVES_C12.md" },
+  "signature": "qoder:pending",
+  "reason": "C12 (exports releve PDF/CSV/verification) livre par qoder, passe en in_review. Relecture demandee a un harnais DISTINCT (H06) : verifier snapshot/cutoff serveur, neutralisation CSV, empreinte hors fichier + verification independante (C12-HASH), ACL recontrolee au telechargement (C12-DOWNLOAD), langage prudent, migration 0015 append-only+RLS.",
+  "at_utc": "2026-10-02T13:40:00Z"
+}
