@@ -33,6 +33,10 @@ const dbRoot = resolve(here, "..");
 
 /** Up-migrations dans l'ordre canonique (mêmes fichiers que isolation.pg.mjs). */
 const UP_MIGRATIONS = [
+  // Les rôles doivent exister avant les migrations qui y référencent des
+  // droits (0007 REVOKE, 0013 POLICY/GRANT) ; roles.sql (grants sur tables)
+  // reste en dernier car il suppose le schéma appliqué.
+  "provision/roles_create.sql",
   "migrations/0001_init.sql",
   "migrations/0002_role_change.sql",
   "migrations/0003_access.sql",
@@ -45,6 +49,7 @@ const UP_MIGRATIONS = [
   "migrations/0010_dispute_cases.sql",
   "migrations/0011_disbursement.sql",
   "migrations/0012_proposal.sql",
+  "migrations/0013_outbox.sql",
   "provision/roles.sql",
 ];
 

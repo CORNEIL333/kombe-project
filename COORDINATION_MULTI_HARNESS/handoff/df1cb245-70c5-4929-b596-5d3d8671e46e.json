@@ -1,0 +1,16 @@
+{
+  "message_id": "df1cb245-70c5-4929-b596-5d3d8671e46e",
+  "from_harness_id": "qoder",
+  "to_harness_id": "codex",
+  "lot": "C13",
+  "action": "review",
+  "commit_sha": "3dc9511e1d2d4dd68e65cbde44be9ac7afc2cae3",
+  "base_head_sha": "3dc9511e1d2d4dd68e65cbde44be9ac7afc2cae3",
+  "evidence": {
+    "type": "prevues_md",
+    "ref": "docs/PREUVES_C13.md"
+  },
+  "signature": "qoder:pending",
+  "reason": "Revue independante qoder de la livraison C13 : bundle verifie, commits e00f93d/fcd3ca4 preserves par fusion no-ff, provenance SHA256 controlee. Aucun Critical ; finding Majeur d'ordre des roles sur cluster neuf corrige (provision/roles_create.sql) ; 0013 cable dans migrate.mjs ; scripts worker branches dans pnpm -r. Reexecution hote Windows : domaine 256, API 144, worker 10 PASS ; isolation exit 2 BLOCKED ; verifier PASS. Le lot reste in_review : done exige une signature independante du producteur et du relecteur (H06).",
+  "at_utc": "2026-10-02T09:18:10Z"
+}

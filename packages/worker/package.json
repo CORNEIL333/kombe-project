@@ -3,8 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "KÓMBE — worker de traitement de l'outbox transactionnelle et des notifications externes. Squelette de contrat ; exécution réelle (lecture outbox dans la même DB, permissions réduites, pas de transfert du pot par le pilote) = lot ultérieur sur base réelle.",
+  "description": "KÓMBE — worker de l'outbox transactionnelle et des notifications (C13). pg est injecté par les recettes isolation.pg.mjs ; exécution réelle sur base = recettes PostgreSQL.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --test-isolation=none test/outbox.test.mjs"
+  },
   "dependencies": {
     "@kombe/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.6.3"
   }
 }

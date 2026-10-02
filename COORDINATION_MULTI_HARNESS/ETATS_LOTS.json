@@ -50,8 +50,9 @@
         "packages/db/tests/isolation.pg.mjs",
         "docs/PREUVES_C13.md"
       ],
-      "notes": "Livraison codex C13 : worker PostgreSQL, migration 0013, notifications internes atomiques, lease/backoff/dead-letter, droits relus et simulateur. Domaine 256/API 144/worker 10 PASS ; H00 11 PASS/0 FAIL/9 BLOCKED. Recettes PostgreSQL BLOCKED sans base. Revue qoder requise ; aucun done auto-signe.",
+      "notes": "Livraison codex C13 : worker PostgreSQL, migration 0013, notifications internes atomiques, lease/backoff/dead-letter, droits relus et simulateur. Domaine 256/API 144/worker 10 PASS ; H00 11 PASS/0 FAIL/9 BLOCKED. Recettes PostgreSQL BLOCKED sans base. Revue qoder FAITE (handoff df1cb245, action review) : intégration no-ff des commits codex, correction ordre des rôles (roles_create.sql), câblage 0013 dans migrate.mjs et pnpm -r worker ; aucune recette PostgreSQL revendiquée PASS. Reste in_review : aucun done auto-signé.",
       "evidence_ref": "docs/PREUVES_C13.md",
+      "reviewer_id": "qoder",
       "commit": "e00f93d66170385c8c552b757702754931e717a6"
     },
     { "lot": "C14", "mission": "Interface parcours/accessibilité/langues", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C04", "C05"], "notes": "Client quasi vide ; contrat C00 interdit dépendance UI avant build+Playwright raccordés." },

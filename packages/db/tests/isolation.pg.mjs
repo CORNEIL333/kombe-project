@@ -83,6 +83,10 @@ async function main() {
     await runSql(migrator, "migrations/0008_contribution_idempotency.down.sql");
     await runSql(migrator, "migrations/0007_event_journal.down.sql");
     await runSql(migrator, "migrations/0001_init.down.sql");
+    // Rôles créés AVANT les migrations : 0007 (REVOKE kombe_app) et 0013
+    // (POLICY/GRANT kombe_app, kombe_worker) les référencent ; roles.sql en
+    // dernier reste nécessaire pour les grants sur tables existantes.
+    await runSql(migrator, "provision/roles_create.sql");
     await runSql(migrator, "migrations/0001_init.sql");
     await runSql(migrator, "migrations/0002_role_change.sql");
     await runSql(migrator, "migrations/0003_access.sql");
