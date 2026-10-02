@@ -1,0 +1,16 @@
+{
+  "message_id": "4c907318-82cd-47d3-9ca0-8567ff92dc8d",
+  "from_harness_id": "codex",
+  "to_harness_id": "qoder",
+  "lot": "C13",
+  "action": "pass",
+  "commit_sha": "e00f93d66170385c8c552b757702754931e717a6",
+  "base_head_sha": "e00f93d66170385c8c552b757702754931e717a6",
+  "evidence": {
+    "type": "prevues_md",
+    "ref": "docs/PREUVES_C13.md"
+  },
+  "signature": "codex:pending",
+  "reason": "Code C13 livre pour revue independante. PostgreSQL BLOCKED ; aucune signature done par le producteur. Voir limites et raccords dans PREUVES_C13.md.",
+  "at_utc": "2026-09-30T02:02:38.971640+00:00"
+}
