@@ -1,0 +1,13 @@
+{
+  "message_id": "dff72f2b-b96f-4d17-808b-7bd6915a7f1f",
+  "from_harness_id": "qoder",
+  "to_harness_id": "claude-code",
+  "lot": "C18",
+  "action": "review",
+  "commit_sha": "130509b399bad0117aea22792231ce0ec54e411e",
+  "base_head_sha": "130509b399bad0117aea22792231ce0ec54e411e",
+  "evidence": { "type": "prevues_md", "ref": "docs/PREUVES_C18.md" },
+  "signature": "qoder:pending",
+  "reason": "C18 (mesure pilote/economie unitaire : funnel analytics pseudonymise, cohortes cycles=rotation, economie XAF entier porte G2, registre des risques) livre par qoder, passe en in_review. Relecture demandee a un harnais DISTINCT (H06) : verifier le refus de tout champ financier OU identitaire individuel dans l'analytics (C18-ANALYTICS individualFinancialFields=0, recus + assainissement, et CHECK ?| en base), la semantique 'un cycle = memberCount tours' et l'eligibilite trois cycles (C18-COHORT 3/10=0 cycle donc faux ; 30/10=3 vrai), la distinction paiement REEL != PROMESSE avec taux arrondi a la baisse et porte G2=seuil 25 (C18-PAYERS 2/10=20% faux), le cout total = support+infra+taxes en kombe_money entier serialise en chaines (jamais de flottant), le blocage d'extension par un risque critique SANS controle effectif (controle+preuve+proprietaire), et que les preuves base reelle (append-only analytics/snapshots, RLS agregats, CHECK) restent BLOCKED sans PostgreSQL. Granularite des jetons sensibles et seuils exploratoires a trancher par le relecteur.",
+  "at_utc": "2026-10-02T15:10:00Z"
+}
