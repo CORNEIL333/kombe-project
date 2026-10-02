@@ -44,6 +44,10 @@ import {
   type SupportContext,
 } from "./supportStore.js";
 import {
+  FictitiousExportStore,
+  type ExportContext,
+} from "./exportStore.js";
+import {
   declareContributionBody,
   declareContributionBody_c06,
   contributionDraftBody,
@@ -85,6 +89,8 @@ import {
   supportAccessRequestBody,
   supportApprovalBody,
   supportActionBody,
+  createExportBody,
+  exportVerificationBody,
 } from "./schemas.js";
 
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
@@ -158,6 +164,8 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   SUPPORT_MOTIF_REQUIRED: 422,
   SUPPORT_ACCESS_EXPIRED: 403,
   SUPPORT_FINANCIAL_FORBIDDEN: 403,
+  EXPORT_CUTOPE_INVALID: 422,
+  EXPORT_IDENTIFIANT_REQUIS: 422,
 };
 
 export interface BuildAppOptions {
@@ -173,6 +181,7 @@ export interface BuildAppOptions {
   readonly disbursements?: FictitiousDisbursementStore;
   readonly proposals?: FictitiousProposalStore;
   readonly support?: FictitiousSupportStore;
+  readonly exports?: FictitiousExportStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -443,6 +452,23 @@ function supportReadCtxFrom(
   };
 }
 
+/**
+ * Contexte C12 (export du relevé) : la date de capture est une date SERVEUR
+ * injectée (`x-server-date`) ; le demandeur et son appartenance au groupe sont
+ * résolus côté serveur, jamais déclarés par le client (ADR-0005/0006).
+ */
+function exportCtxFrom(
+  request: { headers: Record<string, unknown> },
+): ExportContext {
+  const actor = actorFrom(request);
+  const serverDateHeader = request.headers["x-server-date"];
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    serverDate: typeof serverDateHeader === "string" ? serverDateHeader : "2026-09-28T00:00:00Z",
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   const store = options.store ?? new FictitiousCommandStore();
@@ -457,6 +483,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const disbursements = options.disbursements ?? new FictitiousDisbursementStore();
   const proposals = options.proposals ?? new FictitiousProposalStore();
   const support = options.support ?? new FictitiousSupportStore();
+  const exportStore = options.exports ?? new FictitiousExportStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -1237,6 +1264,60 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { groupId, requestId } = request.params as { groupId: string; requestId: string };
     const ctx = supportReadCtxFrom(request);
     return reply.code(200).send(support.view(ctx, groupId, requestId));
+  });
+
+  /* --- C12 : exports du relevé (PDF/CSV, empreinte, vérification, ACL) --- */
+
+  // Génération d'un export au cutoff courant (10.1, 18.8). Le demandeur doit être
+  // membre (sinon 404) ; la coupure est résolue SERVEUR, jamais au-delà de l'état
+  // réel ; l'empreinte est posée sur les octets finalisés dans un manifeste séparé.
+  app.post("/v1/groups/:groupId/exports", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = createExportBody.parse(request.body ?? {});
+    const ctx = exportCtxFrom(request);
+    const view = exportStore.create(ctx, groupId, body.cutoffSequence);
+    return reply.code(201).send(view);
+  });
+
+  // Vue du manifeste (empreintes, coupure, mention prudente) si accessible.
+  app.get("/v1/exports/:manifestId/manifest", async (request, reply) => {
+    const { manifestId } = request.params as { manifestId: string };
+    const ctx = exportCtxFrom(request);
+    return reply.code(200).send(exportStore.view(ctx, manifestId));
+  });
+
+  // Téléchargement privé du PDF : ACL recontrôlée à l'acheminement (C12-DOWNLOAD).
+  // Un membre sortant → 404 non-divulguant, jamais les octets.
+  app.get("/v1/exports/:manifestId/download", async (request, reply) => {
+    const { manifestId } = request.params as { manifestId: string };
+    const ctx = exportCtxFrom(request);
+    const file = exportStore.download(ctx, manifestId);
+    return reply
+      .code(200)
+      .header("content-type", file.contentType)
+      .header("content-disposition", `attachment; filename="${file.fileName}"`)
+      .send(Buffer.from(file.bytes));
+  });
+
+  // Téléchargement du CSV neutralisé (10.1) — mêmes ACL qu'au PDF.
+  app.get("/v1/exports/:manifestId/csv", async (request, reply) => {
+    const { manifestId } = request.params as { manifestId: string };
+    const ctx = exportCtxFrom(request);
+    const file = exportStore.csv(ctx, manifestId);
+    return reply
+      .code(200)
+      .header("content-type", `${file.contentType}; charset=utf-8`)
+      .header("content-disposition", `attachment; filename="${file.fileName}"`)
+      .send(file.body);
+  });
+
+  // Vérification INDÉPENDANTE (C12-HASH) : octets soumis en base64 → empreinte
+  // recalculée et comparée au manifeste ; un octet altéré → verification_passed false.
+  app.post("/v1/exports/:manifestId/verifications", async (request, reply) => {
+    const { manifestId } = request.params as { manifestId: string };
+    const body = exportVerificationBody.parse(request.body);
+    const ctx = exportCtxFrom(request);
+    return reply.code(200).send(exportStore.verify(ctx, manifestId, body.bytesBase64));
   });
 
   return app;

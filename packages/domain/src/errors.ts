@@ -81,6 +81,8 @@ export type DomainErrorCode =
   | "SUPPORT_MOTIF_REQUIRED"
   | "SUPPORT_ACCESS_EXPIRED"
   | "SUPPORT_FINANCIAL_FORBIDDEN"
+  | "EXPORT_CUTOPE_INVALID"
+  | "EXPORT_IDENTIFIANT_REQUIS"
   | "FEATURE_PILOT_FORBIDDEN";
 
 export class DomainError extends Error {

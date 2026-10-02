@@ -44,7 +44,10 @@ tags:
   - name: rounds
     description: Clôtures de tour — A19
   - name: exports
-    description: Exports privés filtrés
+    description: >
+      Exports du relevé : snapshot figé au cutoff, PDF/CSV neutralisé, empreinte
+      SHA-256 en manifeste séparé, vérification indépendante et ACL recontrôlée à
+      l'acheminement (C12, 10.1–10.5, 18.8)
   - name: journal
     description: >
       Journal d'événements append-only, vérification indépendante de la chaîne,
@@ -1732,6 +1735,114 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /groups/{groupId}/exports:
+    post:
+      tags: [exports]
+      operationId: createStatementExport
+      summary: >
+        Génère un relevé exporté (10.1, 18.8). Le demandeur doit être membre du
+        groupe (sinon 404 non-divulgation) ; la séquence de coupure est résolue
+        SERVEUR, jamais au-delà de l'état réel. Empreinte SHA-256 sur octets
+        finalisés consignée dans un manifeste séparé ; mention prudente obligatoire.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/ServerDate"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StatementExportInput" }
+      responses:
+        "201":
+          description: Manifeste d'export posé (empreintes, coupure, mention prudente).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExportManifestView" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /exports/{manifestId}/manifest:
+    get:
+      tags: [exports]
+      operationId: getExportManifest
+      summary: >
+        Vue du manifeste (empreintes, coupure, version du générateur, mention
+        prudente). ACL recontrôlée à la lecture : un non-titulaire ou membre
+        sortant reçoit 404, jamais les données.
+      parameters:
+        - $ref: "#/components/parameters/ManifestId"
+        - $ref: "#/components/parameters/ServerDate"
+      responses:
+        "200":
+          description: Manifeste de l'export.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExportManifestView" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /exports/{manifestId}/download:
+    get:
+      tags: [exports]
+      operationId: downloadStatementExport
+      summary: >
+        Téléchargement privé du PDF. L'accès est RECONTRÔLÉ à l'acheminement : un
+        membre sortant après génération reçoit 404 (C12-DOWNLOAD), jamais les
+        octets. Aucun contenu n'est signé juridiquement.
+      parameters:
+        - $ref: "#/components/parameters/ManifestId"
+        - $ref: "#/components/parameters/ServerDate"
+      responses:
+        "200":
+          description: Octets du PDF imprimable (intégrité vérifiable via /verifications).
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /exports/{manifestId}/csv:
+    get:
+      tags: [exports]
+      operationId: downloadStatementCsv
+      summary: >
+        Téléchargement du CSV neutralisé contre l'injection de formule (10.1) ;
+        mêmes ACL qu'au PDF.
+      parameters:
+        - $ref: "#/components/parameters/ManifestId"
+        - $ref: "#/components/parameters/ServerDate"
+      responses:
+        "200":
+          description: CSV du relevé (champs texte neutralisés, montants typés).
+          content:
+            text/csv:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /exports/{manifestId}/verifications:
+    post:
+      tags: [exports]
+      operationId: verifyStatementExport
+      summary: >
+        Vérification INDÉPENDANTE (C12-HASH) : le client soumet, en base64, les
+        octets du fichier qu'il détient ; le serveur recalcule l'empreinte et la
+        compare au manifeste. Un octet altéré ⇒ verification_passed = false. Le
+        résultat vient du recalcul réel, jamais d'une constante.
+      parameters:
+        - $ref: "#/components/parameters/ManifestId"
+        - $ref: "#/components/parameters/ServerDate"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExportVerificationInput" }
+      responses:
+        "200":
+          description: Résultat de vérification d'intégrité.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExportVerificationResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -1776,6 +1887,15 @@ components:
         JAMAIS être fournie librement par le client : c'est la barrière serveur
         qui juge l'expiration JIT (ADR-0005).
       schema: { type: string, format: date-time }
+    ManifestId:
+      name: manifestId
+      in: path
+      required: true
+      description: >
+        Identifiant du manifeste d'export (C12). Le téléchargement et la
+        vérification recontrôlent l'accès à l'acheminement ; un objet hors portée
+        répond 404 non-divulgation.
+      schema: { type: string }
 
   schemas:
     Money:
@@ -1799,6 +1919,8 @@ components:
         - ELECTORATE_INVALIDE
         - VOTE_HORS_LIMITES
         - JOUR_INVALIDE
+        - EXPORT_CUTOPE_INVALID
+        - EXPORT_IDENTIFIANT_REQUIS
         - FEATURE_PILOT_FORBIDDEN
         - RULE_INVALID
         - RULE_VERSION_IMMUTABLE
@@ -2421,6 +2543,48 @@ components:
         groupId: { type: string }
         accessAllowed: { type: boolean, enum: [true] }
         version: { type: integer, minimum: 1 }
+
+    StatementExportInput:
+      type: object
+      additionalProperties: false
+      description: >
+        Corps optionnel de génération d'export. La coupure, si fournie, doit
+        rester inférieure ou égale à l'état courant du journal (bornée SERVEUR).
+      properties:
+        cutoffSequence: { type: integer, minimum: 0, maximum: 10000000 }
+    ExportManifestView:
+      type: object
+      additionalProperties: false
+      required: [manifestId, groupId, cutoffSequence, generatorVersion, capturedAt, pdfSha256, csvSha256, prudentNotice, downloadPath]
+      properties:
+        manifestId: { type: string }
+        groupId: { type: string }
+        cutoffSequence: { type: integer, minimum: 0 }
+        generatorVersion: { type: string }
+        capturedAt: { type: string, format: date-time }
+        pdfSha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        csvSha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        prudentNotice:
+          type: string
+          description: >
+            Mention prudente obligatoire : « historique vérifiable », jamais de
+            promesse de valeur légale ni de signature (10.3).
+        downloadPath: { type: string }
+    ExportVerificationInput:
+      type: object
+      additionalProperties: false
+      required: [bytesBase64]
+      description: Octets du fichier détenu par le client, encodés en base64.
+      properties:
+        bytesBase64: { type: string }
+    ExportVerificationResult:
+      type: object
+      additionalProperties: false
+      required: [verification_passed, checkedHash, expectedHash]
+      properties:
+        verification_passed: { type: boolean }
+        checkedHash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        expectedHash: { type: string, pattern: '^[0-9a-f]{64}$' }
 
   responses:
     Forbidden:

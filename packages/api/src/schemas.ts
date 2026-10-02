@@ -99,6 +99,18 @@ export const supportApprovalBody = z.object({
   ttlSeconds: z.number().int().min(60).max(86_400),
 });
 
+// C12 — corps optionnel de generation d'export : la sequence de coupure, si
+// fournie, reste inferieure ou egale a l'etat courant (bornee par le store serveur).
+export const createExportBody = z.object({
+  cutoffSequence: z.number().int().min(0).max(10_000_000).optional(),
+});
+
+// C12 — verification independante : le client soumet les octets (base64) du
+// fichier qu'il detient ; le serveur recalcule l'empreinte et compare au manifeste.
+export const exportVerificationBody = z.object({
+  bytesBase64: z.string().min(0).max(4_000_000),
+});
+
 export type InviteMemberInput = z.infer<typeof inviteMemberBody>;
 export type DeclareContributionInput = z.infer<typeof declareContributionBody>;
 export type RoleNominationInput = z.infer<typeof roleNominationBody>;
