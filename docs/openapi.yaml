@@ -64,6 +64,14 @@ tags:
       droits à vérification proportionnée, export filtré, purge/tombstones et
       restauration réappliquant effacements et révocations (C16, 13.1–13.4,
       18.10, 18.19)
+  - name: metrics
+    description: >
+      Mesure du pilote et économie unitaire : entonnoir d'analytics pseudonymisé
+      sans aucun champ financier/identitaire individuel (C18-ANALYTICS), cohortes
+      à cycles = rotation complète (C18-COHORT), économie unitaire en XAF entier
+      distinguant paiement réel et promesse (C18-PAYERS, porte G2), et registre
+      des risques dont un critique sans contrôle effectif bloque l'extension
+      (C18, 16.1–16.3, 18.13)
 
 paths:
   /commands/{commandId}:
@@ -2108,6 +2116,168 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/metrics/analytics/events:
+    post:
+      tags: [metrics]
+      summary: Journaliser un événement d'analytics pseudonymisé (16.1)
+      description: >
+        Le domaine REFUSE tout champ financier ou identitaire individuel dans
+        `properties` (422 `METRICS_CHAMPS_FINANCIER_INDIVIDUEL`, C18-ANALYTICS)
+        et toute étape hors liste fermée. L'horodatage est SERVEUR.
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnalyticsEventInput" }
+      responses:
+        "201":
+          description: Événement journalisé (sans champ individuel).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnalyticsEventView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /v1/metrics/analytics/funnel/{cohortId}:
+    get:
+      tags: [metrics]
+      summary: Entonnoir d'une cohorte, sans champ financier individuel (16.1)
+      description: >
+        Compte par étape ordonnée. La garde C18-ANALYTICS est exposée : le champ
+        `individualFinancialFields` est structurellement `0` (un export n'en porte
+        jamais).
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+        - { $ref: "#/components/parameters/CohortId" }
+      responses:
+        "200":
+          description: Entonnoir + garde sans champ individuel.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnalyticsFunnelView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/metrics/cohorts:
+    post:
+      tags: [metrics]
+      summary: Créer/mettre à jour une cohorte de pilote (18.13)
+      description: >
+        Un cycle = rotation complète = `memberCount` tours. L'éligibilité « trois
+        cycles » est jugée domaine (C18-COHORT : 3 tours / 10 membres ⇒ 0 cycle ⇒
+        `eligibleThreeCycleRetention = false`).
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CohortInput" }
+      responses:
+        "201":
+          description: Cohorte enregistrée + éligibilité calculée.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CohortView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /v1/metrics/cohorts/{groupId}:
+    get:
+      tags: [metrics]
+      summary: Lire une cohorte (18.13)
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+        - { $ref: "#/components/parameters/GroupId" }
+      responses:
+        "200":
+          description: Cohorte.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CohortView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/metrics/economics:
+    post:
+      tags: [metrics]
+      summary: Économie unitaire — paiement réel vs promesse, porte G2 (16.2)
+      description: >
+        Montants en **XAF entier** renvoyés en chaînes (jamais de flottant). Le
+        taux de paiement **réel** gouverne la porte exploratoire G2 (C18-PAYERS :
+        2/10 = 20 % < 25 % ⇒ `gateG2Met = false`).
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EconomicsInput" }
+      responses:
+        "200":
+          description: Économie unitaire + état de la porte G2.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EconomicsView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /v1/metrics/risks:
+    post:
+      tags: [metrics]
+      summary: Enregistrer un risque au registre du pilote (16.3)
+      description: >
+        Sévérité connue, probabilité/impact bornés à [0,100], date de revue
+        AAAA-MM-JJ (le domaine juge, 422 sinon).
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RiskInput" }
+      responses:
+        "201":
+          description: Risque enregistré.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RiskView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+    get:
+      tags: [metrics]
+      summary: Lister le registre des risques du pilote (16.3)
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      responses:
+        "200":
+          description: Liste des risques.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RiskView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/metrics/extension-check:
+    post:
+      tags: [metrics]
+      summary: Contrôle d'extension du pilote (16.3)
+      description: >
+        Un risque **critique sans contrôle effectif** (contrôle + preuve +
+        propriétaire) bloque l'extension : `extensionAllowed = false` et la liste
+        des risques bloquants est remontée.
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      responses:
+        "200":
+          description: Statut d'extension du pilote.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExtensionStatusView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -2122,6 +2292,11 @@ components:
   parameters:
     GroupId:
       name: groupId
+      in: path
+      required: true
+      schema: { type: string }
+    CohortId:
+      name: cohortId
       in: path
       required: true
       schema: { type: string }
@@ -2191,6 +2366,13 @@ components:
         - PRIVACY_CONSENTEMENT_CATEGORIE_INCONNUE
         - PRIVACY_VERIFICATION_INSUFFISANTE
         - PRIVACY_MOTIF_GEL_REQUIS
+        - METRICS_IDENTIFIANT_REQUIS
+        - METRICS_ETAPE_ANALYTICS_INCONNUE
+        - METRICS_CHAMPS_FINANCIER_INDIVIDUEL
+        - METRICS_DENOMINATEUR_NUL
+        - METRICS_SEVERITE_INCONNUE
+        - METRICS_VALEUR_INVALIDE
+        - METRICS_RISQUE_CRITIQUE_SANS_CONTROLE
         - FEATURE_PILOT_FORBIDDEN
         - RULE_INVALID
         - RULE_VERSION_IMMUTABLE
@@ -3031,6 +3213,192 @@ components:
           description: >
             False si l'identité sonde a ete effacee apres le point : la restauration
             reapplique les effacements (C16-RESTORE).
+
+    MoneyInput:
+      oneOf:
+        - { type: string, pattern: '^\d+$' }
+        - { type: integer, minimum: 0 }
+      description: >
+        Montant XAF entier accepté en chaîne de chiffres ou entier ; transformé
+        en bigint serveur. Jamais de flottant, jamais de négatif (ADR-0002).
+    AnalyticsEventInput:
+      type: object
+      additionalProperties: false
+      required: [cohortId, step]
+      properties:
+        cohortId: { type: string, minLength: 1, maxLength: 120 }
+        step:
+          type: string
+          enum:
+            - visite
+            - demarrage
+            - regles_crees
+            - invitations
+            - membres_acceptes
+            - premiere_contribution
+            - premiere_validation
+            - cycle_termine
+            - paiement_abonnement
+        properties:
+          type: object
+          description: >
+            Propriétés plates (valeurs primitives). Toute clé financière ou
+            identitaire individuelle est REFUSÉE par le domaine (C18-ANALYTICS).
+          additionalProperties:
+            oneOf:
+              - { type: string, maxLength: 200 }
+              - { type: integer }
+              - { type: boolean }
+    AnalyticsEventView:
+      type: object
+      additionalProperties: false
+      required: [eventId, cohortId, step, occurredAt, properties]
+      properties:
+        eventId: { type: string }
+        cohortId: { type: string }
+        step: { type: string }
+        occurredAt:
+          type: integer
+          format: int64
+          description: Horodatage SERVEUR (secondes d'époque), jamais client.
+        properties: { type: object, additionalProperties: true }
+    AnalyticsFunnelView:
+      type: object
+      additionalProperties: false
+      required: [cohortId, steps, individualFinancialFields]
+      properties:
+        cohortId: { type: string }
+        steps:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [step, count]
+            properties:
+              step: { type: string }
+              count: { type: integer, minimum: 0 }
+        individualFinancialFields:
+          type: integer
+          minimum: 0
+          description: >
+            Garde C18-ANALYTICS : structurellement 0 — un export ne porte aucun
+            champ financier individuel.
+    CohortInput:
+      type: object
+      additionalProperties: false
+      required: [groupId, memberCount, roundsCompleted]
+      properties:
+        groupId: { type: string, minLength: 1, maxLength: 120 }
+        memberCount: { type: integer, minimum: 1, maximum: 1000 }
+        roundsCompleted: { type: integer, minimum: 0, maximum: 100000 }
+    CohortView:
+      type: object
+      additionalProperties: false
+      required: [groupId, memberCount, roundsCompleted, completedCycles, eligibleThreeCycleRetention]
+      properties:
+        groupId: { type: string }
+        memberCount: { type: integer, minimum: 1 }
+        roundsCompleted: { type: integer, minimum: 0 }
+        completedCycles:
+          type: integer
+          minimum: 0
+          description: Un cycle = rotation complète = memberCount tours.
+        eligibleThreeCycleRetention:
+          type: boolean
+          description: >
+            Vrai seulement si >= 3 cycles complets (C18-COHORT : 3 tours / 10
+            membres ⇒ 0 cycle ⇒ false).
+    EconomicsInput:
+      type: object
+      additionalProperties: false
+      required:
+        [exposedMembers, paidCount, promisedCount, supportMinutes,
+         supportCostPerMinuteMinor, infrastructureCostMinor, cancellations, taxesMinor]
+      properties:
+        exposedMembers: { type: integer, minimum: 0 }
+        paidCount: { type: integer, minimum: 0 }
+        promisedCount: { type: integer, minimum: 0 }
+        supportMinutes: { type: integer, minimum: 0 }
+        supportCostPerMinuteMinor: { $ref: "#/components/schemas/MoneyInput" }
+        infrastructureCostMinor: { $ref: "#/components/schemas/MoneyInput" }
+        cancellations: { type: integer, minimum: 0 }
+        taxesMinor: { $ref: "#/components/schemas/MoneyInput" }
+    EconomicsView:
+      type: object
+      additionalProperties: false
+      required:
+        [exposedMembers, realPayers, promisedOnly, paymentRealPercent, gateG2Met,
+         supportMinutes, supportCostMinor, infrastructureCostMinor, cancellations,
+         taxesMinor, totalCostMinor]
+      properties:
+        exposedMembers: { type: integer, minimum: 0 }
+        realPayers: { type: integer, minimum: 0 }
+        promisedOnly: { type: integer, minimum: 0 }
+        paymentRealPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Taux de paiement RÉEL (promesses exclues), arrondi à la baisse.
+        gateG2Met:
+          type: boolean
+          description: >
+            Vrai si paymentRealPercent >= 25 (seuil exploratoire ; C18-PAYERS :
+            2/10 = 20 % ⇒ false).
+        supportMinutes: { type: integer, minimum: 0 }
+        supportCostMinor: { type: string, pattern: '^\d+$' }
+        infrastructureCostMinor: { type: string, pattern: '^\d+$' }
+        cancellations: { type: integer, minimum: 0 }
+        taxesMinor: { type: string, pattern: '^\d+$' }
+        totalCostMinor:
+          type: string
+          pattern: '^\d+$'
+          description: >
+            Coût total XAF entier (= support + infrastructure + taxes), sérialisé
+            en chaîne (bigint non serialisable en JSON) — jamais de flottant.
+    RiskInput:
+      type: object
+      additionalProperties: false
+      required: [riskId, severity, probabilityPercent, impactPercent, reviewedAt]
+      properties:
+        riskId: { type: string, minLength: 1, maxLength: 120 }
+        severity:
+          type: string
+          enum: [faible, moyen, eleve, critique]
+        probabilityPercent: { type: integer, minimum: 0, maximum: 100 }
+        impactPercent: { type: integer, minimum: 0, maximum: 100 }
+        control: { type: string, maxLength: 500, default: "" }
+        evidenceRef: { type: string, maxLength: 300, default: "" }
+        owner: { type: string, maxLength: 120, default: "" }
+        reviewedAt: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        residual: { type: string, maxLength: 500, default: "" }
+    RiskView:
+      type: object
+      additionalProperties: false
+      required: [riskId, severity, probabilityPercent, impactPercent, reviewedAt]
+      properties:
+        riskId: { type: string }
+        severity: { type: string }
+        probabilityPercent: { type: integer, minimum: 0, maximum: 100 }
+        impactPercent: { type: integer, minimum: 0, maximum: 100 }
+        control: { type: string }
+        evidenceRef: { type: string }
+        owner: { type: string }
+        reviewedAt: { type: string }
+        residual: { type: string }
+    ExtensionStatusView:
+      type: object
+      additionalProperties: false
+      required: [extensionAllowed, criticalWithoutControl]
+      properties:
+        extensionAllowed:
+          type: boolean
+          description: >
+            Faux si au moins un risque critique n'a pas de contrôle effectif
+            (contrôle + preuve + propriétaire) — blocage d'extension (16.3).
+        criticalWithoutControl:
+          type: array
+          items: { type: string }
+          description: Identifiants des risques critiques sans contrôle effectif.
 
   responses:
     Forbidden:

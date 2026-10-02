@@ -52,6 +52,10 @@ import {
   type PrivacyContext,
 } from "./privacyStore.js";
 import {
+  FictitiousMetricsStore,
+  type MetricsContext,
+} from "./metricsStore.js";
+import {
   declareContributionBody,
   declareContributionBody_c06,
   contributionDraftBody,
@@ -102,6 +106,10 @@ import {
   rightsVerificationBody,
   rightsRestrictionBody,
   restorationBody,
+  analyticsEventBody,
+  cohortBody,
+  economicsBody,
+  riskBody,
 } from "./schemas.js";
 
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
@@ -182,6 +190,13 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   PRIVACY_CONSENTEMENT_CATEGORIE_INCONNUE: 422,
   PRIVACY_VERIFICATION_INSUFFISANTE: 403,
   PRIVACY_MOTIF_GEL_REQUIS: 422,
+  METRICS_IDENTIFIANT_REQUIS: 422,
+  METRICS_ETAPE_ANALYTICS_INCONNUE: 422,
+  METRICS_CHAMPS_FINANCIER_INDIVIDUEL: 422,
+  METRICS_DENOMINATEUR_NUL: 422,
+  METRICS_SEVERITE_INCONNUE: 422,
+  METRICS_VALEUR_INVALIDE: 422,
+  METRICS_RISQUE_CRITIQUE_SANS_CONTROLE: 409,
 };
 
 export interface BuildAppOptions {
@@ -199,6 +214,7 @@ export interface BuildAppOptions {
   readonly support?: FictitiousSupportStore;
   readonly exports?: FictitiousExportStore;
   readonly privacy?: FictitiousPrivacyStore;
+  readonly metrics?: FictitiousMetricsStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -509,6 +525,30 @@ function privacyCtxFrom(
   };
 }
 
+/**
+ * Contexte C18 (mesure pilote / économie unitaire) : l'horloge est une
+ * seconde d'époque SERVEUR dérivée de `x-server-date` (jamais fournie par le
+ * client) ; l'acteur et son rôle sont résolus serveur (ADR-0005/0006). Aucun
+ * champ financier individuel ne transite par l'analytics — la garantie est
+ * portées par le domaine (`metrics.ts`) et vérifiée à la construction.
+ */
+function metricsCtxFrom(
+  request: { headers: Record<string, unknown> },
+): MetricsContext {
+  const actor = actorFrom(request);
+  const serverDateHeader = request.headers["x-server-date"];
+  const iso = typeof serverDateHeader === "string" ? serverDateHeader : "2026-09-28T00:00:00Z";
+  const ms = Date.parse(iso);
+  const serverNow = Number.isNaN(ms)
+    ? Math.floor(Date.parse("2026-09-28T00:00:00Z") / 1000)
+    : Math.floor(ms / 1000);
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    serverNow,
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   const store = options.store ?? new FictitiousCommandStore();
@@ -525,6 +565,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const support = options.support ?? new FictitiousSupportStore();
   const exportStore = options.exports ?? new FictitiousExportStore();
   const privacyStore = options.privacy ?? new FictitiousPrivacyStore();
+  const metricsStore = options.metrics ?? new FictitiousMetricsStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -1456,6 +1497,79 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const body = restorationBody.parse(request.body);
     const ctx = privacyCtxFrom(request);
     return reply.code(200).send(privacyStore.restoreLatest(ctx, body.probeIdentityId));
+  });
+
+  /* --- C18 : mesure pilote / économie unitaire (16.1, 16.2, 16.3, 18.13) --- */
+
+  // Journalisation d'un événement d'analytics pseudonymisé (16.1). Le domaine
+  // REFUSE tout champ financier ou identitaire individuel (C18-ANALYTICS, 422
+  // METRICS_CHAMPS_FINANCIER_INDIVIDUEL) et toute étape inconnue.
+  app.post("/v1/metrics/analytics/events", async (request, reply) => {
+    const body = analyticsEventBody.parse(request.body);
+    const ctx = metricsCtxFrom(request);
+    return reply
+      .code(201)
+      .send(
+        metricsStore.trackAnalyticsEvent(ctx, {
+          cohortId: body.cohortId,
+          step: body.step,
+          properties: body.properties,
+        }),
+      );
+  });
+
+  // Entonnoir d'une cohorte : compte par étape + garde C18-ANALYTICS
+  // (`individualFinancialFields` toujours 0 — l'export n'en porte jamais).
+  app.get("/v1/metrics/analytics/funnel/:cohortId", async (request, reply) => {
+    const { cohortId } = request.params as { cohortId: string };
+    const ctx = metricsCtxFrom(request);
+    return reply.code(200).send(metricsStore.analyticsFunnel(ctx, cohortId));
+  });
+
+  // Création/mise à jour d'une cohorte (18.13) : un cycle = memberCount tours
+  // (rotation égale) ; l'éligibilité rétention trois cycles est jugée domaine
+  // (C18-COHORT : 3 tours / 10 membres ⇒ 0 cycle ⇒ non éligible).
+  app.post("/v1/metrics/cohorts", async (request, reply) => {
+    const body = cohortBody.parse(request.body);
+    const ctx = metricsCtxFrom(request);
+    return reply.code(201).send(metricsStore.upsertCohort(ctx, body));
+  });
+
+  // Lecture d'une cohorte (404 non-divulguant si absente).
+  app.get("/v1/metrics/cohorts/:groupId", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const ctx = metricsCtxFrom(request);
+    return reply.code(200).send(metricsStore.getCohort(ctx, groupId));
+  });
+
+  // Économie unitaire (16.2) : paiement RÉEL distinct de la PROMESSE ; taux
+  // réel et porte G2 dérivés par le domaine (C18-PAYERS : 2/10 = 20 % < 25 %
+  // ⇒ gate_g2_met false). Montants XAF entiers sérialisés en chaînes.
+  app.post("/v1/metrics/economics", async (request, reply) => {
+    const body = economicsBody.parse(request.body);
+    const ctx = metricsCtxFrom(request);
+    return reply.code(200).send(metricsStore.computeEconomics(ctx, body));
+  });
+
+  // Enregistrement d'un risque au registre (16.3) : sévérité connue, proba/
+  // impact bornés, date AAAA-MM-JJ (le domaine juge, 422 sinon).
+  app.post("/v1/metrics/risks", async (request, reply) => {
+    const body = riskBody.parse(request.body);
+    const ctx = metricsCtxFrom(request);
+    return reply.code(201).send(metricsStore.addRisk(ctx, body));
+  });
+
+  // Listage du registre des risques du pilote.
+  app.get("/v1/metrics/risks", async (request, reply) => {
+    const ctx = metricsCtxFrom(request);
+    return reply.code(200).send(metricsStore.listRisks(ctx));
+  });
+
+  // Contrôle d'extension du pilote (16.3) : un risque critique SANS contrôle
+  // effectif bloque l'extension (extensionAllowed false + liste des blocages).
+  app.post("/v1/metrics/extension-check", async (request, reply) => {
+    const ctx = metricsCtxFrom(request);
+    return reply.code(200).send(metricsStore.extensionStatus(ctx));
   });
 
   return app;

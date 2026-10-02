@@ -423,3 +423,66 @@ export const restorationBody = z.object({
 export type LegalNoticeInput = z.infer<typeof legalNoticeBody>;
 export type ConsentInput = z.infer<typeof consentBody>;
 export type RightsRequestOpenInput = z.infer<typeof rightsRequestOpenBody>;
+
+/* ── C18 : mesure du pilote et économie unitaire ────────────────────────── */
+
+// Événement d'analytics (16.1). `step` ∈ whitelist ferme ; `properties` ne doit
+// porter AUCUN champ financier/identitaire individuel — la décision (refus) est
+// déléguée au domaine (`buildAnalyticsEvent`). `occurredAt` est résolu SERVEUR.
+export const analyticsEventBody = z.object({
+  cohortId: z.string().min(1).max(120),
+  step: z.enum([
+    "visite",
+    "demarrage",
+    "regles_crees",
+    "invitations",
+    "membres_acceptes",
+    "premiere_contribution",
+    "premiere_validation",
+    "cycle_termine",
+    "paiement_abonnement",
+  ]),
+  properties: z
+    .record(z.string(), z.union([z.string().max(200), z.number().int(), z.boolean()]))
+    .default({}),
+});
+
+// Cohorte de pilote (18.13) : un cycle = rotation complète = memberCount tours.
+export const cohortBody = z.object({
+  groupId: z.string().min(1).max(120),
+  memberCount: z.number().int().min(1).max(1000),
+  roundsCompleted: z.number().int().min(0).max(100000),
+});
+
+// Économie unitaire (16.2) : paiement RÉEL (paid) distinct de la PROMESSE
+// (promised) ; coûts en XAF entier via `moneyInput` (jamais de flottant).
+export const economicsBody = z.object({
+  exposedMembers: z.number().int().min(0).max(1000000),
+  paidCount: z.number().int().min(0).max(1000000),
+  promisedCount: z.number().int().min(0).max(1000000),
+  supportMinutes: z.number().int().min(0).max(10000000),
+  supportCostPerMinuteMinor: moneyInput,
+  infrastructureCostMinor: moneyInput,
+  cancellations: z.number().int().min(0).max(1000000),
+  taxesMinor: moneyInput,
+});
+
+// Registre des risques (16.3) : sévérité connue ; contrôle/preuve/propriétaire
+// peuvent être vides (le domaine juge l'effectivité et bloque l'extension si
+// un risque « critique » est sans contrôle effectif).
+export const riskBody = z.object({
+  riskId: z.string().min(1).max(120),
+  severity: z.enum(["faible", "moyen", "eleve", "critique"]),
+  probabilityPercent: z.number().int().min(0).max(100),
+  impactPercent: z.number().int().min(0).max(100),
+  control: z.string().max(500).default(""),
+  evidenceRef: z.string().max(300).default(""),
+  owner: z.string().max(120).default(""),
+  reviewedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "AAAA-MM-JJ requis"),
+  residual: z.string().max(500).default(""),
+});
+
+export type AnalyticsEventInput = z.infer<typeof analyticsEventBody>;
+export type CohortInput = z.infer<typeof cohortBody>;
+export type EconomicsInput = z.infer<typeof economicsBody>;
+export type RiskInput = z.infer<typeof riskBody>;

@@ -53,6 +53,7 @@ const UP_MIGRATIONS = [
   "migrations/0014_support_security.sql",
   "migrations/0015_export_manifest.sql",
   "migrations/0016_privacy_law.sql",
+  "migrations/0017_pilot_metrics.sql",
   "provision/roles.sql",
 ];
 
