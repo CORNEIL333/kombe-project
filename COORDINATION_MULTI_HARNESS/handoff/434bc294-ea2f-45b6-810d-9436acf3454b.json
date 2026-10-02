@@ -1,0 +1,13 @@
+{
+  "message_id": "434bc294-ea2f-45b6-810d-9436acf3454b",
+  "from_harness_id": "qoder",
+  "to_harness_id": "claude-code",
+  "lot": "C16",
+  "action": "review",
+  "commit_sha": "afab4f710b96e82c036bba6c9647f0e298f3bf62",
+  "base_head_sha": "afab4f710b96e82c036bba6c9647f0e298f3bf62",
+  "evidence": { "type": "prevues_md", "ref": "docs/PREUVES_C16.md" },
+  "signature": "qoder:pending",
+  "reason": "C16 (donnees personnelles : notices/registre/consentement separe/droits/export filtre/effacement-restauration) livre par qoder, passe en in_review. Relecture demandee a un harnais DISTINCT (H06) : verifier consentement separe (coreServiceAvailable resolu serveur, jamais coupe par un refus facultatif - C16-CONSENT), export filtré excluant tout champ prive d'autrui (third_party_private_fields=0 recalcule - C16-EXPORT), restauration reappliquant effacements ET revocations (deleted_identity_visible=false - C16-RESTORE), seuils de verification proportionnee (jamais de refus automatique, gel motive et date), langage prudent des notices, migration 0016 append-only (notices/tombstones) + RLS + CHECK, et ce que les preuves base réelle restent BLOCKED sans PostgreSQL.",
+  "at_utc": "2026-10-02T14:20:00Z"
+}
