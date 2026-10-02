@@ -69,6 +69,13 @@ jobs:
       - name: Install (deps + pilote pg pour la preuve d'isolation)
         run: pnpm install --no-frozen-lockfile
 
+      # isolation.pg.mjs (consommé par H07) importe packages/worker/dist/pgWorker.js
+      # et ../../domain/dist/index.js (via worker/test/postgres.mjs). Sans build,
+      # H07 tomberait en ERR_MODULE_NOT_FOUND → FAIL, jamais PASS. On compile donc
+      # domain PUIS worker (le worker dépend des types du domain) avant le runner.
+      - name: Build (domain + worker — requis par isolation.pg.mjs / postgres.mjs)
+        run: pnpm --filter @kombe/domain build && pnpm --filter @kombe/worker build
+
       # Provisionnement des rôles attendus par isolation.pg.mjs + roles.sql :
       # kombe_migrateur (LOGIN, propriétaire), kombe_app/kombe_worker (NOLOGIN,
       # sans BYPASSRLS). roles.sql (IF NOT EXISTS) ne écrasera pas ces rôles.

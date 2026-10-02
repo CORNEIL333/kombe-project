@@ -1,0 +1,90 @@
+# KÓMBE — preuve PostgreSQL RÉELLE via `docker compose --profile test run dbtest`.
+#
+# Rôle : sur un hôte qui A Docker (l'ubuntu-latest GitHub Actions), exécuter la
+# VRAIE pile conteneurisée — PostgreSQL 16 + application du schéma + recette
+# d'isolation base réelle. C'est ce qui lève les 9 recettes PostgreSQL BLOCKED de
+# C13 (C13-WORKERS / C13-LEASE / C13-ROLLBACK / C13-OPT_OUT / C13-AMBIGUOUS /
+# C13-DEAD / C13-REVOKED / déduplication / autre groupe), produites par
+# packages/worker/test/postgres.mjs·runC13 appelé par isolation.pg.mjs.
+#
+# HONNÊTETÉ :
+#   * Ce job N'EST PAS décoratif : `docker compose run` propage le code de sortie
+#     du conteneur dbtest (0 PASS / 1 FAIL / 2 BLOCKED). Le job est ROUGE sauf si
+#     la preuve est réellement rendue en base. Aucun PASS n'est simulé.
+#   * Ce job ne REND PAS H07/H18 lui-même : H07 est consomme par le job de
+#     confiance `h00-trusted.yml` (meme isolation.pg.mjs sur service Postgres).
+#   * H18 (reprise apres sauvegarde + reapplication des revocations) reste
+#     BLOQUE dans le runner H00 : il nexiste pas encore de test de restauration
+#     branche sur le runner. dbtest prouve les recettes C13, pas la restauration.
+name: DB — preuve PostgreSQL réelle (dbtest)
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write # requis par upload-artifact@v4
+
+concurrency:
+  group: dbtest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dbtest:
+    name: docker compose --profile test run dbtest (PostgreSQL 16 réel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Le cœur de la demande : lancer exactement la commande prévue pour un hôte
+      # à Docker. `run --rm` construit l'image (Dockerfile : domain+worker+api),
+      # démarre postgres, attend le healthcheck, puis migrate + isolation.pg.mjs.
+      # pipefail : sans lui, `| tee` masquerait le code de sortie de dbtest.
+      - name: dbtest (Preuve base réelle C01 + C13)
+        run: |
+          set -euo pipefail
+          docker compose --profile test run --rm dbtest 2>&1 | tee dbtest.log
+
+      # Résumé lisible des 9 recettes C13 réellement observées en base.
+      - name: Résumer les preuves
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os
+          txt = open('dbtest.log', encoding='utf-8', errors='replace').read() if os.path.exists('dbtest.log') else ''
+          # Isoler le dernier objet JSON top-level (celui de kombe.db.isolation).
+          objs, depth, start = [], 0, -1
+          for i, ch in enumerate(txt):
+              if ch == '{':
+                  if depth == 0: start = i
+                  depth += 1
+              elif ch == '}':
+                  if depth: depth -= 1
+                  if depth == 0 and start >= 0:
+                      try: objs.append(json.loads(txt[start:i+1]))
+                      except Exception: pass
+                      start = -1
+          iso = next((o for o in reversed(objs) if o.get('target') == 'kombe.db.isolation'), None)
+          lines = ['## dbtest — preuve PostgreSQL réelle', '']
+          if iso:
+              obs = iso.get('observations', {})
+              c13 = {k: v for k, v in obs.items() if k.startswith('C13')}
+              lines.append(f"- Statut isolation : **{iso.get('status')}** (exit {iso.get('exitCode')})")
+              lines.append(f"- Recettes C13 observées en base : **{len(c13)}**")
+              for k in sorted(c13):
+                  lines.append(f"  - `{k}` → {json.dumps(c13[k], ensure_ascii=False)}")
+          else:
+              lines.append('- Aucune sortie JSON `kombe.db.isolation` trouvée (voir dbtest.log).')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'w', encoding='utf-8') as f:
+              f.write('\n'.join(lines) + '\n')
+          PY
+
+      - name: Artefact — journal dbtest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbtest-preuve-postgres
+          path: dbtest.log
+          if-no-files-found: warn

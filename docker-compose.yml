@@ -57,18 +57,24 @@ services:
     command: ["node", "packages/db/scripts/migrate.mjs", "migrate"]
     profiles: ["tools"]
 
-  # One-shot des preuves base réelle (C01 : RLS kombe_app, verrous, pool A/B, FK).
+  # One-shot des preuves base réelle (C01 : RLS kombe_app, verrous, pool A/B, FK ;
+  # C13 : recettes outbox/lease/rollback via worker/test/postgres.mjs).
   # isolation.pg.mjs RECONSTRUIT le schéma (down→up) et pose `SET ROLE kombe_app` :
   # il faut donc une base DÉJÀ migrée au départ, sinon le premier .down.sql échoue
   # sur des objets absents. On migre kombe_test puis on lance isolation.
+  #
+  # CONNEXION = kombe_migrateur (PROPRIÉTAIRE de kombe_test, cf. docker-init.sql),
+  # PAS le superuser `kombe` : c'est ce qui fait que les DEFAULT PRIVILEGES posés à
+  # l'init s'appliquent aux tables créées ici, donnant le DML à kombe_app sans
+  # BYPASSRLS → la RLS est réellement éprouvée (sinon dbtest serait FAIL, pas PASS).
   dbtest:
     build: .
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      KOMBE_DATABASE_URL: postgresql://${POSTGRES_USER:-kombe}:${POSTGRES_PASSWORD:-kombe_dev_only}@postgres:5432/kombe_test
-      KOMBE_TEST_DATABASE_URL: postgresql://${POSTGRES_USER:-kombe}:${POSTGRES_PASSWORD:-kombe_dev_only}@postgres:5432/kombe_test
+      KOMBE_DATABASE_URL: postgresql://kombe_migrateur:${KOMBE_MIGRATEUR_PASSWORD:-kombe}@postgres:5432/kombe_test
+      KOMBE_TEST_DATABASE_URL: postgresql://kombe_migrateur:${KOMBE_MIGRATEUR_PASSWORD:-kombe}@postgres:5432/kombe_test
     command: ["/bin/sh", "-c", "node packages/db/scripts/migrate.mjs migrate && node packages/db/tests/isolation.pg.mjs"]
     profiles: ["test"]
 

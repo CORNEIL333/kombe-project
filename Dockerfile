@@ -22,7 +22,13 @@ WORKDIR /app
 # dépendance casse le build au lieu de s'infiltrer silencieusement dans l'image.
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @kombe/domain build && pnpm --filter @kombe/api build
+# domain + api (socle applicatif) ET worker : packages/db/tests/isolation.pg.mjs
+# importe packages/worker/dist/pgWorker.js et packages/worker/test/postgres.mjs
+# (recettes C13 en base réelle). Sans le build du worker, `dbtest` échouerait en
+# ERR_MODULE_NOT_FOUND. L'ordre domain→worker respecte la dépendance de types.
+RUN pnpm --filter @kombe/domain build \
+ && pnpm --filter @kombe/worker build \
+ && pnpm --filter @kombe/api build
 
 # ── Étape 2 : runtime non-root, minimal et reproductible ─────────────────────
 FROM node:22-alpine AS runtime
