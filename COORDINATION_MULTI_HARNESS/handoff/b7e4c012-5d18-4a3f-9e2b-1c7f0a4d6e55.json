@@ -1,0 +1,13 @@
+{
+  "message_id": "b7e4c012-5d18-4a3f-9e2b-1c7f0a4d6e55",
+  "from_harness_id": "qoder",
+  "to_harness_id": "qoder",
+  "lot": "C12",
+  "action": "claim",
+  "commit_sha": "091c1b250899ba5e501f8f1b14d9143885eb59a4",
+  "base_head_sha": "091c1b250899ba5e501f8f1b14d9143885eb59a4",
+  "evidence": { "type": "none", "ref": "" },
+  "signature": "qoder:pending",
+  "reason": "Reservation C12 (exports PDF/CSV/verification) par qoder ; dependance C08 traitee comme stable (code commitee ea119eb, tests verts, in_review).",
+  "at_utc": "2026-10-02T13:05:00Z"
+}

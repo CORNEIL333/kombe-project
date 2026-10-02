@@ -35,7 +35,13 @@
     },
     { "lot": "C10", "mission": "Litiges/recours", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C10.md" },
     { "lot": "C11", "mission": "Journal/projections/intégrité", "gate": "G0", "status": "done", "owner_harness_id": "historique", "evidence_ref": "docs/PREUVES_C11.md" },
-    { "lot": "C12", "mission": "Exports PDF/CSV/vérification", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C03", "C08", "C11"], "notes": "csv.ts présent, preuve à produire." },
+    {
+      "lot": "C12", "mission": "Exports PDF/CSV/vérification", "gate": "G0",
+      "status": "in_progress", "owner_harness_id": "qoder", "owner_branch": "master",
+      "files": ["packages/domain/src/export.ts", "packages/domain/src/csv.ts", "packages/domain/src/errors.ts", "packages/domain/src/index.ts", "packages/domain/test/export.test.ts", "packages/api/src/exportStore.ts", "packages/api/src/server.ts", "packages/api/src/schemas.ts", "packages/api/test/export.test.ts", "packages/db/migrations/0015*.sql", "packages/db/scripts/migrate.mjs", "packages/db/tests/isolation.pg.mjs", "docs/PREUVES_C12.md", "docs/openapi.yaml"],
+      "depends_on": ["C03", "C08", "C11"],
+      "notes": "Réservé par qoder. Dépend C08 (in_review, code commité ea119eb et tests verts) traité comme stable pour le socle export. Tranche domaine pur + API : snapshot figé au cutoff_sequence (état cohérent malgré mutations ultérieures), CSV neutralisé formules via csvText, PDF imprimable déterministe, empreinte SHA-256 sur octets finalisés dans un manifeste séparé, vérificateur autonome, ACL de téléchargement re-vérifiée au moment du téléchargement (membre sortant -> historique). Scénarios C12-HASH/C12-CSV/C12-DOWNLOAD. Preuves base réelle (RLS/append-only manifeste) BLOCKED sans PostgreSQL."
+    },
     {
       "lot": "C13",
       "mission": "Outbox worker + notifications internes",
