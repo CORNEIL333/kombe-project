@@ -3,11 +3,29 @@
    Aucun chiffrement ni journal technique n'apparaît dans le parcours ordinaire ;
    aucune garantie sur les fonds n'est affirmée (pied de page explicite). */
 
+import { useEffect, useState } from "react";
 import { useLangue, BasculeLangue } from "./i18n/ContexteLangue.js";
 import { ParcoursGuide } from "./parcours/ParcoursGuide.js";
+import { BandeauHorsLigne } from "./horsLigne/BandeauHorsLigne.js";
 
 export function App() {
   const { t } = useLangue();
+  // Reflète la connectivité RÉELLE du navigateur ; ne présume jamais d'une
+  // synchronisation serveur (derniereSync/attente laissés à l'état initial).
+  const [horsLigne, setHorsLigne] = useState<boolean>(
+    () => typeof navigator !== "undefined" && navigator.onLine === false,
+  );
+  useEffect(() => {
+    const enLigne = () => setHorsLigne(false);
+    const horsLigneEv = () => setHorsLigne(true);
+    window.addEventListener("online", enLigne);
+    window.addEventListener("offline", horsLigneEv);
+    return () => {
+      window.removeEventListener("online", enLigne);
+      window.removeEventListener("offline", horsLigneEv);
+    };
+  }, []);
+
   return (
     <div className="app">
       <a className="evitement" href="#contenu">
@@ -23,6 +41,9 @@ export function App() {
       </header>
 
       <main id="contenu">
+        <BandeauHorsLigne
+          etat={{ horsLigne, derniereSync: undefined, brouillonsEnAttente: 0 }}
+        />
         <ParcoursGuide />
       </main>
 

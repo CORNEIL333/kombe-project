@@ -227,6 +227,29 @@ a:focus-visible {
   flex-wrap: wrap;
 }
 
+.bandeau {
+  font-size: 0.95rem;
+  margin: 0;
+  padding: var(--espace-3);
+  border-radius: var(--rayon);
+  border: 1px solid var(--couleur-bordure);
+}
+.bandeau--horsLigne {
+  background: var(--couleur-fond-renforce);
+  color: var(--couleur-texte);
+}
+.bandeau--enLigne {
+  background: var(--couleur-fond);
+  color: var(--couleur-texte-affaibli);
+}
+.bandeau--badge {
+  font-weight: 600;
+  margin: 0 0 var(--espace-1);
+}
+.bandeau--attente {
+  margin: var(--espace-1) 0;
+}
+
 .saut-langue {
   display: inline-flex;
   border: 1px solid var(--couleur-bordure);

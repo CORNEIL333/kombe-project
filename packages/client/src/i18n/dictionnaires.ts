@@ -72,6 +72,11 @@ export const fr = {
   "etat.horsLigne":
     "Hors ligne : vos saisies sont conservées, la synchronisation reprendra.",
   "horsLigne.badge": "Hors ligne",
+  "horsLigne.derniereSync": "Dernière synchronisation : {date}",
+  "horsLigne.brouillonsEnAttente":
+    "{nombre} brouillon(s) en attente — non validés par le serveur",
+  "horsLigne.jamaisValide":
+    "Brouillon local — jamais considéré validé tant que vous êtes hors ligne",
 } as const;
 
 export type CleI18n = keyof typeof fr;
@@ -145,6 +150,11 @@ export const en: Record<CleI18n, string> = {
   "etat.horsLigne":
     "Offline: your entries are kept, syncing will resume.",
   "horsLigne.badge": "Offline",
+  "horsLigne.derniereSync": "Last sync: {date}",
+  "horsLigne.brouillonsEnAttente":
+    "{nombre} draft(s) pending — not validated by the server",
+  "horsLigne.jamaisValide":
+    "Local draft — never treated as validated while you are offline",
 };
 
 export const dictionnaires: Record<Langue, Record<CleI18n, string>> = { fr, en };
