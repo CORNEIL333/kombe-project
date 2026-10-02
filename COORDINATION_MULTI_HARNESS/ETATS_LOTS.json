@@ -60,13 +60,14 @@
     { "lot": "C16", "mission": "Données personnelles/notices/droits", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C12"] },
     {
       "lot": "C17", "mission": "Administration/support/sécurité opé.", "gate": "G0",
-      "status": "in_progress", "owner_harness_id": "qoder", "owner_branch": "master",
+      "status": "in_review", "owner_harness_id": "qoder", "owner_branch": "master",
       "files": [
         "packages/domain/src/support.ts", "packages/domain/src/securityLog.ts",
         "packages/domain/src/errors.ts", "packages/domain/src/index.ts",
         "packages/api/src/supportStore.ts", "packages/api/src/server.ts", "packages/api/src/schemas.ts",
         "packages/api/test/support.test.ts", "packages/domain/test/support.test.ts",
-        "packages/db/migrations/0014*.sql", "docs/PREUVES_C17.md", "docs/openapi.yaml"
+        "packages/db/migrations/0014*.sql", "packages/db/scripts/migrate.mjs", "packages/db/tests/isolation.pg.mjs",
+        "docs/PREUVES_C17.md", "docs/openapi.yaml"
       ],
       "depends_on": ["C02", "C03", "C11"],
       "notes": "Réservé par qoder. Console support JIT + double approbation (COM05), séparation du pouvoir financier (support ne valide/corrige jamais), journal sécurité séparé et expurgé, MFA/CSP/CSRF/HSTS, runbooks et drills. Scénarios C17-JIT/C17-FINANCE/C17-LOGS côté domaine pur + API. Les volets runtime/ops réels (secrets manager, HSTS live, chiffrement au repos, drills avec humains) restent honnêtement BLOCKED sans hôte déployé."

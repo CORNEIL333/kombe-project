@@ -1,8 +1,8 @@
 {
   "runner": "H00",
-  "commit": "0167d551fa36604e4ce69ed78031887264ca528d",
+  "commit": "5d2ae9cfa8f46300de047f02c3a4089110626f9d",
   "gate": "G-CONSTRUCTION",
-  "at_utc": "2026-10-02T09:19:56.278254+00:00",
+  "at_utc": "2026-10-02T10:39:44.955916+00:00",
   "status": "BLOCKED",
   "counts": {
     "PASS": 11,
@@ -50,7 +50,7 @@
       "status": "PASS",
       "detail": "SHA déclaré != SHA du contrôleur → rejet correct",
       "evidence": {
-        "expected_commit": "0167d551fa36604e4ce69ed78031887264ca528d",
+        "expected_commit": "5d2ae9cfa8f46300de047f02c3a4089110626f9d",
         "declared_commit": "0000000000000000000000000000000000000000"
       }
     },
@@ -60,7 +60,7 @@
       "detail": "Rapport PASS d'un autre commit rejeté par vérification d'identité",
       "evidence": {
         "report_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "current_commit": "0167d551fa36604e4ce69ed78031887264ca528d"
+        "current_commit": "5d2ae9cfa8f46300de047f02c3a4089110626f9d"
       }
     },
     {
