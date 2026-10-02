@@ -1,0 +1,13 @@
+{
+  "message_id": "b42dd148-581a-40e9-8ff5-997e8ce35a04",
+  "from_harness_id": "qoder",
+  "to_harness_id": "qoder",
+  "lot": "C18",
+  "action": "claim",
+  "commit_sha": "fdb0032183c66bd0812473411171007d0208c79d",
+  "base_head_sha": "fdb0032183c66bd0812473411171007d0208c79d",
+  "evidence": { "type": "none", "ref": "" },
+  "signature": "qoder:pending",
+  "reason": "Reservation C18 (mesure pilote/economie unitaire) par qoder ; dependances C05 (done) et C11 (done). Aucun lot in_progress concurrent, pas de chevauchement de fichiers. Perimetre pur domaine+API : funnel analytics pseudonymise sans champ financier individuel, distinction tours/cycles et refus de retention trois cycles avant duree observee, economie unitaire XAF entier, paiement reel distinct de la promesse, registre des risques bloquant l'extension.",
+  "at_utc": "2026-10-02T14:30:00Z"
+}
