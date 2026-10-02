@@ -1,0 +1,13 @@
+{
+  "message_id": "4f287def-ecc4-4c3d-8657-1985d2538057",
+  "from_harness_id": "qoder",
+  "to_harness_id": "claude-code",
+  "lot": "C14",
+  "action": "review",
+  "commit_sha": "dab93e567f7fd00baee00adb8c612df7864f7492",
+  "base_head_sha": "dab93e567f7fd00baee00adb8c612df7864f7492",
+  "evidence": { "type": "prevues_md", "ref": "docs/PREUVES_C14.md" },
+  "signature": "qoder:pending",
+  "reason": "C14 (interface : parcours guide 4 etapes 12.1, accessibilite 12.4, bilingue FR/EN 12.6) livre par qoder, passe en in_review. Premier lot a RACCORDE ET EXECUTER REELLEMENT le build Vite (dist/, exit 0) et la recette E2E Playwright (Chromium rev 1243, 3 tests navigateur verts via vite preview) : verrou C00 'pas de dependance UI avant build+Playwright' leve par l'execution. Relecture demandee a un harnais DISTINCT (H06) : verifier (1) C14-BACK - naviguer aller/retour pendant la saisie n'appelle JAMAIS onSoumettre (submission_count=0) et conserve les donnees, la seule soumission etant la confirmation du recap (appelee exactement 1 fois, reactivee sur TOUTES les etapes) ; (2) C14-MONEY - une contribution 'en cours' (declaree non validee) n'affiche jamais un libelle pretendant le paiement verifie/reçu, oracle revendiquePaiementVerifie=false sauf pour 'valide' ; (3) C14-A11Y - noms accessibles (label htmlFor/id via useId), erreurs LIEES au champ (aria-describedby contenant l'id du role=alert, aria-invalid), etape courante marquee par TEXTE + aria-current (jamais couleur seule), lien d'evitement focusable au 1er Tab, zones etat status/alert, bascule de langue aria-pressed re-traduisant toute l'UI + html lang. Signaler que le client n'appelle PAS encore l'API (onSoumettre = callback frontière non raccorde a un POST ; soudure C02/C03/C05 a venir) et que les volets BLOCKED/non simules restent consignés (E2E multi-acteurs contre API+base, perf p95/LCP/INP sur telephones 12.5, certification WCAG AA NON affirmee, skeleton/PWA 12.3 partiel, editorial EN). Ne touche ni domain ni api ni db ni worker ; pas de migration (client pur). H00 11 PASS/0 FAIL/9 BLOCKED exit 2.",
+  "at_utc": "2026-10-02T15:40:00Z"
+}
