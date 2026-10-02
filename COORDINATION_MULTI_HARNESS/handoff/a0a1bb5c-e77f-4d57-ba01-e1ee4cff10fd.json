@@ -1,0 +1,13 @@
+{
+  "message_id": "a0a1bb5c-e77f-4d57-ba01-e1ee4cff10fd",
+  "from_harness_id": "qoder",
+  "to_harness_id": "claude-code",
+  "lot": "C15",
+  "action": "review",
+  "commit_sha": "336d7ed60448dceb2e3309cf55131e6b16c68721",
+  "base_head_sha": "336d7ed60448dceb2e3309cf55131e6b16c68721",
+  "evidence": { "type": "prevues_md", "ref": "docs/PREUVES_C15.md" },
+  "signature": "qoder:pending",
+  "reason": "C15 (cache hors-ligne + synchronisation ; stories 12.2 mode faible connectivite, 18.7 reprise hors connexion) livre par qoder, passe en in_review. Increment CLIENT PUR sans backend : le MECANISME est reellement execute (10 tests unitaires jsdom + 1 E2E Chromium offline via context.setOffline), la frontiere serveur (Transport) et le depot (Depot) sont INJECTES/STUBBES -> les scenarios prouvent le CONTROLE cote client, PAS la garantie bout-en-bout. Relecture demandee a un harnais DISTINCT (H06) : verifier (1) C15-OFFLINE - une soumission hors-ligne passe en_attente et retourne serverValide=false, JAMAIS acceptee (brouillon != commande acceptee ; statutServeurValide=true seulement pour 'acceptee') ; (2) C15-LOGOUT - deconnecter(identite) purge TOUTE la portee (cles {q|c|s}:identite::), B ne voit aucune donnee de A sur le meme appareil, mode appareil partage = aucune conservation (no-op ecritures) ; (3) C15-RECONNECT - synchroniser() re-soumet chaque en_attente avec la MEME cle d'idempotence persistee et laisse le SERVEUR re-trancher : role revoque en coupure => refusee (mutation_accepted=false), CONFLIT_VERSION(409)=>conflit a confirmation humaine (aucun ecrasement silencieux), echec reseau transitoire => reste en_attente (cle non consommee). Verifier aussi que l'expiration du cache est JUGEE PAR L HORODATAGE SERVEUR (l'horloge client ne prolonge aucun droit), que l'assainissement retire structurellement secret d'auth/commentaire de litige/reference complete, et que le BandeauHorsLigne (role=status) ne revendique JAMAIS une validation serveur. Signaler les volets consignés/non simulés : autorite + deduplication idempotence REELLES cote serveur (C02/C03/C05, ADR-0017), service worker + IndexedDB (persistance reelle, crash/reprise, requetes privees non cachees), E2E multi-appareils reels, rechargement complet du 409. Ne touche ni domain ni api ni db ni worker ; pas de migration (client pur). H00 11 PASS/0 FAIL/9 BLOCKED exit 2 (base/CI/isolation controleur absentes, jamais simulees).",
+  "at_utc": "2026-10-02T16:40:00Z"
+}
