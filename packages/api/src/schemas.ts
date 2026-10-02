@@ -74,6 +74,31 @@ export const cancelProposalBody = z.object({
   reason: z.string().min(1).max(500),
 });
 
+/* --- C17 : console support, accès JIT, double approbation (8.5, 9.6, 18.17) --- */
+
+// Demande d'accès support. La décision (motif obligatoire, permission financière
+// ou inconnue refusée) est DÉLÉGUÉE au domaine, d'où des permissions laissées
+// ouvertes côté schéma : le schéma ne fait pas la politique de sécurité.
+export const supportAccessRequestBody = z.object({
+  requestId: z.string().min(1).max(120),
+  targetGroupId: z.string().min(1).max(120),
+  motif: z.string().min(1).max(500),
+  permissions: z.array(z.string().min(1).max(40)).min(1).max(8),
+  ttlSeconds: z.number().int().min(60).max(86_400),
+});
+
+// L'approbateur et l'acteur d'une action sont des identités résolues SERVEUR
+// (en-tête), jamais un champ du corps — d'où l'absence de tout `approverIdentityId`.
+export const supportActionBody = z.object({
+  action: z.string().min(1).max(40),
+});
+
+// L'approbation porte la durée d'accès (ttl) appliquée au passage granted ;
+// l'identité de l'approbateur vient de l'en-tête serveur, jamais du corps.
+export const supportApprovalBody = z.object({
+  ttlSeconds: z.number().int().min(60).max(86_400),
+});
+
 export type InviteMemberInput = z.infer<typeof inviteMemberBody>;
 export type DeclareContributionInput = z.infer<typeof declareContributionBody>;
 export type RoleNominationInput = z.infer<typeof roleNominationBody>;

@@ -40,6 +40,10 @@ import {
   type ProposalContext,
 } from "./proposalStore.js";
 import {
+  FictitiousSupportStore,
+  type SupportContext,
+} from "./supportStore.js";
+import {
   declareContributionBody,
   declareContributionBody_c06,
   contributionDraftBody,
@@ -78,6 +82,9 @@ import {
   openVoteBody,
   castBallotBody,
   cancelProposalBody,
+  supportAccessRequestBody,
+  supportApprovalBody,
+  supportActionBody,
 } from "./schemas.js";
 
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
@@ -148,6 +155,9 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   MONEY_OVER_SAFE_CEILING: 422,
   ROTATION_MEMBERS_MIN: 422,
   ROTATION_CONTRIBUTION_POSITIVE: 422,
+  SUPPORT_MOTIF_REQUIRED: 422,
+  SUPPORT_ACCESS_EXPIRED: 403,
+  SUPPORT_FINANCIAL_FORBIDDEN: 403,
 };
 
 export interface BuildAppOptions {
@@ -162,6 +172,7 @@ export interface BuildAppOptions {
   readonly disputes?: FictitiousDisputeStore;
   readonly disbursements?: FictitiousDisbursementStore;
   readonly proposals?: FictitiousProposalStore;
+  readonly support?: FictitiousSupportStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -385,6 +396,53 @@ function proposalReadCtxFrom(
   };
 }
 
+/**
+ * Contexte C17 (console support) : l'horloge est une date SERVEUR en secondes
+ * d'époque, injectée (`x-server-date`, défaut fictif fixe) et jamais fournie par
+ * le client. Identité/rôles/groupes viennent de l'en-tête fictif (C01 les
+ * résoudra via session + RLS). Le support n'a aucun pouvoir financier : aucune
+ * action de montant n'entre par ce contexte.
+ */
+function supportCtxFrom(
+  request: { headers: Record<string, unknown> },
+): SupportContext {
+  const actor = actorFrom(request);
+  const serverDateHeader = request.headers["x-server-date"];
+  const commandIdHeader = request.headers["x-command-id"];
+  const iso = typeof serverDateHeader === "string" ? serverDateHeader : "2026-09-28T00:00:00Z";
+  const ms = Date.parse(iso);
+  const serverNow = Number.isNaN(ms)
+    ? Math.floor(Date.parse("2026-09-28T00:00:00Z") / 1000)
+    : Math.floor(ms / 1000);
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    actorGroupIds: actor.groupIds,
+    serverNow,
+    commandId:
+      typeof commandIdHeader === "string"
+        ? commandIdHeader
+        : `cmd-${actor.identityId ?? actor.handle}`,
+  };
+}
+
+/**
+ * Contexte C17 en LECTURE (vue scopée) : authentification uniquement, une
+ * lecture ne mute rien et ne pose aucune décision d'accès.
+ */
+function supportReadCtxFrom(
+  request: { headers: Record<string, unknown> },
+): SupportContext {
+  const actor = actorFrom(request);
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    actorGroupIds: actor.groupIds,
+    serverNow: Math.floor(Date.parse("2026-09-28T00:00:00Z") / 1000),
+    commandId: `read-${actor.identityId ?? actor.handle}`,
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   const store = options.store ?? new FictitiousCommandStore();
@@ -398,6 +456,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const disputes = options.disputes ?? new FictitiousDisputeStore();
   const disbursements = options.disbursements ?? new FictitiousDisbursementStore();
   const proposals = options.proposals ?? new FictitiousProposalStore();
+  const support = options.support ?? new FictitiousSupportStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -1125,6 +1184,59 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { groupId } = request.params as { groupId: string };
     const ctx = proposalReadCtxFrom(request);
     return reply.code(200).send({ decisions: proposals.history(ctx, groupId) });
+  });
+
+  /* --- C17 : console support, accès JIT, double approbation (8.5, 9.6, 18.17) --- */
+
+  // Demande d'accès support (9.6). Le demandeur = identité résolue serveur ; le
+  // motif est obligatoire et toute permission financière/inconnue est refusée par
+  // le domaine (`PRIVILEGE_NOT_GRANTED`, 403). Naît `pending_approval`, zéro accès.
+  app.post("/v1/support/access-requests", async (request, reply) => {
+    const body = supportAccessRequestBody.parse(request.body);
+    const ctx = supportCtxFrom(request);
+    const view = support.request(ctx, {
+      requestId: body.requestId,
+      targetGroupId: body.targetGroupId,
+      motif: body.motif,
+      permissions: body.permissions,
+      ttlSeconds: body.ttlSeconds,
+    });
+    return reply.code(201).send(view);
+  });
+
+  // Approbation par une identité DISTINCTE serveur (COM05). Au seuil de deux
+  // approbateurs distincts → granted (expiration posée) ; sinon reste pending.
+  app.post("/v1/support/access-requests/:requestId/approvals", async (request, reply) => {
+    const { requestId } = request.params as { requestId: string };
+    const body = supportApprovalBody.parse(request.body);
+    const ctx = supportCtxFrom(request);
+    return reply.code(200).send(support.approve(ctx, requestId, body.ttlSeconds));
+  });
+
+  // Épreuve d'une action sensible (8.5, 18.17, C17-JIT). Le domaine juge : une
+  // action financière → 403 SUPPORT_FINANCIAL_FORBIDDEN (jamais exécutée) ; accès
+  // non granted/expiré → 403 ; hors périmètre/permission absente → 403. Le refus
+  // est consigné au journal de sécurité expurgé.
+  app.post("/v1/support/access-requests/:requestId/actions", async (request, reply) => {
+    const { requestId } = request.params as { requestId: string };
+    const body = supportActionBody.parse(request.body);
+    const ctx = supportCtxFrom(request);
+    return reply.code(200).send(support.act(ctx, requestId, body.action));
+  });
+
+  // Révocation immédiate (fin d'assistance / incident) — coupe l'accès.
+  app.post("/v1/support/access-requests/:requestId/revocations", async (request, reply) => {
+    const { requestId } = request.params as { requestId: string };
+    const ctx = supportCtxFrom(request);
+    return reply.code(200).send(support.revoke(ctx, requestId));
+  });
+
+  // Vue scopée et authentifiée d'une demande (anti-IDOR : un objet d'un autre
+  // groupe sous un chemin tiers → 404 non-divulgation).
+  app.get("/v1/groups/:groupId/support/access-requests/:requestId", async (request, reply) => {
+    const { groupId, requestId } = request.params as { groupId: string; requestId: string };
+    const ctx = supportReadCtxFrom(request);
+    return reply.code(200).send(support.view(ctx, groupId, requestId));
   });
 
   return app;

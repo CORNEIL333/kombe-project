@@ -75,6 +75,7 @@ async function main() {
 
   try {
     // État initial reproductible : on repart d'un schéma propre en base de test.
+    await runSql(migrator, "migrations/0014_support_security.down.sql");
     await runSql(migrator, "migrations/0013_outbox.down.sql");
     await runSql(migrator, "migrations/0012_proposal.down.sql");
     await runSql(migrator, "migrations/0011_disbursement.down.sql");
@@ -100,6 +101,7 @@ async function main() {
     await runSql(migrator, "migrations/0011_disbursement.sql");
     await runSql(migrator, "migrations/0012_proposal.sql");
     await runSql(migrator, "migrations/0013_outbox.sql");
+    await runSql(migrator, "migrations/0014_support_security.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).

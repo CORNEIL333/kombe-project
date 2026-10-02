@@ -50,6 +50,7 @@ const UP_MIGRATIONS = [
   "migrations/0011_disbursement.sql",
   "migrations/0012_proposal.sql",
   "migrations/0013_outbox.sql",
+  "migrations/0014_support_security.sql",
   "provision/roles.sql",
 ];
 

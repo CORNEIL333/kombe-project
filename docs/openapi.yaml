@@ -49,6 +49,11 @@ tags:
     description: >
       Journal d'événements append-only, vérification indépendante de la chaîne,
       checkpoints externes et timeline filtrée par droits (C11, 9.1 → 9.5)
+  - name: support
+    description: >
+      Console support : accès just-in-time à double approbation (COM05),
+      expiration serveur, séparation stricte du pouvoir financier et journal
+      de sécurité expurgé (C17, 8.5, 9.6, 9.7, 18.17)
 
 paths:
   /commands/{commandId}:
@@ -1600,6 +1605,133 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  # ── C17 : console support, accès JIT, double approbation (8.5, 9.6, 18.17) ──
+  /support/access-requests:
+    post:
+      tags: [support]
+      operationId: createSupportAccessRequest
+      summary: >
+        Demande d'accès support (9.6). Motif obligatoire ; le demandeur est
+        l'identité résolue SERVEUR (jamais un champ du corps). Toute permission
+        financière ou inconnue est refusée à la création (403) : la demande naît
+        pending_approval, ZÉRO accès sensible.
+      parameters:
+        - $ref: "#/components/parameters/ServerDate"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupportAccessRequestInput" }
+      responses:
+        "201":
+          description: Demande enregistrée, en attente de double approbation.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupportAccessView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /support/access-requests/{requestId}/approvals:
+    post:
+      tags: [support]
+      operationId: approveSupportAccess
+      summary: >
+        Approbation (COM05) par une identité DISTINCTE du demandeur, résolue
+        SERVEUR. Au seuil de deux approbateurs distincts, l'accès passe granted
+        et son expiration est posée ; en dessous, reste pending_approval.
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ServerDate"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupportApprovalInput" }
+      responses:
+        "200":
+          description: Demande mise à jour (pending ou granted).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupportAccessView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /support/access-requests/{requestId}/actions:
+    post:
+      tags: [support]
+      operationId: performSupportAction
+      summary: >
+        Épreuve d'une action sensible (8.5, 18.17, C17-JIT). Action financière
+        ⇒ 403 SUPPORT_FINANCIAL_FORBIDDEN (jamais exécutée) ; accès non
+        granted/expiré ⇒ 403 ; hors périmètre ou permission absente ⇒ 403. Le
+        refus est consigné au journal de sécurité expurgé.
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ServerDate"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupportActionInput" }
+      responses:
+        "200":
+          description: Décision d'accès (autorisée ou refus remonté en erreur).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupportActionReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /support/access-requests/{requestId}/revocations:
+    post:
+      tags: [support]
+      operationId: revokeSupportAccess
+      summary: >
+        Révocation immédiate (fin d'assistance / incident) — coupe l'accès ; un
+        accès éteint ne se réactive pas.
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/ServerDate"
+      responses:
+        "200":
+          description: Accès révoqué.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupportAccessView" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{groupId}/support/access-requests/{requestId}:
+    get:
+      tags: [support]
+      operationId: getSupportAccessRequest
+      summary: >
+        Vue scopée et authentifiée d'une demande. Anti-IDOR : un objet d'un autre
+        groupe sous un chemin tiers répond 404 non-divulgation, jamais ses données.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Vue de la demande (statut, approbateurs, expiration, version).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SupportAccessView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -1634,6 +1766,16 @@ components:
       required: true
       description: Version d'objet attendue pour toute mutation (concurrence optimiste, 18.2).
       schema: { type: integer, minimum: 1 }
+    ServerDate:
+      name: x-server-date
+      in: header
+      required: false
+      description: >
+        Horodatage SERVEUR injecté pour la recette du squelette (fictif ; C01 le
+        résoudra via session + horloge serveur). Une horloge de support ne peut
+        JAMAIS être fournie librement par le client : c'est la barrière serveur
+        qui juge l'expiration JIT (ADR-0005).
+      schema: { type: string, format: date-time }
 
   schemas:
     Money:
@@ -2217,6 +2359,68 @@ components:
       required: [normalCloseAccepted]
       properties:
         normalCloseAccepted: { type: boolean, enum: [true] }
+
+    # ── C17 : console support ──
+    SupportAccessRequestInput:
+      type: object
+      additionalProperties: false
+      required: [requestId, targetGroupId, motif, permissions, ttlSeconds]
+      properties:
+        requestId: { type: string, minLength: 1, maxLength: 120 }
+        targetGroupId: { type: string, minLength: 1, maxLength: 120 }
+        motif: { type: string, minLength: 1, maxLength: 500 }
+        # Permissions laissées ouvertes au schéma : la politique (refus financier
+        # /inconnu) est DÉTENUE par le domaine, jamais ici.
+        permissions:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { type: string, minLength: 1, maxLength: 40 }
+        ttlSeconds: { type: integer, minimum: 60, maximum: 86400 }
+    SupportApprovalInput:
+      type: object
+      additionalProperties: false
+      required: [ttlSeconds]
+      properties:
+        ttlSeconds: { type: integer, minimum: 60, maximum: 86400 }
+    SupportActionInput:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action: { type: string, minLength: 1, maxLength: 40 }
+    SupportAccessView:
+      type: object
+      additionalProperties: false
+      required: [requestId, applicantIdentityId, targetGroupId, motif, permissions, approverCount, requiredApprovals, requestedAt, status, version]
+      properties:
+        requestId: { type: string }
+        applicantIdentityId: { type: string }
+        targetGroupId: { type: string }
+        motif: { type: string }
+        permissions:
+          type: array
+          items:
+            type: string
+            enum: [view_trace, restore_access, explain_journal]
+        approverCount: { type: integer, minimum: 0 }
+        requiredApprovals: { type: integer, minimum: 2 }
+        requestedAt: { type: integer, format: int64 }
+        expiresAt: { type: [integer, 'null'], format: int64 }
+        status:
+          type: string
+          enum: [pending_approval, granted, expired, revoked]
+        version: { type: integer, minimum: 1 }
+    SupportActionReceipt:
+      type: object
+      additionalProperties: false
+      required: [requestId, action, groupId, accessAllowed, version]
+      properties:
+        requestId: { type: string }
+        action: { type: string }
+        groupId: { type: string }
+        accessAllowed: { type: boolean, enum: [true] }
+        version: { type: integer, minimum: 1 }
 
   responses:
     Forbidden:

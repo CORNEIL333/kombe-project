@@ -28,3 +28,5 @@ export * from "./validation.js";
 export * from "./disputes.js";
 export * from "./disbursement.js";
 export * from "./proposal.js";
+export * from "./support.js";
+export * from "./securityLog.js";
