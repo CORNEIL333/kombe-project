@@ -1,0 +1,13 @@
+{
+  "message_id": "f51c6c27-fe65-49c5-948b-26e5ab2bd5ab",
+  "from_harness_id": "qoder",
+  "to_harness_id": "qoder",
+  "lot": "C14",
+  "action": "claim",
+  "commit_sha": "6d05f13dceb2ca621aaaf9e235ffa5374a483d28",
+  "base_head_sha": "6d05f13dceb2ca621aaaf9e235ffa5374a483d28",
+  "evidence": { "type": "none", "ref": "" },
+  "signature": "qoder:pending",
+  "reason": "Reservation C14 (interface parcours/accessibilite/langues) par qoder ; dependencies C02/C03/C04/C05 toutes done. Aucun lot in_progress concurrent (C18 passe en in_review), pas de chevauchement de fichiers (perimetre = packages/client uniquement, ne touche ni domain ni api ni db ni worker). Le contrat C00 autorise la dependance UI des lors que build+Playwright sont raccordes : ce lot commence exactement par ce raccordement (build Vite+React+TS + recette E2E Playwright reellement executes ; egress npm OK, navigateurs ms-playwright presents), puis socle du parcours guide 12.1 i18n FR/EN accessible. Volets perf-telephones/LCP-INP-continu/certification-WCAG/EN-recrutement conserves BLOCKED explicitement.",
+  "at_utc": "2026-10-02T15:40:00Z"
+}

@@ -64,7 +64,7 @@
       "signoff_by": "qoder",
       "commit": "e00f93d66170385c8c552b757702754931e717a6"
     },
-    { "lot": "C14", "mission": "Interface parcours/accessibilité/langues", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C04", "C05"], "notes": "Client quasi vide ; contrat C00 interdit dépendance UI avant build+Playwright raccordés." },
+    { "lot": "C14", "mission": "Interface parcours/accessibilité/langues", "gate": "G0", "status": "in_progress", "owner_harness_id": "qoder", "owner_branch": "master", "depends_on": ["C02", "C03", "C04", "C05"], "files": ["packages/client/**"], "notes": "Réservé par qoder. Déverrouille le contrat C00 (pas de dépendance UI avant build+Playwright raccordés) : premier increment = câblage du build Vite+React+TS et de la recette E2E Playwright (les deux réellement exécutés ici : egress npm OK, navigateurs ms-playwright présents), puis socle du parcours guidé 12.1 (modèle→Njangi→caisse→récap) i18n FR/EN avec bascule accessible et primitives a11y (type=button, labels, erreurs liées, pas d'info par couleur seule, états chargement/vide/erreur/permission/offline). Scénarios C14-BACK (retour sans envoi -> submission_count=0), C14-MONEY (en-cours-non-validé -> label_claims_payment_verified=false), C14-A11Y (clavier + blockers accessibilité critiques=0). Les volets réellement BLOCKED restent consignés (perf p95 sur téléphones/CI, LCP/INP continu, certification WCAG AA, recrutement EN). Ne touche ni domain ni api ni db ni worker." },
     { "lot": "C15", "mission": "Cache hors-ligne + synchronisation", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C06", "C14"] },
     {
       "lot": "C16", "mission": "Données personnelles/notices/droits", "gate": "G0",
