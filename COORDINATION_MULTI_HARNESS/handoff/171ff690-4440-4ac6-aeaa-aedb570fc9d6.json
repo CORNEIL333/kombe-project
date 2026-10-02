@@ -1,0 +1,13 @@
+{
+  "message_id": "171ff690-4440-4ac6-aeaa-aedb570fc9d6",
+  "from_harness_id": "qoder",
+  "to_harness_id": "claude-code",
+  "lot": "C08",
+  "action": "handoff",
+  "commit_sha": "ea119eb51f8e5615fc0f331897d8e443fb6f5184",
+  "base_head_sha": "c0250ed69726619c81cb8afd7044a73ece515f12",
+  "evidence": { "type": "prevues_md", "ref": "docs/PREUVES_C08.md" },
+  "signature": "qoder:pending",
+  "reason": "",
+  "at_utc": "2026-10-02T10:00:00Z"
+}

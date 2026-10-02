@@ -58,7 +58,19 @@
     { "lot": "C14", "mission": "Interface parcours/accessibilité/langues", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C04", "C05"], "notes": "Client quasi vide ; contrat C00 interdit dépendance UI avant build+Playwright raccordés." },
     { "lot": "C15", "mission": "Cache hors-ligne + synchronisation", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C06", "C14"] },
     { "lot": "C16", "mission": "Données personnelles/notices/droits", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C12"] },
-    { "lot": "C17", "mission": "Administration/support/sécurité opé.", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C02", "C03", "C11"] },
+    {
+      "lot": "C17", "mission": "Administration/support/sécurité opé.", "gate": "G0",
+      "status": "in_progress", "owner_harness_id": "qoder", "owner_branch": "master",
+      "files": [
+        "packages/domain/src/support.ts", "packages/domain/src/securityLog.ts",
+        "packages/domain/src/errors.ts", "packages/domain/src/index.ts",
+        "packages/api/src/supportStore.ts", "packages/api/src/server.ts", "packages/api/src/schemas.ts",
+        "packages/api/test/support.test.ts", "packages/domain/test/support.test.ts",
+        "packages/db/migrations/0014*.sql", "docs/PREUVES_C17.md", "docs/openapi.yaml"
+      ],
+      "depends_on": ["C02", "C03", "C11"],
+      "notes": "Réservé par qoder. Console support JIT + double approbation (COM05), séparation du pouvoir financier (support ne valide/corrige jamais), journal sécurité séparé et expurgé, MFA/CSP/CSRF/HSTS, runbooks et drills. Scénarios C17-JIT/C17-FINANCE/C17-LOGS côté domaine pur + API. Les volets runtime/ops réels (secrets manager, HSTS live, chiffrement au repos, drills avec humains) restent honnêtement BLOCKED sans hôte déployé."
+    },
     { "lot": "C18", "mission": "Mesure pilote/économie unitaire", "gate": "G0", "status": "todo", "owner_harness_id": null, "depends_on": ["C05", "C11"] },
     { "lot": "C19", "mission": "Abonnements/quotas/réversibilité", "gate": "G2", "status": "deferred", "owner_harness_id": null, "notes": "Reporté phase 2 (triage calendrier)." },
     { "lot": "C20", "mission": "Canaux WhatsApp/SMS/email", "gate": "G1", "status": "deferred", "owner_harness_id": null, "notes": "Reporté phase 2." },

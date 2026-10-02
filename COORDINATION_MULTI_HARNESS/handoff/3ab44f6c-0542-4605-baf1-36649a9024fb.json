@@ -1,0 +1,13 @@
+{
+  "message_id": "3ab44f6c-0542-4605-baf1-36649a9024fb",
+  "from_harness_id": "qoder",
+  "to_harness_id": null,
+  "lot": "C17",
+  "action": "claim",
+  "commit_sha": "c0250ed69726619c81cb8afd7044a73ece515f12",
+  "base_head_sha": "c0250ed69726619c81cb8afd7044a73ece515f12",
+  "evidence": { "type": "manual", "ref": "KOMBE_Audit_Construction/03_Prompts/C17_PROMPT.md" },
+  "signature": "qoder:pending",
+  "reason": "",
+  "at_utc": "2026-10-02T10:00:00Z"
+}
