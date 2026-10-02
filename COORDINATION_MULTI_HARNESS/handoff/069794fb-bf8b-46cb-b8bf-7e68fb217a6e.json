@@ -1,0 +1,13 @@
+{
+  "message_id": "069794fb-bf8b-46cb-b8bf-7e68fb217a6e",
+  "from_harness_id": "qoder",
+  "to_harness_id": "qoder",
+  "lot": "C15",
+  "action": "claim",
+  "commit_sha": "68803827235feac6a99b932973fb8d66cde6ae0b",
+  "base_head_sha": "68803827235feac6a99b932973fb8d66cde6ae0b",
+  "evidence": { "type": "none", "ref": "" },
+  "signature": "qoder:pending",
+  "reason": "Reservation C15 (cache hors-ligne + synchronisation) par qoder ; dependances C06 (done) et C14 (in_review, code commité dab93e5, build+Playwright réels, tests verts) traité comme socle stable. Aucun lot in_progress concurrent, pas de chevauchement de fichiers (perimetre packages/client/**). Moteur hors-ligne client pur SANS backend : cache lecture whitelist par compte/groupe/période + TTL + dernière sync (pas de secret auth/commentaire litige/référence complète ; appareil partagé = aucune conservation), file de commandes où brouillon != commande acceptée (hors-ligne jamais server_validé — C15-OFFLINE), purge au logout scopée identité (B ne voit pas A — C15-LOGOUT), revalidation au retour contre autorité serveur (rôle révoqué en coupure => mutation refusée — C15-RECONNECT ; horloge client ne prolonge pas un droit). Frontière serveur injectée/stubbée dans les tests.",
+  "at_utc": "2026-10-02T16:00:00Z"
+}
