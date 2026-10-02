@@ -359,3 +359,67 @@ export const reversalRequestBody = z.object({
   reason: z.string().min(1).max(500),
 });
 export type ReversalRequestInput = z.infer<typeof reversalRequestBody>;
+
+/* --- C16 : données personnelles — notices, consentement, droits, purge --- */
+
+// Publication d'une notice légale (13.1). La décision (placeholder, promesse de
+// garantie, date) est DÉLÉGUÉE au domaine ; le schéma borne la forme seulement.
+export const legalNoticeBody = z.object({
+  noticeId: z.string().min(1).max(120),
+  kind: z.enum(["cgu", "privacy", "cookies", "contact", "complaint"]),
+  version: z.string().min(1).max(60),
+  lastUpdatedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "AAAA-MM-JJ requis"),
+  body: z.string().min(1).max(4000),
+});
+
+// Consentement facultatif (13.4) : catégorie connue, valeur booléenne. Le
+// service cœur n'est pas une catégorie ; son accès est résolu serveur.
+export const consentBody = z.object({
+  category: z.enum(["research", "marketing", "future_ai"]),
+  granted: z.boolean(),
+});
+
+// Registre des traitements (13.3) : la décision (placeholder, base inconnue,
+// durée non entière) est déléguée au domaine.
+export const processingRecordBody = z.object({
+  purpose: z.string().min(1).max(300),
+  dataCategories: z.array(z.string().min(1).max(60)).min(1).max(20),
+  legalBasis: z.enum([
+    "contract",
+    "consent",
+    "legal_obligation",
+    "vital_interest",
+    "public_task",
+    "legitimate_interest",
+  ]),
+  recipients: z.array(z.string().min(1).max(120)).max(20).default([]),
+  country: z.string().min(1).max(60),
+  retentionDays: z.number().int().min(1).max(36500),
+});
+
+// Ouverture d'une demande de droit (18.19) : le sujet = identité résolue serveur
+// (jamais un champ du corps), d'où l'absence de tout `subjectIdentityId`.
+export const rightsRequestOpenBody = z.object({
+  requestId: z.string().min(1).max(120),
+  kind: z.enum(["access", "export", "erasure", "rectification", "objection"]),
+});
+
+// Vérification proportionnée (18.19) : niveau atteint, jugé par le domaine.
+export const rightsVerificationBody = z.object({
+  level: z.number().int().min(0).max(5),
+});
+
+// Gel/restiction motivée (18.19) : motif obligatoire (jamais de refus automatique).
+export const rightsRestrictionBody = z.object({
+  reason: z.string().min(1).max(500),
+});
+
+// Restauration (18.10) : le point est interne au serveur ; on sonde seulement
+// la visibilité d'une identité après réapplication des effacements.
+export const restorationBody = z.object({
+  probeIdentityId: z.string().min(1).max(120),
+});
+
+export type LegalNoticeInput = z.infer<typeof legalNoticeBody>;
+export type ConsentInput = z.infer<typeof consentBody>;
+export type RightsRequestOpenInput = z.infer<typeof rightsRequestOpenBody>;

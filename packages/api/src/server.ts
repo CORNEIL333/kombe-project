@@ -48,6 +48,10 @@ import {
   type ExportContext,
 } from "./exportStore.js";
 import {
+  FictitiousPrivacyStore,
+  type PrivacyContext,
+} from "./privacyStore.js";
+import {
   declareContributionBody,
   declareContributionBody_c06,
   contributionDraftBody,
@@ -91,6 +95,13 @@ import {
   supportActionBody,
   createExportBody,
   exportVerificationBody,
+  legalNoticeBody,
+  consentBody,
+  processingRecordBody,
+  rightsRequestOpenBody,
+  rightsVerificationBody,
+  rightsRestrictionBody,
+  restorationBody,
 } from "./schemas.js";
 
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
@@ -166,6 +177,11 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   SUPPORT_FINANCIAL_FORBIDDEN: 403,
   EXPORT_CUTOPE_INVALID: 422,
   EXPORT_IDENTIFIANT_REQUIS: 422,
+  PRIVACY_IDENTIFIANT_REQUIS: 422,
+  PRIVACY_CONTENU_PLACEHOLDER: 422,
+  PRIVACY_CONSENTEMENT_CATEGORIE_INCONNUE: 422,
+  PRIVACY_VERIFICATION_INSUFFISANTE: 403,
+  PRIVACY_MOTIF_GEL_REQUIS: 422,
 };
 
 export interface BuildAppOptions {
@@ -182,6 +198,7 @@ export interface BuildAppOptions {
   readonly proposals?: FictitiousProposalStore;
   readonly support?: FictitiousSupportStore;
   readonly exports?: FictitiousExportStore;
+  readonly privacy?: FictitiousPrivacyStore;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -469,6 +486,29 @@ function exportCtxFrom(
   };
 }
 
+/**
+ * Contexte C16 (données personnelles) : l'horloge est une date SERVEUR en
+ * secondes d'époque injectée (`x-server-date`) ; le sujet d'un droit et son
+ * appartenance active (service cœur) sont résolus côté serveur, jamais déclarés
+ * par le client (ADR-0005/0006). Aucun montant ne transite par ce contexte.
+ */
+function privacyCtxFrom(
+  request: { headers: Record<string, unknown> },
+): PrivacyContext {
+  const actor = actorFrom(request);
+  const serverDateHeader = request.headers["x-server-date"];
+  const iso = typeof serverDateHeader === "string" ? serverDateHeader : "2026-09-28T00:00:00Z";
+  const ms = Date.parse(iso);
+  const serverNow = Number.isNaN(ms)
+    ? Math.floor(Date.parse("2026-09-28T00:00:00Z") / 1000)
+    : Math.floor(ms / 1000);
+  return {
+    actorIdentityId: actor.identityId ?? actor.handle,
+    actorRole: actor.role,
+    serverNow,
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   const store = options.store ?? new FictitiousCommandStore();
@@ -484,6 +524,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const proposals = options.proposals ?? new FictitiousProposalStore();
   const support = options.support ?? new FictitiousSupportStore();
   const exportStore = options.exports ?? new FictitiousExportStore();
+  const privacyStore = options.privacy ?? new FictitiousPrivacyStore();
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -1318,6 +1359,103 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const body = exportVerificationBody.parse(request.body);
     const ctx = exportCtxFrom(request);
     return reply.code(200).send(exportStore.verify(ctx, manifestId, body.bytesBase64));
+  });
+
+  /* --- C16 : données personnelles — notices, consentement, droits, purge (13.x, 18.10, 18.19) --- */
+
+  // Publication d'une notice légale versionnée (13.1). Le domaine refuse une
+  // notice à placeholder ou promettant une garantie/preuve (422 stable).
+  app.post("/v1/privacy/notices", async (request, reply) => {
+    const body = legalNoticeBody.parse(request.body);
+    const ctx = privacyCtxFrom(request);
+    return reply.code(201).send(privacyStore.publishNotice(ctx, body));
+  });
+
+  // Lecture d'une notice (404 non-divulguant si absente).
+  app.get("/v1/privacy/notices/:noticeId", async (request, reply) => {
+    const { noticeId } = request.params as { noticeId: string };
+    return reply.code(200).send(privacyStore.getNotice(noticeId));
+  });
+
+  // Enregistrement d'un traitement au registre (13.3) — factuel, base connue.
+  app.post("/v1/privacy/processing-records", async (request, reply) => {
+    const body = processingRecordBody.parse(request.body);
+    const ctx = privacyCtxFrom(request);
+    return reply.code(201).send(privacyStore.registerProcessing(ctx, body));
+  });
+
+  // Consentement facultatif (13.4) pour la catégorie donnée. La vue porte le
+  // service cœur RÉSOLU SERVEUR : un refus de recherche ne le coupe pas.
+  app.post("/v1/privacy/consents", async (request, reply) => {
+    const body = consentBody.parse(request.body);
+    const ctx = privacyCtxFrom(request);
+    return reply.code(200).send(privacyStore.setConsentFor(ctx, body.category, body.granted));
+  });
+
+  app.get("/v1/privacy/consents", async (request, reply) => {
+    const ctx = privacyCtxFrom(request);
+    return reply.code(200).send(privacyStore.getConsent(ctx));
+  });
+
+  // Ouverture d'une demande de droit (18.19). Le sujet = identité serveur ;
+  // aucune exécution ici (statut `received`).
+  app.post("/v1/privacy/rights-requests", async (request, reply) => {
+    const body = rightsRequestOpenBody.parse(request.body);
+    const ctx = privacyCtxFrom(request);
+    return reply.code(201).send(privacyStore.openRequest(ctx, body.requestId, body.kind));
+  });
+
+  // Vérification proportionnée : au seuil du type de droit ⇒ `ready`, sinon
+  // `requires_more_info` (jamais un refus automatique).
+  app.post(
+    "/v1/privacy/rights-requests/:requestId/verifications",
+    async (request, reply) => {
+      const { requestId } = request.params as { requestId: string };
+      const body = rightsVerificationBody.parse(request.body);
+      const ctx = privacyCtxFrom(request);
+      return reply.code(200).send(privacyStore.verifyRequest(ctx, requestId, body.level));
+    },
+  );
+
+  // Gel/restiction MOTIVÉE (18.19) — motif obligatoire (422 sinon), daté.
+  app.post(
+    "/v1/privacy/rights-requests/:requestId/restrictions",
+    async (request, reply) => {
+      const { requestId } = request.params as { requestId: string };
+      const body = rightsRestrictionBody.parse(request.body);
+      const ctx = privacyCtxFrom(request);
+      return reply.code(200).send(privacyStore.restrictRequest(ctx, requestId, body.reason));
+    },
+  );
+
+  // Exécution d'un export personnel FILTRÉ (C16-EXPORT). Anti-IDOR : la demande
+  // doit appartenir au caller (sinon 404) ; vérification insuffisante ⇒ 403.
+  app.post("/v1/privacy/rights-requests/:requestId/export", async (request, reply) => {
+    const { requestId } = request.params as { requestId: string };
+    const ctx = privacyCtxFrom(request);
+    return reply.code(201).send(privacyStore.executeExport(ctx, requestId));
+  });
+
+  // Exécution d'un effacement (18.10) après vérification proportionnée : pose un
+  // tombstone et retire l'identité du service cœur.
+  app.post("/v1/privacy/rights-requests/:requestId/erasure", async (request, reply) => {
+    const { requestId } = request.params as { requestId: string };
+    const ctx = privacyCtxFrom(request);
+    return reply.code(200).send(privacyStore.executeErasure(ctx, requestId));
+  });
+
+  // Point de restauration (18.10) : instantané des identités visibles.
+  app.post("/v1/privacy/restore-points", async (request, reply) => {
+    const ctx = privacyCtxFrom(request);
+    return reply.code(201).send(privacyStore.snapshotRestorePoint(ctx));
+  });
+
+  // Restauration (C16-RESTORE) : réapplique effacements ET révocations ; une
+  // identité effacée après le point reste invisible (deleted_identity_visible false).
+  app.post("/v1/privacy/restorations", async (request, reply) => {
+    const body = restorationBody.parse(request.body);
+    const ctx = privacyCtxFrom(request);
+    return reply.code(200).send(privacyStore.restoreLatest(ctx, body.probeIdentityId));
   });
 
   return app;

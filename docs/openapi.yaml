@@ -57,6 +57,13 @@ tags:
       Console support : accès just-in-time à double approbation (COM05),
       expiration serveur, séparation stricte du pouvoir financier et journal
       de sécurité expurgé (C17, 8.5, 9.6, 9.7, 18.17)
+  - name: privacy
+    description: >
+      Données personnelles : notices légales versionnées sans promesse,
+      registre des traitements factuel, consentement séparé du service cœur,
+      droits à vérification proportionnée, export filtré, purge/tombstones et
+      restauration réappliquant effacements et révocations (C16, 13.1–13.4,
+      18.10, 18.19)
 
 paths:
   /commands/{commandId}:
@@ -1843,6 +1850,264 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Unprocessable" }
 
+  /v1/privacy/notices:
+    post:
+      tags: [privacy]
+      summary: Publier une notice légale versionnée (13.1, 13.2)
+      description: >
+        Refusée (422) si le corps contient un placeholder (« bientôt », « TBD »…)
+        ou une promesse de garantie des fonds / de valeur juridique. Une notice
+        publiée est immuable (version = nouvelle ligne en base, 0016).
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LegalNoticeInput" }
+      responses:
+        "201":
+          description: Notice publiée.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalNoticeView" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /v1/privacy/notices/{noticeId}:
+    get:
+      tags: [privacy]
+      summary: Lire une notice légale
+      parameters:
+        - name: noticeId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Notice.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalNoticeView" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/privacy/processing-records:
+    post:
+      tags: [privacy]
+      summary: Enregistrer un traitement au registre (13.3)
+      description: >
+        Enregistrement factuel : finalité et pays sans placeholder, catégories
+        non vides, base juridique connue, durée de conservation entière positive.
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProcessingRecordInput" }
+      responses:
+        "201":
+          description: Traitement enregistré.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProcessingRecordView" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /v1/privacy/consents:
+    post:
+      tags: [privacy]
+      summary: Accorder/retirer un consentement facultatif (13.4)
+      description: >
+        Catégories strictement facultatives (recherche / marketing / IA future).
+        La réponse porte `coreServiceAvailable`, résolu SERVEUR depuis
+        l'appartenance active : un refus de consentement ne le coupe jamais
+        (C16-CONSENT).
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConsentInput" }
+      responses:
+        "200":
+          description: Consentement à jour + disponibilité du service cœur.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConsentView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+    get:
+      tags: [privacy]
+      summary: Lire l'état de consentement du appelant (13.4)
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      responses:
+        "200":
+          description: Consentement + service cœur.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConsentView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/privacy/rights-requests:
+    post:
+      tags: [privacy]
+      summary: Ouvrir une demande de droit (18.19)
+      description: >
+        Le sujet est l'identité résolue SERVEUR (jamais un champ du corps). La
+        demande naît `received` ; aucune exécution ici.
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RightsRequestInput" }
+      responses:
+        "201":
+          description: Demande ouverte.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RightsRequestView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /v1/privacy/rights-requests/{requestId}/verifications:
+    post:
+      tags: [privacy]
+      summary: Enregistrer un niveau de vérification proportionnée (18.19)
+      description: >
+        Au seuil requis pour le type de droit ⇒ `ready`, sinon
+        `requires_more_info` — jamais un refus automatique.
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string }
+        - { $ref: "#/components/parameters/ServerDate" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RightsVerificationInput" }
+      responses:
+        "200":
+          description: Demande mise à jour.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RightsRequestView" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /v1/privacy/rights-requests/{requestId}/restrictions:
+    post:
+      tags: [privacy]
+      summary: Geler/restreindre une demande pour un motif documenté (18.19)
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string }
+        - { $ref: "#/components/parameters/ServerDate" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RightsRestrictionInput" }
+      responses:
+        "200":
+          description: Demande gelée (motif daté).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RightsRequestView" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /v1/privacy/rights-requests/{requestId}/export:
+    post:
+      tags: [privacy]
+      summary: Exécuter un export personnel FILTRÉ (C16-EXPORT, 18.19)
+      description: >
+        Anti-IDOR : la demande doit appartenir à l'appelant (sinon 404). La
+        vérification doit atteindre le seuil (sinon 403). L'extraction exclut
+        structurellement tout champ privé d'un autre membre
+        (`thirdPartyPrivateFields = 0`).
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string }
+        - { $ref: "#/components/parameters/ServerDate" }
+      responses:
+        "201":
+          description: Reçu d'export filtré.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PersonalExportReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/privacy/rights-requests/{requestId}/erasure:
+    post:
+      tags: [privacy]
+      summary: Exécuter un effacement après vérification (18.10)
+      description: >
+        Pose un tombstone (append-only en base, 0016) et retire l'identité du
+        service cœur. Exige la vérification proportionnée à l'irréversibilité.
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string }
+        - { $ref: "#/components/parameters/ServerDate" }
+      responses:
+        "200":
+          description: Demande exécutée (effacement posé).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RightsRequestView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/privacy/restore-points:
+    post:
+      tags: [privacy]
+      summary: Prendre un point de restauration (18.10)
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      responses:
+        "201":
+          description: Instantané des identités visibles.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RestorePointView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/privacy/restorations:
+    post:
+      tags: [privacy]
+      summary: Restaurer en réappliquant effacements ET révocations (C16-RESTORE)
+      description: >
+        Restaure depuis le dernier point en réappliquant les effacements
+        (tombstones) et les révocations postérieurs avant réouverture : une
+        identité effacée après le point reste invisible
+        (`deletedIdentityVisible = false`).
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RestorationInput" }
+      responses:
+        "200":
+          description: Reçu de restauration.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RestoreReceiptView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -1921,6 +2186,11 @@ components:
         - JOUR_INVALIDE
         - EXPORT_CUTOPE_INVALID
         - EXPORT_IDENTIFIANT_REQUIS
+        - PRIVACY_IDENTIFIANT_REQUIS
+        - PRIVACY_CONTENU_PLACEHOLDER
+        - PRIVACY_CONSENTEMENT_CATEGORIE_INCONNUE
+        - PRIVACY_VERIFICATION_INSUFFISANTE
+        - PRIVACY_MOTIF_GEL_REQUIS
         - FEATURE_PILOT_FORBIDDEN
         - RULE_INVALID
         - RULE_VERSION_IMMUTABLE
@@ -2585,6 +2855,182 @@ components:
         verification_passed: { type: boolean }
         checkedHash: { type: string, pattern: '^[0-9a-f]{64}$' }
         expectedHash: { type: string, pattern: '^[0-9a-f]{64}$' }
+
+    LegalNoticeInput:
+      type: object
+      additionalProperties: false
+      required: [noticeId, kind, version, lastUpdatedAt, body]
+      properties:
+        noticeId: { type: string, minLength: 1, maxLength: 120 }
+        kind: { type: string, enum: [cgu, privacy, cookies, contact, complaint] }
+        version: { type: string, minLength: 1, maxLength: 60 }
+        lastUpdatedAt:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+          description: Date ISO (AAAA-MM-JJ) de dernière mise à jour, affichée sur la page.
+        body:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: >
+            Corps publiable : ni placeholder (« bientôt », « TBD », …) ni promesse
+            de garantie des fonds ou de preuve légale (mention prudente).
+    LegalNoticeView:
+      type: object
+      additionalProperties: false
+      required: [noticeId, kind, version, lastUpdatedAt, body]
+      properties:
+        noticeId: { type: string }
+        kind: { type: string, enum: [cgu, privacy, cookies, contact, complaint] }
+        version: { type: string }
+        lastUpdatedAt: { type: string, pattern: '^\d{4}-\d{2}-\d{2}$' }
+        body: { type: string }
+    ProcessingRecordInput:
+      type: object
+      additionalProperties: false
+      required: [purpose, dataCategories, legalBasis, country, retentionDays]
+      properties:
+        purpose: { type: string, minLength: 1, maxLength: 300 }
+        dataCategories:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { type: string, minLength: 1, maxLength: 60 }
+        legalBasis:
+          type: string
+          enum: [contract, consent, legal_obligation, vital_interest, public_task, legitimate_interest]
+        recipients:
+          type: array
+          maxItems: 20
+          items: { type: string, minLength: 1, maxLength: 120 }
+        country: { type: string, minLength: 1, maxLength: 60 }
+        retentionDays:
+          type: integer
+          minimum: 1
+          maximum: 36500
+          description: Durée de conservation en jours entiers (jamais de flottant, jamais vide).
+    ProcessingRecordView:
+      type: object
+      additionalProperties: false
+      required: [purpose, dataCategories, legalBasis, recipients, country, retentionDays]
+      properties:
+        purpose: { type: string }
+        dataCategories: { type: array, items: { type: string } }
+        legalBasis:
+          type: string
+          enum: [contract, consent, legal_obligation, vital_interest, public_task, legitimate_interest]
+        recipients: { type: array, items: { type: string } }
+        country: { type: string }
+        retentionDays: { type: integer, minimum: 1 }
+    ConsentInput:
+      type: object
+      additionalProperties: false
+      required: [category, granted]
+      description: >
+        Catégories strictement facultatives. Le service cœur n'est pas une
+        catégorie : sa disponibilité est résolue serveur, jamais gated par ici.
+      properties:
+        category: { type: string, enum: [research, marketing, future_ai] }
+        granted: { type: boolean }
+    ConsentView:
+      type: object
+      additionalProperties: false
+      required: [identityId, research, marketing, futureAi, coreServiceAvailable]
+      properties:
+        identityId: { type: string }
+        research: { type: boolean }
+        marketing: { type: boolean }
+        futureAi: { type: boolean }
+        coreServiceAvailable:
+          type: boolean
+          description: >
+            Résolu SERVEUR depuis l'appartenance active : un refus de consentement
+            facultatif ne le coupe jamais (C16-CONSENT).
+    RightsRequestInput:
+      type: object
+      additionalProperties: false
+      required: [requestId, kind]
+      description: Le sujet est l'identité résolue serveur, jamais un champ du corps.
+      properties:
+        requestId: { type: string, minLength: 1, maxLength: 120 }
+        kind: { type: string, enum: [access, export, erasure, rectification, objection] }
+    RightsRequestView:
+      type: object
+      additionalProperties: false
+      required: [requestId, subjectIdentityId, kind, status, verificationLevel, requiredVerification, restrictionReason, version]
+      properties:
+        requestId: { type: string }
+        subjectIdentityId: { type: string }
+        kind: { type: string, enum: [access, export, erasure, rectification, objection] }
+        status:
+          type: string
+          enum: [received, requires_more_info, ready, fulfilled, frozen]
+        verificationLevel: { type: integer, minimum: 0 }
+        requiredVerification: { type: integer, minimum: 0 }
+        restrictionReason: { type: [string, "null"] }
+        version: { type: integer, minimum: 1 }
+    RightsVerificationInput:
+      type: object
+      additionalProperties: false
+      required: [level]
+      properties:
+        level: { type: integer, minimum: 0, maximum: 5 }
+    RightsRestrictionInput:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      description: Motif obligatoire pour geler (jamais de refus automatique sans motif daté).
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    PersonalField:
+      type: object
+      additionalProperties: false
+      required: [key, ownerIdentityId, visibility, value]
+      properties:
+        key: { type: string }
+        ownerIdentityId: { type: string }
+        visibility: { type: string, enum: [private, shared, public] }
+        value: { type: string }
+    PersonalExportReceipt:
+      type: object
+      additionalProperties: false
+      required: [subjectIdentityId, entries, thirdPartyPrivateFields, prudentNotice]
+      properties:
+        subjectIdentityId: { type: string }
+        entries: { type: array, items: { $ref: "#/components/schemas/PersonalField" } }
+        thirdPartyPrivateFields:
+          type: integer
+          minimum: 0
+          description: >
+            Doit être structurellement 0 : l'extraction exclut tout champ privé
+            d'un autre membre (C16-EXPORT).
+        prudentNotice: { type: string }
+    RestorePointView:
+      type: object
+      additionalProperties: false
+      required: [takenAt, identities]
+      properties:
+        takenAt: { type: integer, format: int64, description: Horodatage serveur (secondes d'époque). }
+        identities: { type: array, items: { type: string } }
+    RestorationInput:
+      type: object
+      additionalProperties: false
+      required: [probeIdentityId]
+      properties:
+        probeIdentityId: { type: string, minLength: 1, maxLength: 120 }
+    RestoreReceiptView:
+      type: object
+      additionalProperties: false
+      required: [visible, reAppliedErasures, reAppliedRevocations, deletedIdentityVisible]
+      properties:
+        visible: { type: array, items: { type: string } }
+        reAppliedErasures: { type: integer, minimum: 0 }
+        reAppliedRevocations: { type: array, items: { type: string } }
+        deletedIdentityVisible:
+          type: boolean
+          description: >
+            False si l'identité sonde a ete effacee apres le point : la restauration
+            reapplique les effacements (C16-RESTORE).
 
   responses:
     Forbidden:
