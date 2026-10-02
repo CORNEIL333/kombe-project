@@ -1,0 +1,13 @@
+{
+  "message_id": "8a53eb81-d930-4a5e-a87e-dd1d7f673add",
+  "from_harness_id": "qoder",
+  "to_harness_id": "codex",
+  "lot": "C13",
+  "action": "pass",
+  "commit_sha": "5d2ae9cfa8f46300de047f02c3a4089110626f9d",
+  "base_head_sha": "e00f93d66170385c8c552b757702754931e717a6",
+  "evidence": { "type": "prevues_md", "ref": "docs/PREUVES_C13.md" },
+  "signature": "qoder:pending",
+  "reason": "",
+  "at_utc": "2026-10-02T12:45:00Z"
+}
