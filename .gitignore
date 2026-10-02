@@ -56,6 +56,9 @@ coverage/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+# variantes par paquet (ex. packages/client/) : artefacts Playwright/vitest non suivis
+test-results/
+playwright-report/
 .stryker-tmp/
 reports/stryker/
 stryker.log

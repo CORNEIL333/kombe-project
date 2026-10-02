@@ -1,0 +1,265 @@
+/* KÓMBE C14 — tokens de design et styles de base.
+   Objectif : contraste AA vérifiable (rapport manuel documenté, jamais une
+   certification implicite), reflow/zoom sans perte d'information, et
+   AUCUNE information portée par la couleur seule (les badges ajoutent toujours
+   un texte explicite). */
+
+:root {
+  /* Couleurs (paires foreground/background contrastées ≥ 4,5:1 pour le texte
+     courant). */
+  --couleur-fond: #ffffff;
+  --couleur-fond-renforce: #f4f5f7;
+  --couleur-texte: #14181f;
+  --couleur-texte-affaibli: #4a5160;
+  --couleur-primaire: #0b4f63;
+  --couleur-primaire-texte: #ffffff;
+  --couleur-bordure: #c9ced8;
+  --couleur-focus: #0b4f63;
+  --couleur-alerte: #8a2b06;
+  --couleur-alerte-fond: #fdece4;
+  --couleur-valide: #0f5132;
+  --couleur-canevas: #5c3a00;
+
+  --rayon: 10px;
+  --espace-1: 0.25rem;
+  --espace-2: 0.5rem;
+  --espace-3: 1rem;
+  --espace-4: 1.5rem;
+  --espace-5: 2.5rem;
+  --largeur-max: 46rem;
+  --taille-police: 1rem;
+  --hauteur-ligne: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: var(--taille-police);
+  line-height: var(--hauteur-ligne);
+}
+
+/* Lien d'évitement : visible uniquement au focus clavier (12.4 navigation). */
+.evitement {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: var(--couleur-primaire);
+  color: var(--couleur-primaire-texte);
+  padding: var(--espace-2) var(--espace-3);
+  border-radius: 0 0 var(--rayon) 0;
+}
+.evitement:focus {
+  left: 0;
+}
+
+.app {
+  max-width: var(--largeur-max);
+  margin: 0 auto;
+  padding: var(--espace-4) var(--espace-3);
+}
+
+.entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espace-3);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--couleur-bordure);
+  padding-bottom: var(--espace-3);
+  margin-bottom: var(--espace-4);
+}
+
+.entete h1 {
+  font-size: 1.4rem;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espace-1);
+  margin-bottom: var(--espace-3);
+}
+
+.champ label {
+  font-weight: 600;
+}
+
+.champ input,
+.champ select {
+  font: inherit;
+  padding: var(--espace-2);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+}
+
+.erreur-champ {
+  color: var(--couleur-alerte);
+  font-weight: 600;
+  /* Le texte d'erreur est explicite (préfixe « Erreur : ») : il ne repose pas
+     sur la couleur seule. */
+}
+
+.aide-champ {
+  color: var(--couleur-texte-affaibli);
+  font-size: 0.9rem;
+}
+
+.bouton {
+  font: inherit;
+  cursor: pointer;
+  padding: var(--espace-2) var(--espace-4);
+  border-radius: var(--rayon);
+  border: 1px solid var(--couleur-primaire);
+  background: var(--couleur-primaire);
+  color: var(--couleur-primaire-texte);
+  min-height: 44px; /* cible tactile */
+}
+
+.bouton-secondaire {
+  background: var(--couleur-fond);
+  color: var(--couleur-primaire);
+}
+
+.bouton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.bouton:focus-visible,
+.champ input:focus-visible,
+.champ select:focus-visible,
+.saut-langue button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--couleur-focus);
+  outline-offset: 2px;
+}
+
+/* Indicateur d'étapes : la position courante est marquée par un texte
+   (« Étape N sur M » + badge « en cours ») et non par la couleur seule. */
+.etapes {
+  list-style: none;
+  display: flex;
+  gap: var(--espace-2);
+  padding: 0;
+  margin: 0 0 var(--espace-4);
+  flex-wrap: wrap;
+}
+.etapes li {
+  padding: var(--espace-1) var(--espace-2);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  color: var(--couleur-texte-affaibli);
+}
+.etapes li[aria-current="step"] {
+  border-color: var(--couleur-primaire);
+  color: var(--couleur-texte);
+  font-weight: 700;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espace-1);
+  padding: 2px var(--espace-2);
+  border: 1px solid var(--couleur-bordure);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.badge[data-état="valide"] {
+  color: var(--couleur-valide);
+  border-color: var(--couleur-valide);
+}
+.badge[data-état="en-cours"] {
+  color: var(--couleur-canevas);
+  border-color: var(--couleur-canevas);
+}
+.badge[data-état="erreur"] {
+  color: var(--couleur-alerte);
+  border-color: var(--couleur-alerte);
+  background: var(--couleur-alerte-fond);
+}
+
+.zone-etat {
+  border: 1px dashed var(--couleur-bordure);
+  border-radius: var(--rayon);
+  padding: var(--espace-3);
+  color: var(--couleur-texte-affaibli);
+}
+.zone-etat[role="alert"] {
+  border-style: solid;
+  border-color: var(--couleur-alerte);
+  color: var(--couleur-alerte);
+  background: var(--couleur-alerte-fond);
+}
+
+.recapitulatif dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--espace-1) var(--espace-3);
+}
+.recapitulatif dt {
+  font-weight: 600;
+}
+.recapitulatif dd {
+  margin: 0;
+}
+
+.nav-parcours {
+  display: flex;
+  gap: var(--espace-3);
+  margin-top: var(--espace-4);
+  flex-wrap: wrap;
+}
+
+.saut-langue {
+  display: inline-flex;
+  border: 1px solid var(--couleur-bordure);
+  border-radius: var(--rayon);
+  overflow: hidden;
+}
+.saut-langue button {
+  font: inherit;
+  border: 0;
+  background: var(--couleur-fond);
+  color: var(--couleur-texte);
+  padding: var(--espace-2) var(--espace-3);
+  cursor: pointer;
+  min-height: 44px;
+}
+.saut-langue button[aria-pressed="true"] {
+  background: var(--couleur-primaire);
+  color: var(--couleur-primaire-texte);
+  font-weight: 700;
+}
+
+.pied-page {
+  margin-top: var(--espace-5);
+  border-top: 1px solid var(--couleur-bordure);
+  padding-top: var(--espace-3);
+  color: var(--couleur-texte-affaibli);
+  font-size: 0.9rem;
+}
+
+/* Respect de prefers-reduced-motion : aucun mouvement non essentiel. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

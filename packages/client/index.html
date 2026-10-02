@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light" />
+    <meta
+      name="description"
+      content="KÓMBE — registre de tontines fermées. Parcours guidé accessible, bilingue FR/EN."
+    />
+    <title>KÓMBE</title>
+  </head>
+  <body>
+    <!-- Le DOM est entièrement géré par React (src/main.tsx). #root porte le
+         point d'ancrage ; .chargement est un état perçu immédiat (jamais un
+         splash trompeur) remplacé dès le premier rendu. -->
+    <div id="root">
+      <p class="chargement" role="status">Chargement de KÓMBE…</p>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
