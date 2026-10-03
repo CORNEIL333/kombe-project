@@ -18,7 +18,7 @@
     {
       "lot": "C08", "mission": "Décaissements/frais/rapprochement/clôture", "gate": "G0",
       "status": "in_review", "owner_harness_id": "qoder", "owner_branch": "master",
-      "evidence_ref": "docs/PREUVES_C08.md",
+      "evidence_ref": "docs/PREUVES_C08.md", "reviewer_id": "claude-code", "signoff_by": null,
       "files": ["packages/domain/src/disbursement.ts", "packages/domain/src/errors.ts", "packages/domain/src/index.ts", "packages/api/**", "packages/db/migrations/0011*.sql"],
       "depends_on": ["C07", "C10", "C11"],
       "commit": "ea119eb51f8e5615fc0f331897d8e443fb6f5184",
@@ -27,7 +27,7 @@
     {
       "lot": "C09", "mission": "Propositions/votes/décisions", "gate": "G0",
       "status": "in_review", "owner_harness_id": "qoder", "owner_branch": "master",
-      "evidence_ref": "docs/PREUVES_C09.md",
+      "evidence_ref": "docs/PREUVES_C09.md", "reviewer_id": "claude-code", "signoff_by": null,
       "files": ["packages/domain/src/proposal.ts", "packages/domain/src/errors.ts", "packages/domain/src/index.ts", "packages/api/src/proposalStore.ts", "packages/api/src/server.ts", "packages/api/src/schemas.ts", "packages/db/migrations/0012*.sql", "docs/openapi.yaml"],
       "depends_on": ["C03", "C04", "C11"],
       "commit": "a616ee9a59f669fea22f63f9e59e8a833c0ac8f2",
@@ -88,6 +88,7 @@
         "docs/PREUVES_C17.md", "docs/openapi.yaml"
       ],
       "depends_on": ["C02", "C03", "C11"],
+      "evidence_ref": "docs/PREUVES_C17.md", "reviewer_id": "claude-code", "signoff_by": null, "commit": "5d2ae9cfa8f46300de047f02c3a4089110626f9d",
       "notes": "Réservé par qoder. Console support JIT + double approbation (COM05), séparation du pouvoir financier (support ne valide/corrige jamais), journal sécurité séparé et expurgé, MFA/CSP/CSRF/HSTS, runbooks et drills. Scénarios C17-JIT/C17-FINANCE/C17-LOGS côté domaine pur + API. Les volets runtime/ops réels (secrets manager, HSTS live, chiffrement au repos, drills avec humains) restent honnêtement BLOCKED sans hôte déployé."
     },
     {
