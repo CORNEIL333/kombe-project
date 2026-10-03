@@ -86,6 +86,19 @@ async function main() {
     await runSql(migrator, "migrations/0009_contribution_validation.down.sql");
     await runSql(migrator, "migrations/0008_contribution_idempotency.down.sql");
     await runSql(migrator, "migrations/0007_event_journal.down.sql");
+    // Miroir inverse COMPLET de la liste up : 0002/0003/0004 créent des tables
+    // (export_request, role_change_request, access_session, verification_token,
+    // identity_access, invitation) dont les FK référencent identity/group/
+    // membership. Sans leurs .down.sql ici, 0001_init.down.sql DROPpe ces tables
+    // de base SANS CASCADE et PostgreSQL refuse (`other objects depend on it`),
+    // ce qui fait FAILLIR dbtest sur toute base réelle (cf. prérequis déclaré en
+    // tête de 0001_init.down.sql). 0005/0006 n'ALTÈRENT que des tables que 0001
+    // droppe déjà : leurs downs sont redondants mais posés pour symétrie.
+    await runSql(migrator, "migrations/0006_cycle_schedule.down.sql");
+    await runSql(migrator, "migrations/0005_rules_engine.down.sql");
+    await runSql(migrator, "migrations/0004_group_governance.down.sql");
+    await runSql(migrator, "migrations/0003_access.down.sql");
+    await runSql(migrator, "migrations/0002_role_change.down.sql");
     await runSql(migrator, "migrations/0001_init.down.sql");
     // Rôles créés AVANT les migrations : 0007 (REVOKE kombe_app) et 0013
     // (POLICY/GRANT kombe_app, kombe_worker) les référencent ; roles.sql en
