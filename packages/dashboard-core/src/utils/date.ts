@@ -1,0 +1,1 @@
+export function formatServerDate(v:string|number,locale:'fr'|'en'='fr'){const d=new Date(v);if(Number.isNaN(d.getTime()))return '—';return new Intl.DateTimeFormat(locale==='fr'?'fr-CM':'en-CM',{dateStyle:'medium',timeStyle:'short',timeZone:'Africa/Douala'}).format(d)}

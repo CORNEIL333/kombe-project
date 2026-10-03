@@ -1,0 +1,3 @@
+import {useCallback,useState} from 'react';
+type MutationState<T>={readonly kind:'idle'}|{readonly kind:'submitting'}|{readonly kind:'success';readonly data:T}|{readonly kind:'error';readonly error:unknown};
+export function useMutation<A,R>(mutate:(args:A)=>Promise<R>){const[state,setState]=useState<MutationState<R>>({kind:'idle'});const run=useCallback(async(args:A)=>{setState({kind:'submitting'});try{const data=await mutate(args);setState({kind:'success',data});return data}catch(error){setState({kind:'error',error});throw error}},[mutate]);return{state,run,reset:useCallback(()=>setState({kind:'idle'}),[])}}

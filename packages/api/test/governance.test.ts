@@ -143,6 +143,47 @@ describe("C03 — acceptation des règles conditionne la cotisation (4.2)", () =
   });
 });
 
+describe("C03 — invitation directe d'un handle connu (adhésion pending)", () => {
+  it("crée une adhésion pending, 409 si déjà pending/active, 403 si groupe clôturé", async () => {
+    const g = new FictitiousGovernanceStore();
+    g.createGroup({ groupId: "grpA" });
+    const app = buildApp({ governance: g });
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/groups/grpA/memberships",
+      headers: json,
+      payload: { handle: "idn_new" },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toEqual({ membershipId: "mem_grpA_idn_new", groupId: "grpA", state: "pending" });
+
+    const duplicate = await app.inject({
+      method: "POST",
+      url: "/v1/groups/grpA/memberships",
+      headers: json,
+      payload: { handle: "idn_new" },
+    });
+    expect(duplicate.statusCode).toBe(409);
+    expect(duplicate.json().code).toBe("MEMBERSHIP_ALREADY_ACTIVE");
+
+    await app.inject({
+      method: "POST",
+      url: "/v1/groups/grpA/state-transitions",
+      headers: json,
+      payload: { to: "closed" },
+    });
+    const onClosed = await app.inject({
+      method: "POST",
+      url: "/v1/groups/grpA/memberships",
+      headers: json,
+      payload: { handle: "idn_other" },
+    });
+    expect(onClosed.statusCode).toBe(403);
+    expect(onClosed.json().code).toBe("GROUP_READ_ONLY");
+  });
+});
+
 describe("C03 — invitation limitée dans le nombre d'usages (4.1)", () => {
   it("au-delà du maximum d'usages, rachat refusé", async () => {
     const g = new FictitiousGovernanceStore();

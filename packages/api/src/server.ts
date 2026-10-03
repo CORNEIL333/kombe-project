@@ -75,6 +75,7 @@ import {
   createGroupBody,
   groupTransitionBody,
   membershipTerminationBody,
+  inviteMemberBody,
   groupMutationBody,
   rulesAcceptanceBody,
   contributionDeclarationBody,
@@ -694,6 +695,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { groupId } = request.params as { groupId: string };
     const body = groupMutationBody.parse(request.body);
     return reply.code(200).send(governance.attemptMutation(groupId, body.identityId));
+  });
+
+  // Invitation directe d'un handle connu (adhésion pending) — distincte du
+  // rachat d'invitation anonyme (4.1).
+  app.post("/v1/groups/:groupId/memberships", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = inviteMemberBody.parse(request.body);
+    return reply.code(201).send(governance.inviteMember(groupId, body.handle));
   });
 
   // Terminaison d'une adhésion (départ/révocation), avant la prochaine commande.

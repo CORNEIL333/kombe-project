@@ -1,0 +1,10 @@
+{
+  "name": "@kombe/dashboard-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": ["./src/styles/tokens.css", "./src/styles/core.css"],
+  "exports": {".": "./src/index.ts", "./styles": "./src/styles/core.css", "./tokens": "./src/styles/tokens.css"},
+  "peerDependencies": {"react": "^19.3.0", "react-dom": "^19.3.0"},
+  "devDependencies": {"@types/react": "^19.3.0", "@types/react-dom": "^19.3.0", "typescript": "^7.0.2"}
+}

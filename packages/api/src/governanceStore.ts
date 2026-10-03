@@ -141,6 +141,30 @@ export class FictitiousGovernanceStore {
     return { mutation_accepted: true };
   }
 
+  /**
+   * Invitation directe d'un membre connu (handle = identifiant logique fictif,
+   * cf. `InviteMemberRequest` OpenAPI) : crée une adhésion `pending`, distincte
+   * du rachat d'invitation anonyme (`redeemInvitation`). Un groupe en lecture
+   * seule refuse (`GROUP_READ_ONLY`) ; une adhésion pending/active déjà
+   * ouverte pour ce handle refuse (`MEMBERSHIP_ALREADY_ACTIVE`, pas de nouvelle
+   * invitation tant que l'adhésion existante n'est pas close).
+   */
+  inviteMember(groupId: string, handle: string): { membershipId: string; groupId: string; state: Membership["state"] } {
+    const g = this.group(groupId);
+    assertGroupMutable(g.state);
+    const membershipId = `mem_${groupId}_${handle}`;
+    const existing = this.memberships.get(membershipId);
+    if (existing && (existing.state === "pending" || existing.state === "active")) {
+      throw new DomainError(
+        "MEMBERSHIP_ALREADY_ACTIVE",
+        "Une adhésion est déjà en cours pour cette identité",
+      );
+    }
+    const membership: Membership = { membershipId, identityId: handle, groupId, state: "pending" };
+    this.memberships.set(membershipId, membership);
+    return { membershipId, groupId, state: membership.state };
+  }
+
   terminateMembership(groupId: string, identityId: string): { state: Membership["state"] } {
     const entry = [...this.memberships.entries()].find(
       ([, m]) => m.groupId === groupId && m.identityId === identityId,

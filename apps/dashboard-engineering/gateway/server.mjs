@@ -1,0 +1,14 @@
+import http from 'node:http';
+import {readFile,readdir} from 'node:fs/promises';
+import {existsSync} from 'node:fs';
+import {resolve,join,relative} from 'node:path';
+import {spawn} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+const HERE=resolve(fileURLToPath(new URL('.',import.meta.url)));const REPO=resolve(process.env.KOMBE_REPO_ROOT??join(HERE,'../../..'));const HOST=process.env.KOMBE_ENGINEERING_HOST??'127.0.0.1';const PORT=Number(process.env.KOMBE_ENGINEERING_PORT??'4399');
+function reply(res,status,payload){const body=JSON.stringify(payload);res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(body)}
+function inside(path){const rel=relative(REPO,path);return !rel.startsWith('..')&&!rel.includes('..')}
+async function readJson(rel){const path=resolve(REPO,rel);if(!inside(path)||!existsSync(path))throw new Error(`Fichier absent: ${rel}`);return JSON.parse(await readFile(path,'utf8'))}
+function git(args){return new Promise((ok,fail)=>{const c=spawn('git',['-C',REPO,...args],{stdio:['ignore','pipe','pipe'],windowsHide:true});let out='',err='';c.stdout.on('data',d=>out+=d);c.stderr.on('data',d=>err+=d);c.on('close',code=>code===0?ok(out.trim()):fail(new Error(err.trim()||`git exit ${code}`)))})}
+async function files(rel,accept){const dir=resolve(REPO,rel);if(!inside(dir)||!existsSync(dir))return[];return (await readdir(dir)).filter(accept).sort()}
+const server=http.createServer(async(req,res)=>{try{const url=new URL(req.url??'/',`http://${HOST}:${PORT}`);if(req.method!=='GET')return reply(res,405,{error:'METHOD_NOT_ALLOWED'});if(url.pathname==='/api/health')return reply(res,200,{ok:true,repoRoot:REPO,source:'filesystem+git'});if(url.pathname==='/api/repo'){const[head,branch,status]=await Promise.all([git(['rev-parse','HEAD']),git(['branch','--show-current']),git(['status','--porcelain=v1'])]);return reply(res,200,{head,branch,dirty:status.length>0,changes:status?status.split('\n'):[]})}if(url.pathname==='/api/lots')return reply(res,200,await readJson('COORDINATION_MULTI_HARNESS/ETATS_LOTS.json'));if(url.pathname==='/api/h00')return reply(res,200,await readJson('harness/reports/RAPPORT_G_CONSTRUCTION.json'));if(url.pathname==='/api/migrations')return reply(res,200,{files:await files('packages/db/migrations',n=>n.endsWith('.sql'))});if(url.pathname==='/api/evidence')return reply(res,200,{files:await files('docs',n=>/^PREUVES_C\d+\.md$/.test(n))});if(url.pathname==='/api/workflows')return reply(res,200,{files:await files('.github/workflows',n=>/\.ya?ml$/.test(n))});return reply(res,404,{error:'NOT_FOUND'})}catch(error){return reply(res,500,{error:'GATEWAY_ERROR',message:error instanceof Error?error.message:String(error)})}});
+server.listen(PORT,HOST,()=>console.log(`KÓMBE engineering gateway http://${HOST}:${PORT} -> ${REPO}`));

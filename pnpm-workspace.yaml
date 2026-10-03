@@ -1,5 +1,6 @@
 packages:
   - "packages/*"
+  - "apps/*"
   # App mobile Flutter : n'est PAS un paquet npm (pas de package.json) et ne doit
   # jamais être attrapé par `pnpm -r build/test`. Exclusion explicite et défensive.
   - "!packages/mobile"
