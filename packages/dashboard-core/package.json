@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "sideEffects": ["./src/styles/tokens.css", "./src/styles/core.css"],
   "exports": {".": "./src/index.ts", "./styles": "./src/styles/core.css", "./tokens": "./src/styles/tokens.css"},
   "peerDependencies": {"react": "^19.3.0", "react-dom": "^19.3.0"},
-  "devDependencies": {"@types/react": "^19.3.0", "@types/react-dom": "^19.3.0", "typescript": "^7.0.2", "vitest": "^5.0.3"}
+  "devDependencies": {"@types/react": "^19.3.0", "@types/react-dom": "^19.3.0", "typescript": "^7.0.2", "vitest": "^5.0.3", "jsdom": "^30.1.1"}
 }
