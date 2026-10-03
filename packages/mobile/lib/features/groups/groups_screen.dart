@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
-import '../../core/design/kombe_spacing.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/section_card.dart';

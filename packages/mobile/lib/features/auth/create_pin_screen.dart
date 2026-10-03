@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/widgets/server_action_guard.dart';
 import '../../domain/repositories/auth_repository.dart';
-import '../../l10n/app_localizations.dart';
 import 'auth_validators.dart';
 
 class CreatePinScreen extends StatefulWidget {

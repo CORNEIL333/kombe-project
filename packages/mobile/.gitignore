@@ -7,6 +7,13 @@
 build/
 pubspec.lock.tmp
 
+# Localisations GENEREES par `flutter gen-l10n` (generate: true). Les sources
+# suivies sont les ARB (lib/l10n/app_fr.arb, app_en.arb) ; les .dart sont reproduits.
+lib/l10n/app_localizations.dart
+lib/l10n/app_localizations_en.dart
+lib/l10n/app_localizations_fr.dart
+lib/l10n/flutter_*.dart
+
 # Enveloppes de plateforme régénérées localement (voir README : `flutter create .`).
 # Elles ne sont pas figées dans ce dépôt volontairement.
 ios/Pods/

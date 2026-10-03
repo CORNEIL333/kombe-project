@@ -42,11 +42,14 @@ class _ContributionEvidenceScreenState extends State<ContributionEvidenceScreen>
   }
 
   Future<void> _pick() async {
-    final FilePickerResult? result = await FilePicker.platform.pickFiles(
+    // file_picker >=13 : FilePicker.pickFile est statique et renvoie
+    // directement un PlatformFile? (null = annulation). L'ancienne API
+    // (FilePicker.platform / FilePickerResult.files) n'existe plus.
+    final PlatformFile? file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: <String>['jpg', 'jpeg', 'png', 'pdf'],
     );
-    final String? path = result?.files.single.path;
+    final String? path = file?.path;
     if (path == null || !mounted) return;
     await _vm!.attachEvidence(path);
   }
