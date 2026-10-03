@@ -1,0 +1,27 @@
+# Fichiers générés par Flutter/Dart — ne pas versionner (reproduits par
+# `flutter create .`, `flutter pub get`, `flutter gen-l10n`).
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+pubspec.lock.tmp
+
+# Enveloppes de plateforme régénérées localement (voir README : `flutter create .`).
+# Elles ne sont pas figées dans ce dépôt volontairement.
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.app
+android/.gradle/
+android/local.properties
+android/app/.cxx/
+
+# IDE / divers
+.idea/
+*.iml
+.vscode/
+*.log
+coverage/
+doc/api/
+.flutter_analyze_snapshot

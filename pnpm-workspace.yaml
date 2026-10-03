@@ -1,5 +1,8 @@
 packages:
   - "packages/*"
+  # App mobile Flutter : n'est PAS un paquet npm (pas de package.json) et ne doit
+  # jamais être attrapé par `pnpm -r build/test`. Exclusion explicite et défensive.
+  - "!packages/mobile"
 
 # KÓMBE C00 — paramètres de construction et d'exécution (pnpm >= 11 lit les
 # réglages non-auth ici, plus dans .npmrc). Politique sécurité H13 / RA08 :
