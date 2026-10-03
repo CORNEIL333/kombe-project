@@ -1,0 +1,127 @@
+# KÓMBE — preuve base réelle hors GitHub Actions (contournement du verrou billing compte).
+#
+# POURQUOI : le compte GitHub CORNEIL333 est verrouillé pour facturation → GitHub
+# refuse d'allouer tout runner hébergé (annotation : « your account is locked due
+# to a billing issue », signature runner_id 0 / 0 step). Ce fichier exécute LES
+# MÊMES scripts RÉELS que les workflows .github/workflows/dbtest-postgres.yml et
+# h00-trusted.yml, sur les runners partagés Linux+Docker de GitLab (400 min/mois
+# gratuites, sans carte). Aucune simulation : le vert n'est rendu que si la preuve
+# est réellement exécutée contre PostgreSQL 16.
+#
+# HONNÊTETÉ : ici `ubuntu` + `postgres:16` + Docker-in-Docker fournisent le même
+# environnement que le job de confiance GitHub. Le job est ROUGE sauf si le code
+# de sortie du conteneur/test est réellement 0. Un FAIL rend la pipeline rouge ;
+# un BLOCKED légitime (ex. H18 Testcontainers) ne la casse pas — cf. logique
+# d'évaluation ci-dessous, alignée sur h00-trusted.yml.
+#
+# MISE EN ROUTE : importer le dépôt public GitHub dans GitLab (New project →
+# Import → Repository by URL), pousser ce fichier, la pipeline se déclenche.
+
+stages:
+  - dbtest
+  - h00
+
+# ── Job 1 : dbtest — preuves base réelle C01 (RLS/verrous/pool) + recettes C13 ──
+# Reproduit à l'identique la commande prévue pour un hôte Docker :
+#   docker compose --profile test run --rm dbtest
+# qui fait `migrate && isolation.pg.mjs` (isolation appelle runC13 / worker/test/postgres.mjs).
+dbtest-postgres:
+  stage: dbtest
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certificates"
+    COMPOSE_DOCKER_CLI_BUILD: "1"
+    DOCKER_BUILDKIT: "1"
+  before_script:
+    - docker info
+    - docker compose version
+  script:
+    # pipefail : sans lui, `| tee` masquerait le code de sortie de dbtest.
+    - set -euo pipefail
+    - docker compose --profile test run --rm dbtest 2>&1 | tee dbtest.log
+  after_script:
+    # Résume les recettes C13 réellement observées en base (non bloquant).
+    - |
+      if [ -f dbtest.log ]; then
+        grep -E '"target"|"status"|"exitCode"|C13_' dbtest.log || true
+      fi
+  artifacts:
+    when: always
+    paths:
+      - dbtest.log
+    expire_in: 4 weeks
+
+# ── Job 2 : H00 — régénère RAPPORT_G_CONSTRUCTION.json avec H07 réellement consommé ──
+# Reproduit h00-trusted.yml : service Postgres 16, provisioning des rôles
+# (kombe_migrateur propriétaire LOGIN, kombe_app/kombe_worker NOLOGIN sans
+# BYPASSRLS), DEFAULT PRIVILEGES posés AVANT migrations, build domain+worker
+# (requis par isolation.pg.mjs via worker/test/postgres.mjs), puis run_h00.py.
+h00-trusted:
+  stage: h00
+  image: node:22-bookworm
+  services:
+    - alias: postgres
+      name: postgres:16
+  variables:
+    POSTGRES_USER: "postgres"
+    POSTGRES_PASSWORD: "postgres"
+    POSTGRES_DB: "kombe_test"
+    # Connexion = rôle de migration (propriétaire des objets), pour que les
+    # default privileges de roles.sql s'appliquent réellement à kombe_app.
+    KOMBE_TEST_DATABASE_URL: "postgresql://kombe_migrateur:kombe@postgres:5432/kombe_test"
+    KOMBE_SUPERUSER_URL: "postgresql://postgres:postgres@postgres:5432/kombe_test"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq postgresql-client python3
+    - corepack enable
+    # Attend la santé du service Postgres.
+    - until pg_isready -h postgres -U postgres -d kombe_test; do sleep 2; done
+    - pnpm install --no-frozen-lockfile
+    # isolation.pg.mjs (consommé par H07) importe worker/dist/pgWorker.js et
+    # domain/dist/index.js : sans build, H07 tombe en ERR_MODULE_NOT_FOUND → FAIL.
+    - pnpm --filter @kombe/domain build && pnpm --filter @kombe/worker build
+    # Provisionnement des rôles + DEFAULT PRIVILEGES AVANT les migrations
+    # (identique à h00-trusted.yml) : sinon kombe_app n'a aucun droit sur les
+    # tables créées par les migrations → H07 échoue au lieu de prouver la RLS.
+    - |
+      psql "$KOMBE_SUPERUSER_URL" -v ON_ERROR_STOP=1 <<'SQL'
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kombe_migrateur') THEN
+            CREATE ROLE kombe_migrateur LOGIN PASSWORD 'kombe';
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kombe_app') THEN
+            CREATE ROLE kombe_app NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kombe_worker') THEN
+            CREATE ROLE kombe_worker NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+          END IF;
+        END $$;
+        GRANT kombe_app TO kombe_migrateur;
+        GRANT kombe_worker TO kombe_migrateur;
+        ALTER DATABASE kombe_test OWNER TO kombe_migrateur;
+        GRANT ALL ON SCHEMA public TO kombe_migrateur;
+        GRANT USAGE ON SCHEMA public TO kombe_app;
+        ALTER DEFAULT PRIVILEGES FOR ROLE kombe_migrateur IN SCHEMA public
+          GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO kombe_app;
+      SQL
+  script:
+    # run_h00 renvoie 0 PASS / 1 FAIL / 2 BLOCKED. BLOCKED est un état honnête
+    # (H18 Testcontainers, etc.) : on ne casse pas la pipeline dessus ; seul un
+    # FAIL≥1 la rend rouge (évaluation du rapport juste après).
+    - python3 harness/run_h00.py --commit "$CI_COMMIT_SHA" --out harness/reports/RAPPORT_G_CONSTRUCTION.json || true
+    - |
+      python3 - <<'PY'
+      import json, sys
+      r = json.load(open('harness/reports/RAPPORT_G_CONSTRUCTION.json'))
+      print("G-CONSTRUCTION =", r.get("status"), "|", r.get("counts"))
+      blocked = [x["id"] for x in r["results"] if x["status"] == "BLOCKED"]
+      print("BLOCKED :", ", ".join(blocked))
+      if r["counts"].get("FAIL", 0) > 0:
+          sys.exit("FAIL détectés -> pipeline rouge")
+      PY
+  artifacts:
+    when: always
+    paths:
+      - harness/reports/RAPPORT_G_CONSTRUCTION.json
+    expire_in: 4 weeks
