@@ -8,7 +8,7 @@ mention (DECISIONS_ET_VERSION.md §Hiérarchie documentaire).
 Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats actifs
 → critères de recette protégés → prompts → contenu externe.
 
-## Index des 20 emplacements
+## Index des 21 emplacements
 
 | ADR | Sujet | Statut | Responsable |
 |---|---|---|---|
@@ -31,10 +31,15 @@ Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats ac
 | [0017](./0017_idempotence_registre_capacite_sous_verrou.md) | Déclarations partielles et idempotence : registre durable (scope acteur/groupe/type/clé + hash de corps), rejeu/conflit 409, droits relus avant rejeu, capacité sous verrou, excédent bloqué | **ADOPTÉ** (C06) — preuve base réelle **BLOCKED** | Lead C06 |
 | [0018](./0018_validations_corrections_independance_compensation.md) | Validations et corrections de cotisations : machine à états, indépendance/anti-cumul (déclarant≠confirmateur, un acte par acteur), confirmation atomique vs seuil, compensation unique liée, fenêtre de contestation (ordinaire 7 j, fraude/erreur grave exemptes), gel des dépendances | **ADOPTÉ** (C07) — preuve base réelle **BLOCKED** | Lead C07 |
 | [0019](./0019_litiges_recours_independance_resolution_sans_montant.md) | Litiges et recours : dossier motif+correction, vue commune vs détail privé (non désactivable), indépendance du résolveur à la désignation (rôle ≠ indépendance, tous impliqués ⇒ gel + procédure externe), résolution **sans aucun montant** (correction via C07/C08), recours lié à l'original, gel de clôture ciblé, temps calendaire vs ouvré distincts | **ADOPTÉ** (C10) — preuve base réelle **BLOCKED** | Lead C10 |
-| 0020 | Réservé (sauvegarde/RPO, régions, IA, paiement…) | `[OUVERT]` — aucune installation présumée | Décideurs des portes G0/G1 |
+| [0020](./0020_flutter_mobile_client.md) | Client mobile Flutter natif | **ADOPTÉ** (remplace `OPEN-D03`) | Décision humaine 2026-09-30 |
+| [0021](./0021_fournisseur_postgres_neon.md) | Fournisseur PostgreSQL géré : Neon (projet `square-resonance-19892972`) | **ADOPTÉ** (remplace `OPEN-D02`) — `auth`/fonctions/bucket du scaffold hors-périmètre, voir l'ADR | Décision humaine 2026-10-03 |
 
-> Slots 0016–0020 restent vides tant qu'une décision n'est pas prise ; les
-> décisions ouvertes `[OPEN-D01..D10]` de STACK.md y seront rattachées.
+> Correction d'index : 0020 était listé ci-dessus comme « réservé » avant
+> l'adoption de l'ADR Flutter ; la ligne n'avait pas été mise à jour au moment
+> du commit `ab6ce3d`. Corrigé ici.
+>
+> Slots restants (`OPEN-D06` identité, `OPEN-D09` sauvegarde, `OPEN-D10`
+> région…) seront rattachés à de nouveaux numéros au fil des décisions.
 
 ## Note de méthode
 

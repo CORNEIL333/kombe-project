@@ -30,6 +30,7 @@ Ces choix sont issus de `01_Audit/ARCHITECTURE_CIBLE.md`, de `01_Audit/AUDIT_PRO
 | Secrets scan | Gitleaks | Pré-push et CI |
 | Analyse vulnérabilités | Trivy | Image et dépendances |
 | Gestion des versions | pnpm workspaces (monorepo) | Lockfile déterministe, hoisting contrôlé |
+| Fournisseur PostgreSQL géré | Neon (projet `square-resonance-19892972`, branche `production`) | ADR-0021 ; RLS/rôles PostgreSQL standards inchangés, branches DB natives pour CI/preview |
 
 ---
 
@@ -40,7 +41,7 @@ Ces points ont été identifiés dans le dossier d'audit (`DECISIONS_ET_VERSION.
 | ID | Sujet | Options documentées | Référence audit |
 |---|---|---|---|
 | `[OPEN-D01]` | **Hébergeur application et worker** | Render payant (recommandé pilote) · Vercel commercial (si plan vérifié) · VPS conteneurisé | TEC01, A15 |
-| `[OPEN-D02]` | **Fournisseur PostgreSQL géré** | Supabase payant (projet séparé) · Neon · Render Postgres | TEC04, ZN03 |
+| ~~`[OPEN-D02]`~~ | ~~Fournisseur PostgreSQL géré~~ | **Tranché : Neon — voir §1 et ADR-0021** | TEC04, ZN03 |
 | `[OPEN-D03]` | **Client mobile natif** | PWA seule (pilote web) · Flutter en parallèle · React Native | TEC02/TEC03 |
 | `[OPEN-D04]` | **Email transactionnel** | Resend · Brevo · Amazon SES | TEC09 |
 | `[OPEN-D05]` | **SMS / OTP** | Twilio · Infobip · Vonage (couverture Cameroun à tester) | TEC07 |
