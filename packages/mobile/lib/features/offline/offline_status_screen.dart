@@ -50,7 +50,11 @@ class _OfflineStatusScreenState extends State<OfflineStatusScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.storage_outlined),
                     title: const Text('Brouillons présents'),
-                    trailing: Text('${_drafts.length}'),
+                    trailing: Semantics(
+                      label:
+                          '${_drafts.length} brouillon${_drafts.length == 1 ? '' : 's'}',
+                      child: Text('${_drafts.length}'),
+                    ),
                   ),
                 ],
               ),
@@ -105,6 +109,11 @@ class _CapabilityRow extends StatelessWidget {
         trailing: Icon(
           allowed ? Icons.check_circle : Icons.block,
           color: allowed ? Colors.green : Colors.red,
+          // Indicateur d'état : ne repose pas que sur la couleur. Un lecteur
+          // d'écran annonce le verdict en toutes lettres (a11y seniors).
+          semanticLabel: allowed
+              ? 'Autorisé hors connexion'
+              : 'Non autorisé : validation du serveur requise',
         ),
       );
 }
