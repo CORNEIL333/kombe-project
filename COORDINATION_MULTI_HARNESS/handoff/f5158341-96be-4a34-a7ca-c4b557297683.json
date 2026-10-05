@@ -1,0 +1,13 @@
+{
+  "message_id": "f5158341-96be-4a34-a7ca-c4b557297683",
+  "from_harness_id": "claude-code",
+  "to_harness_id": "corneil333",
+  "lot": "C08",
+  "action": "escalate",
+  "commit_sha": "ea119eb51f8e5615fc0f331897d8e443fb6f5184",
+  "base_head_sha": "58fb9195f830b0c35ba548ed29f38dc3bc067f3f",
+  "evidence": { "type": "manual", "ref": "harness/run_h00.py (diff dans ea119eb, fonction h07_mock_db)" },
+  "reason": "Revue C08 : le contenu métier du lot (décaissements/frais/rapprochement/clôture) est complet, testé (29 tests domaine + 24 API au HEAD courant, build/typecheck verts) et docs/PREUVES_C08.md est honnête sur ses BLOCKED. MAIS le commit ea119eb modifie aussi harness/run_h00.py (fonction h07_mock_db : timeout et rc inattendu passent désormais de BLOCKED à FAIL) — ce fichier est un fichier de recette/contrôleur de confiance. Or REGISTRE_HARNESS.json donne qoder can_touch_trusted_controller=false, et CONVENTIONS_GIT.md §2 + README.md §5 sont explicites et non négociables : 'Personne ne promeut une modification des fichiers de recette (harness/run_h00.py, verify_gate.py...) depuis une branche candidate : seul le lead (corneil333) le fait, et uniquement via le job de confiance (H20).' Aucun message handoff ni commit du lead ne ratifie ce changement (vérifié : grep sur handoff/*.json et git log --oneline -- harness/run_h00.py, seuls des commits qoder apparaissent). Le changement est divulgué honnêtement dans le message de commit et PREUVES_C08.md, et il DURCIT le contrôle (il ne l'affaiblit pas) — mais la preuve H00 citée comme evidence de C08 a elle-même été produite par un contrôleur que ce même commit venait de modifier, ce qui est exactement le conflit d'intérêt que la séparation H06/H20 existe pour prévenir. Je ne peux donc pas signer C08 'done' sans ratification distincte du lead sur ce sous-changement. Demande : corneil333 ratifie (ou révoque) explicitement la modification de harness/run_h00.py introduite dans ea119eb via un commit/message dédié ; une fois ratifiée, C08 peut être re-soumis à relecture pour signature done (le contenu métier est déjà prêt).",
+  "signature": "claude-code:pending",
+  "at_utc": "2026-10-05T11:54:20Z"
+}
