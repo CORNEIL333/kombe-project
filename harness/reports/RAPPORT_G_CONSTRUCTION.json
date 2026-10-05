@@ -1,8 +1,8 @@
 {
   "runner": "H00",
-  "commit": "336d7ed60448dceb2e3309cf55131e6b16c68721",
+  "commit": "58fb9195f830b0c35ba548ed29f38dc3bc067f3f",
   "gate": "G-CONSTRUCTION",
-  "at_utc": "2026-10-02T13:59:24.659307+00:00",
+  "at_utc": "2026-10-05T11:53:38.114441+00:00",
   "status": "BLOCKED",
   "counts": {
     "PASS": 11,
@@ -33,7 +33,7 @@
       "detail": "SHA du runner identique avant/après exécution témoin",
       "evidence": {
         "runner": "C:\\Users\\migco\\Desktop\\kombe project\\harness\\run_h00.py",
-        "sha": "1cd4e9e2f36bfc9986a8a36c2f6f5d09d6af2265791876f226549550b12b7eb5"
+        "sha": "515cbc0e43178dd0f5071367299def16420c980ebe201270bb361178fc600ef0"
       }
     },
     {
@@ -50,7 +50,7 @@
       "status": "PASS",
       "detail": "SHA déclaré != SHA du contrôleur → rejet correct",
       "evidence": {
-        "expected_commit": "336d7ed60448dceb2e3309cf55131e6b16c68721",
+        "expected_commit": "58fb9195f830b0c35ba548ed29f38dc3bc067f3f",
         "declared_commit": "0000000000000000000000000000000000000000"
       }
     },
@@ -60,7 +60,7 @@
       "detail": "Rapport PASS d'un autre commit rejeté par vérification d'identité",
       "evidence": {
         "report_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "current_commit": "336d7ed60448dceb2e3309cf55131e6b16c68721"
+        "current_commit": "58fb9195f830b0c35ba548ed29f38dc3bc067f3f"
       }
     },
     {
@@ -241,7 +241,7 @@
   "limites": [
     "H03 : isolation fichier/volume non démontrée sans conteneur (HC02)",
     "H06 : identité authentifiée non vérifiable sans plateforme CI (HC04)",
-    "H07 : PostgreSQL non disponible — verrou réel non testé (RA11)",
+    "H07 : preuve d'isolation base réelle non PASS — PostgreSQL réel (Neon/CI) ou KOMBE_TEST_DATABASE_URL requis (RA11)",
     "H09 : env hérité du parent sans liste blanche (HC06)",
     "H10 : restrictions réseau non configurées (RA06)",
     "H13 : sandboxing npm scripts non configuré (RA08)",
@@ -249,5 +249,5 @@
     "H18 : reprise PostgreSQL nécessite Testcontainers (RA15)",
     "H20 : séparation jobs CI nécessite GitHub Actions (RA18)"
   ],
-  "next": "Configurer Docker/Testcontainers pour H07 et H18 ; configurer GitHub Actions avec jobs séparés pour H02, H14, H20 ; implémenter env allowlist pour H09 ; configurer restrictions réseau pour H10 ; revoir H06 avec identité authentifiée dans C28."
+  "next": "brancher une base PostgreSQL réelle (Neon/CI) pour H07 ; configurer Docker/Testcontainers pour H18 ; configurer GitHub Actions avec jobs séparés pour H02, H14, H20 ; implémenter env allowlist pour H09 ; configurer restrictions réseau pour H10 ; revoir H06 avec identité authentifiée dans C28."
 }

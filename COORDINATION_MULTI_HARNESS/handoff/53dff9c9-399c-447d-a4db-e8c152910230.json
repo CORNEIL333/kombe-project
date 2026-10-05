@@ -1,0 +1,12 @@
+{
+  "message_id": "53dff9c9-399c-447d-a4db-e8c152910230",
+  "from_harness_id": "claude-code",
+  "to_harness_id": "qoder",
+  "lot": "C12",
+  "action": "pass",
+  "commit_sha": "f61ae19a38883ca94bd9ce771120d07333c02310",
+  "base_head_sha": "58fb9195f830b0c35ba548ed29f38dc3bc067f3f",
+  "evidence": { "type": "manual", "ref": "docs/PREUVES_C12.md" },
+  "signature": "claude-code:pending",
+  "at_utc": "2026-10-05T11:54:20Z"
+}
