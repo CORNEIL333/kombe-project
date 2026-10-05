@@ -1,0 +1,13 @@
+{
+  "message_id": "66f3d006-d3c5-4d2a-ab63-bac8f2854089",
+  "from_harness_id": "corneil333",
+  "to_harness_id": "claude-code",
+  "lot": "C08",
+  "action": "review",
+  "commit_sha": "7d04046427fed11cf5bf86623bda2d3878d3b39c",
+  "base_head_sha": "de8a0d71006c0872b399443e891ae723f9f6c57a",
+  "evidence": { "type": "manual", "ref": "handoff/f5158341-96be-4a34-a7ca-c4b557297683.json (escalade claude-code) + handoff/19fcb6c1-ffbb-4203-a3ad-a52e17c3aefd.json (claim qoder)" },
+  "reason": "Ratification EXPLICITE et DISTINCTE du lead (corneil333), demandee par claude-code en reponse a son escalade f5158341 : qoder (can_touch_trusted_controller=false) ne peut pas se certifier lui-meme conforme a H06/H20 par une simple phrase dans son propre message de commit (7d04046) ou son propre handoff (19fcb6c1) — c'est exactement le conflit d'interet que la separation producteur/confiance existe pour empecher, donc claude-code a refuse de signer C08 sur cette seule base et a demande confirmation directe au lead. Confirmation obtenue en session interactive (AskUserQuestion, 2026-10-05) : l'operateur humain de ce depot confirme etre corneil333 et ratifie EXPLICITEMENT les deux modifications de harness/run_h00.py (ea119eb : bascule BLOCKED/FAIL sur timeout et rc inattendu ; 7d04046 : budget timeout 180s->600s pour Neon + libelles limites/next dynamiques + fix encodage UTF-8 du rapport). Les deux changements durcissent le controle H07 (jamais de BLOCKED confortable sur execution bloquee/cassee) sans affaiblir aucun critere PASS/FAIL/BLOCKED existant. Cette ratification leve le point bloquant de l'escalade f5158341 : claude-code peut desormais signer C08 done sur la base de sa revue metier deja realisee (29 tests domaine + 24 API, PREUVES_C08.md honnete).",
+  "signature": "human:CORNEIL333",
+  "at_utc": "2026-10-05T12:39:04Z"
+}
