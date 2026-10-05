@@ -29,6 +29,10 @@ export async function runC13(pg, migrator, url) {
   }
   async function count(table) { return Number((await q(`SELECT count(*) AS n FROM ${table} WHERE group_id=$1`,[group])).rows[0].n); }
   async function drain(worker = workerA) {
+    // Avancer l'horloge simulée au temps réel (+2s de marge latence réseau) pour
+    // que les messages dont available_at = server now() soient réclamables.
+    const wallNow = Date.now() + 2000;
+    if (now < wallNow) now = wallNow;
     for (let i=0;i<30;i++) {
       const pending = Number((await q(`SELECT count(*) AS n FROM outbox WHERE group_id=$1 AND state IN ('pending','retry','ambiguous') AND available_at<=$2`,[group,new Date(now)])).rows[0].n);
       if (!pending) return;

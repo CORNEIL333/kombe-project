@@ -119,3 +119,4 @@ harness/reports/*.html
 *.tmp
 *.temp
 .scratch/
+.neon

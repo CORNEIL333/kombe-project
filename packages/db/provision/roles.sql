@@ -27,10 +27,47 @@ BEGIN
   END IF;
 END $$;
 
+-- Membership du rôle connectant dans chaque rôle KÓMBE (permet SET ROLE kombe_app/worker).
+-- Sur Neon, CURRENT_USER = neondb_owner ; sur Docker, CURRENT_USER = kombe_migrateur.
+GRANT kombe_migrateur TO CURRENT_USER;
+GRANT kombe_app TO CURRENT_USER;
+GRANT kombe_worker TO CURRENT_USER;
+
 -- kombe_app : uniquement SELECT/INSERT/UPDATE/DELETE, jamais de DDL.
 GRANT USAGE ON SCHEMA public TO kombe_app;
-ALTER DEFAULT PRIVILEGES FOR ROLE kombe_migrateur IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO kombe_app;
+-- Privilèges par défaut pour les TABLES futures ( ignoré sur Neon, qui interdit ALTER DEFAULT PRIVILEGES ).
+DO $$
+BEGIN
+  EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE kombe_migrateur IN SCHEMA public
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO kombe_app';
+EXCEPTION WHEN insufficient_privilege THEN
+  RAISE NOTICE 'ALTER DEFAULT PRIVILEGES non autorisé (fournisseur managé type Neon) — skip.';
+END $$;
+-- Granteaux explicites sur les tables EXISTANTES (toujours nécessaire, y compris Neon).
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO kombe_app;
+
+-- Rétablir les restrictions sélectives posées par les migrations (miroir des REVOKE
+-- dans 0007-0017). Sans ALTER DEFAULT PRIVILEGES fonctionnel (Neon), le GRANT blanket
+-- redonnerait les droits que les triggers + REVOKE migraient. Cette section garantit
+-- la moindre privilège applicatif.
+REVOKE UPDATE, DELETE ON journal FROM kombe_app;
+REVOKE INSERT, UPDATE, DELETE ON checkpoint FROM kombe_app;
+REVOKE UPDATE, DELETE ON idempotency_registry FROM kombe_app;
+REVOKE UPDATE, DELETE ON contribution_act FROM kombe_app;
+REVOKE UPDATE, DELETE ON dispute_assignment FROM kombe_app;
+REVOKE UPDATE, DELETE ON disbursement_reversal FROM kombe_app;
+REVOKE UPDATE, DELETE ON disbursement_act FROM kombe_app;
+REVOKE UPDATE, DELETE ON vote_electorate FROM kombe_app;
+REVOKE UPDATE, DELETE ON ballot FROM kombe_app;
+REVOKE UPDATE, DELETE ON security_log FROM kombe_app;
+REVOKE UPDATE, DELETE ON support_access_approver FROM kombe_app;
+REVOKE UPDATE, DELETE ON export_manifest FROM kombe_app;
+REVOKE UPDATE, DELETE ON legal_notice FROM kombe_app;
+REVOKE UPDATE, DELETE ON data_erasure_tombstone FROM kombe_app;
+REVOKE UPDATE, DELETE ON analytics_event FROM kombe_app;
+REVOKE UPDATE, DELETE ON unit_economics_snapshot FROM kombe_app;
+REVOKE INSERT, UPDATE, DELETE ON internal_notification, notification_delivery FROM kombe_app;
+REVOKE ALL ON notification_preference, notification_channel FROM kombe_app;
 
 -- kombe_worker : lecture/maJ de l'outbox et du registre de commandes seulement.
 GRANT USAGE ON SCHEMA public TO kombe_worker;

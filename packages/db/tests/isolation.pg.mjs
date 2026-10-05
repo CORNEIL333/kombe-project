@@ -49,7 +49,7 @@ async function runSql(client, file) {
 /** Enveloppe une transaction en posant le contexte RLS kombe.group_id. */
 async function withTenant(client, groupId, fn) {
   await client.query("BEGIN");
-  await client.query("SET LOCAL kombe.group_id = $1", [groupId]);
+  await client.query("SELECT set_config('kombe.group_id', $1, true)", [groupId]);
   try {
     return await fn();
   } finally {
@@ -60,7 +60,7 @@ async function withTenant(client, groupId, fn) {
 /** Enveloppe une transaction en posant le contexte self-scope kombe.identity_id. */
 async function withIdentity(client, identityId, fn) {
   await client.query("BEGIN");
-  await client.query("SET LOCAL kombe.identity_id = $1", [identityId]);
+  await client.query("SELECT set_config('kombe.identity_id', $1, true)", [identityId]);
   try {
     return await fn();
   } finally {
@@ -74,6 +74,21 @@ async function main() {
   const observations = {};
 
   try {
+    // ── Pré-nettoyage : éliminer les lignes résiduelles d'un run précédent
+    // dont les étendues d'état (C03/C09) violeraient les CHECK réduits par les
+    // .down.sql intermédiaires (cf. commentaire 0004_group_governance.down.sql).
+    // Ces requêtes sont protégées par un bloc DO pour tolérer l'absence de table
+    // (premier run vierge = exception undefined_table → ignorée).
+    await migrator.query(`
+      DO $$ BEGIN
+        UPDATE "group" SET state = 'closed'
+          WHERE state NOT IN ('configuration','active','paused','closed');
+        UPDATE vote SET state = 'closed'
+          WHERE state NOT IN ('open','closed','cancelled');
+      EXCEPTION WHEN undefined_table THEN NULL;
+      END $$;
+    `);
+
     // État initial reproductible : on repart d'un schéma propre en base de test.
     await runSql(migrator, "migrations/0017_pilot_metrics.down.sql");
     await runSql(migrator, "migrations/0016_privacy_law.down.sql");
@@ -456,14 +471,18 @@ async function main() {
     // donc une rejouabilité après timeout/coupure n'ajoute AUCUN second résultat.
     const HASH_A = "4".repeat(64);
     const HASH_B = "5".repeat(64);
-    await withTenant(app, "grpA", async () => {
-      await app.query(
-        `INSERT INTO idempotency_registry
-           (actor_identity_id, group_id, command_type, idempotency_key, body_hash, result_status)
-         VALUES ('idn_a','grpA','contribution.declare','idem_c06_a',$1,'applied')`,
-        [HASH_A],
-      );
-    });
+    // Seed : insérer et COMMITTER une réservation pour que le test UPDATE
+    // suivant trouve une ligne à protéger (withTenant ROLLBACK → pas de données
+    // persistées → le trigger append-only ne se déclenche pas).
+    await app.query("BEGIN");
+    await app.query("SELECT set_config('kombe.group_id', 'grpA', true)");
+    await app.query(
+      `INSERT INTO idempotency_registry
+         (actor_identity_id, group_id, command_type, idempotency_key, body_hash, result_status)
+       VALUES ('idn_a','grpA','contribution.declare','idem_c06_a',$1,'applied')`,
+      [HASH_A],
+    );
+    await app.query("COMMIT");
     let registryUpdateRefused = false;
     try {
       await app.query("BEGIN");
@@ -868,6 +887,7 @@ async function main() {
 }
 
 main().catch((err) => {
+  process.stderr.write((err.stack || String(err)) + "\n");
   process.stdout.write(
     JSON.stringify({ target: "kombe.db.isolation", status: "FAIL", error: String(err), exitCode: 1 }, null, 2) + "\n",
   );

@@ -32,7 +32,10 @@ DROP FUNCTION IF EXISTS kombe_vote_electorate_coherence();
 --    exécutée échouerait sinon (`ADD CONSTRAINT ... CHECK` valide les lignes
 --    existantes). On rétrograde donc `executed` → `closed` (la décision reste
 --    close approuvée ; le fait d'exécuter est un ajout C09 que l'on défait).
-UPDATE vote SET state = 'closed', executed_at = NULL WHERE state = 'executed';
+--    NB : on ne remet PAS `executed_at = NULL` ici — la colonne est droppée
+--    plus bas (DROP COLUMN IF EXISTS) ; et si l'UP 0012 n'a jamais tourné
+--    (état partiel post-crash), la colonne n'existe pas encore.
+UPDATE vote SET state = 'closed' WHERE state = 'executed';
 ALTER TABLE vote DROP CONSTRAINT IF EXISTS vote_state_check;
 ALTER TABLE vote
   ADD CONSTRAINT vote_state_check
