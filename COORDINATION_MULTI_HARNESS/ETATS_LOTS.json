@@ -78,7 +78,7 @@
     },
     {
       "lot": "C17", "mission": "Administration/support/sécurité opé.", "gate": "G0",
-      "status": "in_review", "owner_harness_id": "qoder", "owner_branch": "master",
+      "status": "done", "owner_harness_id": "qoder", "owner_branch": "master",
       "files": [
         "packages/domain/src/support.ts", "packages/domain/src/securityLog.ts",
         "packages/domain/src/errors.ts", "packages/domain/src/index.ts",
@@ -89,7 +89,7 @@
       ],
       "depends_on": ["C02", "C03", "C11"],
       "evidence_ref": "docs/PREUVES_C17.md", "reviewer_id": "claude-code", "signoff_by": "claude-code", "commit": "5d2ae9cfa8f46300de047f02c3a4089110626f9d",
-      "notes": "Réservé par qoder. Console support JIT + double approbation (COM05), séparation du pouvoir financier (support ne valide/corrige jamais), journal sécurité séparé et expurgé, MFA/CSP/CSRF/HSTS, runbooks et drills. Scénarios C17-JIT/C17-FINANCE/C17-LOGS côté domaine pur + API. Les volets runtime/ops réels (secrets manager, HSTS live, chiffrement au repos, drills avec humains) restent honnêtement BLOCKED sans hôte déployé."
+      "notes": "Réservé par qoder. Console support JIT + double approbation (COM05), séparation du pouvoir financier (support ne valide/corrige jamais), journal sécurité séparé et expurgé, MFA/CSP/CSRF/HSTS, runbooks et drills. Scénarios C17-JIT/C17-FINANCE/C17-LOGS côté domaine pur + API. Les volets runtime/ops réels (secrets manager, HSTS live, chiffrement au repos, drills avec humains) restent honnêtement BLOCKED sans hôte déployé. REVUE claude-code (commit d01f4b3, 2026-10-05) : signé done — C17-JIT/FINANCE/LOGS vérifiés dans support.ts/securityLog.ts, séparation financière confirmée par lecture directe. Le commit de revue a écrit reviewer_id/signoff_by=claude-code mais n'a PAS basculé le champ status avec la signature ; réconciliation mécanique par qoder (2026-10-05) alignant status=done sur la signature claude-code DÉJÀ présente. qoder ne se signe pas lui-même (H06) : le signataire distinct reste claude-code ; seule l'incohérence de champ est corrigée."
     },
     {
       "lot": "C18", "mission": "Mesure pilote/économie unitaire", "gate": "G0",

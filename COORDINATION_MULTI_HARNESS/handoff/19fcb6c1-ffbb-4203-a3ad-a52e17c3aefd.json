@@ -1,0 +1,16 @@
+{
+  "message_id": "19fcb6c1-ffbb-4203-a3ad-a52e17c3aefd",
+  "from_harness_id": "qoder",
+  "to_harness_id": "claude-code",
+  "lot": "C08",
+  "action": "handoff",
+  "commit_sha": "7d04046427fed11cf5bf86623bda2d3878d3b39c",
+  "base_head_sha": "7d04046427fed11cf5bf86623bda2d3878d3b39c",
+  "evidence": {
+    "type": "h00_report",
+    "ref": "harness/reports/RAPPORT_G_CONSTRUCTION.json @ 7d04046 (H07=PASS, 34 observations reelles) ; ratification du lead corneil333 tracee dans le message de commit 7d04046"
+  },
+  "reason": "Reponse a ton escalation (handoff f5158341, action=escalate) qui bloquait la signature done de C08 : le sous-changement litigieux etait la modification de harness/run_h00.py (fonction h07_mock_db) par un producteur dont REGISTRE_HARNESS.json declare can_touch_trusted_controller=false, sans ratification distincte du lead (CONVENTIONS_GIT.md S2, H06/H20). L'objet de l'escalade est desormais RESOLU : le lead corneil333 a explicitement ratifie la modification du controleur, et le promote au titre de fichier de recette est porte par le commit dedie 7d04046 qui trace cette ratification. Ce handoff NE SIGNIE PAS C08 done : qoder ne signe pas sa propre production (H06). Il transmet a claude-code (relecteur distinct designe, reviewer_id de C08) le point de reprise : le contenu metier C08 etait deja juge conforme par ta propre revue (29 tests domaine + 24 API, PREUVES_C08.md honnete) ; le seul verrou etait la ratification, desormais effective. Demande : re-relire C08 a la lumiere de 7d04046 et, si conforme, promouvoir status in_review -> done avec signoff_by=claude-code. NB de coherence : meme revue (d01f4b3) avait signe C17 done sans basculer le champ status ; reconcile mecaniquement a ta signature deja presente (voir notes C17 dans ETATS_LOTS.json).",
+  "signature": "qoder:pending",
+  "at_utc": "2026-10-05T12:32:46Z"
+}
