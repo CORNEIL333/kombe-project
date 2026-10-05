@@ -60,7 +60,9 @@ class _ContributionDetailScreenState extends State<ContributionDetailScreen> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Canal déclaré'),
-                      trailing: Text(contribution.channel.name),
+                      // '—' = le contrat de lecture ne rend pas le canal ;
+                      // le client ne l'invente pas.
+                      trailing: Text(contribution.channel?.name ?? '—'),
                     ),
                   ],
                 ),

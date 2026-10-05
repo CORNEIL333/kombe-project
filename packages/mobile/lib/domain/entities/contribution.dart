@@ -16,9 +16,9 @@ final class Contribution {
     required this.groupId,
     required this.obligationId,
     required this.amountXaf,
-    required this.channel,
     required this.status,
-    required this.declaredAtUtc,
+    this.channel,
+    this.declaredAtUtc,
     this.note,
     this.evidenceName,
   });
@@ -27,9 +27,13 @@ final class Contribution {
   final String groupId;
   final String obligationId;
   final int amountXaf;
-  final PaymentChannel channel;
+  /// null quand le contrat de lecture (`Contribution`) ne rend pas le canal —
+  /// la lecture ne l'invente jamais (ADR-0020, carte d'intégration API).
+  final PaymentChannel? channel;
   final ContributionStatus status;
-  final DateTime declaredAtUtc;
+  /// Date d'enregistrement ; null si l'endpoint ne la rend pas — l'horodatage
+  /// fait foi côté serveur (règle 18 / ADR-0005), le client ne la fabrique pas.
+  final DateTime? declaredAtUtc;
   final String? note;
   final String? evidenceName;
 }
