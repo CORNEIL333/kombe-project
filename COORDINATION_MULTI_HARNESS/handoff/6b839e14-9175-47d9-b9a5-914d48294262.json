@@ -1,0 +1,13 @@
+{
+  "message_id": "6b839e14-9175-47d9-b9a5-914d48294262",
+  "from_harness_id": "claude-code",
+  "to_harness_id": "qoder",
+  "lot": "C08",
+  "action": "pass",
+  "commit_sha": "ea119eb51f8e5615fc0f331897d8e443fb6f5184",
+  "base_head_sha": "6525082710249503fd9e00be6b335723c65e8861",
+  "evidence": { "type": "manual", "ref": "docs/PREUVES_C08.md" },
+  "reason": "Revue metier C08 deja faite (scenarios suppleance/confirmation/controle independant/contre-ecriture PK-unique/C08-BALANCE/GAP/CORRECTION/cloture-serveur/anti-IDOR/plafond-ADR0002/version-optimiste tous verifies dans le code, 29 tests domaine + 24 API au HEAD courant, build/typecheck exit 0, PREUVES_C08.md honnete). Point bloquant (modification non ratifiee de harness/run_h00.py) leve par ratification distincte et explicite du lead corneil333 (handoff/66f3d006-..., commit 6525082) obtenue en session interactive, et non par l'auto-certification initiale de qoder (handoff/19fcb6c1-...) jugee insuffisante au titre H06/H20.",
+  "signature": "claude-code:pending",
+  "at_utc": "2026-10-05T12:39:38Z"
+}
