@@ -1,13 +1,13 @@
 {
   "runner": "H00",
-  "commit": "58fb9195f830b0c35ba548ed29f38dc3bc067f3f",
+  "commit": "d01f4b310add2d449635969ecb399e27ba2fcd6f",
   "gate": "G-CONSTRUCTION",
-  "at_utc": "2026-10-05T11:53:38.114441+00:00",
+  "at_utc": "2026-10-05T12:07:50.334427+00:00",
   "status": "BLOCKED",
   "counts": {
-    "PASS": 11,
+    "PASS": 12,
     "FAIL": 0,
-    "BLOCKED": 9,
+    "BLOCKED": 8,
     "NOT_RUN": 0
   },
   "results": [
@@ -33,7 +33,7 @@
       "detail": "SHA du runner identique avant/après exécution témoin",
       "evidence": {
         "runner": "C:\\Users\\migco\\Desktop\\kombe project\\harness\\run_h00.py",
-        "sha": "515cbc0e43178dd0f5071367299def16420c980ebe201270bb361178fc600ef0"
+        "sha": "e19e6dce84c4f92beef4d4af4eb7246eaa2792aa6e8d5bc17cd3e7f2591ad4b1"
       }
     },
     {
@@ -50,7 +50,7 @@
       "status": "PASS",
       "detail": "SHA déclaré != SHA du contrôleur → rejet correct",
       "evidence": {
-        "expected_commit": "58fb9195f830b0c35ba548ed29f38dc3bc067f3f",
+        "expected_commit": "d01f4b310add2d449635969ecb399e27ba2fcd6f",
         "declared_commit": "0000000000000000000000000000000000000000"
       }
     },
@@ -60,7 +60,7 @@
       "detail": "Rapport PASS d'un autre commit rejeté par vérification d'identité",
       "evidence": {
         "report_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "current_commit": "58fb9195f830b0c35ba548ed29f38dc3bc067f3f"
+        "current_commit": "d01f4b310add2d449635969ecb399e27ba2fcd6f"
       }
     },
     {
@@ -75,12 +75,134 @@
     },
     {
       "id": "H07",
-      "status": "BLOCKED",
-      "detail": "Preuve d'isolation non exécutable ici : KOMBE_TEST_DATABASE_URL absente : aucune base PostgreSQL de test joignable sur cet hôte. (Docker/PostgreSQL requis — Testcontainers en CI ou instance locale).",
+      "status": "PASS",
+      "detail": "Verrou/RLS/isolation prouvés sur PostgreSQL 16+ réel (isolation.pg.mjs, exit 0 — observations réelles, non mockées)",
       "evidence": {
-        "exit_code": 2,
-        "status_json": "BLOCKED",
-        "note": "postgresql_reel_requis"
+        "exit_code": 0,
+        "observations": {
+          "C01_TENANT": {
+            "cross_group_rows": 0
+          },
+          "C01_FK": {
+            "foreign_link_accepted": false
+          },
+          "C01_POOL": {
+            "leaked_rows": 0
+          },
+          "C02_RECOVERY": {
+            "first_use_accepted": true,
+            "second_use_accepted": false
+          },
+          "C02_SESSION": {
+            "old_session_accepted": false
+          },
+          "C02_SELFSCOPE": {
+            "rows_visible_to_other_identity": 0
+          },
+          "C03_STATE": {
+            "extended_state_accepted": true
+          },
+          "C03_INVITE": {
+            "first_redeem_accepted": true,
+            "second_redeem_accepted": false
+          },
+          "C03_TENANT": {
+            "cross_group_invitation_rows": 0
+          },
+          "C04_IMMUTABLE": {
+            "immutable_update_accepted": false
+          },
+          "C04_PENALTY": {
+            "penalty_true_insert_accepted": false
+          },
+          "C05_UNIQUE": {
+            "second_round_same_beneficiary_accepted": false
+          },
+          "C05_OBLIGATION": {
+            "duplicate_member_round_accepted": false
+          },
+          "C11_APPEND_ONLY": {
+            "update_refused": true,
+            "delete_refused": true,
+            "row_present_after": 1
+          },
+          "C11_CHECKPOINT": {
+            "app_insert_accepted": false
+          },
+          "C11_ROLLBACK": {
+            "partial_commit_count": 0
+          },
+          "C06_IDEMPOTENCE": {
+            "registry_update_refused": true,
+            "duplicate_scoped_key_accepted": false
+          },
+          "C06_REPLAY": {
+            "replay_second_registry_insert_accepted": false,
+            "contribution_count": 1
+          },
+          "C06_RACE": {
+            "second_course_accepted": false,
+            "accepted_total": 3000
+          },
+          "C07_SELF": {
+            "self_confirm_accepted": false
+          },
+          "C07_TRIPLE": {
+            "distinct_confirm_accepted": true,
+            "same_actor_second_accepted": false,
+            "third_actor_accepted": true
+          },
+          "C07_REVERSE": {
+            "first_reversal_accepted": true,
+            "second_reversal_accepted": false,
+            "reversal_count": 1
+          },
+          "C07_DISPUTE": {
+            "ordinary_late_accepted": false,
+            "fraud_late_accepted": true
+          },
+          "C10_CASE": {
+            "case_no_correction_accepted": false,
+            "case_with_correction_accepted": true,
+            "resolve_no_outcome_accepted": false
+          },
+          "C10_INDEP": {
+            "raiser_assigned": false,
+            "independent_assigned": true,
+            "duplicate_assigned": false,
+            "assignment_update_refused": true
+          },
+          "C10_REOPEN": {
+            "reopen_self_link_accepted": true,
+            "reopen_cross_link_accepted": false
+          },
+          "C13_WORKERS": {
+            "internal_notification_count": 1
+          },
+          "C13_FAIL": {
+            "financial_validation_preserved": true,
+            "external_accepted_count": 0
+          },
+          "C13_ROLLBACK": {
+            "partial_commit_count": 0
+          },
+          "C13_OPT_OUT": {
+            "external_sent": false
+          },
+          "C13_LEASE": {
+            "stale_write_count": 0
+          },
+          "C13_AMBIGUOUS": {
+            "durable_consumer_acceptance_count": 1
+          },
+          "C13_DEAD": {
+            "attempts": 5,
+            "replay_quota": 3
+          },
+          "C13_REVOKED": {
+            "visible_notifications": 0
+          }
+        }
       }
     },
     {
@@ -241,7 +363,6 @@
   "limites": [
     "H03 : isolation fichier/volume non démontrée sans conteneur (HC02)",
     "H06 : identité authentifiée non vérifiable sans plateforme CI (HC04)",
-    "H07 : preuve d'isolation base réelle non PASS — PostgreSQL réel (Neon/CI) ou KOMBE_TEST_DATABASE_URL requis (RA11)",
     "H09 : env hérité du parent sans liste blanche (HC06)",
     "H10 : restrictions réseau non configurées (RA06)",
     "H13 : sandboxing npm scripts non configuré (RA08)",
@@ -249,5 +370,5 @@
     "H18 : reprise PostgreSQL nécessite Testcontainers (RA15)",
     "H20 : séparation jobs CI nécessite GitHub Actions (RA18)"
   ],
-  "next": "brancher une base PostgreSQL réelle (Neon/CI) pour H07 ; configurer Docker/Testcontainers pour H18 ; configurer GitHub Actions avec jobs séparés pour H02, H14, H20 ; implémenter env allowlist pour H09 ; configurer restrictions réseau pour H10 ; revoir H06 avec identité authentifiée dans C28."
+  "next": "configurer Docker/Testcontainers pour H18 ; configurer GitHub Actions avec jobs séparés pour H02, H14, H20 ; implémenter env allowlist pour H09 ; configurer restrictions réseau pour H10 ; revoir H06 avec identité authentifiée dans C28."
 }

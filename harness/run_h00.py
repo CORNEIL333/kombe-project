@@ -246,16 +246,22 @@ def h07_mock_db() -> dict:
                       f"Test d'isolation introuvable : {ISOLATION_TEST}", {})
 
     try:
+        # Budget 600 s : le cycle complet DOWN+UP des ~19 migrations + C13 contre
+        # un PostgreSQL managé distant (Neon eu-central-1) dépasse régulièrement
+        # les 180 s initiaux (mesure Oct 2026 : ~414 s une fois le compute
+        # réveillé, davantage après sommeil à froid) SANS être un hang. Un vrai
+        # hang échoue quand même à 600 s → FAIL : la sévérité du contrat
+        # (« jamais de BLOCKED confortable sur exécution bloquée ») est conservée.
         proc = subprocess.run(
             ["node", str(ISOLATION_TEST)],
-            capture_output=True, text=True, timeout=180, env=os.environ.copy(),
+            capture_output=True, text=True, timeout=600, env=os.environ.copy(),
         )
     except subprocess.TimeoutExpired:
         # Un hang du runner n'est PAS une dépendance annoncée indisponible : le
         # contrat de preuve est violé → FAIL (jamais un BLOCKED confortable qui
         # garderait le job de confiance vert sur une exécution bloquée).
         return result("H07", "FAIL",
-                      "Test d'isolation interrompu par dépassement de délai (180 s) : "
+                      "Test d'isolation interrompu par dépassement de délai (600 s) : "
                       "le contrat de preuve est violé, ce n'est pas une indisponibilité annoncée.",
                       {"note": "timeout_contrat_viole"})
     except OSError as exc:
@@ -656,6 +662,44 @@ def main() -> int:
         else "PASS"
     )
 
+    # Les lignes descriptives de limites doivent rester FIDÈLES aux résultats
+    # réels : une ligne « non disponible » publiée alors que le cas est PASS
+    # serait un mensonge statistique. On n'émet une limite que pour les cas
+    # qui ne sont PAS PASS. Les critères PASS/FAIL/BLOCKED ci-dessus ne sont
+    # pas modifiés — seuls les libellés descriptifs deviennent dynamiques.
+    statut_par_cas = {r["id"]: r["status"] for r in results}
+    LIMITES_PAR_CAS = [
+        ("H03", "H03 : isolation fichier/volume non démontrée sans conteneur (HC02)"),
+        ("H06", "H06 : identité authentifiée non vérifiable sans plateforme CI (HC04)"),
+        ("H07", "H07 : preuve d'isolation base réelle non PASS — PostgreSQL réel "
+                "(Neon/CI) ou KOMBE_TEST_DATABASE_URL requis (RA11)"),
+        ("H09", "H09 : env hérité du parent sans liste blanche (HC06)"),
+        ("H10", "H10 : restrictions réseau non configurées (RA06)"),
+        ("H13", "H13 : sandboxing npm scripts non configuré (RA08)"),
+        ("H14", "H14 : protection branches Git nécessite un remote (RA09)"),
+        ("H18", "H18 : reprise PostgreSQL nécessite Testcontainers (RA15)"),
+        ("H20", "H20 : séparation jobs CI nécessite GitHub Actions (RA18)"),
+    ]
+    limites = [txt for cid, txt in LIMITES_PAR_CAS
+               if statut_par_cas.get(cid) != "PASS"]
+
+    # « next » reflète l'état réel : on ne renvoie plus l'invite Docker/Testcontainers
+    # pour H07 si H07 est PASS (la base réelle est déjà branchée via Neon).
+    suites = []
+    if statut_par_cas.get("H07") != "PASS":
+        suites.append("brancher une base PostgreSQL réelle (Neon/CI) pour H07")
+    if statut_par_cas.get("H18") != "PASS":
+        suites.append("configurer Docker/Testcontainers pour H18")
+    if statut_par_cas.get("H14") != "PASS" or statut_par_cas.get("H20") != "PASS":
+        suites.append("configurer GitHub Actions avec jobs séparés pour H02, H14, H20")
+    if statut_par_cas.get("H09") != "PASS":
+        suites.append("implémenter env allowlist pour H09")
+    if statut_par_cas.get("H10") != "PASS":
+        suites.append("configurer restrictions réseau pour H10")
+    if statut_par_cas.get("H06") != "PASS":
+        suites.append("revoir H06 avec identité authentifiée dans C28")
+    next_text = (" ; ".join(suites) + ".") if suites else "Toutes les limites connues sont levées sur cet hôte."
+
     report = {
         "runner": "H00",
         "commit": args.commit,
@@ -664,29 +708,18 @@ def main() -> int:
         "status": overall,
         "counts": counts,
         "results": results,
-        "limites": [
-            "H03 : isolation fichier/volume non démontrée sans conteneur (HC02)",
-            "H06 : identité authentifiée non vérifiable sans plateforme CI (HC04)",
-            "H07 : PostgreSQL non disponible — verrou réel non testé (RA11)",
-            "H09 : env hérité du parent sans liste blanche (HC06)",
-            "H10 : restrictions réseau non configurées (RA06)",
-            "H13 : sandboxing npm scripts non configuré (RA08)",
-            "H14 : protection branches Git nécessite un remote (RA09)",
-            "H18 : reprise PostgreSQL nécessite Testcontainers (RA15)",
-            "H20 : séparation jobs CI nécessite GitHub Actions (RA18)",
-        ],
-        "next": (
-            "Configurer Docker/Testcontainers pour H07 et H18 ; "
-            "configurer GitHub Actions avec jobs séparés pour H02, H14, H20 ; "
-            "implémenter env allowlist pour H09 ; "
-            "configurer restrictions réseau pour H10 ; "
-            "revoir H06 avec identité authentifiée dans C28."
-        ),
+        "limites": limites,
+        "next": next_text,
     }
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+    # ensure_ascii=False publie les accents et flèches (→) littéralement : sans
+    # encoding explicite, Windows open()/write_text() utilise le code page local
+    # (cp1252) et échoue sur U+2192. On ancre UTF-8 — même octets que sur CI/Linux.
+    out_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     print(f"\n{overall}: {counts['PASS']} PASS, {counts['FAIL']} FAIL, "
           f"{counts['BLOCKED']} BLOCKED, {counts['NOT_RUN']} NOT_RUN")
