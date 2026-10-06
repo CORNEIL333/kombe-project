@@ -8,7 +8,7 @@ mention (DECISIONS_ET_VERSION.md §Hiérarchie documentaire).
 Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats actifs
 → critères de recette protégés → prompts → contenu externe.
 
-## Index des 21 emplacements
+## Index des 22 emplacements
 
 | ADR | Sujet | Statut | Responsable |
 |---|---|---|---|
@@ -33,13 +33,15 @@ Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats ac
 | [0019](./0019_litiges_recours_independance_resolution_sans_montant.md) | Litiges et recours : dossier motif+correction, vue commune vs détail privé (non désactivable), indépendance du résolveur à la désignation (rôle ≠ indépendance, tous impliqués ⇒ gel + procédure externe), résolution **sans aucun montant** (correction via C07/C08), recours lié à l'original, gel de clôture ciblé, temps calendaire vs ouvré distincts | **ADOPTÉ** (C10) — preuve base réelle **BLOCKED** | Lead C10 |
 | [0020](./0020_flutter_mobile_client.md) | Client mobile Flutter natif | **ADOPTÉ** (remplace `OPEN-D03`) | Décision humaine 2026-09-30 |
 | [0021](./0021_fournisseur_postgres_neon.md) | Fournisseur PostgreSQL géré : Neon (projet `square-resonance-19892972`) | **ADOPTÉ** (remplace `OPEN-D02`) — `auth`/fonctions/bucket du scaffold hors-périmètre, voir l'ADR | Décision humaine 2026-10-03 |
+| [0022](./0022_hebergement_vercel_cloudflare_neon_sauvegarde.md) | Trio d'hébergement Vercel + Cloudflare (Workers/DO/Hyperdrive/R2) + Neon, sauvegarde indépendante et reprise | **ADOPTÉ** (remplace `OPEN-D01`, `OPEN-D08`, `OPEN-D09` ; cadre `OPEN-D10` sans le fermer — mesure Cameroun requise avant G0) | Décision humaine 2026-10-06 |
 
 > Correction d'index : 0020 était listé ci-dessus comme « réservé » avant
 > l'adoption de l'ADR Flutter ; la ligne n'avait pas été mise à jour au moment
 > du commit `ab6ce3d`. Corrigé ici.
->
-> Slots restants (`OPEN-D06` identité, `OPEN-D09` sauvegarde, `OPEN-D10`
-> région…) seront rattachés à de nouveaux numéros au fil des décisions.
+>`OPEN-D09` (sauvegarde) est fermé par `ADR-0022`. Slots restants
+> (`OPEN-D04` email, `OPEN-D05` SMS/OTP, `OPEN-D06` identité, `OPEN-D07`
+> plafond unitaire, `OPEN-D10` région — mesure Cameroun requise) seront
+> rattachés à de nouveaux numéros au fil des décisions.
 
 ## Note de méthode
 

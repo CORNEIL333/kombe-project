@@ -31,6 +31,9 @@ Ces choix sont issus de `01_Audit/ARCHITECTURE_CIBLE.md`, de `01_Audit/AUDIT_PRO
 | Analyse vulnérabilités | Trivy | Image et dépendances |
 | Gestion des versions | pnpm workspaces (monorepo) | Lockfile déterministe, hoisting contrôlé |
 | Fournisseur PostgreSQL géré | Neon (projet `square-resonance-19892972`, branche `production`) | ADR-0021 ; RLS/rôles PostgreSQL standards inchangés, branches DB natives pour CI/preview |
+| Hébergement application + worker | Vercel (front/PWA/dashboards + API Fastify Node 22) + Cloudflare Workers/Durable Object (worker outbox, via Hyperdrive) | ADR-0022 ; verrou singleton par scope natif au Durable Object (`ADR-0017`) |
+| Sauvegarde indépendante | Cloudflare R2 (compte séparé, versioning + Object Lock COMPLIANCE), registre de révocations hors du point de restauration | ADR-0022 ; « backups hors compte applicatif » (Plan déploiement §7) |
+| RPO / RTO | RPO ≤ 15 min nominal / ≤ 1 h contractuel ; RTO ≤ 4 h nominal / ≤ 8 h dégradé | ADR-0022 ; cibles à prouver par exercice réel avant G0, non annoncées avant preuve |
 
 ---
 
@@ -40,16 +43,16 @@ Ces points ont été identifiés dans le dossier d'audit (`DECISIONS_ET_VERSION.
 
 | ID | Sujet | Options documentées | Référence audit |
 |---|---|---|---|
-| `[OPEN-D01]` | **Hébergeur application et worker** | Render payant (recommandé pilote) · Vercel commercial (si plan vérifié) · VPS conteneurisé | TEC01, A15 |
+| `[OPEN-D01]` | **Hébergeur application et worker** | **Tranché : Vercel (front/PWA/dashboards + API Fastify sur Node 22) + Cloudflare Workers/Durable Object (worker outbox) — voir ADR-0022** | TEC01, A15 |
 | ~~`[OPEN-D02]`~~ | ~~Fournisseur PostgreSQL géré~~ | **Tranché : Neon — voir §1 et ADR-0021** | TEC04, ZN03 |
 | `[OPEN-D03]` | **Client mobile natif** | PWA seule (pilote web) · Flutter en parallèle · React Native | TEC02/TEC03 |
 | `[OPEN-D04]` | **Email transactionnel** | Resend · Brevo · Amazon SES | TEC09 |
 | `[OPEN-D05]` | **SMS / OTP** | Twilio · Infobip · Vonage (couverture Cameroun à tester) | TEC07 |
 | `[OPEN-D06]` | **Fournisseur identité** | Supabase Auth (si même fournisseur DB) · Auth.js · Identité gérée maison | A07 |
 | `[OPEN-D07]` | **Plafond XAF par montant** | 1 000 000 000 XAF proposé ; entier sûr JSON à confirmer par ADR | Architecture cible §Invariants |
-| `[OPEN-D08]` | **RPO cible** | ≤ 1 h (recommandé) ou ≤ 24 h (risque accepté par écrit) | ZG08, A09 |
-| `[OPEN-D09]` | **Fournisseur sauvegarde indépendante** | Backblaze B2 · S3-compatible hébergeur choisi | Plan déploiement §7 |
-| `[OPEN-D10]` | **Région primaire** | À mesurer depuis Cameroun avant engagement | Plan déploiement §3 |
+| `[OPEN-D08]` | **RPO cible** | **Tranché : ≤ 15 min nominal / ≤ 1 h plancher contractuel — voir ADR-0022 (cibles à prouver par exercice réel avant G0)** | ZG08, A09 |
+| `[OPEN-D09]` | **Fournisseur sauvegarde indépendante** | **Tranché : Cloudflare R2 (compte séparé, Object Lock) — voir ADR-0022 ; Backblaze B2 en alternative testée** | Plan déploiement §7 |
+| `[OPEN-D10]` | **Région primaire** | **Cadre posé par ADR-0022 (candidats Paris/Francfort) — NON tranché : mesure de latence depuis le Cameroun requise avant G0** | Plan déploiement §3 |
 
 ---
 
