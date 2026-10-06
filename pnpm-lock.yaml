@@ -159,6 +159,9 @@ importers:
       fastify:
         specifier: ^5.12.5
         version: 5.12.5
+      pg:
+        specifier: ^8.13.1
+        version: 8.23.0
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -169,6 +172,9 @@ importers:
       '@types/node':
         specifier: ^22.10.2
         version: 22.10.2
+      '@types/pg':
+        specifier: ^8.11.10
+        version: 8.23.1
       js-yaml:
         specifier: ^4.1.0
         version: 4.3.2
@@ -919,6 +925,9 @@ packages:
 
   '@types/node@22.10.2':
     resolution: {integrity: sha512-Xxr6BBRCAOQixvonOye19wnzyDiUtTeqldOOmj3CkeblonbccA12PFwlufvRdrpjXxqnmUaeiU5EOA+7s5diUQ==}
+
+  '@types/pg@8.23.1':
+    resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
 
   '@types/react-dom@19.3.0':
     resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
@@ -2382,6 +2391,12 @@ snapshots:
   '@types/node@22.10.2':
     dependencies:
       undici-types: 6.20.0
+
+  '@types/pg@8.23.1':
+    dependencies:
+      '@types/node': 22.10.2
+      pg-protocol: 1.16.0
+      pg-types: 2.2.0
 
   '@types/react-dom@19.3.0(@types/react@19.3.0)':
     dependencies:
