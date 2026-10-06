@@ -13,7 +13,7 @@ Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats ac
 | ADR | Sujet | Statut | Responsable |
 |---|---|---|---|
 | [0001](./0001_construction_neuve_stack.md) | Construction neuve, monorepo pnpm, stack verrouillée | **ADOPTÉ** (C00) | Lead C00 |
-| [0002](./0002_monnaie_xaf_entiere_plafonds.md) | Monnaie XAF entière, plafonds, canonicalisation des montants | **ADOPTÉ** (plafond unitaire `[OUVERT-D07]` provisoire) | Lead C00 |
+| [0002](./0002_monnaie_xaf_entiere_plafonds.md) | Monnaie XAF entière, plafonds, canonicalisation des montants | **ADOPTÉ** — plafond unitaire ratifié 1 000 000 000 XAF (`OPEN-D07` clos, décision humaine 2026-10-06) | Lead C00 |
 | [0003](./0003_canonicalisation_rfc8785.md) | Canonicalisation RFC 8785 via bibliothèque épinglée | **ADOPTÉ** | Lead C00 |
 | [0004](./0004_journal_hash_chain.md) | Schéma d'événement et chaîne de hash (genèse 64 zéros) | **ADOPTÉ** | Lead C00 |
 | [0005](./0005_barrieres_serveur_pilote.md) | Barrières serveur des fonctionnalités du pilote | **ADOPTÉ** | Lead C00 |
@@ -38,10 +38,11 @@ Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats ac
 > Correction d'index : 0020 était listé ci-dessus comme « réservé » avant
 > l'adoption de l'ADR Flutter ; la ligne n'avait pas été mise à jour au moment
 > du commit `ab6ce3d`. Corrigé ici.
->`OPEN-D09` (sauvegarde) est fermé par `ADR-0022`. Slots restants
-> (`OPEN-D04` email, `OPEN-D05` SMS/OTP, `OPEN-D06` identité, `OPEN-D07`
-> plafond unitaire, `OPEN-D10` région — mesure Cameroun requise) seront
-> rattachés à de nouveaux numéros au fil des décisions.
+>`OPEN-D09` (sauvegarde) est fermé par `ADR-0022`. `OPEN-D07` (plafond
+> unitaire) est fermé par ratification du porteur dans `ADR-0002` (2026-10-06).
+> Slots restants (`OPEN-D04` email, `OPEN-D05` SMS/OTP, `OPEN-D06` identité,
+> `OPEN-D10` région — mesure Cameroun requise) seront rattachés à de nouveaux
+> numéros au fil des décisions.
 
 ## Note de méthode
 
