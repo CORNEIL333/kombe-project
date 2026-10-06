@@ -39,10 +39,23 @@ def sha256_file(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+# Liste blanche (H09) des variables strictement necessaires a l'execution de
+# l'interpreteur Python temoin. os.environ n'est JAMAIS transmis en bloc : un
+# secret present dans l'environnement du parent (ex. token CI) ne doit pas
+# fuiter vers le processus temoin. `extra_env` reste le canal EXPLICITE pour
+# les scenarios qui doivent transmettre une valeur precise (ex. EXPECTED_PATH
+# pour H03) -- ce n'est pas une fuite, c'est un parametre assume du scenario.
+_WITNESS_ENV_ALLOWLIST = (
+    "PATH", "SYSTEMROOT", "SYSTEMDRIVE", "PATHEXT", "COMSPEC",
+    "TEMP", "TMP", "HOME", "USERPROFILE",
+)
+
+
 def run_witness(request: dict, mode: str = "sain", extra_env: dict | None = None,
                 timeout: int = 10) -> tuple[int, dict | None, str]:
     """Lance witness.py avec le mode donné. Retourne (exit_code, response_dict|None, stderr)."""
-    env = {**os.environ, "WITNESS_MODE": mode}
+    env = {k: v for k, v in os.environ.items() if k in _WITNESS_ENV_ALLOWLIST}
+    env["WITNESS_MODE"] = mode
     if extra_env:
         env.update(extra_env)
     try:
@@ -362,25 +375,37 @@ def h08_critical_mutants(commit: str) -> dict:
 
 
 def h09_inherited_secrets(commit: str) -> dict:
-    """Sentinelle dans l'env parent ne doit pas être visible du candidat."""
+    """Sentinelle dans l'env parent ne doit pas être visible du candidat.
+
+    Simule un secret present dans l'environnement du PARENT (ex. jeton CI) en
+    le posant directement dans os.environ de run_h00.py -- jamais transmis via
+    extra_env (qui est un pass-through explicite et ne prouverait rien).
+    L'allowlist de run_witness() doit l'arreter avant qu'il n'atteigne le
+    temoin.
+    """
     sentinel = "KOMBE_SENTINEL_H09_FICTIF"
     req = {"scenario_id": "H09", "commit": commit, "input": {}}
 
-    # On passe la sentinelle dans l'env du témoin pour voir si elle est exposée
-    _, resp, _ = run_witness(req, mode="sain",
-                             extra_env={"KOMBE_SENTINEL": sentinel})
+    os.environ["KOMBE_SENTINEL"] = sentinel
+    try:
+        _, resp, _ = run_witness(req, mode="sain")
+    finally:
+        del os.environ["KOMBE_SENTINEL"]
     obs = resp.get("observations", {}) if resp else {}
     secret_seen = obs.get("secret_in_env")
 
     if secret_seen == sentinel:
-        # Le témoin a vu la sentinelle — isolation env insuffisante (attendu sans Docker)
-        return result("H09", "BLOCKED",
-                      "Sentinelle visible du processus enfant sans isolation d'env "
-                      "(limite HC06 : subprocess hérite les variables du parent). "
-                      "Isolation d'env à implémenter dans C28 avec liste blanche.",
-                      {"sentinel_visible": True, "note": "env_allowlist_requise"})
+        # Le témoin a vu la sentinelle — l'allowlist a laissé passer un secret
+        # du parent : contrat d'isolation violé, jamais un BLOCKED confortable.
+        return result("H09", "FAIL",
+                      "Sentinelle de l'environnement parent visible du processus "
+                      "témoin malgré l'allowlist de run_witness() : contrat "
+                      "d'isolation d'environnement violé.",
+                      {"sentinel_visible": True, "note": "allowlist_defaillante"})
     return result("H09", "PASS",
-                  "Sentinelle non visible du programme témoin",
+                  "Sentinelle de l'environnement parent non visible du témoin "
+                  "(allowlist explicite dans run_witness(), pas un héritage total "
+                  "de os.environ).",
                   {"sentinel_visible": False})
 
 
@@ -569,13 +594,48 @@ def h19_real_external_effect() -> dict:
 
 
 def h20_policy_from_pr() -> dict:
-    """Le runner ne peut pas être modifié par le code candidat — BLOCKED sans CI protégée."""
-    return result("H20", "BLOCKED",
-                  "Séparation du job candidat et du job de confiance "
-                  "non configurable sans GitHub Actions ou CI équivalente. "
-                  "À implémenter dans C28 : jobs séparés, "
-                  "contrôleur versionné hors reach du candidat.",
-                  {"note": "github_actions_protected_job_requis"})
+    """Le runner ne peut pas être modifié par le code candidat.
+
+    Vérifie DYNAMIQUEMENT le contexte d'exécution GitHub Actions plutôt que
+    d'affirmer un BLOCKED statique : hors GitHub Actions (hôte local), la
+    dépendance est honnêtement absente (BLOCKED). Dans GitHub Actions, PASS
+    seulement si ce runner s'exécute depuis le workflow de confiance dédié
+    (.github/workflows/h00-trusted.yml, distinct de ci.yml qui ne l'invoque
+    jamais) sur un événement protégé (push/workflow_dispatch, jamais un
+    pull_request externe qui pourrait influencer l'exécution) — sinon FAIL,
+    jamais un succès simulé pour un contexte mal configuré.
+    """
+    in_actions = os.environ.get("GITHUB_ACTIONS") == "true"
+    if not in_actions:
+        return result("H20", "BLOCKED",
+                      "Séparation du job candidat et du job de confiance "
+                      "non configurable hors GitHub Actions (hôte local détecté). "
+                      "À exécuter via .github/workflows/h00-trusted.yml.",
+                      {"note": "github_actions_requis", "in_actions": False})
+
+    workflow_ref = os.environ.get("GITHUB_WORKFLOW_REF", "")
+    event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+    is_trusted_workflow = "h00-trusted.yml" in workflow_ref
+    is_safe_event = event_name in ("push", "workflow_dispatch")
+
+    if not is_trusted_workflow:
+        return result("H20", "FAIL",
+                      "Runner H00 exécuté hors du workflow de confiance attendu : "
+                      f"GITHUB_WORKFLOW_REF={workflow_ref!r}. Le contrôleur ne "
+                      "doit jamais tourner depuis un job candidat.",
+                      {"workflow_ref": workflow_ref})
+    if not is_safe_event:
+        return result("H20", "FAIL",
+                      f"Runner H00 déclenché par un événement non protégé "
+                      f"({event_name!r}) : un pull_request externe pourrait "
+                      "influencer le contexte d'exécution.",
+                      {"event_name": event_name})
+    return result("H20", "PASS",
+                  "Exécution confirmée dans le job de confiance isolé "
+                  "(workflow h00-trusted.yml, événement "
+                  f"{event_name!r}), hors reach du job candidat (ci.yml "
+                  "n'invoque jamais run_h00.py).",
+                  {"workflow_ref": workflow_ref, "event_name": event_name})
 
 
 # ── Rapport final ──────────────────────────────────────────────────────────

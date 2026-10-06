@@ -1,13 +1,13 @@
 {
   "runner": "H00",
-  "commit": "d01f4b310add2d449635969ecb399e27ba2fcd6f",
+  "commit": "28e07de65abb9eabaa13dfa4746a3e4e0f5595c8",
   "gate": "G-CONSTRUCTION",
-  "at_utc": "2026-10-05T12:07:50.334427+00:00",
+  "at_utc": "2026-10-06T01:03:22.854729+00:00",
   "status": "BLOCKED",
   "counts": {
-    "PASS": 12,
+    "PASS": 13,
     "FAIL": 0,
-    "BLOCKED": 8,
+    "BLOCKED": 7,
     "NOT_RUN": 0
   },
   "results": [
@@ -33,7 +33,7 @@
       "detail": "SHA du runner identique avant/après exécution témoin",
       "evidence": {
         "runner": "C:\\Users\\migco\\Desktop\\kombe project\\harness\\run_h00.py",
-        "sha": "e19e6dce84c4f92beef4d4af4eb7246eaa2792aa6e8d5bc17cd3e7f2591ad4b1"
+        "sha": "f26a5dee9515370d9101e38c8d375dbffc29c79db282bbe9c599c8d6930d4ed7"
       }
     },
     {
@@ -50,7 +50,7 @@
       "status": "PASS",
       "detail": "SHA déclaré != SHA du contrôleur → rejet correct",
       "evidence": {
-        "expected_commit": "d01f4b310add2d449635969ecb399e27ba2fcd6f",
+        "expected_commit": "28e07de65abb9eabaa13dfa4746a3e4e0f5595c8",
         "declared_commit": "0000000000000000000000000000000000000000"
       }
     },
@@ -60,7 +60,7 @@
       "detail": "Rapport PASS d'un autre commit rejeté par vérification d'identité",
       "evidence": {
         "report_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "current_commit": "d01f4b310add2d449635969ecb399e27ba2fcd6f"
+        "current_commit": "28e07de65abb9eabaa13dfa4746a3e4e0f5595c8"
       }
     },
     {
@@ -228,11 +228,10 @@
     },
     {
       "id": "H09",
-      "status": "BLOCKED",
-      "detail": "Sentinelle visible du processus enfant sans isolation d'env (limite HC06 : subprocess hérite les variables du parent). Isolation d'env à implémenter dans C28 avec liste blanche.",
+      "status": "PASS",
+      "detail": "Sentinelle de l'environnement parent non visible du témoin (allowlist explicite dans run_witness(), pas un héritage total de os.environ).",
       "evidence": {
-        "sentinel_visible": true,
-        "note": "env_allowlist_requise"
+        "sentinel_visible": false
       }
     },
     {
@@ -354,21 +353,21 @@
     {
       "id": "H20",
       "status": "BLOCKED",
-      "detail": "Séparation du job candidat et du job de confiance non configurable sans GitHub Actions ou CI équivalente. À implémenter dans C28 : jobs séparés, contrôleur versionné hors reach du candidat.",
+      "detail": "Séparation du job candidat et du job de confiance non configurable hors GitHub Actions (hôte local détecté). À exécuter via .github/workflows/h00-trusted.yml.",
       "evidence": {
-        "note": "github_actions_protected_job_requis"
+        "note": "github_actions_requis",
+        "in_actions": false
       }
     }
   ],
   "limites": [
     "H03 : isolation fichier/volume non démontrée sans conteneur (HC02)",
     "H06 : identité authentifiée non vérifiable sans plateforme CI (HC04)",
-    "H09 : env hérité du parent sans liste blanche (HC06)",
     "H10 : restrictions réseau non configurées (RA06)",
     "H13 : sandboxing npm scripts non configuré (RA08)",
     "H14 : protection branches Git nécessite un remote (RA09)",
     "H18 : reprise PostgreSQL nécessite Testcontainers (RA15)",
     "H20 : séparation jobs CI nécessite GitHub Actions (RA18)"
   ],
-  "next": "configurer Docker/Testcontainers pour H18 ; configurer GitHub Actions avec jobs séparés pour H02, H14, H20 ; implémenter env allowlist pour H09 ; configurer restrictions réseau pour H10 ; revoir H06 avec identité authentifiée dans C28."
+  "next": "configurer Docker/Testcontainers pour H18 ; configurer GitHub Actions avec jobs séparés pour H02, H14, H20 ; configurer restrictions réseau pour H10 ; revoir H06 avec identité authentifiée dans C28."
 }

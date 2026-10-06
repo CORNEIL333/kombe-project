@@ -1,0 +1,13 @@
+{
+  "message_id": "14376020-d987-4f49-99f8-5e88190b5489",
+  "from_harness_id": "corneil333",
+  "to_harness_id": "claude-code",
+  "lot": "C28",
+  "action": "review",
+  "commit_sha": "28e07de65abb9eabaa13dfa4746a3e4e0f5595c8",
+  "base_head_sha": "28e07de65abb9eabaa13dfa4746a3e4e0f5595c8",
+  "evidence": { "type": "manual", "ref": "harness/run_h00.py (diff local, fonctions run_witness/h09_inherited_secrets/h20_policy_from_pr)" },
+  "reason": "Ratification EXPLICITE et DISTINCTE du lead (corneil333), demandee par claude-code (proposition de code vers C28, jamais un self-signing H06 : claude-code produit, ne signe pas) avant tout commit sur harness/run_h00.py (fichier de recette protege). Deux correctifs : (1) H09 -- run_witness() ne transmet plus os.environ en bloc au process temoin mais une liste blanche explicite (_WITNESS_ENV_ALLOWLIST) ; h09_inherited_secrets() pose desormais la sentinelle dans l'environnement du PARENT (run_h00.py) au lieu de la faire transiter par extra_env (pass-through explicite qui ne prouvait rien) -- verifie localement : H09 passe de BLOCKED a PASS, 0 FAIL, aucune regression sur les 18 autres cas. (2) H20 -- remplace le stub statique toujours-BLOCKED par une detection dynamique du contexte GitHub Actions (GITHUB_ACTIONS/GITHUB_WORKFLOW_REF/GITHUB_EVENT_NAME) : BLOCKED honnete hors CI (verifie localement, hote Windows sans GITHUB_ACTIONS), PASS seulement si execute depuis .github/workflows/h00-trusted.yml sur push/workflow_dispatch, FAIL explicite si le contexte est mal configure (jamais un succes simule). Verification post-fix completee par claude-code : python harness/run_h00.py --commit <HEAD> --out <tmp> -> 12 PASS/0 FAIL/8 BLOCKED (sans Neon dans ce shell) ; aucun FAIL, H09 vert, H20 honnetement BLOCKED en local comme attendu.",
+  "signature": "human:CORNEIL333",
+  "at_utc": "2026-10-06T00:54:29Z"
+}
