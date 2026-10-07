@@ -46,7 +46,7 @@ Ces points ont été identifiés dans le dossier d'audit (`DECISIONS_ET_VERSION.
 | `[OPEN-D01]` | **Hébergeur application et worker** | **Tranché : Vercel (front/PWA/dashboards + API Fastify sur Node 22) + Cloudflare Workers/Durable Object (worker outbox) — voir ADR-0022** | TEC01, A15 |
 | ~~`[OPEN-D02]`~~ | ~~Fournisseur PostgreSQL géré~~ | **Tranché : Neon — voir §1 et ADR-0021** | TEC04, ZN03 |
 | `[OPEN-D03]` | **Client mobile natif** | PWA seule (pilote web) · Flutter en parallèle · React Native | TEC02/TEC03 |
-| `[OPEN-D04]` | **Email transactionnel** | Resend · Brevo · Amazon SES | TEC09 |
+| ~~`[OPEN-D04]`~~ | ~~Email transactionnel~~ | **Tranché : Resend (décision humaine 2026-10-07) — clé API locale hors dépôt (`.env`, `RESEND_API_KEY`)** | TEC09 |
 | `[OPEN-D05]` | **SMS / OTP** | Twilio · Infobip · Vonage (couverture Cameroun à tester) | TEC07 |
 | `[OPEN-D06]` | **Fournisseur identité** | Supabase Auth (si même fournisseur DB) · Auth.js · Identité gérée maison | A07 |
 | ~~`[OPEN-D07]`~~ | ~~Plafond XAF par montant~~ | **Tranché : 1 000 000 000 XAF ratifié (décision humaine 2026-10-06) — voir ADR-0002** | Architecture cible §Invariants |
