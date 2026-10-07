@@ -13,6 +13,7 @@
  * RÉELLEMENT ÉCOUTABLE pour le déploiement du squelette, rien de plus.
  */
 import { buildApp } from "./server.js";
+import { createApiPool, readApiDatabaseUrl } from "./db/pgPool.js";
 
 // Le socle C00 construit Fastify avec `logger: false` (pas de sortie structurée
 // activée). Pour que le cycle de vie du service reste OBSERVABLE au déploiement,
@@ -46,7 +47,14 @@ function readHost(): string {
 }
 
 async function main(): Promise<void> {
-  const app = buildApp();
+  // Mode RÉEL (Piste A3) : seulement si KOMBE_API_DATABASE_URL est posée —
+  // jamais un pool silencieusement absent qui ferait croire à un mode réel
+  // inactif. Périmètre réel actuel : connexion + déclaration/vue cotisation
+  // (voir BuildAppOptions.pool, server.ts). Tout le reste reste fictif tant
+  // que son propre store Postgres n'est pas câblé.
+  const databaseUrl = readApiDatabaseUrl();
+  const pool = databaseUrl ? createApiPool({ connectionString: databaseUrl }) : undefined;
+  const app = buildApp(pool ? { pool } : {});
   const port = readPort();
   const host = readHost();
 
@@ -55,6 +63,7 @@ async function main(): Promise<void> {
     say(`réception ${signal} : arrêt du serveur`);
     try {
       await app.close();
+      if (pool) await pool.end();
       process.exit(0);
     } catch (err) {
       sayErr("échec de la fermeture", err);
@@ -67,7 +76,9 @@ async function main(): Promise<void> {
   try {
     await app.listen({ port, host });
     say(
-      `à l'écoute sur http://${host}:${port} (socle C00, stores fictifs en mémoire ; santé : GET /v1/health)`,
+      pool
+        ? `à l'écoute sur http://${host}:${port} (mode RÉEL : connexion + cotisation sur Postgres ; reste fictif ; santé : GET /v1/health)`
+        : `à l'écoute sur http://${host}:${port} (socle C00, stores fictifs en mémoire ; santé : GET /v1/health)`,
     );
   } catch (err) {
     sayErr("démarrage impossible", err);

@@ -136,6 +136,12 @@ export const recoveryCompletion = z.object({
 });
 export const sessionLogin = z.object({ identityId, sessionId: z.string().min(1).max(120) });
 
+// Connexion RÉELLE (ADR-0024, purpose `login`) : même forme que
+// recoveryRequest/registrationVerification — `sessionId` n'est JAMAIS soumis
+// ici (généré serveur par `PgAccessStore.completeLogin`, voir server.ts).
+export const loginRequest = z.object({ identityId });
+export const loginCompletion = z.object({ identityId, code: verificationCode });
+
 export type RegistrationRequestInput = z.infer<typeof registrationRequest>;
 export type RecoveryCompletionInput = z.infer<typeof recoveryCompletion>;
 

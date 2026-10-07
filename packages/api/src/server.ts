@@ -7,8 +7,13 @@
  */
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
+import type pg from "pg";
 import { DomainError, type DomainErrorCode } from "@kombe/domain";
 import type { CycleSchedule, ContributionDeclaration } from "@kombe/domain";
+import { PgContributionStore } from "./db/pgContributionStore.js";
+import { PgAccessStore } from "./db/pgAccessStore.js";
+import { resolveSession, resolveGroupActor, type GroupActor } from "./db/pgSessionResolver.js";
+import { ResendEmailSender, type EmailSender } from "./email/emailSender.js";
 import {
   FictitiousCommandStore,
   type Actor,
@@ -72,6 +77,8 @@ import {
   recoveryRequest,
   recoveryCompletion,
   sessionLogin,
+  loginRequest,
+  loginCompletion,
   createGroupBody,
   groupTransitionBody,
   membershipTerminationBody,
@@ -217,6 +224,20 @@ export interface BuildAppOptions {
   readonly exports?: FictitiousExportStore;
   readonly privacy?: FictitiousPrivacyStore;
   readonly metrics?: FictitiousMetricsStore;
+  /**
+   * Mode RÉEL (Piste A3) : quand fourni, active l'authentification par
+   * session réelle (`Authorization: Bearer <sessionId>`, `resolveSession`/
+   * `resolveGroupActor`, Piste A2) et les stores Postgres (`PgAccessStore`,
+   * `PgContributionStore`, Piste A1/A2 suite) pour le SEUL périmètre déjà
+   * prouvé base réelle : connexion (login) et déclaration/vue de cotisation.
+   * Absent (défaut, tous les tests existants) : comportement 100% inchangé,
+   * stores fictifs partout, `x-actor` toujours fictif.
+   */
+  readonly pool?: pg.Pool;
+  /** Injectable pour les tests du mode réel (jamais un envoi réel hors
+   *  G0) ; par défaut `ResendEmailSender` lue depuis `RESEND_API_KEY`/
+   *  `KOMBE_EMAIL_FROM` quand `pool` est fourni sans substitut explicite. */
+  readonly emailSender?: EmailSender;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -551,6 +572,65 @@ function metricsCtxFrom(
   };
 }
 
+/** Construit l'expéditeur Resend réel depuis l'environnement. Échec explicite
+ *  (jamais un repli silencieux) si `RESEND_API_KEY` est absente : un pool réel
+ *  sans expéditeur réel serait un mode réel partiellement simulé, exclu. */
+function requireResendSender(): EmailSender {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "RESEND_API_KEY absente : mode réel (pool fourni) exige un expéditeur email réel (ADR-0023/0024).",
+    );
+  }
+  const from = process.env.KOMBE_EMAIL_FROM && process.env.KOMBE_EMAIL_FROM.length > 0
+    ? process.env.KOMBE_EMAIL_FROM
+    : "KÓMBE <onboarding@resend.dev>";
+  return new ResendEmailSender(apiKey, from);
+}
+
+/**
+ * Authentification RÉELLE (Piste A3) : résout `Authorization: Bearer
+ * <sessionId>` en identité (`resolveSession`, SECURITY DEFINER, Piste A2),
+ * PUIS l'adhésion active + rôle accepté dans le groupe ciblé
+ * (`resolveGroupActor`) — une seule transaction courte, dédiée à
+ * l'authentification (distincte de la transaction d'écriture/lecture
+ * métier qui suit, ouverte séparément par `PgContributionStore`). Absence ou
+ * malformation de l'en-tête répond par le même `SESSION_INVALID` qu'une
+ * session invalide (non-divulgation) — jamais une distinction observable.
+ */
+async function realGroupActorFrom(
+  dbPool: pg.Pool,
+  request: { headers: Record<string, unknown> },
+  groupId: string,
+): Promise<GroupActor> {
+  const authHeader = request.headers["authorization"];
+  const sessionId =
+    typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length).trim()
+      : "";
+  if (!sessionId) {
+    throw new DomainError("SESSION_INVALID", "Session non applicable");
+  }
+  const client = await dbPool.connect();
+  try {
+    await client.query("BEGIN");
+    const identity = await resolveSession(client, sessionId, Date.now());
+    await client.query("SELECT set_config('kombe.group_id', $1, true)", [groupId]);
+    const actor = await resolveGroupActor(client, identity.identityId, groupId);
+    await client.query("COMMIT");
+    return actor;
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* Connexion perdue : rien à faire, le pool la recréera. */
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   const store = options.store ?? new FictitiousCommandStore();
@@ -568,6 +648,16 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const exportStore = options.exports ?? new FictitiousExportStore();
   const privacyStore = options.privacy ?? new FictitiousPrivacyStore();
   const metricsStore = options.metrics ?? new FictitiousMetricsStore();
+
+  // Mode RÉEL (Piste A3, cf. BuildAppOptions.pool) : construit seulement si
+  // un pool est fourni. Jamais de repli silencieux sur NullEmailSender ici
+  // (un pool réel sans expéditeur réel configuré est une erreur de
+  // déploiement — échec explicite au démarrage, jamais un faux succès).
+  const pool = options.pool;
+  const realContribution = pool ? new PgContributionStore(pool) : undefined;
+  const realAccess = pool
+    ? new PgAccessStore(pool, options.emailSender ?? requireResendSender())
+    : undefined;
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -609,23 +699,31 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   /* --- C02 : inscription / sessions / récupération (1.1 → 1.5) --- */
 
   // Demande d'inscription — réponse anti-énumération (202 uniforme).
+  // Même contrat {identityId, channel} fictif/réel (PgAccessStore, Piste A2
+  // suite) : bascule transparente selon `pool`, aucun changement de route.
   app.post("/v1/access/registrations", async (request, reply) => {
     const body = registrationRequest.parse(request.body);
-    const receipt = access.requestRegistration(body.identityId, body.channel);
+    const receipt = realAccess
+      ? await realAccess.requestRegistration(body.identityId, body.channel)
+      : access.requestRegistration(body.identityId, body.channel);
     return reply.code(202).send(receipt);
   });
 
-  // Vérification du canal par jeton à usage unique (1.1).
+  // Vérification du canal par CODE (ADR-0024) — même contrat fictif/réel.
   app.post("/v1/access/registrations/verifications", async (request, reply) => {
     const body = registrationVerification.parse(request.body);
-    const out = access.verifyRegistration(body.identityId, body.code);
+    const out = realAccess
+      ? await realAccess.verifyRegistration(body.identityId, body.code)
+      : access.verifyRegistration(body.identityId, body.code);
     return reply.code(200).send(out);
   });
 
   // Demande de récupération — gabarit identique compte connu/inconnu (1.4).
   app.post("/v1/access/recovery-requests", async (request, reply) => {
     const body = recoveryRequest.parse(request.body);
-    const receipt = access.requestRecovery(body.identityId);
+    const receipt = realAccess
+      ? await realAccess.requestRecovery(body.identityId)
+      : access.requestRecovery(body.identityId);
     return reply.code(202).send(receipt);
   });
 
@@ -633,11 +731,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // toutes les sessions antérieures (C02-RECOVERY, C02-SESSION).
   app.post("/v1/access/recovery-completions", async (request, reply) => {
     const body = recoveryCompletion.parse(request.body);
-    const out = access.completeRecovery(body.identityId, body.code, body.suspensionSeconds);
+    const out = realAccess
+      ? await realAccess.completeRecovery(body.identityId, body.code, body.suspensionSeconds)
+      : access.completeRecovery(body.identityId, body.code, body.suspensionSeconds);
     return reply.code(200).send(out);
   });
 
-  // Ouverture de session (1.2) — la session est liée à la génération courante.
+  // Ouverture de session FICTIVE (1.2, squelette C00) — `sessionId` client,
+  // volontairement NON touchée (ADR-0024 §limites) : le mode réel a sa PROPRE
+  // paire de routes ci-dessous (`sessionId` généré serveur, jamais client).
   app.post("/v1/access/sessions", async (request, reply) => {
     const body = sessionLogin.parse(request.body);
     const out = access.login(body.identityId, body.sessionId);
@@ -660,8 +762,30 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Privilège opérateur RECALCULÉ serveur, jamais depuis le jeton (C02-PRIVILEGE).
   app.get("/v1/access/operators/:identityId/privilege", async (request, reply) => {
     const { identityId } = request.params as { identityId: string };
-    return reply.code(200).send(access.operatorAccess(identityId));
+    const out = realAccess
+      ? await realAccess.operatorAccess(identityId)
+      : access.operatorAccess(identityId);
+    return reply.code(200).send(out);
   });
+
+  // --- Connexion RÉELLE (ADR-0024, Piste A3) : additive, active SEULEMENT
+  // quand `pool` est fourni — n'existe pas du tout en mode fictif (jamais un
+  // 404 masqué derrière un faux succès). `sessionId` toujours généré serveur.
+  if (realAccess) {
+    const realAccessStore = realAccess;
+
+    app.post("/v1/access/login-requests", async (request, reply) => {
+      const body = loginRequest.parse(request.body);
+      const receipt = await realAccessStore.requestLogin(body.identityId);
+      return reply.code(202).send(receipt);
+    });
+
+    app.post("/v1/access/login-completions", async (request, reply) => {
+      const body = loginCompletion.parse(request.body);
+      const out = await realAccessStore.completeLogin(body.identityId, body.code);
+      return reply.code(201).send(out);
+    });
+  }
 
   /* --- C03 : groupes, gouvernance, invitations, règles (2.1, 2.7, 4.1, 4.2) --- */
 
@@ -928,6 +1052,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // corps) renvoie le résultat d'origine SANS second événement ; corps
   // différent → 409 ; excédent → 409 (aucune écriture). 18.1 / 18.3.
   app.post("/v1/groups/:groupId/declarations", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
     const body = declareContributionBody_c06.parse(request.body);
     const decl: ContributionDeclaration = {
       obligationId: body.obligationId,
@@ -937,8 +1062,29 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       ...(body.reference !== undefined ? { reference: body.reference } : {}),
       ...(body.justification !== undefined ? { justification: body.justification } : {}),
     };
-    const ctx = declareCtxFrom(request);
-    const r = contribution.declare(ctx, decl);
+    // Mode RÉEL (Piste A3) : session Bearer authentifiée + adhésion/rôle
+    // RELUS en base (jamais depuis un en-tête client) avant toute écriture.
+    const r = pool && realContribution
+      ? await (async () => {
+          const actor = await realGroupActorFrom(pool, request, groupId);
+          const idemKey = idempotencyKey.parse(request.headers["idempotency-key"]);
+          const serverDateHeader = request.headers["x-server-date"];
+          const commandIdHeader = request.headers["x-command-id"];
+          const realCtx: DeclareContext = {
+            actorIdentityId: actor.identityId,
+            actorRole: actor.role,
+            actorGroupIds: [groupId],
+            idempotencyKey: idemKey,
+            expectedVersion: expectedVersion.parse(request.headers["if-match-version"]),
+            serverDate:
+              typeof serverDateHeader === "string"
+                ? serverDateHeader
+                : new Date().toISOString().slice(0, 10),
+            commandId: typeof commandIdHeader === "string" ? commandIdHeader : `cmd-${idemKey}`,
+          };
+          return realContribution.declare(groupId, realCtx, decl);
+        })()
+      : contribution.declare(declareCtxFrom(request), decl);
     return reply
       .code(r.status === "applied" ? 201 : 200)
       .send({
@@ -973,7 +1119,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // Vue de l'obligation : capacité sous verrou et restant dû sur validé net.
   app.get("/v1/groups/:groupId/obligations/:obligationId", async (request, reply) => {
-    const { obligationId } = request.params as { obligationId: string };
+    const { groupId, obligationId } = request.params as { groupId: string; obligationId: string };
+    if (pool && realContribution) {
+      // Authentification + anti-IDOR : adhésion active requise dans CE
+      // groupe avant toute lecture (sinon FEATURE_PILOT_FORBIDDEN, 403).
+      await realGroupActorFrom(pool, request, groupId);
+      return reply.code(200).send(await realContribution.view(groupId, obligationId));
+    }
     return reply.code(200).send(contribution.view(obligationId));
   });
 
