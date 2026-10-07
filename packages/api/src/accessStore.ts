@@ -8,11 +8,21 @@
  * `packages/db/migrations/0003_access.sql` et sa preuve base réelle, **BLOCKED**
  * sans PostgreSQL. L'horloge est injectée (`setNow`) — la cliente n'est jamais
  * de confiance.
+ *
+ * Décision humaine 2026-10-07 : vérification par CODE+hash (plus par
+ * `tokenId` soumis directement par le client — jamais sécurisé, voir
+ * `docs/PREUVES_PISTE_A2.md`). Le code est généré ICI (impur, aléatoire) ;
+ * seul son empreinte (`codeHash`, `@kombe/domain`) vit dans le jeton.
+ * `lastIssuedCode` expose le code en clair UNIQUEMENT pour les tests (joue
+ * le rôle de la « boîte de réception email » fictive).
  */
+import { randomInt } from "node:crypto";
 import {
   DomainError,
   newAccount,
   issueVerificationToken,
+  verifyTokenCode,
+  tokenVerificationError,
   completeRegistration,
   issueSession,
   assertSessionUsable,
@@ -21,6 +31,7 @@ import {
   type AccessAccount,
   type Channel,
   type Session,
+  type TokenPurpose,
   type VerificationToken,
 } from "@kombe/domain";
 
@@ -32,10 +43,19 @@ export interface AccessReceipt {
   readonly accepted: true;
 }
 
+/** Code numérique à 6 chiffres, aléatoire — jamais Math.random (prévisible). */
+function generateCode(): string {
+  return String(randomInt(0, 1_000_000)).padStart(6, "0");
+}
+
 export class FictitiousAccessStore {
   private readonly accounts = new Map<string, AccessAccount>();
   private readonly tokens = new Map<string, VerificationToken>();
   private readonly tokensBySubject = new Map<string, string>();
+  /** « Boîte de réception » fictive : code en clair par (identité, finalité),
+   *  pour que les tests puissent le « lire » comme un email réel le ferait.
+   *  N'existe PAS côté base réelle (PgAccessStore envoie, ne retient rien). */
+  private readonly issuedCodes = new Map<string, string>();
   private readonly sessions = new Map<string, Session>();
   private now = 1_700_000_000;
 
@@ -59,6 +79,42 @@ export class FictitiousAccessStore {
     return account;
   }
 
+  private issueAndFile(identityId: string, purpose: TokenPurpose, channel: Channel): void {
+    const code = generateCode();
+    const token = issueVerificationToken({
+      tokenId: `tok_${purpose}_${identityId}_${this.tokens.size}`,
+      identityId,
+      purpose,
+      channel,
+      code,
+      now: this.now,
+      ttlSeconds: TOKEN_TTL_SECONDS,
+    });
+    this.seedToken(token);
+    this.issuedCodes.set(`${identityId}:${purpose}`, code);
+  }
+
+  /** Lecture de contrôle indépendante : code en clair « reçu par email » pour
+   *  les tests (jamais exposé par une route HTTP réelle). */
+  lastIssuedCode(identityId: string, purpose: TokenPurpose): string | null {
+    return this.issuedCodes.get(`${identityId}:${purpose}`) ?? null;
+  }
+
+  /** Persiste l'issue d'une vérification (compteur d'essais inclus, MÊME en
+   *  échec — durable, jamais réinitialisé par un redémarrage), puis lève
+   *  l'erreur stable correspondante si l'issue n'est pas "verified". */
+  private persistAndAssertVerified(
+    token: VerificationToken,
+    outcome: ReturnType<typeof verifyTokenCode>,
+  ): VerificationToken {
+    if (outcome.kind === "mismatch" || outcome.kind === "locked") {
+      this.tokens.set(token.tokenId, outcome.token);
+    }
+    if (outcome.kind !== "verified") throw tokenVerificationError(outcome.kind);
+    this.tokens.set(token.tokenId, outcome.token);
+    return outcome.token;
+  }
+
   /**
    * Demande d'inscription : crée le compte en attente et un jeton
    * d'inscription côté serveur (remis par frontière externe). Réponse
@@ -66,26 +122,27 @@ export class FictitiousAccessStore {
    */
   requestRegistration(identityId: string, channel: Channel): AccessReceipt {
     const account = this.accounts.get(identityId) ?? this.pendingAccount(identityId);
-    const token = issueVerificationToken({
-      tokenId: `tok_reg_${account.identityId}`,
-      identityId: account.identityId,
-      purpose: "registration",
-      channel,
-      now: this.now,
-      ttlSeconds: TOKEN_TTL_SECONDS,
-    });
-    this.seedToken(token);
+    this.issueAndFile(account.identityId, "registration", channel);
     return { accepted: true };
   }
 
-  verifyRegistration(identityId: string, tokenId: string): { state: AccessAccount["state"] } {
+  /**
+   * Vérifie le CODE soumis (jamais un tokenId) : résout le jeton EN ATTENTE
+   * pour (identité, finalité) — un seul actif à la fois (index partiel
+   * unique en base, `0003_access.sql`). Persiste le compteur d'essais MÊME
+   * EN ÉCHEC (durable, jamais réinitialisé par un redémarrage).
+   */
+  verifyRegistration(identityId: string, code: string): { state: AccessAccount["state"] } {
     const account = this.accounts.get(identityId);
     if (!account) throw new DomainError("TOKEN_INVALID", "Demande non applicable");
-    const token = this.tokens.get(tokenId);
+    const tokenId = this.tokensBySubject.get(`${identityId}:registration`);
+    const token = tokenId ? this.tokens.get(tokenId) : undefined;
     if (!token) throw new DomainError("TOKEN_INVALID", "Demande non applicable");
-    const out = completeRegistration(account, token, this.now);
+
+    const verified = this.persistAndAssertVerified(token, verifyTokenCode(token, code, this.now));
+    const out = completeRegistration(account, verified);
     this.accounts.set(identityId, out.account);
-    this.tokens.set(tokenId, out.token);
+    this.tokens.set(token.tokenId, out.token);
     return { state: out.account.state };
   }
 
@@ -96,17 +153,7 @@ export class FictitiousAccessStore {
    */
   requestRecovery(identityId: string): AccessReceipt {
     const account = this.accounts.get(identityId);
-    if (account) {
-      const token = issueVerificationToken({
-        tokenId: `tok_rec_${account.identityId}`,
-        identityId: account.identityId,
-        purpose: "recovery",
-        channel: "email",
-        now: this.now,
-        ttlSeconds: TOKEN_TTL_SECONDS,
-      });
-      this.seedToken(token);
-    }
+    if (account) this.issueAndFile(account.identityId, "recovery", "email");
     return { accepted: true };
   }
 
@@ -116,22 +163,26 @@ export class FictitiousAccessStore {
   }
 
   /**
-   * Achève la récupération : consomme le jeton (usage unique), révoque toutes
-   * les sessions antérieures (génération + 1) et suspend les privilèges. Une
-   * seconde consommation lève `TOKEN_ALREADY_USED` (C02-RECOVERY).
+   * Achève la récupération par CODE : consomme le jeton (usage unique),
+   * révoque toutes les sessions antérieures (génération + 1) et suspend les
+   * privilèges. Une seconde consommation lève `TOKEN_ALREADY_USED`
+   * (C02-RECOVERY).
    */
   completeRecovery(
     identityId: string,
-    tokenId: string,
+    code: string,
     suspensionSeconds = DEFAULT_RECOVERY_SUSPENSION_SECONDS,
   ): { sessionGeneration: number; recoveryLockUntil: number | null } {
     const account = this.accounts.get(identityId);
     if (!account) throw new DomainError("TOKEN_INVALID", "Demande non applicable");
-    const token = this.tokens.get(tokenId);
+    const tokenId = this.tokensBySubject.get(`${identityId}:recovery`);
+    const token = tokenId ? this.tokens.get(tokenId) : undefined;
     if (!token) throw new DomainError("TOKEN_INVALID", "Demande non applicable");
-    const out = applyAccountRecovery(account, token, this.now, suspensionSeconds);
+
+    const verified = this.persistAndAssertVerified(token, verifyTokenCode(token, code, this.now));
+    const out = applyAccountRecovery(account, verified, this.now, suspensionSeconds);
     this.accounts.set(identityId, out.account);
-    this.tokens.set(tokenId, out.token);
+    this.tokens.set(token.tokenId, out.token);
     return {
       sessionGeneration: out.account.sessionGeneration,
       recoveryLockUntil: out.account.recoveryLockUntil,

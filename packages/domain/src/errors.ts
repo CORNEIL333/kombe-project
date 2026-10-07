@@ -95,7 +95,8 @@ export type DomainErrorCode =
   | "METRICS_SEVERITE_INCONNUE"
   | "METRICS_VALEUR_INVALIDE"
   | "METRICS_RISQUE_CRITIQUE_SANS_CONTROLE"
-  | "FEATURE_PILOT_FORBIDDEN";
+  | "FEATURE_PILOT_FORBIDDEN"
+  | "EMAIL_DELIVERY_FAILED";
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;

@@ -82,7 +82,7 @@ try {
   `);
 
   const DOWN = [
-    "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
+    "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
     "migrations/0016_privacy_law.down.sql", "migrations/0015_export_manifest.down.sql",
     "migrations/0014_support_security.down.sql", "migrations/0013_outbox.down.sql",
     "migrations/0012_proposal.down.sql", "migrations/0011_disbursement.down.sql",
@@ -102,7 +102,7 @@ try {
     "migrations/0010_dispute_cases.sql", "migrations/0011_disbursement.sql", "migrations/0012_proposal.sql",
     "migrations/0013_outbox.sql", "migrations/0014_support_security.sql", "migrations/0015_export_manifest.sql",
     "migrations/0016_privacy_law.sql", "migrations/0017_pilot_metrics.sql",
-    "migrations/0018_session_resolver.sql", "provision/roles.sql",
+    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "provision/roles.sql",
   ];
   for (const f of UP) await runSql(migrator, f);
 

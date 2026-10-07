@@ -18,6 +18,7 @@
  *  - les réponses d'inscription/récupération sont **anti-énumération** : même
  *    gabarit que le compte existe ou non, sans divulgation (1.1, 1.4).
  */
+import { createHash, timingSafeEqual } from "node:crypto";
 import { DomainError } from "./errors.js";
 
 /** Canaux d'inscription/vérification (1.1). Aucun autre canal n'est accepté. */
@@ -33,8 +34,21 @@ export const ACCOUNT_STATES = [
 ] as const;
 export type AccountState = (typeof ACCOUNT_STATES)[number];
 
-/** Finalité d'un jeton de vérification. */
-export type TokenPurpose = "registration" | "recovery";
+/** Finalité d'un jeton de vérification. `login` : lien magique de connexion
+ *  (décision humaine 2026-10-07, D06 jugé non nécessaire — pas de mot de
+ *  passe à gérer), même mécanique que registration/recovery. */
+export type TokenPurpose = "registration" | "recovery" | "login";
+
+/** Nombre d'essais de code erronés tolérés avant verrouillage du jeton
+ *  (anti brute-force : un code à 6 chiffres n'a que 10^6 possibilités). */
+export const MAX_TOKEN_ATTEMPTS = 5;
+
+/** Empreinte déterministe d'un code de vérification. Jamais le code en
+ *  clair n'est stocké (contrat déjà posé par `packages/db/migrations/
+ *  0003_access.sql`, colonne `token_hash` — resté inexploité jusqu'ici). */
+export function hashVerificationCode(code: string): string {
+  return createHash("sha256").update(code, "utf8").digest("hex");
+}
 
 /**
  * Project de la politique de mot de passe issu de l'audit (1.2) : minimum 12
@@ -61,15 +75,20 @@ export function assertPasswordPolicy(password: string): void {
   }
 }
 
-/** Jeton de vérification à usage unique et expirant (1.1 inscription, 1.4 récupération). */
+/** Jeton de vérification à usage unique et expirant (1.1 inscription, 1.4
+ *  récupération, login). `codeHash` : empreinte du code envoyé hors bande
+ *  (email) — jamais le code lui-même. `failedAttempts` : compteur durable
+ *  d'essais erronés (verrouillage après `MAX_TOKEN_ATTEMPTS`). */
 export interface VerificationToken {
   readonly tokenId: string;
   readonly identityId: string;
   readonly purpose: TokenPurpose;
   readonly channel: Channel;
+  readonly codeHash: string;
   readonly issuedAt: number;
   readonly expiresAt: number;
   readonly consumedAt: number | null;
+  readonly failedAttempts: number;
 }
 
 export function issueVerificationToken(input: {
@@ -77,20 +96,29 @@ export function issueVerificationToken(input: {
   identityId: string;
   purpose: TokenPurpose;
   channel: Channel;
+  /** Code en clair, généré par l'appelant (aléatoire, hors de ce module
+   *  pur — la génération n'est jamais testable/déterministe). Haché ici,
+   *  jamais retourné ni stocké en clair. */
+  code: string;
   now: number;
   ttlSeconds: number;
 }): VerificationToken {
   if (!Number.isInteger(input.ttlSeconds) || input.ttlSeconds < 1) {
     throw new DomainError("TOKEN_INVALID", "Durée de jeton invalide");
   }
+  if (!input.code || input.code.length < 4) {
+    throw new DomainError("TOKEN_INVALID", "Code invalide");
+  }
   return {
     tokenId: input.tokenId,
     identityId: input.identityId,
     purpose: input.purpose,
     channel: input.channel,
+    codeHash: hashVerificationCode(input.code),
     issuedAt: input.now,
     expiresAt: input.now + input.ttlSeconds,
     consumedAt: null,
+    failedAttempts: 0,
   };
 }
 
@@ -111,6 +139,77 @@ export function consumeVerificationToken(
     throw new DomainError("TOKEN_EXPIRED", "Jeton expiré");
   }
   return { ...token, consumedAt: now };
+}
+
+/** Décision de vérification d'un code soumis — jamais un `throw` direct :
+ *  le compteur d'essais (cas `mismatch`) doit être persisté par l'appelant
+ *  MÊME EN ÉCHEC (durable, jamais réinitialisé par un redémarrage), donc la
+ *  décision ET la donnée à persister voyagent ensemble. */
+export type TokenVerificationOutcome =
+  | { readonly kind: "verified"; readonly token: VerificationToken }
+  | { readonly kind: "mismatch"; readonly token: VerificationToken }
+  | { readonly kind: "locked"; readonly token: VerificationToken }
+  | { readonly kind: "expired" }
+  | { readonly kind: "already_used" };
+
+/**
+ * Vérifie un code soumis contre `token.codeHash` (comparaison à temps
+ * constant, `timingSafeEqual` — jamais une comparaison de chaînes naïve qui
+ * fuiterait la position du premier caractère différent). Verrouille après
+ * `MAX_TOKEN_ATTEMPTS` échecs (même réponse `TOKEN_INVALID` que `mismatch` :
+ * non-divulgation, un attaquant ne doit pas distinguer "encore un essai" de
+ * "verrouillé"). Ne lève JAMAIS — voir `TokenVerificationOutcome`.
+ */
+export function verifyTokenCode(
+  token: VerificationToken,
+  submittedCode: string,
+  now: number,
+): TokenVerificationOutcome {
+  if (token.consumedAt !== null) return { kind: "already_used" };
+  if (now >= token.expiresAt) return { kind: "expired" };
+  if (token.failedAttempts >= MAX_TOKEN_ATTEMPTS) return { kind: "locked", token };
+
+  const submittedHash = hashVerificationCode(submittedCode ?? "");
+  const submittedBuf = Buffer.from(submittedHash, "hex");
+  const storedBuf = Buffer.from(token.codeHash, "hex");
+  const matches =
+    submittedBuf.length === storedBuf.length && timingSafeEqual(submittedBuf, storedBuf);
+
+  if (!matches) {
+    return { kind: "mismatch", token: { ...token, failedAttempts: token.failedAttempts + 1 } };
+  }
+  return { kind: "verified", token: consumeVerificationToken(token, now) };
+}
+
+/** Mappe une issue NON `verified` vers l'erreur stable correspondante —
+ *  centralisé ici pour que le store n'ait jamais à dupliquer les codes. */
+export function tokenVerificationError(
+  kind: Exclude<TokenVerificationOutcome["kind"], "verified">,
+): DomainError {
+  switch (kind) {
+    case "already_used":
+      return new DomainError("TOKEN_ALREADY_USED", "Jeton déjà consommé");
+    case "expired":
+      return new DomainError("TOKEN_EXPIRED", "Jeton expiré");
+    case "mismatch":
+    case "locked":
+      // Non-divulgation : code erroné et jeton verrouillé répondent à l'identique.
+      return new DomainError("TOKEN_INVALID", "Code invalide");
+  }
+}
+
+/** Précondition structurelle (indépendante du code soumis) : le jeton doit
+ *  être du bon `purpose` et du bon compte. Une incohérence ici est une
+ *  erreur de routage applicatif (mauvaise ligne sélectionnée), jamais un
+ *  essai de code à comptabiliser — vérifiée à part, avant `verifyTokenCode`. */
+export function assertTokenApplicable(
+  token: VerificationToken,
+  identityId: string,
+  purpose: TokenPurpose,
+): void {
+  if (token.purpose !== purpose || token.identityId !== identityId) {
+    throw new DomainError("TOKEN_INVALID", "Jeton non applicable à ce compte");
+  }
 }
 
 /** Gabarit de réponse anti-énumération : identique quel que soit le cas. */
@@ -213,19 +312,22 @@ export function newAccount(identityId: string): AccessAccount {
   };
 }
 
-/** Achève l'inscription : le jeton `registration`, consommé, vérifie le canal et active le compte (1.1). */
+/**
+ * Achève l'inscription : prend un jeton DÉJÀ VÉRIFIÉ (`verifyTokenCode` →
+ * `kind: "verified"`, consommé par cette fonction), active le compte et
+ * vérifie le canal (1.1). Le code soumis n'est plus un paramètre ici — la
+ * vérification du code est la responsabilité de `verifyTokenCode`, en
+ * amont, dont le store persiste le résultat (compteur d'essais y compris)
+ * avant même d'appeler cette fonction.
+ */
 export function completeRegistration(
   account: AccessAccount,
-  token: VerificationToken,
-  now: number,
+  verifiedToken: VerificationToken,
 ): { account: AccessAccount; token: VerificationToken } {
-  if (token.purpose !== "registration" || token.identityId !== account.identityId) {
-    throw new DomainError("TOKEN_INVALID", "Jeton non applicable à ce compte");
-  }
-  const consumed = consumeVerificationToken(token, now);
+  assertTokenApplicable(verifiedToken, account.identityId, "registration");
   return {
     account: { ...account, state: "active", channelVerified: true },
-    token: consumed,
+    token: verifiedToken,
   };
 }
 
@@ -270,22 +372,19 @@ export interface RecoveryResult {
 }
 
 /**
- * Récupération de compte (1.4) : consomme le jeton `recovery` (usage unique,
- * non expiré, du bon compte), **révoque toutes les sessions antérieures**
+ * Récupération de compte (1.4) : prend un jeton `recovery` DÉJÀ VÉRIFIÉ
+ * (voir `completeRegistration`), **révoque toutes les sessions antérieures**
  * (génération + 1), réactive le compte et suspend temporairement les
  * privilèges jusqu'à `suspensionSeconds`. Produit une intention de
  * notification, jamais un envoi réel.
  */
 export function applyAccountRecovery(
   account: AccessAccount,
-  token: VerificationToken,
+  verifiedToken: VerificationToken,
   now: number,
   suspensionSeconds: number,
 ): RecoveryResult {
-  if (token.purpose !== "recovery" || token.identityId !== account.identityId) {
-    throw new DomainError("TOKEN_INVALID", "Jeton non applicable à ce compte");
-  }
-  const consumed = consumeVerificationToken(token, now);
+  assertTokenApplicable(verifiedToken, account.identityId, "recovery");
   const updated: AccessAccount = {
     ...account,
     state: "active",
@@ -294,7 +393,7 @@ export function applyAccountRecovery(
   };
   return {
     account: updated,
-    token: consumed,
+    token: verifiedToken,
     securityNotification: {
       identityId: account.identityId,
       type: "account_recovery",

@@ -48,7 +48,7 @@ Ces points ont été identifiés dans le dossier d'audit (`DECISIONS_ET_VERSION.
 | `[OPEN-D03]` | **Client mobile natif** | PWA seule (pilote web) · Flutter en parallèle · React Native | TEC02/TEC03 |
 | ~~`[OPEN-D04]`~~ | ~~Email transactionnel~~ | **Tranché : Resend (décision humaine 2026-10-07) — clé API locale hors dépôt (`.env`, `RESEND_API_KEY`)** | TEC09 |
 | `[OPEN-D05]` | **SMS / OTP** | Twilio · Infobip · Vonage (couverture Cameroun à tester) | TEC07 |
-| `[OPEN-D06]` | **Fournisseur identité** | Supabase Auth (si même fournisseur DB) · Auth.js · Identité gérée maison | A07 |
+| ~~`[OPEN-D06]`~~ | ~~Fournisseur identité~~ | **Tranché : modèle maison, code email+hash sans mot de passe — voir ADR-0012 + ADR-0024. Aucun fournisseur tiers.** | A07 |
 | ~~`[OPEN-D07]`~~ | ~~Plafond XAF par montant~~ | **Tranché : 1 000 000 000 XAF ratifié (décision humaine 2026-10-06) — voir ADR-0002** | Architecture cible §Invariants |
 | `[OPEN-D08]` | **RPO cible** | **Tranché : ≤ 15 min nominal / ≤ 1 h plancher contractuel — voir ADR-0022 (cibles à prouver par exercice réel avant G0)** | ZG08, A09 |
 | `[OPEN-D09]` | **Fournisseur sauvegarde indépendante** | **Tranché : Cloudflare R2 (compte séparé, Object Lock) — voir ADR-0022 ; Backblaze B2 en alternative testée** | Plan déploiement §7 |

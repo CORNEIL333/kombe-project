@@ -116,6 +116,7 @@ import {
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
 const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   FEATURE_PILOT_FORBIDDEN: 403,
+  EMAIL_DELIVERY_FAILED: 502,
   IDENTITY_NOT_ACTIVE: 403,
   APPROVER_NOT_DISTINCT: 403,
   CHANNEL_NOT_VERIFIED: 403,
@@ -617,7 +618,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Vérification du canal par jeton à usage unique (1.1).
   app.post("/v1/access/registrations/verifications", async (request, reply) => {
     const body = registrationVerification.parse(request.body);
-    const out = access.verifyRegistration(body.identityId, body.tokenId);
+    const out = access.verifyRegistration(body.identityId, body.code);
     return reply.code(200).send(out);
   });
 
@@ -632,7 +633,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // toutes les sessions antérieures (C02-RECOVERY, C02-SESSION).
   app.post("/v1/access/recovery-completions", async (request, reply) => {
     const body = recoveryCompletion.parse(request.body);
-    const out = access.completeRecovery(body.identityId, body.tokenId, body.suspensionSeconds);
+    const out = access.completeRecovery(body.identityId, body.code, body.suspensionSeconds);
     return reply.code(200).send(out);
   });
 

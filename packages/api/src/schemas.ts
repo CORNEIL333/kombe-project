@@ -118,17 +118,20 @@ export type RoleNominationInput = z.infer<typeof roleNominationBody>;
 /* --- C02 : inscription, sessions, récupération (1.1 → 1.5) --- */
 
 const identityId = z.string().min(1).max(120);
-const tokenId = z.string().min(1).max(120);
+// Le CODE reçu hors bande (email), jamais un identifiant interne de jeton
+// (décision humaine 2026-10-07 : le client ne connaît ni ne soumet de
+// tokenId — le serveur résout le jeton en attente par identityId+purpose).
+const verificationCode = z.string().min(4).max(20);
 
 export const registrationRequest = z.object({
   identityId,
   channel: z.enum(["email", "phone"]),
 });
-export const registrationVerification = z.object({ identityId, tokenId });
+export const registrationVerification = z.object({ identityId, code: verificationCode });
 export const recoveryRequest = z.object({ identityId });
 export const recoveryCompletion = z.object({
   identityId,
-  tokenId,
+  code: verificationCode,
   suspensionSeconds: z.number().int().positive().max(86_400).optional(),
 });
 export const sessionLogin = z.object({ identityId, sessionId: z.string().min(1).max(120) });

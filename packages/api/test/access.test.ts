@@ -1,10 +1,12 @@
 /**
  * Recette C02 via l'application Fastify (fastify.inject, sans base). Prouve la
- * DÉCISION serveur d'accès : achèvement d'inscription par jeton à usage
- * unique, récupération (double usage refusé, sessions antérieures supplantées)
- * et privilège opérateur recalculé. Ne prétend PAS prouver le stockage durable
- * ni la révocation en cascade en base : ceux-ci sont le contrat
- * `0003_access.sql` et restent BLOCKED sans PostgreSQL.
+ * DÉCISION serveur d'accès : achèvement d'inscription par CODE à usage
+ * unique (hash+tentatives, décision humaine 2026-10-07), récupération (double
+ * usage refusé, sessions antérieures supplantées) et privilège opérateur
+ * recalculé. Ne prétend PAS prouver le stockage durable ni la révocation en
+ * cascade en base : ceux-ci sont le contrat `0003_access.sql`/`0019_token_
+ * security.sql` et restent BLOCKED sans PostgreSQL (preuve réelle : Piste A2,
+ * `docs/PREUVES_PISTE_A2.md`).
  */
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../src/server.js";
@@ -28,15 +30,44 @@ describe("C02 inscription — vérification du canal (1.1)", () => {
       payload: { identityId: "idn_carol", channel: "email" },
     });
     expect(req.statusCode).toBe(202);
-    expect(req.json()).toEqual({ accepted: true }); // aucun jeton divulgué
+    expect(req.json()).toEqual({ accepted: true }); // aucun code divulgué
+    const code = access.lastIssuedCode("idn_carol", "registration");
+    expect(code).not.toBeNull();
     const ver = await app.inject({
       method: "POST",
       url: "/v1/access/registrations/verifications",
       headers: json,
-      payload: { identityId: "idn_carol", tokenId: "tok_reg_idn_carol" },
+      payload: { identityId: "idn_carol", code },
     });
     expect(ver.statusCode).toBe(200);
     expect(ver.json().state).toBe("active");
+  });
+
+  it("un code erroné est refusé (422) sans activer le compte", async () => {
+    const access = new FictitiousAccessStore();
+    const app = buildApp({ access });
+    await app.inject({
+      method: "POST",
+      url: "/v1/access/registrations",
+      headers: json,
+      payload: { identityId: "idn_wrong", channel: "email" },
+    });
+    const bad = await app.inject({
+      method: "POST",
+      url: "/v1/access/registrations/verifications",
+      headers: json,
+      payload: { identityId: "idn_wrong", code: "000000" },
+    });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().code).toBe("TOKEN_INVALID");
+    // Le bon code reste utilisable ensuite (un seul essai raté ne verrouille pas).
+    const good = await app.inject({
+      method: "POST",
+      url: "/v1/access/registrations/verifications",
+      headers: json,
+      payload: { identityId: "idn_wrong", code: access.lastIssuedCode("idn_wrong", "registration") },
+    });
+    expect(good.statusCode).toBe(200);
   });
 });
 
@@ -51,20 +82,20 @@ describe("C02-RECOVERY — un jeton de récupération ne sert qu'une fois", () =
       headers: json,
       payload: { identityId: "idn_dave" },
     });
-    const tokenId = access.recoveryTokenIdFor("idn_dave");
-    expect(tokenId).not.toBeNull();
+    const code = access.lastIssuedCode("idn_dave", "recovery");
+    expect(code).not.toBeNull();
     const first = await app.inject({
       method: "POST",
       url: "/v1/access/recovery-completions",
       headers: json,
-      payload: { identityId: "idn_dave", tokenId },
+      payload: { identityId: "idn_dave", code },
     });
     expect(first.statusCode).toBe(200);
     const second = await app.inject({
       method: "POST",
       url: "/v1/access/recovery-completions",
       headers: json,
-      payload: { identityId: "idn_dave", tokenId },
+      payload: { identityId: "idn_dave", code },
     });
     expect(second.statusCode).toBe(409);
     expect(second.json().code).toBe("TOKEN_ALREADY_USED");
@@ -99,7 +130,7 @@ describe("C02-SESSION — la récupération supplante la session antérieure", (
       method: "POST",
       url: "/v1/access/recovery-completions",
       headers: json,
-      payload: { identityId: "idn_erin", tokenId: access.recoveryTokenIdFor("idn_erin") },
+      payload: { identityId: "idn_erin", code: access.lastIssuedCode("idn_erin", "recovery") },
     });
     // la session d'avant est rejetée
     const usableAfter = await app.inject({
@@ -170,7 +201,11 @@ describe("C02-PRIVILEGE — privilège opérateur recalculé serveur", () => {
       method: "POST",
       url: "/v1/access/recovery-completions",
       headers: json,
-      payload: { identityId: "idn_gina", tokenId: access.recoveryTokenIdFor("idn_gina"), suspensionSeconds: 600 },
+      payload: {
+        identityId: "idn_gina",
+        code: access.lastIssuedCode("idn_gina", "recovery"),
+        suspensionSeconds: 600,
+      },
     });
     const duringLock = await app.inject({
       method: "GET",

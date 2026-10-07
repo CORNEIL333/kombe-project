@@ -62,3 +62,49 @@ export async function withGroupTx<T>(
 export async function lockGroupForJournalWrite(client: pg.PoolClient, groupId: string): Promise<void> {
   await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [groupId]);
 }
+
+/**
+ * Transaction scopée à une IDENTITÉ : pour `identity_access`/
+ * `verification_token`/`access_session` (RLS self-scope `kombe.identity_id`,
+ * migration 0003_access.sql). Utilisable pour les ÉCRITURES où l'identité
+ * est déjà connue de l'appelant (inscription, login, récupération — la
+ * route REÇOIT l'identityId, elle n'a pas besoin de le découvrir). Pour
+ * résoudre une IDENTITÉ depuis une session opaque dont on ne connaît rien
+ * encore, voir `pgSessionResolver.ts` (`resolveSession`, fonction SECURITY
+ * DEFINER dédiée — ce helper ne suffit PAS à ce cas, structurellement
+ * différent).
+ */
+export async function withIdentityTx<T>(
+  pool: pg.Pool,
+  identityId: string,
+  fn: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  if (!identityId || identityId.length > 200) {
+    throw new DomainError("TOKEN_INVALID", "Identité invalide");
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT set_config('kombe.identity_id', $1, true)", [identityId]);
+    await client.query("SET LOCAL idle_in_transaction_session_timeout = '10s'");
+    await client.query("SET LOCAL lock_timeout = '2s'");
+    await client.query("SET LOCAL statement_timeout = '10s'");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* Connexion perdue : rien à faire, le pool la recréera. */
+    }
+    if (error instanceof DomainError) throw error;
+    if (process.env.KOMBE_DEBUG_PG === "1") {
+      const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
+      process.stderr.write(`[withIdentityTx debug] ${detail}\n`);
+    }
+    throw new DomainError("TOKEN_INVALID", "Opération non confirmée");
+  } finally {
+    client.release();
+  }
+}
