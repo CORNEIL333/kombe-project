@@ -34,10 +34,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Mon profil')),
-        body: ListenableBuilder(
-          listenable: _vm!,
-          builder: (BuildContext context, Widget? child) => ResourceView<UserProfile>(
+    appBar: AppBar(title: const Text('Mon profil')),
+    body: ListenableBuilder(
+      listenable: _vm!,
+      builder: (BuildContext context, Widget? child) =>
+          ResourceView<UserProfile>(
             resource: _vm!.state,
             builder: (BuildContext context, UserProfile profile) => ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
@@ -72,18 +73,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                Text('Sécurité du compte', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Sécurité du compte',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 8),
                 SectionCard(
                   child: Column(
                     children: <Widget>[
-                      KombeListRow(
-                        icon: Icons.lock_outline,
-                        title: 'Code PIN',
-                        subtitle: 'Modifier mon code PIN',
-                        onTap: () => context.push('/app/settings/change-pin'),
-                      ),
-                      const Divider(),
                       KombeListRow(
                         icon: Icons.fingerprint,
                         title: 'Authentification biométrique',
@@ -99,7 +96,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                Text('Préférences', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Préférences',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 8),
                 SectionCard(
                   child: Column(
@@ -114,13 +114,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       KombeListRow(
                         icon: Icons.notifications_none,
                         title: 'Notifications',
-                        onTap: () => context.push('/app/settings/notifications'),
+                        onTap: () =>
+                            context.push('/app/settings/notifications'),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
-                Text('Aide & support', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Aide & support',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 8),
                 SectionCard(
                   child: Column(
@@ -142,6 +146,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-        ),
-      );
+    ),
+  );
 }

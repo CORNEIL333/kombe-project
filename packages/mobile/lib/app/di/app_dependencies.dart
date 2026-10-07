@@ -6,6 +6,9 @@ import '../../core/security/biometric_service.dart';
 import '../../core/security/secure_session_store.dart';
 import '../../data/local/contribution_draft_database.dart';
 import '../../data/local/preferences_repository_impl.dart';
+import '../../data/remote/http_auth_repository.dart';
+import '../../data/remote/kombe_api_client.dart';
+import '../../data/remote/stored_session_codec.dart';
 import '../../data/repositories/unavailable_repositories.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
@@ -49,9 +52,54 @@ final class AppDependencies {
       documentRepository: const UnavailableDocumentRepository(),
       dashboardRepository: const UnavailableDashboardRepository(),
       draftRepository: ContributionDraftDatabase(),
-      preferencesRepository: PreferencesRepositoryImpl(SharedPreferencesAsync()),
+      preferencesRepository: PreferencesRepositoryImpl(
+        SharedPreferencesAsync(),
+      ),
       biometricService: BiometricService(LocalAuthentication()),
       secureSessionStore: const SecureSessionStore(secureStorage),
+    );
+  }
+
+  /// Mode RÉEL (Piste A3 suite) — SEUL le périmètre déjà prouvé base réelle
+  /// est branché (connexion par code email, ADR-0024) : les 13 autres
+  /// dépôts restent `Unavailable*` (honnête, pas encore câblé), même ici.
+  /// `apiBaseUrl` est lue par l'appelant (`main.dart`) depuis
+  /// `--dart-define=KOMBE_API_BASE_URL` — absente par défaut (voir
+  /// `AppDependencies.unconfigured`), jamais devinée.
+  factory AppDependencies.configured({required Uri apiBaseUrl}) {
+    const FlutterSecureStorage secureStorage = FlutterSecureStorage();
+    const SecureSessionStore secureSessionStore = SecureSessionStore(
+      secureStorage,
+    );
+    final KombeApiClient api = KombeApiClient(
+      baseUrl: apiBaseUrl,
+      sessionHeaders: () async {
+        final StoredSession? stored = decodeStoredSession(
+          await secureSessionStore.readOpaqueSession(),
+        );
+        if (stored == null || stored.isExpired) return const <String, String>{};
+        return <String, String>{'authorization': 'Bearer ${stored.sessionId}'};
+      },
+    );
+    return AppDependencies(
+      authRepository: HttpAuthRepository(
+        api: api,
+        sessionStore: secureSessionStore,
+      ),
+      profileRepository: const UnavailableProfileRepository(),
+      groupRepository: const UnavailableGroupRepository(),
+      contributionRepository: const UnavailableContributionRepository(),
+      governanceRepository: const UnavailableGovernanceRepository(),
+      disputeRepository: const UnavailableDisputeRepository(),
+      notificationRepository: const UnavailableNotificationRepository(),
+      documentRepository: const UnavailableDocumentRepository(),
+      dashboardRepository: const UnavailableDashboardRepository(),
+      draftRepository: ContributionDraftDatabase(),
+      preferencesRepository: PreferencesRepositoryImpl(
+        SharedPreferencesAsync(),
+      ),
+      biometricService: BiometricService(LocalAuthentication()),
+      secureSessionStore: secureSessionStore,
     );
   }
 

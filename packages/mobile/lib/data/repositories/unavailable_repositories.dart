@@ -27,34 +27,38 @@ final class UnavailableAuthRepository implements AuthRepository {
 
   @override
   Stream<Resource<AuthSession?>> watchSession() =>
-      Stream<Resource<AuthSession?>>.value(const ResourceUnavailable<AuthSession?>());
+      Stream<Resource<AuthSession?>>.value(
+        const ResourceUnavailable<AuthSession?>(),
+      );
 
   @override
-  Future<OperationResult<AuthSession>> signIn({
-    required String phoneE164,
-    required String pin,
+  Future<OperationResult<void>> requestRegistration(String identityId) async =>
+      const OperationBlocked<void>(_reason);
+
+  @override
+  Future<OperationResult<AccountStatus>> verifyRegistration({
+    required String identityId,
+    required String code,
+  }) async => const OperationBlocked<AccountStatus>(_reason);
+
+  @override
+  Future<OperationResult<void>> requestLogin(String identityId) async =>
+      const OperationBlocked<void>(_reason);
+
+  @override
+  Future<OperationResult<AuthSession>> completeLogin({
+    required String identityId,
+    required String code,
   }) async => const OperationBlocked<AuthSession>(_reason);
 
   @override
-  Future<OperationResult<void>> registerPhone(String phoneE164) async =>
+  Future<OperationResult<void>> requestRecovery(String identityId) async =>
       const OperationBlocked<void>(_reason);
 
   @override
-  Future<OperationResult<void>> verifyPhone({required String challengeCode}) async =>
-      const OperationBlocked<void>(_reason);
-
-  @override
-  Future<OperationResult<void>> setPin(String pin) async =>
-      const OperationBlocked<void>(_reason);
-
-  @override
-  Future<OperationResult<void>> requestPinRecovery(String phoneE164) async =>
-      const OperationBlocked<void>(_reason);
-
-  @override
-  Future<OperationResult<void>> completePinRecovery({
-    required String challengeCode,
-    required String newPin,
+  Future<OperationResult<void>> completeRecovery({
+    required String identityId,
+    required String code,
   }) async => const OperationBlocked<void>(_reason);
 
   @override
@@ -98,8 +102,10 @@ final class UnavailableGroupRepository implements GroupRepository {
       const ResourceUnavailable<List<GroupMember>>();
 
   @override
-  Future<Resource<GroupMember>> getMember(String groupId, String identityId) async =>
-      const ResourceUnavailable<GroupMember>();
+  Future<Resource<GroupMember>> getMember(
+    String groupId,
+    String identityId,
+  ) async => const ResourceUnavailable<GroupMember>();
 
   @override
   Future<Resource<CycleDetails>> getCycle(String groupId) async =>

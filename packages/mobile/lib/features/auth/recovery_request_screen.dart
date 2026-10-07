@@ -3,21 +3,24 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/state/operation_result.dart';
-import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/server_action_guard.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../l10n/app_localizations.dart';
 import 'auth_validators.dart';
 import 'verify_code_screen.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+/// Demande de récupération par email (ADR-0024) — remplace l'ancienne
+/// récupération de PIN par téléphone. La récupération ne délivre PAS de
+/// session (voir `AuthRepository.completeRecovery`) : une connexion normale
+/// reste nécessaire ensuite, jamais une session fabriquée ici.
+class RecoveryRequestScreen extends StatefulWidget {
+  const RecoveryRequestScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<RecoveryRequestScreen> createState() => _RecoveryRequestScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RecoveryRequestScreenState extends State<RecoveryRequestScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _email = TextEditingController();
   bool _submitting = false;
@@ -28,19 +31,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  Future<void> _continue() async {
+  Future<void> _request() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _submitting = true);
     final OperationResult<void> result = await context
         .read<AuthRepository>()
-        .requestRegistration(_email.text.trim());
+        .requestRecovery(_email.text.trim());
     if (!mounted) return;
     setState(() => _submitting = false);
     switch (result) {
       case OperationSuccess<void>():
         context.go(
           VerifyCodeScreen.routeFor(
-            purpose: VerifyCodePurpose.registration,
+            purpose: VerifyCodePurpose.recovery,
             identityId: _email.text.trim(),
           ),
         );
@@ -57,23 +60,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(title: Text(l10n.recoverAccount)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: <Widget>[
-            const Center(child: KombeLogo(size: 48)),
-            const SizedBox(height: 36),
             Text(
-              l10n.createAccount,
+              l10n.recoverAccount,
               style: Theme.of(context).textTheme.headlineLarge,
             ),
             const SizedBox(height: 10),
             Text(
-              l10n.registerIntro,
+              l10n.recoverAccountIntro,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
             Form(
               key: _formKey,
               child: TextFormField(
@@ -89,13 +90,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 20),
             FilledButton(
-              onPressed: _submitting ? null : _continue,
+              onPressed: _submitting ? null : _request,
               child: _submitting
                   ? const SizedBox.square(
                       dimension: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text(l10n.continueLabel),
+                  : Text(l10n.sendCode),
             ),
           ],
         ),

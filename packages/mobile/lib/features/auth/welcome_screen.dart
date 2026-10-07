@@ -33,7 +33,10 @@ class WelcomeScreen extends StatelessWidget {
                         style: Theme.of(context).textTheme.displaySmall,
                       ),
                       const SizedBox(height: 14),
-                      Text(l10n.welcomeBody, style: Theme.of(context).textTheme.bodyLarge),
+                      Text(
+                        l10n.welcomeBody,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
                       const SizedBox(height: 34),
                       const _Benefit(
                         icon: Icons.groups_2_outlined,
@@ -53,7 +56,9 @@ class WelcomeScreen extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: KombeSpacing.screen),
+              padding: const EdgeInsets.symmetric(
+                horizontal: KombeSpacing.screen,
+              ),
               child: Column(
                 children: <Widget>[
                   FilledButton(
@@ -91,23 +96,20 @@ class _Benefit extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 18),
-        child: Row(
-          children: <Widget>[
-            CircleAvatar(
-              radius: 25,
-              backgroundColor: KombeColors.gold.withValues(alpha: .12),
-              foregroundColor: KombeColors.goldDark,
-              child: Icon(icon),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.only(bottom: 18),
+    child: Row(
+      children: <Widget>[
+        CircleAvatar(
+          radius: 25,
+          backgroundColor: KombeColors.gold.withValues(alpha: .12),
+          foregroundColor: KombeColors.goldDark,
+          child: Icon(icon),
         ),
-      );
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+        ),
+      ],
+    ),
+  );
 }

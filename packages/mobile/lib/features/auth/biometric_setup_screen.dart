@@ -43,44 +43,47 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Biométrie')),
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: <Widget>[
-              Icon(
-                Icons.fingerprint,
-                size: 72,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 22),
-              Text(
-                'Connexion biométrique',
-                style: Theme.of(context).textTheme.headlineLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'KÓMBE peut utiliser la biométrie du système. Aucun gabarit biométrique n’est lu ou stocké par l’application.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 26),
-              if (_supported == null)
-                const Center(child: CircularProgressIndicator())
-              else if (_supported!)
-                FilledButton(onPressed: _enable, child: const Text('Vérifier la biométrie'))
-              else
-                const Text(
-                  'La biométrie n’est pas disponible sur cet appareil.',
-                  textAlign: TextAlign.center,
-                ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => context.go('/login'),
-                child: const Text('Plus tard'),
-              ),
-            ],
+    appBar: AppBar(title: const Text('Biométrie')),
+    body: SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: <Widget>[
+          Icon(
+            Icons.fingerprint,
+            size: 72,
+            color: Theme.of(context).colorScheme.primary,
           ),
-        ),
-      );
+          const SizedBox(height: 22),
+          Text(
+            'Connexion biométrique',
+            style: Theme.of(context).textTheme.headlineLarge,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'KÓMBE peut utiliser la biométrie du système. Aucun gabarit biométrique n’est lu ou stocké par l’application.',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 26),
+          if (_supported == null)
+            const Center(child: CircularProgressIndicator())
+          else if (_supported!)
+            FilledButton(
+              onPressed: _enable,
+              child: const Text('Vérifier la biométrie'),
+            )
+          else
+            const Text(
+              'La biométrie n’est pas disponible sur cet appareil.',
+              textAlign: TextAlign.center,
+            ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => context.go('/login'),
+            child: const Text('Plus tard'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
