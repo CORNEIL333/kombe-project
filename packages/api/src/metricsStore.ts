@@ -87,7 +87,47 @@ export interface RiskInput {
   readonly residual: string;
 }
 
-export class FictitiousMetricsStore {
+/** Forme de l'entonnoir d'analytics (16.1) renvoyée par les deux stores. */
+export interface FunnelView {
+  readonly cohortId: string;
+  readonly steps: { readonly step: AnalyticsStep; readonly count: number }[];
+  readonly individualFinancialFields: number;
+}
+
+/** Verdict d'extension du pilote (16.3) renvoyé par les deux stores. */
+export interface ExtensionView {
+  readonly extensionAllowed: boolean;
+  readonly criticalWithoutControl: string[];
+}
+
+/**
+ * Surface commune des stores de mesure pilote : le store FICTIF en mémoire
+ * (recette C18 sans base) et le store RÉEL `PgMetricsStore` (persistance
+ * Postgres, migration `0017_pilot_metrics`). Les méthodes peuvent être
+ * synchrones (fictif) ou asynchrones (réel) : les routes `await`-ent
+ * systématiquement, donc les deux implementations sont interchangeables.
+ * `groupId` est OPTIONNEL dans la signature (compatibilité ascendante avec le
+ * store fictif qui l'ignore) mais EXIGÉ à l'exécution par le store réel pour
+ * l'analytics scopée par RLS.
+ */
+export interface MetricsStore {
+  trackAnalyticsEvent(
+    ctx: MetricsContext,
+    input: { cohortId: string; groupId?: string; step: string; properties: Record<string, string | number | boolean> },
+  ): AnalyticsEvent | Promise<AnalyticsEvent>;
+  analyticsFunnel(ctx: MetricsContext, cohortId: string, groupId?: string): FunnelView | Promise<FunnelView>;
+  upsertCohort(
+    ctx: MetricsContext,
+    input: { groupId: string; memberCount: number; roundsCompleted: number },
+  ): CohortView | Promise<CohortView>;
+  getCohort(ctx: MetricsContext, groupId: string): CohortView | Promise<CohortView>;
+  computeEconomics(ctx: MetricsContext, input: EconomicsInput): EconomicsView | Promise<EconomicsView>;
+  addRisk(ctx: MetricsContext, input: RiskInput): Risk | Promise<Risk>;
+  listRisks(ctx: MetricsContext): Risk[] | Promise<Risk[]>;
+  extensionStatus(ctx: MetricsContext): ExtensionView | Promise<ExtensionView>;
+}
+
+export class FictitiousMetricsStore implements MetricsStore {
   private readonly eventsByCohort = new Map<string, AnalyticsEvent[]>();
   private readonly cohorts = new Map<string, Cohort>();
   private readonly risks = new Map<string, Risk>();
@@ -104,7 +144,7 @@ export class FictitiousMetricsStore {
 
   trackAnalyticsEvent(
     ctx: MetricsContext,
-    input: { cohortId: string; step: string; properties: Record<string, string | number | boolean> },
+    input: { cohortId: string; groupId?: string; step: string; properties: Record<string, string | number | boolean> },
   ): AnalyticsEvent {
     this.gateAuth(ctx);
     // L'horodatage est SERVEUR (jamais fourni par le client) ; l'étape et les
@@ -122,11 +162,7 @@ export class FictitiousMetricsStore {
     return event;
   }
 
-  analyticsFunnel(ctx: MetricsContext, cohortId: string): {
-    cohortId: string;
-    steps: { step: AnalyticsStep; count: number }[];
-    individualFinancialFields: number;
-  } {
+  analyticsFunnel(ctx: MetricsContext, cohortId: string, _groupId?: string): FunnelView {
     this.gateAuth(ctx);
     const events = this.eventsByCohort.get(cohortId) ?? [];
     const rows = exportAnalytics(events);
@@ -216,10 +252,7 @@ export class FictitiousMetricsStore {
     return [...this.risks.values()];
   }
 
-  extensionStatus(ctx: MetricsContext): {
-    extensionAllowed: boolean;
-    criticalWithoutControl: string[];
-  } {
+  extensionStatus(ctx: MetricsContext): ExtensionView {
     this.gateAuth(ctx);
     const all = [...this.risks.values()];
     const blocked = blocksPilotExtension(all);

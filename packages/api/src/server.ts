@@ -12,6 +12,7 @@ import { DomainError, type DomainErrorCode } from "@kombe/domain";
 import type { CycleSchedule, ContributionDeclaration } from "@kombe/domain";
 import { PgContributionStore } from "./db/pgContributionStore.js";
 import { PgAccessStore } from "./db/pgAccessStore.js";
+import { PgMetricsStore } from "./db/pgMetricsStore.js";
 import { resolveSession, resolveGroupActor, type GroupActor } from "./db/pgSessionResolver.js";
 import { ResendEmailSender, type EmailSender } from "./email/emailSender.js";
 import {
@@ -59,6 +60,7 @@ import {
 import {
   FictitiousMetricsStore,
   type MetricsContext,
+  type MetricsStore,
 } from "./metricsStore.js";
 import {
   declareContributionBody,
@@ -223,7 +225,7 @@ export interface BuildAppOptions {
   readonly support?: FictitiousSupportStore;
   readonly exports?: FictitiousExportStore;
   readonly privacy?: FictitiousPrivacyStore;
-  readonly metrics?: FictitiousMetricsStore;
+  readonly metrics?: MetricsStore;
   /**
    * Mode RÉEL (Piste A3) : quand fourni, active l'authentification par
    * session réelle (`Authorization: Bearer <sessionId>`, `resolveSession`/
@@ -647,7 +649,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const support = options.support ?? new FictitiousSupportStore();
   const exportStore = options.exports ?? new FictitiousExportStore();
   const privacyStore = options.privacy ?? new FictitiousPrivacyStore();
-  const metricsStore = options.metrics ?? new FictitiousMetricsStore();
+  // Mode RÉEL : quand un pool Postgres est fourni, la mesure pilote persiste
+  // dans les tables `0017_pilot_metrics` (analytics/cohortes/risques réels).
+  // Sans pool (défaut, tous les tests C18 existants), store fictif en mémoire.
+  const metricsStore: MetricsStore =
+    options.metrics ?? (options.pool ? new PgMetricsStore(options.pool) : new FictitiousMetricsStore());
 
   // Mode RÉEL (Piste A3, cf. BuildAppOptions.pool) : construit seulement si
   // un pool est fourni. Jamais de repli silencieux sur NullEmailSender ici
@@ -1672,8 +1678,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return reply
       .code(201)
       .send(
-        metricsStore.trackAnalyticsEvent(ctx, {
+        await metricsStore.trackAnalyticsEvent(ctx, {
           cohortId: body.cohortId,
+          // Le groupe porteur est transmis au store RÉEL (RLS + FK NOT NULL) ;
+          // omis quand absent (le store fictif l'ignore, compatibilité C18).
+          ...(body.groupId !== undefined ? { groupId: body.groupId } : {}),
           step: body.step,
           properties: body.properties,
         }),
@@ -1684,8 +1693,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // (`individualFinancialFields` toujours 0 — l'export n'en porte jamais).
   app.get("/v1/metrics/analytics/funnel/:cohortId", async (request, reply) => {
     const { cohortId } = request.params as { cohortId: string };
+    const query = request.query as { groupId?: string };
     const ctx = metricsCtxFrom(request);
-    return reply.code(200).send(metricsStore.analyticsFunnel(ctx, cohortId));
+    return reply.code(200).send(await metricsStore.analyticsFunnel(ctx, cohortId, query.groupId));
   });
 
   // Création/mise à jour d'une cohorte (18.13) : un cycle = memberCount tours
@@ -1694,14 +1704,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/metrics/cohorts", async (request, reply) => {
     const body = cohortBody.parse(request.body);
     const ctx = metricsCtxFrom(request);
-    return reply.code(201).send(metricsStore.upsertCohort(ctx, body));
+    return reply.code(201).send(await metricsStore.upsertCohort(ctx, body));
   });
 
   // Lecture d'une cohorte (404 non-divulguant si absente).
   app.get("/v1/metrics/cohorts/:groupId", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const ctx = metricsCtxFrom(request);
-    return reply.code(200).send(metricsStore.getCohort(ctx, groupId));
+    return reply.code(200).send(await metricsStore.getCohort(ctx, groupId));
   });
 
   // Économie unitaire (16.2) : paiement RÉEL distinct de la PROMESSE ; taux
@@ -1710,7 +1720,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/metrics/economics", async (request, reply) => {
     const body = economicsBody.parse(request.body);
     const ctx = metricsCtxFrom(request);
-    return reply.code(200).send(metricsStore.computeEconomics(ctx, body));
+    return reply.code(200).send(await metricsStore.computeEconomics(ctx, body));
   });
 
   // Enregistrement d'un risque au registre (16.3) : sévérité connue, proba/
@@ -1718,20 +1728,28 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/metrics/risks", async (request, reply) => {
     const body = riskBody.parse(request.body);
     const ctx = metricsCtxFrom(request);
-    return reply.code(201).send(metricsStore.addRisk(ctx, body));
+    return reply.code(201).send(await metricsStore.addRisk(ctx, body));
   });
 
   // Listage du registre des risques du pilote.
   app.get("/v1/metrics/risks", async (request, reply) => {
     const ctx = metricsCtxFrom(request);
-    return reply.code(200).send(metricsStore.listRisks(ctx));
+    return reply.code(200).send(await metricsStore.listRisks(ctx));
   });
 
   // Contrôle d'extension du pilote (16.3) : un risque critique SANS contrôle
   // effectif bloque l'extension (extensionAllowed false + liste des blocages).
   app.post("/v1/metrics/extension-check", async (request, reply) => {
     const ctx = metricsCtxFrom(request);
-    return reply.code(200).send(metricsStore.extensionStatus(ctx));
+    return reply.code(200).send(await metricsStore.extensionStatus(ctx));
+  });
+
+  // Même verdict en GET (lecture sans corps) : c'est la forme appelée par le
+  // dashboard DIRECTION (`DirectionApi.extensionCheck()`), pour aligner le
+  // contrat client/serveur sans imposer un POST factice côté navigateur.
+  app.get("/v1/metrics/extension-check", async (request, reply) => {
+    const ctx = metricsCtxFrom(request);
+    return reply.code(200).send(await metricsStore.extensionStatus(ctx));
   });
 
   return app;

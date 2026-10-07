@@ -440,6 +440,12 @@ export type RightsRequestOpenInput = z.infer<typeof rightsRequestOpenBody>;
 // déléguée au domaine (`buildAnalyticsEvent`). `occurredAt` est résolu SERVEUR.
 export const analyticsEventBody = z.object({
   cohortId: z.string().min(1).max(120),
+  // Groupe porteur de la cohorte. OPTIONNEL pour compatibilité ascendante
+  // (le store FICTIF en mémoire l'ignore) ; le store RÉEL `PgMetricsStore`
+  // l'EXIGE : `analytics_event.group_id` est NOT NULL + FK "group" et la RLS
+  // `tenant_isolation` filtre sur `kombe.group_id` (migration 0017). Sans lui,
+  // aucune persistance réelle n'est possible (jamais de groupe deviné).
+  groupId: z.string().min(1).max(120).optional(),
   step: z.enum([
     "visite",
     "demarrage",

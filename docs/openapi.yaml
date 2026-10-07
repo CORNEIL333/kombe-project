@@ -2151,6 +2151,14 @@ paths:
       parameters:
         - { $ref: "#/components/parameters/ServerDate" }
         - { $ref: "#/components/parameters/CohortId" }
+        - name: groupId
+          in: query
+          required: false
+          description: >
+            Groupe porteur de la cohorte. OPTIONNEL pour compatibilité ascendante ;
+            EXIGÉ en mode RÉEL (RLS `tenant_isolation` sur `analytics_event`,
+            migration `0017_pilot_metrics`) : sans lui l'entonnoir réel est vide.
+          schema: { type: string, minLength: 1, maxLength: 120 }
       responses:
         "200":
           description: Entonnoir + garde sans champ individuel.
@@ -2268,6 +2276,23 @@ paths:
         Un risque **critique sans contrôle effectif** (contrôle + preuve +
         propriétaire) bloque l'extension : `extensionAllowed = false` et la liste
         des risques bloquants est remontée.
+      parameters:
+        - { $ref: "#/components/parameters/ServerDate" }
+      responses:
+        "200":
+          description: Statut d'extension du pilote.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExtensionStatusView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    get:
+      tags: [metrics]
+      summary: Contrôle d'extension du pilote, en lecture (16.3)
+      description: >
+        Même verdict que le `POST` homonyme, sans corps de requête : c'est la
+        forme appelée par le dashboard DIRECTION (`DirectionApi.extensionCheck()`),
+        pour aligner le contrat client/serveur sans imposer un POST factice côté
+        navigateur.
       parameters:
         - { $ref: "#/components/parameters/ServerDate" }
       responses:
@@ -3227,6 +3252,17 @@ components:
       required: [cohortId, step]
       properties:
         cohortId: { type: string, minLength: 1, maxLength: 120 }
+        groupId:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: >
+            Groupe porteur de la cohorte. OPTIONNEL pour compatibilité ascendante
+            (le store fictif en mémoire l'ignore) ; EXIGÉ en mode RÉEL : la table
+            `analytics_event.group_id` est NOT NULL + FK `"group"` et la RLS
+            `tenant_isolation` filtre sur `kombe.group_id` (migration
+            `0017_pilot_metrics`). Sans lui, aucune persistance réelle n'est
+            possible (jamais de groupe deviné).
         step:
           type: string
           enum:
