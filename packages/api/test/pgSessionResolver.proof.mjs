@@ -117,11 +117,17 @@ try {
     INSERT INTO membership (membership_id, group_id, identity_id, state)
       VALUES ('mem_s','grpS','idn_member','active') ON CONFLICT DO NOTHING;
   `);
-  await migrator.query(`
-    INSERT INTO role_assignment (role_assignment_id, group_id, membership_id, role, accepted_at)
-      VALUES ('ra_s1','grpS','mem_s','treasurer', now())
-      ON CONFLICT DO NOTHING;
-  `);
+  // Deux rôles acceptés pour le MÊME membership (schéma le permet) : prouve
+  // le choix de résolution "rôle unique pour le moment" (décision humaine
+  // 2026-10-07) -- la plus RÉCENTE acceptation (treasurer, maintenant)
+  // l'emporte sur la plus ancienne (secretary, il y a 1h).
+  await migrator.query(
+    `INSERT INTO role_assignment (role_assignment_id, group_id, membership_id, role, accepted_at)
+       VALUES ('ra_s0','grpS','mem_s','secretary', $1),
+              ('ra_s1','grpS','mem_s','treasurer', $2)
+     ON CONFLICT DO NOTHING`,
+    [new Date(NOW - HOUR), new Date(NOW)],
+  );
   // Comptes : actifs à generation=1 sauf idn_stale (generation=2, simulant une
   // récupération postérieure à l'émission de la session testée, encore à 1).
   await migrator.query(`
@@ -205,7 +211,7 @@ try {
     await c.query("SELECT set_config('kombe.group_id', $1, true)", ["grpS"]);
     return resolveGroupActor(c, "idn_member", "grpS");
   });
-  check("A2-GROUPACTOR", actor.roles.includes("treasurer") && actor.membershipId === "mem_s", actor);
+  check("A2-GROUPACTOR", actor.role === "treasurer" && actor.membershipId === "mem_s", actor);
 
   // A2-GROUPACTOR-DENY : identité sans adhésion dans ce groupe -> refus.
   let denyCode = null;

@@ -85,16 +85,22 @@ export async function resolveSession(
 export interface GroupActor {
   readonly identityId: string;
   readonly membershipId: string;
-  readonly roles: readonly Role[];
+  readonly role: Role;
 }
 
 /**
- * Résout l'adhésion ACTIVE et les rôles ACCEPTÉS d'une identité dans le
- * groupe déjà scopé par la transaction (`kombe.group_id`). Un membre peut
- * légitimement porter plusieurs rôles simultanément (schéma
- * `role_assignment`, pas de contrainte d'unicité par membership) : cette
- * fonction retourne l'ENSEMBLE, elle ne choisit pas un rôle unique — ce
- * choix reste un point ouvert (voir note d'appel, server.ts à venir).
+ * Résout l'adhésion ACTIVE et le rôle ACCEPTÉ d'une identité dans le groupe
+ * déjà scopé par la transaction (`kombe.group_id`).
+ *
+ * Décision humaine (2026-10-07) : un rôle UNIQUE par membership, pour le
+ * moment. Le schéma `role_assignment` n'impose pas cette contrainte au
+ * niveau base (pas de cycle de vie des changements de rôle — ADR-0011 /
+ * migration 0002_role_change.sql — encore tracé jusqu'au bout pour être sûr
+ * qu'une telle contrainte ne casse rien), donc le choix est fait ICI, à la
+ * lecture : la plus RÉCENTE acceptation fait foi (reflète le mieux une
+ * réaffectation). Si plusieurs rôles acceptés coexistent pour le même
+ * membership (cas que le schéma permettrait), les autres sont simplement
+ * ignorés — ce n'est PAS une erreur remontée, juste un choix de résolution.
  */
 export async function resolveGroupActor(
   client: pg.PoolClient,
@@ -106,7 +112,9 @@ export async function resolveGroupActor(
      FROM membership m
      JOIN role_assignment r USING (group_id, membership_id)
      WHERE m.group_id = $1 AND m.identity_id = $2 AND m.state = 'active'
-       AND r.accepted_at IS NOT NULL`,
+       AND r.accepted_at IS NOT NULL
+     ORDER BY r.accepted_at DESC
+     LIMIT 1`,
     [groupId, identityId],
   );
   // Anti-IDOR / non-divulgation : absence d'adhésion active (ou groupe
@@ -118,6 +126,6 @@ export async function resolveGroupActor(
   return {
     identityId,
     membershipId: String(res.rows[0].membership_id),
-    roles: res.rows.map((r) => r.role as Role),
+    role: res.rows[0].role as Role,
   };
 }
