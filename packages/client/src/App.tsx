@@ -7,9 +7,20 @@ import { useEffect, useState } from "react";
 import { useLangue, BasculeLangue } from "./i18n/ContexteLangue.js";
 import { ParcoursGuide } from "./parcours/ParcoursGuide.js";
 import { BandeauHorsLigne } from "./horsLigne/BandeauHorsLigne.js";
+import { Connexion, type SessionOuverte } from "./connexion/Connexion.js";
+import { DeclarerCotisation } from "./cotisation/DeclarerCotisation.js";
+
+type Onglet = "groupe" | "cotisation";
 
 export function App() {
   const { t } = useLangue();
+  // Onglet "Créer un groupe" par défaut : le parcours C14 reste la première
+  // chose vue (comportement inchangé). "Ma cotisation" est le nouveau
+  // parcours RÉEL (Piste A3 suite) — session en mémoire de composant
+  // seulement, jamais persistée (pas de localStorage pour un secret de
+  // session).
+  const [onglet, setOnglet] = useState<Onglet>("groupe");
+  const [session, setSession] = useState<SessionOuverte | null>(null);
   // Reflète la connectivité RÉELLE du navigateur ; ne présume jamais d'une
   // synchronisation serveur (derniereSync/attente laissés à l'état initial).
   const [horsLigne, setHorsLigne] = useState<boolean>(
@@ -44,7 +55,42 @@ export function App() {
         <BandeauHorsLigne
           etat={{ horsLigne, derniereSync: undefined, brouillonsEnAttente: 0 }}
         />
-        <ParcoursGuide />
+
+        <nav className="onglets-app" role="tablist" aria-label={t("app.titre")}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={onglet === "groupe"}
+            className="bouton bouton-secondaire"
+            onClick={() => setOnglet("groupe")}
+          >
+            {t("nav.creerGroupe")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={onglet === "cotisation"}
+            className="bouton bouton-secondaire"
+            onClick={() => setOnglet("cotisation")}
+          >
+            {t("nav.cotisation")}
+          </button>
+        </nav>
+
+        {onglet === "groupe" ? <ParcoursGuide /> : null}
+        {onglet === "cotisation" ? (
+          session ? (
+            <>
+              <p role="status">{t("connexion.connecte")}</p>
+              <button type="button" className="bouton bouton-secondaire" onClick={() => setSession(null)}>
+                {t("bouton.deconnexion")}
+              </button>
+              <DeclarerCotisation session={session} />
+            </>
+          ) : (
+            <Connexion onConnecte={setSession} />
+          )
+        ) : null}
       </main>
 
       <footer className="pied-page">{t("app.sousTitre")}</footer>

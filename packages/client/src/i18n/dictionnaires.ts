@@ -77,6 +77,43 @@ export const fr = {
     "{nombre} brouillon(s) en attente — non validés par le serveur",
   "horsLigne.jamaisValide":
     "Brouillon local — jamais considéré validé tant que vous êtes hors ligne",
+
+  "nav.creerGroupe": "Créer un groupe",
+  "nav.cotisation": "Ma cotisation",
+
+  "connexion.titre": "Connexion",
+  "connexion.consigne":
+    "Un code à 6 chiffres vous est envoyé par email — aucun mot de passe.",
+  "champ.email": "Adresse email",
+  "aide.email": "L'identifiant que vous avez utilisé à l'inscription.",
+  "erreur.email": "Erreur : saisissez votre adresse email.",
+  "bouton.envoyerCode": "Envoyer le code",
+  "connexion.codeEnvoye": "Code envoyé — vérifiez votre boîte de réception.",
+  "champ.code": "Code reçu par email",
+  "aide.code": "6 chiffres.",
+  "erreur.code": "Erreur : saisissez le code à 6 chiffres reçu par email.",
+  "bouton.confirmerCode": "Confirmer et se connecter",
+  "connexion.connecte": "Connecté — session réelle ouverte.",
+  "bouton.deconnexion": "Se déconnecter",
+
+  "cotisation.titre": "Déclarer une cotisation",
+  "cotisation.consigne":
+    "Ce que vous déclarez est distingué de ce qui est validé par le serveur.",
+  "champ.groupe": "Identifiant du groupe",
+  "champ.obligation": "Identifiant de l'obligation",
+  "bouton.charger": "Charger l'obligation",
+  "obligation.du": "Montant dû",
+  "obligation.restant": "Restant dû (validé net)",
+  "obligation.disponible": "Disponible à déclarer",
+  "obligation.nombreDeclarations": "Cotisations déclarées",
+  "champ.montantCotisation": "Montant à déclarer (XAF)",
+  "champ.canal": "Canal",
+  "canal.cash": "Espèces",
+  "canal.electronic": "Électronique",
+  "champ.dateAlleguee": "Date de la cotisation",
+  "bouton.declarer": "Déclarer la cotisation",
+  "cotisation.declaree": "Cotisation déclarée et scellée au journal.",
+  "cotisation.rejouee": "Déjà déclarée à l'identique — aucune nouvelle écriture (rejeu).",
 } as const;
 
 export type CleI18n = keyof typeof fr;
@@ -155,6 +192,43 @@ export const en: Record<CleI18n, string> = {
     "{nombre} draft(s) pending — not validated by the server",
   "horsLigne.jamaisValide":
     "Local draft — never treated as validated while you are offline",
+
+  "nav.creerGroupe": "Create a group",
+  "nav.cotisation": "My contribution",
+
+  "connexion.titre": "Sign in",
+  "connexion.consigne":
+    "A 6-digit code is emailed to you — no password.",
+  "champ.email": "Email address",
+  "aide.email": "The identifier you used at registration.",
+  "erreur.email": "Error: enter your email address.",
+  "bouton.envoyerCode": "Send the code",
+  "connexion.codeEnvoye": "Code sent — check your inbox.",
+  "champ.code": "Code received by email",
+  "aide.code": "6 digits.",
+  "erreur.code": "Error: enter the 6-digit code received by email.",
+  "bouton.confirmerCode": "Confirm and sign in",
+  "connexion.connecte": "Signed in — real session open.",
+  "bouton.deconnexion": "Sign out",
+
+  "cotisation.titre": "Declare a contribution",
+  "cotisation.consigne":
+    "What you declare is kept apart from what the server validates.",
+  "champ.groupe": "Group identifier",
+  "champ.obligation": "Obligation identifier",
+  "bouton.charger": "Load the obligation",
+  "obligation.du": "Amount due",
+  "obligation.restant": "Remaining due (net validated)",
+  "obligation.disponible": "Available to declare",
+  "obligation.nombreDeclarations": "Declared contributions",
+  "champ.montantCotisation": "Amount to declare (XAF)",
+  "champ.canal": "Channel",
+  "canal.cash": "Cash",
+  "canal.electronic": "Electronic",
+  "champ.dateAlleguee": "Contribution date",
+  "bouton.declarer": "Declare the contribution",
+  "cotisation.declaree": "Contribution declared and sealed to the journal.",
+  "cotisation.rejouee": "Already declared identically — no new write (replay).",
 };
 
 export const dictionnaires: Record<Langue, Record<CleI18n, string>> = { fr, en };
