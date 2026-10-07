@@ -8,6 +8,7 @@ export * from './ui/AppShell';
 export * from './ui/Elements';
 export * from './ui/RemoteState';
 export * from './ui/Forms';
+export * from './ui/Widgets';
 export * from './utils/money';
 export * from './utils/date';
 export * from './utils/safe';
