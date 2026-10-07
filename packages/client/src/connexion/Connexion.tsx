@@ -9,6 +9,7 @@ import { ChampTexte } from "../composants/Champs.js";
 import { ChampCode } from "../composants/ChampCode.js";
 import { ZoneEtat } from "../composants/Etats.js";
 import { ImmersiveBackdrop } from "../composants/ImmersiveBackdrop.js";
+import { MotifAfricain } from "../composants/MotifAfricain.js";
 import { ApiError, confirmerConnexion, demanderConnexion } from "../api/kombeApi.js";
 
 export interface SessionOuverte {
@@ -77,9 +78,7 @@ export function Connexion({ onConnecte }: ConnexionProps) {
       <div className="carte-etape">
         <PointsEtape etape={etape === "email" ? 0 : 1} />
         <header className="carte-etape__entete">
-          <span className="carte-etape__symbole" aria-hidden="true">
-            {etape === "email" ? "K" : "✓"}
-          </span>
+          <img className="carte-etape__symbole" src="/brand/logo-emblem.png" alt="" aria-hidden="true" />
           <h2 id="connexion-titre">{t("connexion.titre")}</h2>
           <p className="aide-champ">{t("connexion.consigne")}</p>
         </header>
@@ -122,6 +121,7 @@ export function Connexion({ onConnecte }: ConnexionProps) {
           </p>
         ) : null}
       </div>
+      <MotifAfricain />
     </section>
   );
 }

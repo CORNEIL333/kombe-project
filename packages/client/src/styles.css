@@ -1,30 +1,48 @@
-/* KÓMBE — refonte visuelle de la PWA (moderne, sobre, immersive).
-   Objectif inchangé : contraste AA vérifiable, reflow/zoom sans perte
-   d'information, et AUCUNE information portée par la couleur seule (les
-   badges/erreurs ajoutent toujours un texte explicite). Le mouvement est
-   volontairement discret (dérive lente, transitions courtes) et entièrement
-   désactivé sous prefers-reduced-motion. */
+/* KÓMBE — système visuel de la PWA. Palette et motif IDENTIQUES à la marque
+   déjà posée côté mobile (packages/mobile/lib/core/design/kombe_colors.dart,
+   core/widgets/african_pattern_band.dart) : ce n'est pas une nouvelle
+   identité inventée pour le web, c'est la MÊME marque portée fidèlement.
+   Contrainte inchangée : contraste AA vérifiable, reflow/zoom sans perte
+   d'information, AUCUNE information portée par la seule couleur (textes
+   explicites). Mouvement discret, entièrement désactivé sous
+   prefers-reduced-motion. */
 
 :root {
-  /* Palette KÓMBE — mêmes teintes que les tableaux de bord
-     (@kombe/dashboard-core/styles/tokens.css) pour une identité unifiée. */
-  --couleur-fond: #faf9f4;
+  /* Palette canonique KÓMBE (mobile kombe_colors.dart) */
+  --kombe-foret: #07583d;
+  --kombe-foret-sombre: #043c2b;
+  --kombe-emeraude: #0b7550;
+  --kombe-feuille: #3d8c63;
+  --kombe-or: #d4a83e;
+  --kombe-or-sombre: #b78417;
+  --kombe-creme: #fbf7ef;
+  --kombe-sable: #f2e9d8;
+  --kombe-menthe: #e8f3eb;
+  --kombe-encre: #102234;
+  --kombe-ardoise: #637084;
+  --kombe-ligne: #e3ded4;
+
+  --couleur-fond: var(--kombe-creme);
   --couleur-surface: #ffffff;
-  --couleur-surface-voile: rgba(255, 255, 255, 0.86);
-  --couleur-fond-renforce: #f0f2ee;
-  --couleur-texte: #15211c;
-  --couleur-texte-affaibli: #576b60;
-  --couleur-primaire: #0e6248;
-  --couleur-primaire-fonce: #083c2d;
+  --couleur-surface-voile: rgba(255, 255, 255, 0.9);
+  --couleur-fond-renforce: var(--kombe-sable);
+  --couleur-texte: var(--kombe-encre);
+  --couleur-texte-affaibli: var(--kombe-ardoise);
+  --couleur-primaire: var(--kombe-foret);
+  --couleur-primaire-fonce: var(--kombe-foret-sombre);
   --couleur-primaire-texte: #ffffff;
-  --couleur-or: #c99a2e;
-  --couleur-or-clair: #f7df91;
-  --couleur-bordure: #dfe6e0;
-  --couleur-focus: #0e6248;
-  --couleur-alerte: #8a2b06;
+  --couleur-or: var(--kombe-or);
+  --couleur-or-clair: #f1d596;
+  --couleur-bordure: var(--kombe-ligne);
+  --couleur-focus: var(--kombe-foret);
+  --couleur-alerte: #b42318;
   --couleur-alerte-fond: #fdece4;
-  --couleur-valide: #0f5132;
-  --couleur-canevas: #8a5a00;
+  --couleur-valide: #067647;
+  --couleur-canevas: #9a6700;
+
+  --police-affichage: "Fraunces", ui-serif, Georgia, serif;
+  --police-texte:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
   --rayon-s: 10px;
   --rayon: 16px;
@@ -34,11 +52,11 @@
   --espace-3: 1rem;
   --espace-4: 1.5rem;
   --espace-5: 2.5rem;
-  --largeur-max: 46rem;
-  --largeur-scene: 30rem;
+  --largeur-max: 48rem;
+  --largeur-scene: 31rem;
   --taille-police: 1rem;
   --hauteur-ligne: 1.55;
-  --ombre-carte: 0 24px 60px -24px rgba(8, 60, 45, 0.28), 0 2px 8px rgba(8, 60, 45, 0.06);
+  --ombre-carte: 0 28px 70px -28px rgba(4, 60, 43, 0.35), 0 2px 10px rgba(4, 60, 43, 0.08);
 
   --duree-rapide: 160ms;
   --duree: 320ms;
@@ -58,8 +76,7 @@ body {
   margin: 0;
   background: var(--couleur-fond);
   color: var(--couleur-texte);
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--police-texte);
   font-size: var(--taille-police);
   line-height: var(--hauteur-ligne);
   -webkit-font-smoothing: antialiased;
@@ -84,7 +101,7 @@ body {
 .app {
   max-width: var(--largeur-max);
   margin: 0 auto;
-  padding: var(--espace-4) var(--espace-3);
+  padding: var(--espace-4) var(--espace-3) var(--espace-5);
 }
 
 .entete {
@@ -93,15 +110,18 @@ body {
   justify-content: space-between;
   gap: var(--espace-3);
   flex-wrap: wrap;
-  padding-bottom: var(--espace-3);
+  padding-bottom: var(--espace-4);
   margin-bottom: var(--espace-4);
+  border-bottom: 1px solid var(--couleur-bordure);
 }
 
 .entete h1 {
-  font-size: 1.5rem;
+  font-family: var(--police-affichage);
+  font-size: 1.6rem;
   margin: 0;
-  letter-spacing: -0.02em;
-  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  color: var(--couleur-primaire-fonce);
 }
 
 .entete-marque {
@@ -111,17 +131,11 @@ body {
 }
 
 .marque-symbole {
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   flex: none;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-  font-size: 1.1rem;
-  color: var(--couleur-primaire-fonce);
-  background: radial-gradient(circle at 30% 30%, #fff3cf, var(--couleur-or));
-  box-shadow: 0 6px 18px -6px rgba(201, 154, 46, 0.65);
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(4, 60, 43, 0.25));
 }
 
 /* Onglets principaux — pilules, état actif marqué par texte (aria-selected)
@@ -177,8 +191,6 @@ body {
 .erreur-champ {
   color: var(--couleur-alerte);
   font-weight: 600;
-  /* Le texte d'erreur est explicite (préfixe « Erreur : ») : il ne repose pas
-     sur la couleur seule. */
 }
 
 .aide-champ {
@@ -189,21 +201,24 @@ body {
 .bouton {
   font: inherit;
   cursor: pointer;
-  padding: 0.75rem var(--espace-4);
+  padding: 0.8rem var(--espace-4);
   border-radius: var(--rayon-s);
   border: 1.5px solid var(--couleur-primaire);
   background: var(--couleur-primaire);
+  background-image: linear-gradient(135deg, var(--kombe-emeraude), var(--couleur-primaire-fonce));
   color: var(--couleur-primaire-texte);
-  min-height: 44px;
+  min-height: 46px;
   font-weight: 700;
+  letter-spacing: 0.01em;
   transition:
     transform var(--duree-rapide) var(--ressort),
     box-shadow var(--duree-rapide) var(--ressort),
-    background var(--duree-rapide) var(--ressort);
+    filter var(--duree-rapide) var(--ressort);
 }
 .bouton:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 10px 22px -10px rgba(14, 98, 72, 0.55);
+  filter: brightness(1.06);
+  box-shadow: 0 14px 28px -12px rgba(4, 60, 43, 0.55);
 }
 .bouton:active:not(:disabled) {
   transform: translateY(0);
@@ -211,6 +226,7 @@ body {
 
 .bouton-secondaire {
   background: var(--couleur-surface);
+  background-image: none;
   color: var(--couleur-primaire);
 }
 
@@ -233,7 +249,7 @@ a:focus-visible {
 .champ input:focus-visible,
 .champ select:focus-visible {
   border-color: var(--couleur-primaire);
-  box-shadow: 0 0 0 4px rgba(14, 98, 72, 0.14);
+  box-shadow: 0 0 0 4px rgba(7, 88, 61, 0.14);
 }
 
 /* Saisie de code à cases séparées (ChampCode). */
@@ -249,10 +265,11 @@ a:focus-visible {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  justify-content: center;
 }
 .champ-code-case {
-  width: 3rem;
-  height: 3.5rem;
+  width: 3.1rem;
+  height: 3.6rem;
   text-align: center;
   font-size: 1.6rem;
   font-weight: 800;
@@ -260,13 +277,14 @@ a:focus-visible {
   border: 1.5px solid var(--couleur-bordure);
   border-radius: var(--rayon-s);
   background: var(--couleur-surface);
-  color: var(--couleur-texte);
+  color: var(--couleur-primaire-fonce);
   transition:
     border-color var(--duree-rapide) var(--ressort),
     box-shadow var(--duree-rapide) var(--ressort);
 }
 .champ-code-case:focus {
   border-color: var(--couleur-primaire);
+  box-shadow: 0 0 0 4px rgba(7, 88, 61, 0.14);
 }
 
 /* ─────────────────────── Indicateur d'étapes (C14) ────────────────── */
@@ -292,7 +310,6 @@ a:focus-visible {
   font-weight: 700;
 }
 
-/* Points d'étape (scènes immersives à une action à la fois). */
 .points-etape {
   display: flex;
   gap: 8px;
@@ -306,7 +323,7 @@ a:focus-visible {
   background: var(--couleur-bordure);
 }
 .points-etape span[data-actif="true"] {
-  background: var(--couleur-primaire);
+  background: var(--couleur-or);
   width: 22px;
   border-radius: 999px;
   transition: width var(--duree) var(--ressort);
@@ -422,90 +439,95 @@ a:focus-visible {
 }
 
 /* ───────────────────── Scène immersive (connexion/cotisation) ──────── */
-/* Une action à la fois : la scène occupe l'essentiel du viewport, la toile
-   de fond donne le ton (feuille/organique), la carte porte la SEULE action
-   possible à cet instant. */
 .scene-immersive {
   position: relative;
   border-radius: var(--rayon-l);
   overflow: hidden;
-  min-height: 420px;
-  display: grid;
-  place-items: center;
-  padding: var(--espace-5) var(--espace-3);
+  min-height: 460px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--espace-5) var(--espace-3) 0;
   isolation: isolate;
+  box-shadow: var(--ombre-carte);
 }
 
 .fond-immersif {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(160deg, var(--couleur-primaire-fonce), var(--couleur-primaire) 65%);
+  background: radial-gradient(130% 110% at 15% -10%, var(--kombe-emeraude) 0%, var(--couleur-primaire) 38%, var(--couleur-primaire-fonce) 78%);
   overflow: hidden;
 }
-.fond-immersif-tache {
+/* Filigrane de l'emblème officiel — très grand, très discret, ancré dans un
+   coin : un repère de marque, jamais un décor générique. */
+.fond-immersif-filigrane {
+  position: absolute;
+  width: 72%;
+  max-width: 560px;
+  aspect-ratio: 1;
+  right: -14%;
+  bottom: -18%;
+  background-image: url("/brand/logo-emblem.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.16;
+  filter: brightness(2.6) saturate(0);
+  mix-blend-mode: screen;
+  animation: derive-filigrane 30s var(--ressort) infinite alternate;
+}
+.fond-immersif-lueur {
   position: absolute;
   border-radius: 50%;
-  filter: blur(40px);
-  opacity: 0.55;
-  animation: derive-tache 22s var(--ressort) infinite alternate;
+  filter: blur(50px);
+  opacity: 0.4;
+  animation: derive-tache 24s var(--ressort) infinite alternate;
 }
-.fond-immersif-tache-1 {
-  width: 320px;
-  height: 320px;
+.fond-immersif-lueur-1 {
+  width: 280px;
+  height: 280px;
   background: var(--couleur-or);
-  top: -80px;
-  left: -60px;
-  animation-duration: 26s;
+  top: -70px;
+  left: -50px;
 }
-.fond-immersif-tache-2 {
-  width: 260px;
-  height: 260px;
-  background: var(--couleur-or-clair);
-  bottom: -70px;
-  right: -40px;
-  animation-duration: 32s;
+.fond-immersif-lueur-2 {
+  width: 220px;
+  height: 220px;
+  background: var(--kombe-or-sombre);
+  top: 20%;
+  right: 6%;
+  opacity: 0.22;
+  animation-duration: 34s;
   animation-direction: alternate-reverse;
-}
-.fond-immersif-tache-3 {
-  width: 200px;
-  height: 200px;
-  background: #ffffff;
-  top: 40%;
-  right: 10%;
-  opacity: 0.12;
-  animation-duration: 38s;
-}
-.fond-immersif-motif {
-  position: absolute;
-  inset: 0;
-  background-repeat: repeat;
-  background-size: 120px 120px;
-  opacity: 0.5;
-  mix-blend-mode: soft-light;
 }
 @keyframes derive-tache {
   from {
     transform: translate(0, 0) scale(1);
   }
   to {
-    transform: translate(26px, 18px) scale(1.08);
+    transform: translate(22px, 16px) scale(1.06);
+  }
+}
+@keyframes derive-filigrane {
+  from {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  to {
+    transform: translate(-14px, -10px) rotate(-2deg);
   }
 }
 
 /* Variantes de teinte par étape — ambiance seulement, jamais une
    information fonctionnelle (le texte de la carte fait foi). */
 .fond-immersif--code {
-  background: linear-gradient(160deg, #4a3300, var(--couleur-canevas) 65%);
-}
-.fond-immersif--code .fond-immersif-tache-1 {
-  background: var(--couleur-primaire);
+  background: radial-gradient(130% 110% at 85% -10%, var(--kombe-or-sombre) 0%, #6b4a0c 42%, var(--couleur-primaire-fonce) 82%);
 }
 .fond-immersif--cotisation {
-  background: linear-gradient(160deg, var(--couleur-primaire-fonce), #1d7a56 70%);
+  background: radial-gradient(130% 110% at 15% -10%, var(--kombe-feuille) 0%, var(--couleur-primaire) 42%, var(--couleur-primaire-fonce) 82%);
 }
 .fond-immersif--groupe {
-  background: linear-gradient(160deg, #2a2308, var(--couleur-or) 75%);
+  background: radial-gradient(130% 110% at 85% -10%, var(--kombe-or) 0%, var(--kombe-or-sombre) 45%, var(--couleur-primaire-fonce) 85%);
 }
 
 .carte-etape {
@@ -513,11 +535,10 @@ a:focus-visible {
   width: 100%;
   max-width: var(--largeur-scene);
   background: var(--couleur-surface-voile);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-radius: var(--rayon-l);
-  box-shadow: var(--ombre-carte);
-  padding: var(--espace-5) var(--espace-4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--rayon-l) var(--rayon-l) 0 0;
+  padding: var(--espace-5) var(--espace-4) var(--espace-4);
   animation: apparition var(--duree-lente) var(--ressort) both;
 }
 
@@ -526,20 +547,19 @@ a:focus-visible {
   margin-bottom: var(--espace-4);
 }
 .carte-etape__entete h2 {
+  font-family: var(--police-affichage);
   margin: var(--espace-2) 0 var(--espace-1);
-  font-size: 1.5rem;
-  letter-spacing: -0.02em;
+  font-size: 1.7rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--couleur-primaire-fonce);
 }
 .carte-etape__symbole {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   margin: 0 auto;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-weight: 900;
-  color: var(--couleur-primaire-fonce);
-  background: radial-gradient(circle at 30% 30%, #fff3cf, var(--couleur-or));
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(4, 60, 43, 0.3));
 }
 
 .carte-etape__pied {
@@ -550,7 +570,7 @@ a:focus-visible {
 @keyframes apparition {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.98);
+    transform: translateY(18px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -558,7 +578,12 @@ a:focus-visible {
   }
 }
 
-/* ───────────────────────── États transitoires ─────────────────────── */
+/* Bandeau à motif géométrique de marque, en pied de scène immersive. */
+.motif-africain {
+  display: block;
+  width: 100%;
+}
+
 .etat-succes {
   color: var(--couleur-valide);
   font-weight: 700;
@@ -576,10 +601,10 @@ a:focus-visible {
   .scene-immersive {
     border-radius: var(--rayon);
     min-height: 0;
-    padding: var(--espace-4) var(--espace-2);
+    padding: var(--espace-4) var(--espace-2) 0;
   }
   .carte-etape {
-    padding: var(--espace-4) var(--espace-3);
+    padding: var(--espace-4) var(--espace-3) var(--espace-3);
   }
   .champ-code-case {
     width: 2.6rem;

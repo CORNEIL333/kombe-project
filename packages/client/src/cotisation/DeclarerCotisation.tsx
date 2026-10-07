@@ -11,6 +11,7 @@ import { useLangue } from "../i18n/ContexteLangue.js";
 import { ChampTexte, ChampSelect } from "../composants/Champs.js";
 import { ZoneEtat } from "../composants/Etats.js";
 import { ImmersiveBackdrop } from "../composants/ImmersiveBackdrop.js";
+import { MotifAfricain } from "../composants/MotifAfricain.js";
 import { montantValide } from "../parcours/ParcoursGuide.js";
 import {
   ApiError,
@@ -92,7 +93,7 @@ export function DeclarerCotisation({ session }: DeclarerCotisationProps) {
       <ImmersiveBackdrop variante="cotisation" />
       <div className="carte-etape" style={{ maxWidth: "36rem" }}>
       <header className="carte-etape__entete">
-        <span className="carte-etape__symbole" aria-hidden="true">{obligation ? "↥" : "⌕"}</span>
+        <img className="carte-etape__symbole" src="/brand/logo-emblem.png" alt="" aria-hidden="true" />
         <h2 id="cotisation-titre">{t("cotisation.titre")}</h2>
         <p className="aide-champ">{t("cotisation.consigne")}</p>
       </header>
@@ -166,6 +167,7 @@ export function DeclarerCotisation({ session }: DeclarerCotisationProps) {
         </p>
       ) : null}
       </div>
+      <MotifAfricain />
     </section>
   );
 }

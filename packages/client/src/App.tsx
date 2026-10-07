@@ -10,6 +10,7 @@ import { BandeauHorsLigne } from "./horsLigne/BandeauHorsLigne.js";
 import { Connexion, type SessionOuverte } from "./connexion/Connexion.js";
 import { DeclarerCotisation } from "./cotisation/DeclarerCotisation.js";
 import { ImmersiveBackdrop } from "./composants/ImmersiveBackdrop.js";
+import { MotifAfricain } from "./composants/MotifAfricain.js";
 
 type Onglet = "groupe" | "cotisation";
 
@@ -46,7 +47,7 @@ export function App() {
 
       <header className="entete">
         <div className="entete-marque">
-          <span className="marque-symbole" aria-hidden="true">K</span>
+          <img className="marque-symbole" src="/brand/logo-emblem.png" alt="" aria-hidden="true" />
           <div>
             <h1>{t("app.titre")}</h1>
             <p className="aide-champ">{t("app.sousTitre")}</p>
@@ -87,6 +88,7 @@ export function App() {
             <div className="carte-etape" style={{ maxWidth: "40rem" }}>
               <ParcoursGuide />
             </div>
+            <MotifAfricain />
           </section>
         ) : null}
         {onglet === "cotisation" ? (
