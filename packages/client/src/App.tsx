@@ -44,9 +44,12 @@ export function App() {
       </a>
 
       <header className="entete">
-        <div>
-          <h1>{t("app.titre")}</h1>
-          <p className="aide-champ">{t("app.sousTitre")}</p>
+        <div className="entete-marque">
+          <span className="marque-symbole" aria-hidden="true">K</span>
+          <div>
+            <h1>{t("app.titre")}</h1>
+            <p className="aide-champ">{t("app.sousTitre")}</p>
+          </div>
         </div>
         <BasculeLangue />
       </header>
@@ -61,7 +64,7 @@ export function App() {
             type="button"
             role="tab"
             aria-selected={onglet === "groupe"}
-            className="bouton bouton-secondaire"
+            className={onglet === "groupe" ? "bouton" : "bouton bouton-secondaire"}
             onClick={() => setOnglet("groupe")}
           >
             {t("nav.creerGroupe")}
@@ -70,7 +73,7 @@ export function App() {
             type="button"
             role="tab"
             aria-selected={onglet === "cotisation"}
-            className="bouton bouton-secondaire"
+            className={onglet === "cotisation" ? "bouton" : "bouton bouton-secondaire"}
             onClick={() => setOnglet("cotisation")}
           >
             {t("nav.cotisation")}

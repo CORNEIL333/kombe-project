@@ -11,14 +11,17 @@
   --couleur-fond-renforce: #f4f5f7;
   --couleur-texte: #14181f;
   --couleur-texte-affaibli: #4a5160;
-  --couleur-primaire: #0b4f63;
+  /* Identité KÓMBE (mêmes teintes que les tableaux de bord,
+     @kombe/dashboard-core/styles/tokens.css) : vert forêt + or. */
+  --couleur-primaire: #0e6248;
   --couleur-primaire-texte: #ffffff;
   --couleur-bordure: #c9ced8;
-  --couleur-focus: #0b4f63;
+  --couleur-focus: #0e6248;
   --couleur-alerte: #8a2b06;
   --couleur-alerte-fond: #fdece4;
   --couleur-valide: #0f5132;
-  --couleur-canevas: #5c3a00;
+  --couleur-canevas: #8a5a00;
+  --couleur-or: #c99a2e;
 
   --rayon: 10px;
   --espace-1: 0.25rem;
@@ -83,6 +86,31 @@ body {
   font-size: 1.4rem;
   margin: 0;
   letter-spacing: 0.02em;
+}
+
+.entete-marque {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-3);
+}
+
+.marque-symbole {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  color: var(--couleur-valide);
+  background: linear-gradient(135deg, #f7df91, var(--couleur-or));
+}
+
+.onglets-app {
+  display: flex;
+  gap: var(--espace-2);
+  margin-bottom: var(--espace-4);
+  flex-wrap: wrap;
 }
 
 .champ {
