@@ -1,9 +1,41 @@
 import {useEffect,useState,type ReactNode} from 'react';
-import {ApiClient,CapabilityNotice,DashboardShell,DataTable,Field,JsonDisclosure,LocaleProvider,MetricCard,PageHeader,Panel,RemoteState,SubmitButton,formatXaf,loadRuntimeConfig,useHashRoute,useMutation,useRemote} from '@kombe/dashboard-core';
+import {ActivityList,ApiClient,CapabilityNotice,DashboardShell,DataTable,Field,JsonDisclosure,LocaleProvider,MetricCard,PageHeader,Panel,RemoteState,StatCard,SubmitButton,formatXaf,loadRuntimeConfig,useHashRoute,useMutation,useRemote} from '@kombe/dashboard-core';
 import {DirectionApi,type Economics} from './api';
 const messages={app:{fr:'Direction & Analytics',en:'Direction & Analytics'}} as const;
 const NAV=[{path:'/',label:'Vue d’ensemble',icon:'◫'},{path:'/funnel',label:'Funnel',icon:'↘'},{path:'/cohorts',label:'Cohortes',icon:'◎'},{path:'/economics',label:'Économie unitaire',icon:'¤'},{path:'/risks',label:'Risques',icon:'!'},{path:'/gates',label:'Gates d’extension',icon:'◆'}] as const;
-function Overview({api}:{api:DirectionApi}){const r=useRemote(s=>api.risks(s),[api],{isEmpty:d=>d.length===0});const g=useRemote(s=>api.extensionCheck(s),[api]);return <><PageHeader title="Pilotage KÓMBE" description="Mesures agrégées/pseudonymisées C18 uniquement. Aucun champ financier individuel."/><div className="k-grid"><div className="k-span-6"><Panel title="Gate d’extension"><RemoteState state={g.state} onRetry={g.reload}>{d=><JsonDisclosure value={d}/>}</RemoteState></Panel></div><div className="k-span-6"><Panel title="Risques"><RemoteState state={r.state} onRetry={r.reload} emptyTitle="Aucun risque retourné">{d=><MetricCard label="Risques enregistrés" value={String(d.length)}/>}</RemoteState></Panel></div></div></>}
+function Overview({api}:{api:DirectionApi}){
+  const r=useRemote(s=>api.risks(s),[api],{isEmpty:d=>d.length===0});
+  const g=useRemote(s=>api.extensionCheck(s),[api]);
+  return <><PageHeader title="Pilotage KÓMBE" description="Mesures agrégées/pseudonymisées C18 uniquement — aucun champ financier individuel, aucun chiffre de plateforme fabriqué tant que son contrat d’agrégation n’existe pas."/>
+    <div className="k-grid">
+      <div className="k-span-12">
+        <div className="k-stats">
+          <RemoteState state={g.state} onRetry={g.reload}>{d=>{
+            const allowed=(d as {extensionAllowed?:boolean}).extensionAllowed;
+            const critical=(d as {criticalWithoutControl?:readonly string[]}).criticalWithoutControl??[];
+            return <>
+              <StatCard icon="◆" label="Extension pilote" value={allowed?'Autorisée':'Bloquée'} tone={allowed?'ok':'danger'}/>
+              <StatCard icon="!" label="Risques critiques sans contrôle" value={String(critical.length)} tone={critical.length>0?'danger':'ok'}/>
+            </>;
+          }}</RemoteState>
+          <RemoteState state={r.state} onRetry={r.reload} emptyTitle="Aucun risque retourné">{d=>
+            <StatCard icon="▦" label="Risques enregistrés" value={String(d.length)}/>
+          }</RemoteState>
+        </div>
+      </div>
+      <div className="k-span-12">
+        <Panel>
+          <RemoteState state={r.state} onRetry={r.reload} emptyTitle="Aucun risque retourné">{rows=>
+            <ActivityList title="Registre des risques" empty="Aucun risque enregistré." items={rows.map((row,i)=>{
+              const x=row as {riskId?:unknown;severity?:unknown;control?:unknown};
+              return {id:String(x.riskId??i),text:`${String(x.riskId??'—')} — sévérité ${String(x.severity??'—')}`,meta:x.control?'Contrôlé':'Sans contrôle',tone:x.control?'ok':x.severity==='critique'?'danger':'warn'};
+            })}/>
+          }</RemoteState>
+        </Panel>
+      </div>
+    </div>
+  </>;
+}
 function FunnelPage({api}:{api:DirectionApi}){const[id,setId]=useState('');const[gid,setGid]=useState('');const[selected,setSelected]=useState('');const[selGroup,setSelGroup]=useState('');const q=useRemote(s=>api.funnel(selected,selGroup,s),[api,selected,selGroup],{enabled:!!selected&&!!selGroup});return <><PageHeader title="Funnel d’adoption" description="Comptes agrégés ; individualFinancialFields doit rester 0. En mode réel, le groupe porteur scope la lecture (RLS)."/><Panel><form onSubmit={e=>{e.preventDefault();setSelected(id.trim());setSelGroup(gid.trim())}}><Field label="Cohort ID" inputProps={{value:id,onChange:e=>setId(e.target.value),required:true}}/><Field label="Group ID" inputProps={{value:gid,onChange:e=>setGid(e.target.value),required:true}}/><button className="k-button k-button-primary">Charger</button></form></Panel><div style={{height:16}}/><Panel><RemoteState state={q.state} onRetry={q.reload}>{d=><><div className="k-metrics"><MetricCard label="Champs financiers individuels" value={String(d.individualFinancialFields)} hint="Garde structurelle : 0"/></div><DataTable rows={d.steps} rowKey={r=>r.step} columns={[{header:'Étape',render:r=>r.step},{header:'Compte',render:r=>String(r.count)}]}/></>}</RemoteState></Panel></>}
 function Cohorts({api}:{api:DirectionApi}){const[id,setId]=useState('');const[selected,setSelected]=useState('');const q=useRemote(s=>api.cohort(selected,s),[api,selected],{enabled:!!selected});return <><PageHeader title="Cohortes" description="Un cycle correspond à une rotation complète."/><Panel><form onSubmit={e=>{e.preventDefault();setSelected(id.trim())}}><Field label="Group ID" inputProps={{value:id,onChange:e=>setId(e.target.value),required:true}}/><button className="k-button k-button-primary">Consulter</button></form></Panel><div style={{height:16}}/><Panel><RemoteState state={q.state} onRetry={q.reload}>{d=><div className="k-metrics"><MetricCard label="Membres" value={String(d.memberCount)}/><MetricCard label="Tours terminés" value={String(d.roundsCompleted)}/><MetricCard label="Cycles complets" value={String(d.completedCycles)}/><MetricCard label="Rétention 3 cycles" value={d.eligibleThreeCycleRetention?'Éligible':'Non éligible'}/></div>}</RemoteState></Panel></>}
 function EconomicsResult({data}:{data:Economics}){return <><div className="k-metrics" style={{marginTop:20}}><MetricCard label="Payeurs réels" value={String(data.realPayers)}/><MetricCard label="Taux réel" value={`${data.paymentRealPercent}%`}/><MetricCard label="Coût total" value={formatXaf(data.totalCostMinor)}/><MetricCard label="Gate G2" value={data.gateG2Met?'Atteinte':'Non atteinte'}/></div><JsonDisclosure value={data}/></>}
