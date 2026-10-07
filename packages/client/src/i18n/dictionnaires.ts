@@ -93,6 +93,7 @@ export const fr = {
   "aide.code": "6 chiffres.",
   "erreur.code": "Erreur : saisissez le code à 6 chiffres reçu par email.",
   "bouton.confirmerCode": "Confirmer et se connecter",
+  "bouton.changerEmail": "Changer d'adresse email",
   "connexion.connecte": "Connecté — session réelle ouverte.",
   "bouton.deconnexion": "Se déconnecter",
 
@@ -208,6 +209,7 @@ export const en: Record<CleI18n, string> = {
   "aide.code": "6 digits.",
   "erreur.code": "Error: enter the 6-digit code received by email.",
   "bouton.confirmerCode": "Confirm and sign in",
+  "bouton.changerEmail": "Change email address",
   "connexion.connecte": "Signed in — real session open.",
   "bouton.deconnexion": "Sign out",
 

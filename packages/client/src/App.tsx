@@ -9,6 +9,7 @@ import { ParcoursGuide } from "./parcours/ParcoursGuide.js";
 import { BandeauHorsLigne } from "./horsLigne/BandeauHorsLigne.js";
 import { Connexion, type SessionOuverte } from "./connexion/Connexion.js";
 import { DeclarerCotisation } from "./cotisation/DeclarerCotisation.js";
+import { ImmersiveBackdrop } from "./composants/ImmersiveBackdrop.js";
 
 type Onglet = "groupe" | "cotisation";
 
@@ -80,14 +81,25 @@ export function App() {
           </button>
         </nav>
 
-        {onglet === "groupe" ? <ParcoursGuide /> : null}
+        {onglet === "groupe" ? (
+          <section className="scene-immersive" aria-label={t("nav.creerGroupe")}>
+            <ImmersiveBackdrop variante="groupe" />
+            <div className="carte-etape" style={{ maxWidth: "40rem" }}>
+              <ParcoursGuide />
+            </div>
+          </section>
+        ) : null}
         {onglet === "cotisation" ? (
           session ? (
             <>
-              <p role="status">{t("connexion.connecte")}</p>
-              <button type="button" className="bouton bouton-secondaire" onClick={() => setSession(null)}>
-                {t("bouton.deconnexion")}
-              </button>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, margin: "0 0 12px" }}>
+                <p role="status" className="aide-champ" style={{ margin: 0 }}>
+                  {t("connexion.connecte")}
+                </p>
+                <button type="button" className="bouton-secondaire bouton" onClick={() => setSession(null)} style={{ minHeight: "auto", padding: "4px 12px" }}>
+                  {t("bouton.deconnexion")}
+                </button>
+              </div>
               <DeclarerCotisation session={session} />
             </>
           ) : (

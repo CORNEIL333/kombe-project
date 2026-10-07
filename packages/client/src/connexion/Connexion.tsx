@@ -1,13 +1,14 @@
 /* KÓMBE — connexion RÉELLE (ADR-0024, Piste A3 suite). Code à 6 chiffres par
-   email, jamais de mot de passe. Deux étapes : demander le code, puis le
-   confirmer — exactement le contrat HTTP prouvé par
-   `docs/PREUVES_PISTE_A3_SERVEUR.md` (A3-LOGIN). `sessionId` est TOUJOURS
-   celui renvoyé par le serveur, jamais choisi ici. */
+   email, jamais de mot de passe. Refonte immersive : UNE action à la fois —
+   l'étape « code » n'existe tant que l'email n'est pas envoyé, et vice versa.
+   Contrat HTTP prouvé par `docs/PREUVES_PISTE_A3_SERVEUR.md` (A3-LOGIN). */
 
 import { useState } from "react";
 import { useLangue } from "../i18n/ContexteLangue.js";
 import { ChampTexte } from "../composants/Champs.js";
+import { ChampCode } from "../composants/ChampCode.js";
 import { ZoneEtat } from "../composants/Etats.js";
+import { ImmersiveBackdrop } from "../composants/ImmersiveBackdrop.js";
 import { ApiError, confirmerConnexion, demanderConnexion } from "../api/kombeApi.js";
 
 export interface SessionOuverte {
@@ -22,6 +23,15 @@ export interface ConnexionProps {
 function messageErreur(err: unknown): string {
   if (err instanceof ApiError) return err.message;
   return err instanceof Error ? err.message : String(err);
+}
+
+function PointsEtape({ etape }: { readonly etape: 0 | 1 }) {
+  return (
+    <div className="points-etape" aria-hidden="true">
+      <span data-actif={etape === 0 ? "true" : "false"} />
+      <span data-actif={etape === 1 ? "true" : "false"} />
+    </div>
+  );
 }
 
 export function Connexion({ onConnecte }: ConnexionProps) {
@@ -62,48 +72,56 @@ export function Connexion({ onConnecte }: ConnexionProps) {
   };
 
   return (
-    <section aria-labelledby="connexion-titre">
-      <h2 id="connexion-titre">{t("connexion.titre")}</h2>
-      <p className="aide-champ">{t("connexion.consigne")}</p>
+    <section className="scene-immersive" aria-labelledby="connexion-titre">
+      <ImmersiveBackdrop variante={etape === "email" ? "email" : "code"} />
+      <div className="carte-etape">
+        <PointsEtape etape={etape === "email" ? 0 : 1} />
+        <header className="carte-etape__entete">
+          <span className="carte-etape__symbole" aria-hidden="true">
+            {etape === "email" ? "K" : "✓"}
+          </span>
+          <h2 id="connexion-titre">{t("connexion.titre")}</h2>
+          <p className="aide-champ">{t("connexion.consigne")}</p>
+        </header>
 
-      {etape === "email" ? (
-        <>
-          <ChampTexte
-            libelle={t("champ.email")}
-            aide={t("aide.email")}
-            erreur={touche && !emailValide ? t("erreur.email") : undefined}
-            valeur={email}
-            requis
-            onChange={setEmail}
-          />
-          <button type="button" className="bouton" onClick={envoyerCode} disabled={enCours}>
-            {t("bouton.envoyerCode")}
-          </button>
-        </>
-      ) : (
-        <>
-          <p role="status">{t("connexion.codeEnvoye")}</p>
-          <ChampTexte
-            libelle={t("champ.code")}
-            aide={t("aide.code")}
-            erreur={touche && !codeValide ? t("erreur.code") : undefined}
-            valeur={code}
-            inputMode="numeric"
-            requis
-            onChange={setCode}
-          />
-          <button type="button" className="bouton" onClick={confirmer} disabled={enCours}>
-            {t("bouton.confirmerCode")}
-          </button>
-        </>
-      )}
+        {etape === "email" ? (
+          <>
+            <ChampTexte
+              libelle={t("champ.email")}
+              aide={t("aide.email")}
+              erreur={touche && !emailValide ? t("erreur.email") : undefined}
+              valeur={email}
+              requis
+              onChange={setEmail}
+            />
+            <button type="button" className="bouton" style={{ width: "100%" }} onClick={envoyerCode} disabled={enCours}>
+              {t("bouton.envoyerCode")}
+            </button>
+          </>
+        ) : (
+          <>
+            <p role="status" className="aide-champ" style={{ textAlign: "center" }}>
+              {t("connexion.codeEnvoye")}
+            </p>
+            <ChampCode libelle={t("champ.code")} valeur={code} onChange={setCode} erreur={touche && !codeValide ? t("erreur.code") : undefined} />
+            <button type="button" className="bouton" style={{ width: "100%" }} onClick={confirmer} disabled={enCours}>
+              {t("bouton.confirmerCode")}
+            </button>
+            <p className="carte-etape__pied">
+              <button type="button" className="bouton-secondaire bouton" onClick={() => setEtape("email")} disabled={enCours}>
+                {t("bouton.changerEmail")}
+              </button>
+            </p>
+          </>
+        )}
 
-      {enCours ? <ZoneEtat etat="chargement" /> : null}
-      {erreur ? (
-        <p className="erreur-champ" role="alert">
-          {erreur}
-        </p>
-      ) : null}
+        {enCours ? <ZoneEtat etat="chargement" /> : null}
+        {erreur ? (
+          <p className="erreur-champ" role="alert">
+            {erreur}
+          </p>
+        ) : null}
+      </div>
     </section>
   );
 }

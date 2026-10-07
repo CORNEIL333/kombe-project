@@ -10,6 +10,7 @@ import { useState } from "react";
 import { useLangue } from "../i18n/ContexteLangue.js";
 import { ChampTexte, ChampSelect } from "../composants/Champs.js";
 import { ZoneEtat } from "../composants/Etats.js";
+import { ImmersiveBackdrop } from "../composants/ImmersiveBackdrop.js";
 import { montantValide } from "../parcours/ParcoursGuide.js";
 import {
   ApiError,
@@ -87,9 +88,14 @@ export function DeclarerCotisation({ session }: DeclarerCotisationProps) {
   };
 
   return (
-    <section aria-labelledby="cotisation-titre">
-      <h2 id="cotisation-titre">{t("cotisation.titre")}</h2>
-      <p className="aide-champ">{t("cotisation.consigne")}</p>
+    <section className="scene-immersive" aria-labelledby="cotisation-titre">
+      <ImmersiveBackdrop variante="cotisation" />
+      <div className="carte-etape" style={{ maxWidth: "36rem" }}>
+      <header className="carte-etape__entete">
+        <span className="carte-etape__symbole" aria-hidden="true">{obligation ? "↥" : "⌕"}</span>
+        <h2 id="cotisation-titre">{t("cotisation.titre")}</h2>
+        <p className="aide-champ">{t("cotisation.consigne")}</p>
+      </header>
 
       <div>
         <ChampTexte libelle={t("champ.groupe")} valeur={groupId} requis onChange={setGroupId} />
@@ -159,6 +165,7 @@ export function DeclarerCotisation({ session }: DeclarerCotisationProps) {
           {resultat.status === "applied" ? t("cotisation.declaree") : t("cotisation.rejouee")}
         </p>
       ) : null}
+      </div>
     </section>
   );
 }

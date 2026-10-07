@@ -45,6 +45,14 @@ function allerACotisation() {
   fireEvent.click(screen.getByRole("tab", { name: "Ma cotisation" }));
 }
 
+/** Saisit un code à 6 chiffres dans les cases séparées (ChampCode). */
+function saisirCode(code: string) {
+  const cases = screen.getAllByLabelText(/^Chiffre \d sur 6$/);
+  code.split("").forEach((chiffre, i) => {
+    fireEvent.change(cases[i] as HTMLElement, { target: { value: chiffre } });
+  });
+}
+
 beforeEach(() => vi.unstubAllGlobals());
 afterEach(() => vi.restoreAllMocks());
 
@@ -73,7 +81,7 @@ describe("A3UI-LOGIN — connexion réelle par code email", () => {
 
     await screen.findByText("Code envoyé — vérifiez votre boîte de réception.");
 
-    fireEvent.change(screen.getByLabelText(/Code reçu par email/), { target: { value: "123456" } });
+    saisirCode("123456");
     fireEvent.click(screen.getByRole("button", { name: "Confirmer et se connecter" }));
 
     await screen.findByText("Connecté — session réelle ouverte.");
@@ -136,7 +144,7 @@ describe("A3UI-DECLARE — déclaration/vue réelle d'une cotisation", () => {
     fireEvent.change(screen.getByLabelText(/Adresse email/), { target: { value: "alice@example.test" } });
     fireEvent.click(screen.getByRole("button", { name: "Envoyer le code" }));
     await screen.findByText("Code envoyé — vérifiez votre boîte de réception.");
-    fireEvent.change(screen.getByLabelText(/Code reçu par email/), { target: { value: "123456" } });
+    saisirCode("123456");
     fireEvent.click(screen.getByRole("button", { name: "Confirmer et se connecter" }));
     await screen.findByText("Connecté — session réelle ouverte.");
 
@@ -174,7 +182,7 @@ describe("A3UI-ERREUR — un refus serveur est affiché, jamais masqué", () => 
     fireEvent.change(screen.getByLabelText(/Adresse email/), { target: { value: "alice@example.test" } });
     fireEvent.click(screen.getByRole("button", { name: "Envoyer le code" }));
     await screen.findByText("Code envoyé — vérifiez votre boîte de réception.");
-    fireEvent.change(screen.getByLabelText(/Code reçu par email/), { target: { value: "000000" } });
+    saisirCode("000000");
     fireEvent.click(screen.getByRole("button", { name: "Confirmer et se connecter" }));
 
     await screen.findByText("Code invalide.");
