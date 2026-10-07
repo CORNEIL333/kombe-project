@@ -1,0 +1,38 @@
+# Blueprint Render — API KÓMBE en mode RÉEL (Fastify + Neon + Resend).
+#
+# Ce fichier déclare UN service web Docker construit depuis le `Dockerfile`
+# racine (qui ne compile que domain+worker+api : léger). Le mode réel ne
+# s'active QUE si KOMBE_API_DATABASE_URL est posée (voir packages/api/src/
+# main.ts) : sans elle, l'API retombe silencieusement sur les stores mémoire
+# fictifs — donc ces trois variables sont obligatoires pour une démo réelle.
+#
+# PORT : NE PAS fixer ici. Render injecte PORT=10000 au runtime pour un service
+# Docker ; main.ts lit process.env.PORT. Le ENV PORT=3000 du Dockerfile sert de
+# défaut local uniquement et est écrasé par Render à l'exécution.
+#
+# HONNÊTETÉ : cible signée par ADR-0022 = Vercel (Node 22). Render ici est un choix
+# tactique de démo immédiate, à réaligner plus tard.
+
+services:
+  - type: web
+    name: kombe-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free # passe a `starter` si le plan free refuse Docker
+    region: frankfurt # meme region que Neon (eu-central-1) => latence minimale
+    healthCheckPath: /v1/health
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      # -- Secrets : a definir dans le dashboard Render (sync:false = jamais commité) --
+      - key: KOMBE_API_DATABASE_URL
+        sync: false # coller la chaine DIRECTE Neon (meme valeur que .env local ; le
+        # createApiPool passe `-c role=kombe_app` en option de session => mode DIRECT,
+        # pas le pooler PgBouncer, qui ne supporte pas cette option).
+      - key: RESEND_API_KEY
+        sync: false # cle Resend (celle du compte qui recevra les codes de demo)
+      # -- Expéditeur : en démo, onboarding@resend.dev ne LIVRE qu'a l'email
+      # proprietaire du compte Resend. Pour joindre n'importe quel utilisateur,
+      # verifier un domaine Resend et remplacer cette valeur. --
+      - key: KOMBE_EMAIL_FROM
+        value: "KÓMBE <onboarding@resend.dev>"
