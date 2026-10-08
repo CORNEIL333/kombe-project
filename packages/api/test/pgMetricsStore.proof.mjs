@@ -7,8 +7,16 @@
 // via `.inject()` contre de VRAIES transactions Postgres. Chaque vérification
 // prouve une PERSISTANCE ou une DÉCISION réelle (aucune donnée en mémoire) :
 //
-//   M-ANALYTICS-TRACK  : POST /v1/metrics/analytics/events (groupId porté) →
-//                        201, événement daté SERVEUR, écrit en base.
+//   M-LOGIN            : connexion RÉELLE (lien magique → code NullEmailSender →
+//                        sessionId) : en mode réel l'identité vient de la SESSION,
+//                        jamais de `x-actor` (§14).
+//   M-ANALYTICS-NOAUTH : en-têtes FICTIFS x-actor/x-server-date SANS session →
+//                        401 SESSION_INVALID : l'identité fictive ne peut écrire
+//                        AUCUNE mesure (preuve §14 au niveau HTTP).
+//   M-ANALYTICS-TRACK  : POST /v1/metrics/analytics/events avec session ET
+//                        en-têtes usurpés x-actor/x-server-date → 201 ; événement
+//                        daté par l'HORLOGE SERVEUR (§27 : le x-server-date
+//                        usurpé « 2020 » est IGNORÉ), écrit en base.
 //   M-ANALYTICS-REJECT : propriété financière individuelle (montant) → 422
 //                        METRICS_CHAMPS_FINANCIER_INDIVIDUEL (domaine, avant écriture).
 //   M-FUNNEL           : GET /v1/metrics/analytics/funnel/:cohortId?groupId →
@@ -25,7 +33,11 @@
 //   M-EXTENSION        : GET /v1/metrics/extension-check → extensionAllowed false,
 //                        criticalWithoutControl contient le risque (registre RÉEL relu).
 //   M-PERSIST          : comptage SQL DIRECT (analytics_event/pilot_cohort/pilot_risk)
-//                        → les lignes existent physiquement en base (anti-simulation).
+//                        → EXACTEMENT les lignes attendues (401/422 n'ont rien écrit).
+//
+// `analytics_event` est pseudonymisée de structure : AUCUNE colonne acteur — la
+// personne authentifiée n'y figure jamais ; la preuve §14 tient au refus 401
+// sans session (M-ANALYTICS-NOAUTH), pas à une identité stockée.
 //
 // DESTRUCTIF (DOWN puis UP des migrations) : à exécuter sur la branche PREVIEW
 // Neon uniquement, JAMAIS sur production.
@@ -83,14 +95,15 @@ function check(name, cond, detail) {
   }
 }
 
-// En-têtes d'acteur (résolution serveur fictive de l'acteur, comme metrics.test.ts) :
-// les routes C18 authentifient l'acteur via `x-actor` ; la PERSISTANCE, elle, est réelle.
-function h(identityId) {
-  return {
-    "content-type": "application/json",
-    "x-actor": JSON.stringify({ handle: identityId, role: "member", identityId, groupIds: ["grpM"] }),
-    "x-server-date": "2026-10-07T10:00:00Z",
-  };
+// En mode RÉEL, l'authentification est la SESSION (`Authorization: Bearer`).
+// Les en-têtes `x-actor`/`x-server-date` sont FICTIFS : présents uniquement
+// pour prouver qu'ils sont IGNORÉS (§14 identité, §27 horloge).
+const spoof = {
+  "x-actor": JSON.stringify({ handle: "spoof", role: "treasurer", identityId: "spoof@example.test", groupIds: ["grpM"] }),
+  "x-server-date": "2020-01-01T00:00:00Z",
+};
+function headers(sessionId, extra = {}) {
+  return { "content-type": "application/json", authorization: `Bearer ${sessionId}`, ...extra };
 }
 
 try {
@@ -98,8 +111,10 @@ try {
     DO $$ BEGIN
       UPDATE "group" SET state = 'closed'
         WHERE state NOT IN ('configuration','active','paused','closed');
+      -- 'executed' (C09) est terminal : conversion -> closed par 0012.down
+      -- (apres son DROP TRIGGER) ; ici le trigger vote_transition est actif.
       UPDATE vote SET state = 'closed'
-        WHERE state NOT IN ('open','closed','cancelled');
+        WHERE state NOT IN ('open','closed','cancelled','executed');
       DELETE FROM verification_token
         WHERE purpose NOT IN ('registration','recovery');
     EXCEPTION WHEN undefined_table THEN NULL;
@@ -131,31 +146,72 @@ try {
   ];
   for (const f of UP) await runSql(migrator, f);
 
-  // ── Fixtures : groupe porteur (FK "group" pour analytics_event/pilot_cohort) ──
+  // ── Fixtures : groupe porteur (FK analytics_event/pilot_cohort) + identité
+  //    ACTIVE pour la connexion RÉELLE (identity_access.state='active'). ──────
   await migrator.query(`
     INSERT INTO "group" (group_id, state) VALUES ('grpM','active') ON CONFLICT DO NOTHING;
+    INSERT INTO identity (identity_id) VALUES ('membre_m@example.test') ON CONFLICT DO NOTHING;
+    INSERT INTO identity_access (identity_id, state, channel_verified)
+      VALUES ('membre_m@example.test','active',true) ON CONFLICT (identity_id) DO NOTHING;
   `);
 
   const pool = createApiPool({ connectionString: url, max: 5 });
-  const app = buildApp({ pool, emailSender: new NullEmailSender() });
+  const nullSender = new NullEmailSender();
+  // Horloge RÉELLE du serveur (aucune injection) : la preuve §27 vérifie que
+  // l'horodatage vient du serveur, pas de l'en-tête client usurpé.
+  const app = buildApp({ pool, emailSender: nullSender });
+
   const inject = (opts) => app.inject(opts);
 
-  // ── M-ANALYTICS-TRACK : écrit un événement RÉEL scopé par groupe ──────────
+  /** Connexion RÉELLE d'une identité active : lien magique → sessionId. */
+  async function loginAs(identityId) {
+    await inject({ method: "POST", url: "/v1/access/login-requests", payload: { identityId } });
+    const m = nullSender.sent.at(-1)?.text.match(/(\d{6})/);
+    const res = await inject({
+      method: "POST",
+      url: "/v1/access/login-completions",
+      payload: { identityId, code: m ? m[1] : null },
+    });
+    return res.json().sessionId;
+  }
+
+  // ── M-LOGIN : session RÉELLE (préalable des preuves §14 ci-dessous) ───────
+  const sessionId = await loginAs("membre_m@example.test");
+  check("M-LOGIN", typeof sessionId === "string" && sessionId.length === 36, {
+    sessionIdLength: typeof sessionId === "string" ? sessionId.length : null,
+  });
+
+  // ── M-ANALYTICS-NOAUTH : x-actor seul (aucune session) → 401, rien écrit ──
+  const noAuthRes = await inject({
+    method: "POST", url: "/v1/metrics/analytics/events",
+    headers: { "content-type": "application/json", ...spoof },
+    payload: { cohortId: "cM", groupId: "grpM", step: "demarrage", properties: { source: "onboarding" } },
+  });
+  check(
+    "M-ANALYTICS-NOAUTH",
+    noAuthRes.statusCode === 401 && noAuthRes.json().code === "SESSION_INVALID",
+    { status: noAuthRes.statusCode, body: noAuthRes.json() },
+  );
+
+  // ── M-ANALYTICS-TRACK : session + en-têtes usurpés → 201, daté serveur ────
+  const beforeTrackSec = Math.floor(Date.now() / 1000);
   const trackRes = await inject({
-    method: "POST", url: "/v1/metrics/analytics/events", headers: h("membre_m"),
+    method: "POST", url: "/v1/metrics/analytics/events", headers: headers(sessionId, spoof),
     payload: { cohortId: "cM", groupId: "grpM", step: "demarrage", properties: { source: "onboarding" } },
   });
   const tracked = trackRes.json();
+  const spoofedEpoch = Math.floor(Date.parse("2020-01-01T00:00:00Z") / 1000);
   check(
     "M-ANALYTICS-TRACK",
     trackRes.statusCode === 201 && tracked.cohortId === "cM" && tracked.step === "demarrage" &&
-      tracked.occurredAt === Math.floor(Date.parse("2026-10-07T10:00:00Z") / 1000),
-    { status: trackRes.statusCode, body: tracked },
+      Math.abs(tracked.occurredAt - beforeTrackSec) < 120 &&
+      tracked.occurredAt !== spoofedEpoch,
+    { status: trackRes.statusCode, body: tracked, beforeTrackSec, spoofedEpoch },
   );
 
   // ── M-ANALYTICS-REJECT : champ financier individuel refusé (422) ──────────
   const rejectRes = await inject({
-    method: "POST", url: "/v1/metrics/analytics/events", headers: h("membre_m"),
+    method: "POST", url: "/v1/metrics/analytics/events", headers: headers(sessionId),
     payload: { cohortId: "cM", groupId: "grpM", step: "premiere_contribution", properties: { montant: 5000 } },
   });
   check(
@@ -167,14 +223,14 @@ try {
   // Deux étapes supplémentaires pour l'entonnoir.
   for (const step of ["visite", "premiere_validation"]) {
     await inject({
-      method: "POST", url: "/v1/metrics/analytics/events", headers: h("membre_m"),
+      method: "POST", url: "/v1/metrics/analytics/events", headers: headers(sessionId),
       payload: { cohortId: "cM", groupId: "grpM", step, properties: { n: 1 } },
     });
   }
 
   // ── M-FUNNEL : entonnoir RELU depuis la base, sans champ individuel ───────
   const funnelRes = await inject({
-    method: "GET", url: "/v1/metrics/analytics/funnel/cM?groupId=grpM", headers: h("membre_m"),
+    method: "GET", url: "/v1/metrics/analytics/funnel/cM?groupId=grpM", headers: headers(sessionId),
   });
   const funnel = funnelRes.json();
   const demarrage = (funnel.steps ?? []).find((s) => s.step === "demarrage");
@@ -186,7 +242,7 @@ try {
 
   // ── M-FUNNEL-NOGROUP : le store RÉEL exige le groupe porteur (422) ────────
   const noGroupRes = await inject({
-    method: "GET", url: "/v1/metrics/analytics/funnel/cM", headers: h("membre_m"),
+    method: "GET", url: "/v1/metrics/analytics/funnel/cM", headers: headers(sessionId),
   });
   check(
     "M-FUNNEL-NOGROUP",
@@ -196,7 +252,7 @@ try {
 
   // ── M-COHORT-UPSERT : 10 membres / 30 tours → 3 cycles, éligible ──────────
   const upsertRes = await inject({
-    method: "POST", url: "/v1/metrics/cohorts", headers: h("membre_m"),
+    method: "POST", url: "/v1/metrics/cohorts", headers: headers(sessionId),
     payload: { groupId: "grpM", memberCount: 10, roundsCompleted: 30 },
   });
   const upsert = upsertRes.json();
@@ -208,7 +264,7 @@ try {
 
   // ── M-COHORT-GET : RELIT la ligne persistée (pas un cache en mémoire) ─────
   const getCohortRes = await inject({
-    method: "GET", url: "/v1/metrics/cohorts/grpM", headers: h("membre_m"),
+    method: "GET", url: "/v1/metrics/cohorts/grpM", headers: headers(sessionId),
   });
   const got = getCohortRes.json();
   check(
@@ -219,7 +275,7 @@ try {
 
   // ── M-COHORT-404 : cohorte inconnue → 404 non-divulguant ──────────────────
   const notFoundRes = await inject({
-    method: "GET", url: "/v1/metrics/cohorts/grpInconnu", headers: h("membre_m"),
+    method: "GET", url: "/v1/metrics/cohorts/grpInconnu", headers: headers(sessionId),
   });
   check(
     "M-COHORT-404",
@@ -229,7 +285,7 @@ try {
 
   // ── M-ECONOMICS : calcul RÉEL (2/10 = 20 % < 25 % ⇒ G2 non atteinte) ──────
   const econRes = await inject({
-    method: "POST", url: "/v1/metrics/economics", headers: h("membre_m"),
+    method: "POST", url: "/v1/metrics/economics", headers: headers(sessionId),
     payload: {
       exposedMembers: 10, paidCount: 2, promisedCount: 5, supportMinutes: 120,
       supportCostPerMinuteMinor: "50", infrastructureCostMinor: "10000", cancellations: 1, taxesMinor: "500",
@@ -245,7 +301,7 @@ try {
 
   // ── M-RISK : risque critique SANS contrôle effectif, enregistré en base ───
   const riskRes = await inject({
-    method: "POST", url: "/v1/metrics/risks", headers: h("membre_m"),
+    method: "POST", url: "/v1/metrics/risks", headers: headers(sessionId),
     payload: {
       riskId: "R-M-CRIT", severity: "critique", probabilityPercent: 60, impactPercent: 80,
       control: "", evidenceRef: "", owner: "", reviewedAt: "2026-10-01",
@@ -256,7 +312,7 @@ try {
   });
 
   // ── M-EXTENSION : verdict RELU depuis pilot_risk (GET, forme dashboard) ───
-  const extRes = await inject({ method: "GET", url: "/v1/metrics/extension-check", headers: h("membre_m") });
+  const extRes = await inject({ method: "GET", url: "/v1/metrics/extension-check", headers: headers(sessionId) });
   const ext = extRes.json();
   check(
     "M-EXTENSION",
@@ -265,7 +321,8 @@ try {
     { status: extRes.statusCode, body: ext },
   );
 
-  // ── M-PERSIST : comptage SQL DIRECT — les lignes sont PHYSIQUEMENT en base ─
+  // ── M-PERSIST : comptage SQL DIRECT — les lignes sont PHYSIQUEMENT en base ;
+  //    EXACTEMENT 3 événements (401/422 n'ont rien écrit). ───────────────────
   const persist = await migrator.query(`
     SELECT
       (SELECT count(*)::int FROM analytics_event WHERE group_id = 'grpM' AND cohort_id = 'cM') AS events,
@@ -275,7 +332,7 @@ try {
   const p = persist.rows[0];
   check(
     "M-PERSIST",
-    Number(p.events) >= 3 && Number(p.cohorts) === 1 && Number(p.risks) === 1,
+    Number(p.events) === 3 && Number(p.cohorts) === 1 && Number(p.risks) === 1,
     { analyticsEvents: p.events, pilotCohorts: p.cohorts, pilotRisks: p.risks },
   );
 

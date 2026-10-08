@@ -918,6 +918,17 @@ function realExportCtxFrom(identityId: string, nowMs: number): PgExportContext {
   };
 }
 
+/** Contexte C18 réel (mesure pilote) : session seule (§14 — jamais `x-actor`),
+ *  horloge SERVEUR en secondes d'époque (§27 — jamais `x-server-date`) ;
+ *  `actorRole` ne participe à aucune décision du store mesure (inerte). */
+function realMetricsCtxFrom(identityId: string, nowMs: number): MetricsContext {
+  return {
+    actorIdentityId: identityId,
+    actorRole: "member",
+    serverNow: Math.floor(nowMs / 1000),
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
   const store = options.store ?? new FictitiousCommandStore();
@@ -937,8 +948,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Mode RÉEL : quand un pool Postgres est fourni, la mesure pilote persiste
   // dans les tables `0017_pilot_metrics` (analytics/cohortes/risques réels).
   // Sans pool (défaut, tous les tests C18 existants), store fictif en mémoire.
-  const metricsStore: MetricsStore =
-    options.metrics ?? (options.pool ? new PgMetricsStore(options.pool) : new FictitiousMetricsStore());
+  const realMetrics = options.pool ? new PgMetricsStore(options.pool) : undefined;
+  const metricsStore: MetricsStore = options.metrics ?? realMetrics ?? new FictitiousMetricsStore();
 
   // Mode RÉEL (Piste A3, cf. BuildAppOptions.pool) : construit seulement si
   // un pool est fourni. Jamais de repli silencieux sur NullEmailSender ici
@@ -2410,6 +2421,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // METRICS_CHAMPS_FINANCIER_INDIVIDUEL) et toute étape inconnue.
   app.post("/v1/metrics/analytics/events", async (request, reply) => {
     const body = analyticsEventBody.parse(request.body);
+    if (pool && realMetrics) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realMetricsCtxFrom(identityId, now());
+      return reply
+        .code(201)
+        .send(
+          await realMetrics.trackAnalyticsEvent(ctx, {
+            cohortId: body.cohortId,
+            ...(body.groupId !== undefined ? { groupId: body.groupId } : {}),
+            step: body.step,
+            properties: body.properties,
+          }),
+        );
+    }
     const ctx = metricsCtxFrom(request);
     return reply
       .code(201)
@@ -2430,6 +2455,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/metrics/analytics/funnel/:cohortId", async (request, reply) => {
     const { cohortId } = request.params as { cohortId: string };
     const query = request.query as { groupId?: string };
+    if (pool && realMetrics) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realMetricsCtxFrom(identityId, now());
+      return reply.code(200).send(await realMetrics.analyticsFunnel(ctx, cohortId, query.groupId));
+    }
     const ctx = metricsCtxFrom(request);
     return reply.code(200).send(await metricsStore.analyticsFunnel(ctx, cohortId, query.groupId));
   });
@@ -2439,6 +2469,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // (C18-COHORT : 3 tours / 10 membres ⇒ 0 cycle ⇒ non éligible).
   app.post("/v1/metrics/cohorts", async (request, reply) => {
     const body = cohortBody.parse(request.body);
+    if (pool && realMetrics) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realMetricsCtxFrom(identityId, now());
+      return reply.code(201).send(await realMetrics.upsertCohort(ctx, body));
+    }
     const ctx = metricsCtxFrom(request);
     return reply.code(201).send(await metricsStore.upsertCohort(ctx, body));
   });
@@ -2446,6 +2481,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Lecture d'une cohorte (404 non-divulguant si absente).
   app.get("/v1/metrics/cohorts/:groupId", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
+    if (pool && realMetrics) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realMetricsCtxFrom(identityId, now());
+      return reply.code(200).send(await realMetrics.getCohort(ctx, groupId));
+    }
     const ctx = metricsCtxFrom(request);
     return reply.code(200).send(await metricsStore.getCohort(ctx, groupId));
   });
@@ -2455,6 +2495,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // ⇒ gate_g2_met false). Montants XAF entiers sérialisés en chaînes.
   app.post("/v1/metrics/economics", async (request, reply) => {
     const body = economicsBody.parse(request.body);
+    if (pool && realMetrics) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realMetricsCtxFrom(identityId, now());
+      return reply.code(200).send(await realMetrics.computeEconomics(ctx, body));
+    }
     const ctx = metricsCtxFrom(request);
     return reply.code(200).send(await metricsStore.computeEconomics(ctx, body));
   });
@@ -2463,12 +2508,22 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // impact bornés, date AAAA-MM-JJ (le domaine juge, 422 sinon).
   app.post("/v1/metrics/risks", async (request, reply) => {
     const body = riskBody.parse(request.body);
+    if (pool && realMetrics) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realMetricsCtxFrom(identityId, now());
+      return reply.code(201).send(await realMetrics.addRisk(ctx, body));
+    }
     const ctx = metricsCtxFrom(request);
     return reply.code(201).send(await metricsStore.addRisk(ctx, body));
   });
 
   // Listage du registre des risques du pilote.
   app.get("/v1/metrics/risks", async (request, reply) => {
+    if (pool && realMetrics) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realMetricsCtxFrom(identityId, now());
+      return reply.code(200).send(await realMetrics.listRisks(ctx));
+    }
     const ctx = metricsCtxFrom(request);
     return reply.code(200).send(await metricsStore.listRisks(ctx));
   });
@@ -2476,6 +2531,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Contrôle d'extension du pilote (16.3) : un risque critique SANS contrôle
   // effectif bloque l'extension (extensionAllowed false + liste des blocages).
   app.post("/v1/metrics/extension-check", async (request, reply) => {
+    if (pool && realMetrics) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realMetricsCtxFrom(identityId, now());
+      return reply.code(200).send(await realMetrics.extensionStatus(ctx));
+    }
     const ctx = metricsCtxFrom(request);
     return reply.code(200).send(await metricsStore.extensionStatus(ctx));
   });
@@ -2484,6 +2544,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // dashboard DIRECTION (`DirectionApi.extensionCheck()`), pour aligner le
   // contrat client/serveur sans imposer un POST factice côté navigateur.
   app.get("/v1/metrics/extension-check", async (request, reply) => {
+    if (pool && realMetrics) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realMetricsCtxFrom(identityId, now());
+      return reply.code(200).send(await realMetrics.extensionStatus(ctx));
+    }
     const ctx = metricsCtxFrom(request);
     return reply.code(200).send(await metricsStore.extensionStatus(ctx));
   });
