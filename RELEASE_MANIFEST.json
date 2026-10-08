@@ -22,8 +22,8 @@
     { "id": "pgValidationStore", "file": "packages/api/test/pgValidationStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
     { "id": "pgWorkerDiscovery", "file": "packages/api/test/pgWorkerDiscovery.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
     { "id": "serverRealMode", "file": "packages/api/test/serverRealMode.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08", "note": "Échec initial (assertion santé obsolète A3-FICTIF-INTACT) corrigé au niveau preuve (commit à venir), re-exécution exit 0." },
-    { "id": "isolation", "file": "packages/db/tests/isolation.pg.mjs", "verdict": "PENDING", "note": "Échecs successifs : vote 'executed' (corrigé) puis jetons login vs CHECK 0019 (corrigé) ; re-exécution en cours — verdict à l'issue réelle." },
-    { "id": "migrateEmptyToLatest", "file": "packages/db/tests/migrateEmptyToLatest.pg.mjs", "verdict": "PENDING", "note": "§17 — chaîné après isolation ; en attente du verdict réel." }
+    { "id": "isolation", "file": "packages/db/tests/isolation.pg.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08", "note": "Deux échecs initiaux diagnostiqués puis corrigés au niveau preuve : vote 'executed' (CHECK transition) et jetons login vs CHECK 0019 (pré-nettoyage). Re-exécution exit 0." },
+    { "id": "migrateEmptyToLatest", "file": "packages/db/tests/migrateEmptyToLatest.pg.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08", "note": "§17 : runner réel vide → 25 jalons, objets 0023 présents, seconde passe applied=[] skipped=25." }
   ],
   "testSuites": [
     { "id": "api-unit", "cmd": "vitest packages/api/test/server.test.ts et suites associées", "verdict": "PASS", "date": "2026-10-08" },
