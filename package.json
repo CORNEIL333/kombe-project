@@ -12,7 +12,8 @@
     "typecheck": "pnpm -r --if-present run typecheck",
     "test": "pnpm -r --if-present run test",
     "recette:c00": "pnpm run build && pnpm run test",
-    "h00": "py -3 harness/run_h00.py --commit placeholder --out harness/reports/RAPPORT_G_CONSTRUCTION.json"
+    "h00": "py -3 harness/run_h00.py --commit placeholder --out harness/reports/RAPPORT_G_CONSTRUCTION.json",
+    "release:smoke": "node scripts/release-smoke.mjs"
   },
   "dependencies": {
     "@neon/config": "^1.8.3",
