@@ -1,18 +1,41 @@
 /**
- * Squelette d'application Fastify KÓMBE (C00). Il cablle les routes de
- * commandes sur le pipeline de domaine fictif. Il NE prétend PAS authentifier
- * une session réelle ni verrouiller une ligne : l'identité est injectée par
- * en-têtes fictifs pour la recette du squelette, la résolution de session et
- * RLS relèvent de C01 (PostgreSQL réel). Aucune donnée réelle ici.
+ * Application Fastify KÓMBE. Deux modes, SANS mélange :
+ *  - FICTIF (défaut, `options.pool` absent) : pipeline de domaine en mémoire,
+ *    identité injectée par en-têtes de recette (x-actor). Recette du squelette
+ *    uniquement, jamais servi en production.
+ *  - RÉEL (`options.pool` fourni) : la session Bearer est résolue côté serveur
+ *    (C01, table session + RLS) et les routes critiques persistent via les
+ *    stores PostgreSQL sous RLS. Une route sans implémentation PG n'existe PAS
+ *    en mode réel (404 Fastify) : aucune donnée fictive n'est jamais servie.
  */
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import type pg from "pg";
-import { DomainError, type DomainErrorCode } from "@kombe/domain";
+import { DISPLAY_TZ, DomainError, type DomainErrorCode } from "@kombe/domain";
 import type { CycleSchedule, ContributionDeclaration } from "@kombe/domain";
 import { PgContributionStore } from "./db/pgContributionStore.js";
 import { PgAccessStore } from "./db/pgAccessStore.js";
 import { PgMetricsStore } from "./db/pgMetricsStore.js";
+import { PgGovernanceStore } from "./db/pgGovernanceStore.js";
+import {
+  PgValidationStore,
+  type ValidationContext as PgValidationContext,
+} from "./db/pgValidationStore.js";
+import { PgDisputeStore, type DisputeActor as PgDisputeActor } from "./db/pgDisputeStore.js";
+import { PgDisbursementStore } from "./db/pgDisbursementStore.js";
+import { PgProposalStore } from "./db/pgProposalStore.js";
+import { PgJournalStore } from "./db/pgJournalStore.js";
+import { PgSupportStore, type SupportContext as PgSupportContext } from "./db/pgSupportStore.js";
+import { PgExportStore, type ExportContext as PgExportContext } from "./db/pgExportStore.js";
+import { PgPrivacyStore, type PrivacyContext as PgPrivacyContext } from "./db/pgPrivacyStore.js";
+import {
+  invitationGroup,
+  voteGroup,
+  exportManifestGroup,
+  supportRequestGroup,
+  privacyRightsGroup,
+  privacySubjectGroup,
+} from "./db/pgGroupResolvers.js";
 import { resolveSession, resolveGroupActor, type GroupActor } from "./db/pgSessionResolver.js";
 import { ResendEmailSender, type EmailSender } from "./email/emailSender.js";
 import {
@@ -43,6 +66,7 @@ import {
 } from "./disbursementStore.js";
 import {
   FictitiousProposalStore,
+  type GroupDecisionRules,
   type ProposalContext,
 } from "./proposalStore.js";
 import {
@@ -229,17 +253,27 @@ export interface BuildAppOptions {
   /**
    * Mode RÉEL (Piste A3) : quand fourni, active l'authentification par
    * session réelle (`Authorization: Bearer <sessionId>`, `resolveSession`/
-   * `resolveGroupActor`, Piste A2) et les stores Postgres (`PgAccessStore`,
-   * `PgContributionStore`, Piste A1/A2 suite) pour le SEUL périmètre déjà
-   * prouvé base réelle : connexion (login) et déclaration/vue de cotisation.
-   * Absent (défaut, tous les tests existants) : comportement 100% inchangé,
-   * stores fictifs partout, `x-actor` toujours fictif.
+   * `resolveGroupActor`, Piste A2) et les stores PostgreSQL sous RLS pour
+   * TOUTES les routes qui ont une implémentation PG (accès C02, gouvernance
+   * C03, cotisations C06, validation C07, décaissements C08, propositions
+   * C09, litiges C10, journal C11, export C12, droits C16, support C17,
+   * métriques C18). Les routes SANS implémentation PG n'existent pas en mode
+   * réel (404). Absent (défaut, tous les tests existants) : comportement
+   * 100% inchangé, stores fictifs partout, `x-actor` toujours fictif.
    */
   readonly pool?: pg.Pool;
   /** Injectable pour les tests du mode réel (jamais un envoi réel hors
    *  G0) ; par défaut `ResendEmailSender` lue depuis `RESEND_API_KEY`/
    *  `KOMBE_EMAIL_FROM` quand `pool` est fourni sans substitut explicite. */
   readonly emailSender?: EmailSender;
+  /** Horloge SERVEUR injectable (tests du mode réel) ; `Date.now` par défaut.
+   *  L'heure client n'est JAMAIS consultée pour un scellement (règle 18). */
+  readonly now?: () => number;
+  /** Pool VÉRIFICATEUR (rôle de vérification du journal, C11) pour les
+   *  checkpoints : distinct du pool applicatif, il signe les checkpoints
+   *  hors RLS applicative. Absent : `journal.checkpoint` reste indisponible
+   *  en mode réel (RESERVATION_INCOHERENTE côté store). */
+  readonly journalVerifierPool?: pg.Pool;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -604,6 +638,7 @@ async function realGroupActorFrom(
   dbPool: pg.Pool,
   request: { headers: Record<string, unknown> },
   groupId: string,
+  now: () => number,
 ): Promise<GroupActor> {
   const authHeader = request.headers["authorization"];
   const sessionId =
@@ -616,7 +651,7 @@ async function realGroupActorFrom(
   const client = await dbPool.connect();
   try {
     await client.query("BEGIN");
-    const identity = await resolveSession(client, sessionId, Date.now());
+    const identity = await resolveSession(client, sessionId, now());
     await client.query("SELECT set_config('kombe.group_id', $1, true)", [groupId]);
     const actor = await resolveGroupActor(client, identity.identityId, groupId);
     await client.query("COMMIT");
@@ -631,6 +666,256 @@ async function realGroupActorFrom(
   } finally {
     client.release();
   }
+}
+
+/** Date SERVEUR (AAAA-MM-JJ) dans le fuseau de référence projet KÓMBE
+ *  (`DISPLAY_TZ`, Afrique/Douala) — jamais l'horloge du client (§27). */
+function doualaToday(nowMs: number): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: DISPLAY_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(nowMs));
+}
+
+/**
+ * Authentification RÉELLE SANS GROUPE (routes C12 export, C16 droits, C17
+ * support) : résout la session en identité SEULE. Le groupe de la ressource
+ * est ensuite résolu par les résolveurs étroits 0020 (SECURITY DEFINER) —
+ * l'appartenance (ou non) à un groupe ne doit jamais devenir un oracle
+ * d'existence sur ces routes : tout est indistinguablement 401/404.
+ */
+async function realIdentityFrom(
+  dbPool: pg.Pool,
+  request: { headers: Record<string, unknown> },
+  now: () => number,
+): Promise<string> {
+  const authHeader = request.headers["authorization"];
+  const sessionId =
+    typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length).trim()
+      : "";
+  if (!sessionId) {
+    throw new DomainError("SESSION_INVALID", "Session non applicable");
+  }
+  const client = await dbPool.connect();
+  try {
+    await client.query("BEGIN");
+    const identity = await resolveSession(client, sessionId, now());
+    await client.query("COMMIT");
+    return identity.identityId;
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* Connexion perdue : rien à faire, le pool la recréera. */
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Règles de décision RÉELLES du groupe : relues depuis `kombe.rule_version`
+ * (règles VERSIONNÉES C04 — la plus récente applicable gagne). Le client ne
+ * fournit JAMAIS quorum ni version (règle 18 / ADR-0005). Aucune règle
+ * publiée → `RULES_NOT_ACCEPTED` ; instantané sans quorum valide → `RULE_INVALID`
+ * (jamais de valeur par défaut inventée).
+ */
+async function realGroupDecisionRules(dbPool: pg.Pool, groupId: string): Promise<GroupDecisionRules> {
+  const client = await dbPool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT set_config('kombe.group_id', $1, true)", [groupId]);
+    const res = await client.query(
+      `SELECT rules_version, snapshot FROM rule_version
+        WHERE group_id = $1 ORDER BY rules_version DESC LIMIT 1`,
+      [groupId],
+    );
+    await client.query("COMMIT");
+    const row = res.rows[0] as { rules_version?: unknown; snapshot?: unknown } | undefined;
+    if (!row) {
+      throw new DomainError("RULES_NOT_ACCEPTED", "Aucune règle publiée pour ce groupe");
+    }
+    const snapshot = row.snapshot as { quorum?: { numerator?: unknown; denominator?: unknown } } | null;
+    const numerator = snapshot?.quorum?.numerator;
+    const denominator = snapshot?.quorum?.denominator;
+    if (
+      typeof numerator !== "number" ||
+      typeof denominator !== "number" ||
+      !Number.isInteger(numerator) ||
+      !Number.isInteger(denominator) ||
+      numerator < 1 ||
+      denominator < 1 ||
+      numerator > denominator
+    ) {
+      throw new DomainError("RULE_INVALID", "Instantané de règles sans quorum valide");
+    }
+    return {
+      quorumNumerator: numerator,
+      quorumDenominator: denominator,
+      rulesVersion: Number(row.rules_version),
+    };
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* Connexion perdue : rien à faire, le pool la recréera. */
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/** Base des contextes RÉELS : acteur résolu côté serveur, groupe scopé explicitement. */
+function realCtxBase(
+  actor: GroupActor,
+  groupId: string,
+  request: { headers: Record<string, unknown> },
+  nowMs: number,
+): {
+  actorIdentityId: string;
+  actorRole: GroupActor["role"];
+  actorGroupIds: readonly string[];
+  serverDate: string;
+  commandId: string;
+} {
+  const key = idempotencyKey.parse(request.headers["idempotency-key"]);
+  return {
+    actorIdentityId: actor.identityId,
+    actorRole: actor.role,
+    actorGroupIds: [groupId],
+    serverDate: new Date(nowMs).toISOString(),
+    commandId: `cmd-${key}`,
+  };
+}
+
+/** Contexte C07 réel : acte de validation MUTANT, `if-match-version` EXIGÉ. */
+function realValidationCtxFrom(
+  actor: GroupActor,
+  groupId: string,
+  request: { headers: Record<string, unknown> },
+  nowMs: number,
+): PgValidationContext {
+  return {
+    ...realCtxBase(actor, groupId, request, nowMs),
+    expectedVersion: expectedVersion.parse(request.headers["if-match-version"]),
+  };
+}
+
+/** Contexte C08 réel : acte sur décaissement MUTANT, `if-match-version` EXIGÉ. */
+function realDisbursementCtxFrom(
+  actor: GroupActor,
+  groupId: string,
+  request: { headers: Record<string, unknown> },
+  nowMs: number,
+): DisbursementContext {
+  return {
+    ...realCtxBase(actor, groupId, request, nowMs),
+    expectedVersion: expectedVersion.parse(request.headers["if-match-version"]),
+  };
+}
+
+/** Contexte C08 réel pour une DÉCLARATION (CREATE) : aucune version préexistante. */
+function realDisbursementDeclareCtxFrom(
+  actor: GroupActor,
+  groupId: string,
+  request: { headers: Record<string, unknown> },
+  nowMs: number,
+): DisbursementContext {
+  return {
+    ...realCtxBase(actor, groupId, request, nowMs),
+    expectedVersion: 0,
+  };
+}
+
+/** Contexte C08 réel en LECTURE : pas de version d'objet (aucune mutation). */
+function realDisbursementReadCtxFrom(
+  actor: GroupActor,
+  groupId: string,
+  nowMs: number,
+): DisbursementContext {
+  return {
+    actorIdentityId: actor.identityId,
+    actorRole: actor.role,
+    actorGroupIds: [groupId],
+    serverDate: new Date(nowMs).toISOString(),
+    commandId: `read-${actor.identityId}`,
+    expectedVersion: 0,
+  };
+}
+
+/** Contexte C09 réel : mutation sur proposition, `if-match-version` EXIGÉ.
+ *  `serverDate` = instant ISO complet : le store en dérive l'échéance (ms). */
+function realProposalCtxFrom(
+  actor: GroupActor,
+  groupId: string,
+  request: { headers: Record<string, unknown> },
+  nowMs: number,
+): ProposalContext {
+  return {
+    ...realCtxBase(actor, groupId, request, nowMs),
+    expectedVersion: expectedVersion.parse(request.headers["if-match-version"]),
+  };
+}
+
+/** Contexte C09 réel à l'OUVERTURE (CREATE) : aucune version préexistante. */
+function realProposalOpenCtxFrom(
+  actor: GroupActor,
+  groupId: string,
+  request: { headers: Record<string, unknown> },
+  nowMs: number,
+): ProposalContext {
+  return {
+    ...realCtxBase(actor, groupId, request, nowMs),
+    expectedVersion: 0,
+  };
+}
+
+/** Contexte C09 réel en LECTURE : pas de version d'objet. */
+function realProposalReadCtxFrom(actor: GroupActor, groupId: string, nowMs: number): ProposalContext {
+  return {
+    actorIdentityId: actor.identityId,
+    actorRole: actor.role,
+    actorGroupIds: [groupId],
+    serverDate: new Date(nowMs).toISOString(),
+    commandId: `read-${actor.identityId}`,
+    expectedVersion: 0,
+  };
+}
+
+/** Contexte C17 réel (console support) : session seule, horloge serveur en
+ *  secondes d'époque. `actorRole`/`actorGroupIds` ne participent à AUCUNE
+ *  décision du store support (rôle le moins privilégié, valeurs inertes). */
+function realSupportCtxFrom(identityId: string, nowMs: number): PgSupportContext {
+  return {
+    actorIdentityId: identityId,
+    actorRole: "member",
+    actorGroupIds: [],
+    serverNow: Math.floor(nowMs / 1000),
+    commandId: `cmd-${identityId}`,
+  };
+}
+
+/** Contexte C16 réel (droits) : session seule, horloge serveur. */
+function realPrivacyCtxFrom(identityId: string, nowMs: number): PgPrivacyContext {
+  return {
+    actorIdentityId: identityId,
+    actorRole: "member",
+    serverNow: Math.floor(nowMs / 1000),
+  };
+}
+
+/** Contexte C12 réel (export) : session seule, date serveur ISO. */
+function realExportCtxFrom(identityId: string, nowMs: number): PgExportContext {
+  return {
+    actorIdentityId: identityId,
+    actorRole: "member",
+    serverDate: new Date(nowMs).toISOString(),
+  };
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
@@ -660,10 +945,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // (un pool réel sans expéditeur réel configuré est une erreur de
   // déploiement — échec explicite au démarrage, jamais un faux succès).
   const pool = options.pool;
+  const now = options.now ?? (() => Date.now());
   const realContribution = pool ? new PgContributionStore(pool) : undefined;
   const realAccess = pool
     ? new PgAccessStore(pool, options.emailSender ?? requireResendSender())
     : undefined;
+  const realGovernance = pool ? new PgGovernanceStore(pool) : undefined;
+  const realValidation = pool ? new PgValidationStore(pool) : undefined;
+  const realDisputes = pool ? new PgDisputeStore(pool) : undefined;
+  const realDisbursements = pool ? new PgDisbursementStore(pool) : undefined;
+  const realProposals = pool ? new PgProposalStore(pool) : undefined;
+  const realJournal = pool ? new PgJournalStore(pool, options.journalVerifierPool) : undefined;
+  const realSupport = pool ? new PgSupportStore(pool) : undefined;
+  const realExports = pool ? new PgExportStore(pool) : undefined;
+  const realPrivacy = pool ? new PgPrivacyStore(pool) : undefined;
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -679,28 +974,32 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   app.get("/v1/health", async () => ({ status: "ok", phase: "c00-skeleton" }));
 
-  app.post("/v1/groups/:groupId/contributions", async (request, reply) => {
-    const body = declareContributionBody.parse(request.body);
-    const ctx = ctxFrom(request);
-    const receipt = store.declareContribution(ctx, body.obligationId, body.amount);
-    return reply.code(201).send(receipt);
-  });
+  // Routes du squelette C00 (pipeline fictif) : n'existent PAS en mode réel
+  // (aucune implémentation PG) — 404 Fastify, jamais de données fictives.
+  if (!pool) {
+    app.post("/v1/groups/:groupId/contributions", async (request, reply) => {
+      const body = declareContributionBody.parse(request.body);
+      const ctx = ctxFrom(request);
+      const receipt = store.declareContribution(ctx, body.obligationId, body.amount);
+      return reply.code(201).send(receipt);
+    });
 
-  // Circuit A19 — acceptation de nomination par le nommé.
-  app.post("/v1/role-nominations/:requestId/acceptances", async (request, reply) => {
-    const { requestId } = request.params as { requestId: string };
-    const ctx = ctxFrom(request);
-    const receipt = store.acceptNomination(ctx, requestId);
-    return reply.code(201).send(receipt);
-  });
+    // Circuit A19 — acceptation de nomination par le nommé.
+    app.post("/v1/role-nominations/:requestId/acceptances", async (request, reply) => {
+      const { requestId } = request.params as { requestId: string };
+      const ctx = ctxFrom(request);
+      const receipt = store.acceptNomination(ctx, requestId);
+      return reply.code(201).send(receipt);
+    });
 
-  // Circuit A19 — approbation par un approbateur distinct (auditeur).
-  app.post("/v1/role-change-requests/:requestId/approvals", async (request, reply) => {
-    const { requestId } = request.params as { requestId: string };
-    const ctx = ctxFrom(request);
-    const receipt = store.approveRoleChange(ctx, requestId);
-    return reply.code(201).send(receipt);
-  });
+    // Circuit A19 — approbation par un approbateur distinct (auditeur).
+    app.post("/v1/role-change-requests/:requestId/approvals", async (request, reply) => {
+      const { requestId } = request.params as { requestId: string };
+      const ctx = ctxFrom(request);
+      const receipt = store.approveRoleChange(ctx, requestId);
+      return reply.code(201).send(receipt);
+    });
+  }
 
   /* --- C02 : inscription / sessions / récupération (1.1 → 1.5) --- */
 
@@ -746,24 +1045,27 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Ouverture de session FICTIVE (1.2, squelette C00) — `sessionId` client,
   // volontairement NON touchée (ADR-0024 §limites) : le mode réel a sa PROPRE
   // paire de routes ci-dessous (`sessionId` généré serveur, jamais client).
-  app.post("/v1/access/sessions", async (request, reply) => {
-    const body = sessionLogin.parse(request.body);
-    const out = access.login(body.identityId, body.sessionId);
-    return reply.code(201).send(out);
-  });
+  // Ces trois routes fictives n'existent PAS en mode réel.
+  if (!pool) {
+    app.post("/v1/access/sessions", async (request, reply) => {
+      const body = sessionLogin.parse(request.body);
+      const out = access.login(body.identityId, body.sessionId);
+      return reply.code(201).send(out);
+    });
 
-  // Épreuve d'usage d'une session : révoquée/expirée/supplantée → 401.
-  app.get("/v1/access/sessions/:sessionId", async (request, reply) => {
-    const { sessionId } = request.params as { sessionId: string };
-    return reply.code(200).send(access.useSession(sessionId));
-  });
+    // Épreuve d'usage d'une session : révoquée/expirée/supplantée → 401.
+    app.get("/v1/access/sessions/:sessionId", async (request, reply) => {
+      const { sessionId } = request.params as { sessionId: string };
+      return reply.code(200).send(access.useSession(sessionId));
+    });
 
-  // Révocation d'une session active (1.2 « sessions consultables et révocables »).
-  app.post("/v1/access/sessions/:sessionId/revocations", async (request, reply) => {
-    const { sessionId } = request.params as { sessionId: string };
-    access.revokeSession(sessionId);
-    return reply.code(204).send();
-  });
+    // Révocation d'une session active (1.2 « sessions consultables et révocables »).
+    app.post("/v1/access/sessions/:sessionId/revocations", async (request, reply) => {
+      const { sessionId } = request.params as { sessionId: string };
+      access.revokeSession(sessionId);
+      return reply.code(204).send();
+    });
+  }
 
   // Privilège opérateur RECALCULÉ serveur, jamais depuis le jeton (C02-PRIVILEGE).
   app.get("/v1/access/operators/:identityId/privilege", async (request, reply) => {
@@ -795,9 +1097,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   /* --- C03 : groupes, gouvernance, invitations, règles (2.1, 2.7, 4.1, 4.2) --- */
 
-  // Création d'un groupe en configuration (2.1).
+  // Création d'un groupe en configuration (2.1). Mode réel : session
+  // OBLIGATOIRE (anti-spam anonyme) ; le socle 0001 ne stocke pas le créateur
+  // — limite assumée, documentée (aucune migration nouvelle ici).
   app.post("/v1/groups", async (request, reply) => {
     const body = createGroupBody.parse(request.body);
+    if (pool && realGovernance) {
+      await realIdentityFrom(pool, request, now);
+      return reply.code(201).send(await realGovernance.createGroup(body));
+    }
     const out = governance.createGroup(body);
     return reply.code(201).send(out);
   });
@@ -805,12 +1113,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Lecture de la préparation au démarrage du cycle.
   app.get("/v1/groups/:groupId/cycle-readiness", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
+    if (pool && realGovernance) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realGovernance.readiness(groupId));
+    }
     return reply.code(200).send(governance.readiness(groupId));
   });
 
   // Démarrage du cycle — porte serveur (C03-BOOT : fondateur seul ⇒ 409).
   app.post("/v1/groups/:groupId/cycle-starts", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
+    if (pool && realGovernance) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(201).send(await realGovernance.startCycle(groupId));
+    }
     return reply.code(201).send(governance.startCycle(groupId));
   });
 
@@ -818,13 +1134,24 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/groups/:groupId/state-transitions", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = groupTransitionBody.parse(request.body);
+    if (pool && realGovernance) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realGovernance.transition(groupId, body.to));
+    }
     return reply.code(200).send(governance.transition(groupId, body.to));
   });
 
   // Sonde de mutation gardée par adhésion active + groupe mutable (C03-REVOKE).
+  // Mode réel : l'identité sondée est l'ACTEUR résolu (le corps est validé
+  // mais son identityId est IGNORÉ — §14, le client ne choisit jamais son
+  // identité métier).
   app.post("/v1/groups/:groupId/mutations", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = groupMutationBody.parse(request.body);
+    if (pool && realGovernance) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realGovernance.attemptMutation(groupId, actor.identityId));
+    }
     return reply.code(200).send(governance.attemptMutation(groupId, body.identityId));
   });
 
@@ -833,78 +1160,110 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/groups/:groupId/memberships", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = inviteMemberBody.parse(request.body);
+    if (pool && realGovernance) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(201).send(await realGovernance.inviteMember(groupId, body.handle));
+    }
     return reply.code(201).send(governance.inviteMember(groupId, body.handle));
   });
 
   // Terminaison d'une adhésion (départ/révocation), avant la prochaine commande.
+  // `body.identityId` est la CIBLE (objet métier légitime), pas l'acteur.
   app.post("/v1/groups/:groupId/membership-terminations", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = membershipTerminationBody.parse(request.body);
+    if (pool && realGovernance) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realGovernance.terminateMembership(groupId, body.identityId));
+    }
     return reply.code(200).send(governance.terminateMembership(groupId, body.identityId));
   });
 
   // Acceptation horodatée de la version courante des règles (4.2).
+  // Mode réel : l'accepteur est l'ACTEUR résolu (corps ignoré, §14).
   app.post("/v1/groups/:groupId/rules-acceptances", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = rulesAcceptanceBody.parse(request.body);
+    if (pool && realGovernance) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(201).send(await realGovernance.acceptGroupRules(groupId, actor.identityId));
+    }
     return reply.code(201).send(governance.acceptGroupRules(groupId, body.identityId));
   });
 
   // Déclaration de cotisation — refusée sans acceptation des règles en vigueur.
+  // Mode réel : le déclarant testé est l'ACTEUR résolu (corps ignoré, §14).
   app.post("/v1/groups/:groupId/contribution-declarations", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = contributionDeclarationBody.parse(request.body);
+    if (pool && realGovernance) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realGovernance.declareContribution(groupId, actor.identityId));
+    }
     return reply.code(200).send(governance.declareContribution(groupId, body.identityId));
   });
 
-  // Rachat d'une invitation limitée/expirante/révocable (4.1).
+  // Rachat d'une invitation limitée/expirante/révocable (4.1). Capability
+  // anonyme + session du racheteur ; groupe résolu par résolveur étroit 0020.
   app.post("/v1/invitations/:invitationId/redemptions", async (request, reply) => {
     const { invitationId } = request.params as { invitationId: string };
+    if (pool && realGovernance) {
+      await realIdentityFrom(pool, request, now);
+      const groupId = await invitationGroup(pool, invitationId);
+      if (!groupId) {
+        throw new DomainError("RESERVATION_INCOHERENTE", "Invitation introuvable");
+      }
+      return reply.code(200).send(await realGovernance.redeemInvitation(groupId, invitationId));
+    }
     return reply.code(200).send(governance.redeemInvitation(invitationId));
   });
 
   /* --- C04 : moteur de règles versionnées et acceptations (3.1 → 3.7, 6.7) --- */
 
-  // Publication d'une version de règle (compiler pour le pilote ; pénalités forcées
-  // à false). Le hash canonique scelle l'instantané (immuabilité).
-  app.post("/v1/groups/:groupId/rule-versions", async (request, reply) => {
-    const { groupId } = request.params as { groupId: string };
-    const body = publishRuleBody.parse(request.body);
-    const pub = rules.publish(groupId, body.snapshot, body.supersedes);
-    return reply.code(201).send({
-      version: pub.version,
-      hash: pub.hash,
-      penaltyEnabled: pub.snapshot.penaltyEnabled,
+  // Pas encore d'implémentation PG pour le moteur de règles versionnées (C04) :
+  // en mode réel ces routes n'existent pas (404) — jamais de données fictives.
+  if (!pool) {
+    // Publication d'une version de règle (compiler pour le pilote ; pénalités forcées
+    // à false). Le hash canonique scelle l'instantané (immuabilité).
+    app.post("/v1/groups/:groupId/rule-versions", async (request, reply) => {
+      const { groupId } = request.params as { groupId: string };
+      const body = publishRuleBody.parse(request.body);
+      const pub = rules.publish(groupId, body.snapshot, body.supersedes);
+      return reply.code(201).send({
+        version: pub.version,
+        hash: pub.hash,
+        penaltyEnabled: pub.snapshot.penaltyEnabled,
+      });
     });
-  });
 
-  // Acceptation horodatée portant sur le hash EXACT d'une version publiée.
-  app.post("/v1/groups/:groupId/rule-versions/:version/acceptances", async (request, reply) => {
-    const { groupId } = request.params as { groupId: string };
-    const { version } = request.params as { version: string };
-    const body = ruleVersionAcceptanceBody.parse(request.body);
-    const acc = rules.accept(groupId, body.identityId, Number(version), body.hash);
-    return reply.code(201).send(acc);
-  });
+    // Acceptation horodatée portant sur le hash EXACT d'une version publiée.
+    app.post("/v1/groups/:groupId/rule-versions/:version/acceptances", async (request, reply) => {
+      const { groupId } = request.params as { groupId: string };
+      const { version } = request.params as { version: string };
+      const body = ruleVersionAcceptanceBody.parse(request.body);
+      const acc = rules.accept(groupId, body.identityId, Number(version), body.hash);
+      return reply.code(201).send(acc);
+    });
 
-  // Changement de règle déjà publié : plan d'application + effectivité (C04-ACCEPT).
-  app.post("/v1/groups/:groupId/rule-changes", async (request, reply) => {
-    const { groupId } = request.params as { groupId: string };
-    const body = ruleChangeBody.parse(request.body);
-    return reply.code(200).send(rules.evaluateChange(groupId, body.version, body.concerned));
-  });
+    // Changement de règle déjà publié : plan d'application + effectivité (C04-ACCEPT).
+    app.post("/v1/groups/:groupId/rule-changes", async (request, reply) => {
+      const { groupId } = request.params as { groupId: string };
+      const body = ruleChangeBody.parse(request.body);
+      return reply.code(200).send(rules.evaluateChange(groupId, body.version, body.concerned));
+    });
 
-  // Recalcul du cycle courant sous garde de non-rétroactivité (C04-RETRO).
-  app.post("/v1/groups/:groupId/cycle-recalculations", async (request, reply) => {
-    const { groupId } = request.params as { groupId: string };
-    return reply.code(200).send(rules.recalculateCurrentCycle(groupId));
-  });
+    // Recalcul du cycle courant sous garde de non-rétroactivité (C04-RETRO).
+    app.post("/v1/groups/:groupId/cycle-recalculations", async (request, reply) => {
+      const { groupId } = request.params as { groupId: string };
+      return reply.code(200).send(rules.recalculateCurrentCycle(groupId));
+    });
 
-  // Demande d'activation des pénalités — barrière serveur du pilote (C04-PENALTY).
-  app.post("/v1/groups/:groupId/penalty-requests", async (request, reply) => {
-    const body = penaltyRequestBody.parse(request.body);
-    return reply.code(200).send(rules.requestPenalty(body.desired));
-  });
+    // Demande d'activation des pénalités — barrière serveur du pilote (C04-PENALTY).
+    app.post("/v1/groups/:groupId/penalty-requests", async (request, reply) => {
+      const body = penaltyRequestBody.parse(request.body);
+      return reply.code(200).send(rules.requestPenalty(body.desired));
+    });
+  }
 
   /* --- C05 : cycles, tours, échéances, bénéficiaires (5.1 → 5.5) --- */
 
@@ -939,58 +1298,62 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // Construction du calendrier (brouillon) — refus si bénéficiaire dupliqué
   // (C05-UNIQUE : `schedule_accepted = false` réalisé par refus 422, aucune écriture).
-  app.post("/v1/groups/:groupId/schedules", async (request, reply) => {
-    const body = buildScheduleBody.parse(request.body);
-    const s = schedule.build({
-      groupId: body.groupId,
-      ruleVersion: body.ruleVersion,
-      members: body.members,
-      contribution: body.contribution,
-      frequency: body.frequency,
-      dueDay: body.dueDay,
-      startYear: body.startYear,
-      startMonth: body.startMonth,
-      beneficiaryOrder: body.beneficiaryOrder,
+  // Pas encore d'implémentation PG pour les calendriers (C05) : en mode réel
+  // ces routes n'existent pas (404) — jamais de données fictives.
+  if (!pool) {
+    app.post("/v1/groups/:groupId/schedules", async (request, reply) => {
+      const body = buildScheduleBody.parse(request.body);
+      const s = schedule.build({
+        groupId: body.groupId,
+        ruleVersion: body.ruleVersion,
+        members: body.members,
+        contribution: body.contribution,
+        frequency: body.frequency,
+        dueDay: body.dueDay,
+        startYear: body.startYear,
+        startMonth: body.startMonth,
+        beneficiaryOrder: body.beneficiaryOrder,
+      });
+      return reply.code(201).send(viewSchedule(s));
     });
-    return reply.code(201).send(viewSchedule(s));
-  });
 
-  // Lecture du calendrier courant d'un groupe.
-  app.get("/v1/groups/:groupId/schedules", async (request, reply) => {
-    const { groupId } = request.params as { groupId: string };
-    return reply.code(200).send(viewSchedule(schedule.get(groupId)));
-  });
+    // Lecture du calendrier courant d'un groupe.
+    app.get("/v1/groups/:groupId/schedules", async (request, reply) => {
+      const { groupId } = request.params as { groupId: string };
+      return reply.code(200).send(viewSchedule(schedule.get(groupId)));
+    });
 
-  // Démarrage (gel) du calendrier — ordre des bénéficiaires figé (5.3).
-  app.post("/v1/groups/:groupId/schedule-starts", async (request, reply) => {
-    const { groupId } = request.params as { groupId: string };
-    return reply.code(201).send(schedule.start(groupId));
-  });
+    // Démarrage (gel) du calendrier — ordre des bénéficiaires figé (5.3).
+    app.post("/v1/groups/:groupId/schedule-starts", async (request, reply) => {
+      const { groupId } = request.params as { groupId: string };
+      return reply.code(201).send(schedule.start(groupId));
+    });
 
-  // Réassignation d'un bénéficiaire — refusée après démarrage (SCHEDULE_FROZEN).
-  app.post("/v1/groups/:groupId/rounds/:seq/beneficiary", async (request, reply) => {
-    const { groupId } = request.params as { groupId: string };
-    const { seq } = request.params as { seq: string };
-    const body = beneficiaryReassignmentBody.parse(request.body);
-    const s = schedule.reassign(groupId, Number(seq), body.newBeneficiaryId);
-    return reply.code(200).send({ seq: Number(seq), beneficiaryId: s.schedule[Number(seq) - 1]!.beneficiaryId });
-  });
+    // Réassignation d'un bénéficiaire — refusée après démarrage (SCHEDULE_FROZEN).
+    app.post("/v1/groups/:groupId/rounds/:seq/beneficiary", async (request, reply) => {
+      const { groupId } = request.params as { groupId: string };
+      const { seq } = request.params as { seq: string };
+      const body = beneficiaryReassignmentBody.parse(request.body);
+      const s = schedule.reassign(groupId, Number(seq), body.newBeneficiaryId);
+      return reply.code(200).send({ seq: Number(seq), beneficiaryId: s.schedule[Number(seq) - 1]!.beneficiaryId });
+    });
 
-  // Départ d'un membre — la dette reste affectée, les tours non réduits.
-  app.post("/v1/groups/:groupId/departures", async (request, reply) => {
-    const { groupId } = request.params as { groupId: string };
-    const body = departureBody.parse(request.body);
-    return reply.code(200).send(schedule.depart(groupId, body.identityId));
-  });
+    // Départ d'un membre — la dette reste affectée, les tours non réduits.
+    app.post("/v1/groups/:groupId/departures", async (request, reply) => {
+      const { groupId } = request.params as { groupId: string };
+      const body = departureBody.parse(request.body);
+      return reply.code(200).send(schedule.depart(groupId, body.identityId));
+    });
 
-  // Plan de renouvellement (5.5) — nouvelles acceptations si engagement changé.
-  app.post("/v1/groups/:groupId/cycle-renewals", async (request, reply) => {
-    const { groupId } = request.params as { groupId: string };
-    const body = cycleRenewalBody.parse(request.body);
-    return reply
-      .code(200)
-      .send(schedule.renew(groupId, { version: body.version, memberCount: body.memberCount, contribution: body.contribution, rounds: body.rounds }));
-  });
+    // Plan de renouvellement (5.5) — nouvelles acceptations si engagement changé.
+    app.post("/v1/groups/:groupId/cycle-renewals", async (request, reply) => {
+      const { groupId } = request.params as { groupId: string };
+      const body = cycleRenewalBody.parse(request.body);
+      return reply
+        .code(200)
+        .send(schedule.renew(groupId, { version: body.version, memberCount: body.memberCount, contribution: body.contribution, rounds: body.rounds }));
+    });
+  }
 
   /* --- C11 : journal d'événements, checkpoints, timeline (9.1 → 9.5) --- */
 
@@ -998,6 +1361,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // est écrit, il ne recalcule jamais de quoi masquer une altération (9.2).
   app.get("/v1/groups/:groupId/journal/verify", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
+    if (pool && realJournal) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realJournal.verify(groupId));
+    }
     return reply.code(200).send(journal.verify(groupId));
   });
 
@@ -1007,6 +1374,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/groups/:groupId/timeline", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const { type } = request.query as { type?: string };
+    if (pool && realJournal) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      let realEntries = await realJournal.timeline(groupId, actor.role);
+      if (type !== undefined) realEntries = realEntries.filter((e) => e.type === type);
+      return reply.code(200).send({ entries: realEntries });
+    }
     const actor = actorFrom(request);
     let entries = journal.timeline(groupId, actor.role);
     if (type !== undefined) entries = entries.filter((e) => e.type === type);
@@ -1018,6 +1391,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/groups/:groupId/journal-checkpoints", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = checkpointBody.parse(request.body);
+    if (pool && realJournal) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(201).send(await realJournal.checkpoint(groupId, actor.role, body.issuedBy, body.issuedAt));
+    }
     const actor = actorFrom(request);
     return reply.code(201).send(journal.checkpoint(groupId, actor.role, body.issuedBy, body.issuedAt));
   });
@@ -1026,24 +1403,31 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // de référence (C11-REBUILD, 9.5) : effacer une projection ne change rien.
   app.post("/v1/groups/:groupId/projections-rebuild", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
+    if (pool && realJournal) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realJournal.rebuild(groupId));
+    }
     return reply.code(200).send(journal.rebuild(groupId));
   });
 
-  // TRACE DE TEST, NON PROD — injecte un événement d'audit dans la chaîne
-  // fictive (les commandes métier réelles écriront via C06/C07).
-  app.post("/v1/groups/:groupId/journal-appends", async (request, reply) => {
-    const { groupId } = request.params as { groupId: string };
-    const body = journalAppendBody.parse(request.body);
-    const ev = journal.append({ groupId, ...body });
-    return reply.code(201).send({ seq: ev.seq, hash: ev.hash });
-  });
-
-  // TRACE DE TEST, NON PROD — C11-TAMPER : altère une COPIE du journal puis
-  // la soumet au vérificateur. `tamper_detected` doit être vrai ; la chaîne
-  // interne reste intacte (re-verify ensuite = intact, absence d'effet).
+  // C11-TAMPER : altère une COPIE du journal puis la soumet au vérificateur.
+  // `tamper_detected` doit être vrai ; la chaîne interne reste intacte
+  // (re-verify ensuite = intact, absence d'effet). Lecture seule en mode
+  // RÉEL : la copie altérée ne touche jamais la base, seule la copie fournie
+  // change — la démonstration porte sur la chaîne RÉELLE relue.
   app.post("/v1/groups/:groupId/journal-tamper-tests", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = tamperBody.parse(request.body);
+    if (pool && realJournal) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      const events = await realJournal.events(groupId);
+      const copy = realJournal.tamperCopyOf(events, body.seq, body.amount);
+      const copyResult = realJournal.verifyCopy(copy);
+      const stillIntact = (await realJournal.verify(groupId)).intact;
+      return reply
+        .code(200)
+        .send({ tamper_detected: !copyResult.intact, error: copyResult.error ?? null, internal_chain_intact: stillIntact });
+    }
     const copy = journal.tamperCopyOf(groupId, body.seq, body.amount);
     const copyResult = journal.verifyCopy(copy);
     const stillIntact = journal.verify(groupId).intact;
@@ -1051,6 +1435,19 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       .code(200)
       .send({ tamper_detected: !copyResult.intact, error: copyResult.error ?? null, internal_chain_intact: stillIntact });
   });
+
+  // TRACE DE TEST, NON PROD — injecte un événement d'audit dans la chaîne
+  // fictive. En mode RÉEL cette route n'existe pas (404) : le journal réel
+  // n'est écrit que par les commandes métier (C06/C07/…), jamais par un
+  // en-tête de test.
+  if (!pool) {
+    app.post("/v1/groups/:groupId/journal-appends", async (request, reply) => {
+      const { groupId } = request.params as { groupId: string };
+      const body = journalAppendBody.parse(request.body);
+      const ev = journal.append({ groupId, ...body });
+      return reply.code(201).send({ seq: ev.seq, hash: ev.hash });
+    });
+  }
 
   /* --- C06 : déclarations partielles, idempotence, capacité sous verrou --- */
 
@@ -1072,9 +1469,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     // RELUS en base (jamais depuis un en-tête client) avant toute écriture.
     const r = pool && realContribution
       ? await (async () => {
-          const actor = await realGroupActorFrom(pool, request, groupId);
+          const actor = await realGroupActorFrom(pool, request, groupId, now);
           const idemKey = idempotencyKey.parse(request.headers["idempotency-key"]);
-          const serverDateHeader = request.headers["x-server-date"];
           const commandIdHeader = request.headers["x-command-id"];
           const realCtx: DeclareContext = {
             actorIdentityId: actor.identityId,
@@ -1082,10 +1478,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
             actorGroupIds: [groupId],
             idempotencyKey: idemKey,
             expectedVersion: expectedVersion.parse(request.headers["if-match-version"]),
-            serverDate:
-              typeof serverDateHeader === "string"
-                ? serverDateHeader
-                : new Date().toISOString().slice(0, 10),
+            // §27 : horloge SERVEUR uniquement — jamais une date client
+            // (`x-server-date` a été retiré du mode réel ; l'heure client
+            // ne scelle aucun événement).
+            serverDate: new Date(now()).toISOString(),
             commandId: typeof commandIdHeader === "string" ? commandIdHeader : `cmd-${idemKey}`,
           };
           return realContribution.declare(groupId, realCtx, decl);
@@ -1106,22 +1502,26 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // Brouillon local (6.9) : action DISTINCTE de la soumission ; n'écrit ni
   // événement, ni réservation, ni registre (absence d'effet prouvée en test).
-  app.post("/v1/groups/:groupId/drafts", async (request, reply) => {
-    const { groupId } = request.params as { groupId: string };
-    const body = contributionDraftBody.parse(request.body);
-    const actor = actorFrom(request);
-    const decl: ContributionDeclaration = {
-      obligationId: body.obligationId,
-      amountMinor: body.amount,
-      channel: body.channel,
-      allegedDate: body.allegedDate,
-      ...(body.reference !== undefined ? { reference: body.reference } : {}),
-      ...(body.justification !== undefined ? { justification: body.justification } : {}),
-    };
-    return reply
-      .code(200)
-      .send(contribution.saveDraft(actor.identityId ?? actor.handle, `${groupId}:${decl.obligationId}`, decl));
-  });
+  // Pas d'implémentation PG (le brouillon est local par nature) : en mode
+  // réel cette route n'existe pas (404) — jamais de données fictives.
+  if (!pool) {
+    app.post("/v1/groups/:groupId/drafts", async (request, reply) => {
+      const { groupId } = request.params as { groupId: string };
+      const body = contributionDraftBody.parse(request.body);
+      const actor = actorFrom(request);
+      const decl: ContributionDeclaration = {
+        obligationId: body.obligationId,
+        amountMinor: body.amount,
+        channel: body.channel,
+        allegedDate: body.allegedDate,
+        ...(body.reference !== undefined ? { reference: body.reference } : {}),
+        ...(body.justification !== undefined ? { justification: body.justification } : {}),
+      };
+      return reply
+        .code(200)
+        .send(contribution.saveDraft(actor.identityId ?? actor.handle, `${groupId}:${decl.obligationId}`, decl));
+    });
+  }
 
   // Vue de l'obligation : capacité sous verrou et restant dû sur validé net.
   app.get("/v1/groups/:groupId/obligations/:obligationId", async (request, reply) => {
@@ -1129,7 +1529,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     if (pool && realContribution) {
       // Authentification + anti-IDOR : adhésion active requise dans CE
       // groupe avant toute lecture (sinon FEATURE_PILOT_FORBIDDEN, 403).
-      await realGroupActorFrom(pool, request, groupId);
+      await realGroupActorFrom(pool, request, groupId, now);
       return reply.code(200).send(await realContribution.view(groupId, obligationId));
     }
     return reply.code(200).send(contribution.view(obligationId));
@@ -1140,14 +1540,24 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Confirmation d'une cotisation. Indépendance : le déclarant qui se confirme
   // lui-même est REFUSÉ (200, `validationAccepted = false`, aucune écriture).
   app.post("/v1/groups/:groupId/contributions/:contributionId/confirmations", async (request, reply) => {
-    const { contributionId } = request.params as { contributionId: string };
+    const { groupId, contributionId } = request.params as { groupId: string; contributionId: string };
+    if (pool && realValidation) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realValidationCtxFrom(actor, groupId, request, now());
+      return reply.code(200).send(await realValidation.confirm(groupId, ctx, contributionId));
+    }
     const ctx = validationCtxFrom(request);
     return reply.code(200).send(validation.confirm(ctx, contributionId));
   });
 
   // Contrôle par un tiers distinct ; parachève la validation au seuil requis.
   app.post("/v1/groups/:groupId/contributions/:contributionId/control", async (request, reply) => {
-    const { contributionId } = request.params as { contributionId: string };
+    const { groupId, contributionId } = request.params as { groupId: string; contributionId: string };
+    if (pool && realValidation) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realValidationCtxFrom(actor, groupId, request, now());
+      return reply.code(200).send(await realValidation.control(groupId, ctx, contributionId));
+    }
     const ctx = validationCtxFrom(request);
     return reply.code(200).send(validation.control(ctx, contributionId));
   });
@@ -1155,7 +1565,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Rejet seulement avant validation (après validation ⇒ 409, correction par
   // compensation, jamais rejet rétroactif).
   app.post("/v1/groups/:groupId/contributions/:contributionId/rejections", async (request, reply) => {
-    const { contributionId } = request.params as { contributionId: string };
+    const { groupId, contributionId } = request.params as { groupId: string; contributionId: string };
+    if (pool && realValidation) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realValidationCtxFrom(actor, groupId, request, now());
+      return reply.code(200).send(await realValidation.reject(groupId, ctx, contributionId));
+    }
     const ctx = validationCtxFrom(request);
     return reply.code(200).send(validation.reject(ctx, contributionId));
   });
@@ -1163,8 +1578,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Compensation d'un original validé — au plus une fois (C07-REVERSE) ; la
   // seconde course sur le même original reçoit 409 et `reversalCount` reste 1.
   app.post("/v1/groups/:groupId/contributions/:contributionId/compensations", async (request, reply) => {
-    const { contributionId } = request.params as { contributionId: string };
+    const { groupId, contributionId } = request.params as { groupId: string; contributionId: string };
     const body = compensateBody.parse(request.body);
+    if (pool && realValidation) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realValidationCtxFrom(actor, groupId, request, now());
+      return reply.code(201).send(await realValidation.compensate(groupId, ctx, contributionId, body.reversalContributionId));
+    }
     const ctx = validationCtxFrom(request);
     const r = validation.compensate(ctx, contributionId, body.reversalContributionId);
     return reply.code(201).send(r);
@@ -1174,6 +1594,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/groups/:groupId/disputes", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = disputeBody.parse(request.body);
+    if (pool && realValidation) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      // CREATE : aucune version d'objet préexistante à vérifier ; le store
+      // n'évalue pas `expectedVersion` sur cette voie (le registre d'objet
+      // rejette un doublon, pas la version).
+      const ctx = { ...realCtxBase(actor, groupId, request, now()), expectedVersion: 0 };
+      return reply.code(201).send(await realValidation.raise(groupId, ctx, { ...body, groupId, raisedBy: actor.identityId }));
+    }
     const actor = actorFrom(request);
     const ctx: ValidationContext = {
       actorIdentityId: actor.identityId ?? actor.handle,
@@ -1190,14 +1618,22 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post(
     "/v1/groups/:groupId/obligations/:obligationId/dependent-operation-attempts",
     async (request, reply) => {
-      const { obligationId } = request.params as { obligationId: string };
+      const { groupId, obligationId } = request.params as { groupId: string; obligationId: string };
+      if (pool && realValidation) {
+        await realGroupActorFrom(pool, request, groupId, now);
+        return reply.code(200).send(await realValidation.attemptDependentOperation(groupId, obligationId));
+      }
       return reply.code(200).send(validation.attemptDependentOperation(obligationId));
     },
   );
 
   // Vue d'une cotisation : état, acteurs d'indépendance, compensation, version.
   app.get("/v1/groups/:groupId/contributions/:contributionId", async (request, reply) => {
-    const { contributionId } = request.params as { contributionId: string };
+    const { groupId, contributionId } = request.params as { groupId: string; contributionId: string };
+    if (pool && realValidation) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realValidation.view(groupId, contributionId));
+    }
     return reply.code(200).send(validation.view(contributionId));
   });
 
@@ -1208,6 +1644,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/groups/:groupId/dispute-cases", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = disputeCaseBody.parse(request.body);
+    if (pool && realDisputes) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const dActor: PgDisputeActor = { identityId: actor.identityId, role: actor.role, groupIds: [groupId] };
+      const record = await realDisputes.open(groupId, dActor, { ...body, groupId, raisedBy: actor.identityId });
+      return reply.code(201).send(record);
+    }
     const actor = disputeActorFrom(request);
     const record = disputes.open(actor, { ...body, groupId, raisedBy: actor.identityId });
     return reply.code(201).send(record);
@@ -1217,6 +1659,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // jamais ; lecture seule, sans mutation ni divulgation d'un autre groupe.
   app.get("/v1/groups/:groupId/dispute-cases", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
+    if (pool && realDisputes) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const dActor: PgDisputeActor = { identityId: actor.identityId, role: actor.role, groupIds: [groupId] };
+      return reply.code(200).send(await realDisputes.listCommon(groupId, dActor));
+    }
     const actor = disputeActorFrom(request);
     return reply.code(200).send(disputes.listCommon(actor, groupId));
   });
@@ -1224,7 +1671,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Vue d'un dossier (C10-PRIVACY) : commune pour un non-partie, détail
   // complet pour les parties seules (levant, impliqués, résolveurs désignés).
   app.get("/v1/groups/:groupId/dispute-cases/:disputeId", async (request, reply) => {
-    const { disputeId } = request.params as { disputeId: string };
+    const { groupId, disputeId } = request.params as { groupId: string; disputeId: string };
+    if (pool && realDisputes) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const dActor: PgDisputeActor = { identityId: actor.identityId, role: actor.role, groupIds: [groupId] };
+      return reply.code(200).send(await realDisputes.view(groupId, dActor, disputeId));
+    }
     const actor = disputeActorFrom(request);
     return reply.code(200).send(disputes.view(actor, disputeId));
   });
@@ -1234,8 +1686,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post(
     "/v1/groups/:groupId/dispute-cases/:disputeId/resolvers",
     async (request, reply) => {
-      const { disputeId } = request.params as { disputeId: string };
+      const { groupId, disputeId } = request.params as { groupId: string; disputeId: string };
       const body = resolversBody.parse(request.body);
+      if (pool && realDisputes) {
+        const actor = await realGroupActorFrom(pool, request, groupId, now);
+        const dActor: PgDisputeActor = { identityId: actor.identityId, role: actor.role, groupIds: [groupId] };
+        const { record, version } = await realDisputes.assignResolvers(
+          groupId,
+          dActor,
+          disputeId,
+          body.resolverIdentityIds,
+          expectedVersion.parse(request.headers["if-match-version"]),
+        );
+        return reply.code(200).send({ record, version });
+      }
       const actor = disputeActorFrom(request);
       const { record, version } = disputes.assignResolvers(
         actor,
@@ -1252,8 +1716,32 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post(
     "/v1/groups/:groupId/dispute-cases/:disputeId/resolution",
     async (request, reply) => {
-      const { disputeId } = request.params as { disputeId: string };
+      const { groupId, disputeId } = request.params as { groupId: string; disputeId: string };
       const body = disputeResolutionBody.parse(request.body);
+      if (pool && realDisputes) {
+        // Les références de correction ne sont PAS persistées par le store
+        // PostgreSQL (aucune colonne au schéma) : les accepter en mode réel
+        // serait une perte silencieuse — refus explicite, jamais un drop.
+        if (body.correctionContributionIds.length > 0) {
+          throw new DomainError(
+            "FEATURE_PILOT_FORBIDDEN",
+            "Références de correction non persistées en mode réel (aucune colonne de schéma)",
+          );
+        }
+        const actor = await realGroupActorFrom(pool, request, groupId, now);
+        const dActor: PgDisputeActor = { identityId: actor.identityId, role: actor.role, groupIds: [groupId] };
+        const { record, version } = await realDisputes.resolve(
+          groupId,
+          dActor,
+          disputeId,
+          body.outcome,
+          // §27 : l'heure de résolution scellée est celle du SERVEUR (secondes
+          // d'époque) — `body.resolvedAt` n'est pas consulté en mode réel.
+          Math.floor(now() / 1000),
+          expectedVersion.parse(request.headers["if-match-version"]),
+        );
+        return reply.code(200).send({ record, version });
+      }
       const actor = disputeActorFrom(request);
       const { record, version } = disputes.resolve(
         actor,
@@ -1272,7 +1760,18 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post(
     "/v1/groups/:groupId/dispute-cases/:disputeId/appeals",
     async (request, reply) => {
-      const { disputeId } = request.params as { disputeId: string };
+      const { groupId, disputeId } = request.params as { groupId: string; disputeId: string };
+      if (pool && realDisputes) {
+        const actor = await realGroupActorFrom(pool, request, groupId, now);
+        const dActor: PgDisputeActor = { identityId: actor.identityId, role: actor.role, groupIds: [groupId] };
+        const { record, version } = await realDisputes.appeal(
+          groupId,
+          dActor,
+          disputeId,
+          expectedVersion.parse(request.headers["if-match-version"]),
+        );
+        return reply.code(200).send({ record, version });
+      }
       const actor = disputeActorFrom(request);
       const { record, version } = disputes.appeal(
         actor,
@@ -1288,6 +1787,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/groups/:groupId/round-close-attempts", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = roundCloseBody.parse(request.body);
+    if (pool && realDisputes) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const dActor: PgDisputeActor = { identityId: actor.identityId, role: actor.role, groupIds: [groupId] };
+      return reply.code(200).send(await realDisputes.attemptRoundClose(groupId, dActor, body.obligationIds));
+    }
     const actor = disputeActorFrom(request);
     return reply.code(200).send(disputes.attemptRoundClose(actor, groupId, body.obligationIds));
   });
@@ -1300,8 +1804,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/groups/:groupId/disbursements", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = declareDisbursementBody.parse(request.body);
-    const ctx = disbursementDeclareCtxFrom(request);
-    const view = disbursements.declare(ctx, groupId, {
+    const input = {
       disbursementId: body.disbursementId,
       roundId: body.roundId,
       obligationId: body.obligationId,
@@ -1313,8 +1816,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
         : {}),
       requiredControllers: body.requiredControllers,
       allegedDate: body.allegedDate,
-    });
-    return reply.code(201).send(view);
+    };
+    if (pool && realDisbursements) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realDisbursementDeclareCtxFrom(actor, groupId, request, now());
+      return reply.code(201).send(await realDisbursements.declare(ctx, groupId, input));
+    }
+    const ctx = disbursementDeclareCtxFrom(request);
+    return reply.code(201).send(disbursements.declare(ctx, groupId, input));
   });
 
   // Confirmation par le bénéficiaire (6.10). Refus non-bénéficiaire = 200,
@@ -1322,7 +1831,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post(
     "/v1/groups/:groupId/disbursements/:disbursementId/confirmations",
     async (request, reply) => {
-      const { disbursementId } = request.params as { disbursementId: string };
+      const { groupId, disbursementId } = request.params as { groupId: string; disbursementId: string };
+      if (pool && realDisbursements) {
+        const actor = await realGroupActorFrom(pool, request, groupId, now);
+        const ctx = realDisbursementCtxFrom(actor, groupId, request, now());
+        return reply.code(200).send(await realDisbursements.confirm(groupId, ctx, disbursementId));
+      }
       const ctx = disbursementCtxFrom(request);
       return reply.code(200).send(disbursements.confirm(ctx, disbursementId));
     },
@@ -1332,7 +1846,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post(
     "/v1/groups/:groupId/disbursements/:disbursementId/control",
     async (request, reply) => {
-      const { disbursementId } = request.params as { disbursementId: string };
+      const { groupId, disbursementId } = request.params as { groupId: string; disbursementId: string };
+      if (pool && realDisbursements) {
+        const actor = await realGroupActorFrom(pool, request, groupId, now);
+        const ctx = realDisbursementCtxFrom(actor, groupId, request, now());
+        return reply.code(200).send(await realDisbursements.control(groupId, ctx, disbursementId));
+      }
       const ctx = disbursementCtxFrom(request);
       return reply.code(200).send(disbursements.control(ctx, disbursementId));
     },
@@ -1343,8 +1862,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post(
     "/v1/groups/:groupId/disbursements/:disbursementId/reversal-requests",
     async (request, reply) => {
-      const { disbursementId } = request.params as { disbursementId: string };
+      const { groupId, disbursementId } = request.params as { groupId: string; disbursementId: string };
       const body = reversalRequestBody.parse(request.body);
+      if (pool && realDisbursements) {
+        const actor = await realGroupActorFrom(pool, request, groupId, now);
+        const ctx = realDisbursementCtxFrom(actor, groupId, request, now());
+        return reply
+          .code(200)
+          .send(await realDisbursements.requestReversal(groupId, ctx, disbursementId, body.reason));
+      }
       const ctx = disbursementCtxFrom(request);
       return reply.code(200).send(disbursements.requestReversal(ctx, disbursementId, body.reason));
     },
@@ -1356,7 +1882,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post(
     "/v1/groups/:groupId/disbursements/:disbursementId/reversals",
     async (request, reply) => {
-      const { disbursementId } = request.params as { disbursementId: string };
+      const { groupId, disbursementId } = request.params as { groupId: string; disbursementId: string };
+      if (pool && realDisbursements) {
+        const actor = await realGroupActorFrom(pool, request, groupId, now);
+        const ctx = realDisbursementCtxFrom(actor, groupId, request, now());
+        return reply.code(200).send(await realDisbursements.approveReversal(groupId, ctx, disbursementId));
+      }
       const ctx = disbursementCtxFrom(request);
       return reply.code(200).send(disbursements.approveReversal(ctx, disbursementId));
     },
@@ -1367,6 +1898,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // objet d'un autre groupe répond 404 non-divulgation, jamais ses données).
   app.get("/v1/groups/:groupId/disbursements/:disbursementId", async (request, reply) => {
     const { groupId, disbursementId } = request.params as { groupId: string; disbursementId: string };
+    if (pool && realDisbursements) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realDisbursementReadCtxFrom(actor, groupId, now());
+      return reply.code(200).send(await realDisbursements.view(ctx, groupId, disbursementId));
+    }
     const ctx = disbursementReadCtxFrom(request);
     return reply.code(200).send(disbursements.view(ctx, groupId, disbursementId));
   });
@@ -1381,6 +1917,17 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     "/v1/groups/:groupId/rounds/:roundId/reconciliation",
     async (request, reply) => {
       const { groupId, roundId } = request.params as { groupId: string; roundId: string };
+      if (pool && realDisbursements) {
+        const actor = await realGroupActorFrom(pool, request, groupId, now);
+        const ctx = realDisbursementReadCtxFrom(actor, groupId, now());
+        const out = await realDisbursements.reconcile(ctx, groupId, roundId);
+        return reply
+          .code(200)
+          .send({
+            ...out,
+            reconciliationGap: out.reconciliationGap.toString(),
+          });
+      }
       const ctx = disbursementReadCtxFrom(request);
       const out = disbursements.reconcile(ctx, groupId, roundId);
       return reply
@@ -1400,15 +1947,21 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/groups/:groupId/votes", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = openVoteBody.parse(request.body);
-    const ctx = proposalOpenCtxFrom(request);
-    const view = proposals.open(ctx, groupId, {
+    const input = {
       proposalId: body.proposalId,
       subjectKind: body.subjectKind,
       subjectRef: body.subjectRef,
       reason: body.reason,
       durationSeconds: body.durationSeconds,
-    });
-    return reply.code(201).send(view);
+    };
+    if (pool && realProposals) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realProposalOpenCtxFrom(actor, groupId, request, now());
+      const rules = await realGroupDecisionRules(pool, groupId);
+      return reply.code(201).send(await realProposals.open(ctx, groupId, input, rules));
+    }
+    const ctx = proposalOpenCtxFrom(request);
+    return reply.code(201).send(proposals.open(ctx, groupId, input));
   });
 
   // Bulletin (7.2) : votant = identité résolue serveur ; refus sans écriture
@@ -1419,6 +1972,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/votes/:voteId/ballots", async (request, reply) => {
     const { voteId } = request.params as { voteId: string };
     const body = castBallotBody.parse(request.body);
+    if (pool && realProposals) {
+      const groupId = await voteGroup(pool, voteId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Proposition introuvable");
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realProposalCtxFrom(actor, groupId, request, now());
+      const receipt = await realProposals.cast(groupId, ctx, voteId, body.choice);
+      return reply.code(receipt.voteAccepted ? 201 : 200).send(receipt);
+    }
     const ctx = proposalCtxFrom(request);
     const receipt = proposals.cast(ctx, voteId, body.choice);
     return reply.code(receipt.voteAccepted ? 201 : 200).send(receipt);
@@ -1428,6 +1989,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // via l'oracle indépendant. Voie A19 `/proposals/{proposalId}/closures`.
   app.post("/v1/proposals/:voteId/closures", async (request, reply) => {
     const { voteId } = request.params as { voteId: string };
+    if (pool && realProposals) {
+      const groupId = await voteGroup(pool, voteId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Proposition introuvable");
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realProposalCtxFrom(actor, groupId, request, now());
+      return reply.code(200).send(await realProposals.close(groupId, ctx, voteId));
+    }
     const ctx = proposalCtxFrom(request);
     return reply.code(200).send(proposals.close(ctx, voteId));
   });
@@ -1436,6 +2004,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/proposals/:voteId/cancellations", async (request, reply) => {
     const { voteId } = request.params as { voteId: string };
     const body = cancelProposalBody.parse(request.body);
+    if (pool && realProposals) {
+      const groupId = await voteGroup(pool, voteId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Proposition introuvable");
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realProposalCtxFrom(actor, groupId, request, now());
+      return reply.code(200).send(await realProposals.cancel(groupId, ctx, voteId, body.reason));
+    }
     const ctx = proposalCtxFrom(request);
     return reply.code(200).send(proposals.cancel(ctx, voteId, body.reason));
   });
@@ -1444,6 +2019,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // seconde exécution rend le même état sans nouvel effet.
   app.post("/v1/votes/:voteId/executions", async (request, reply) => {
     const { voteId } = request.params as { voteId: string };
+    if (pool && realProposals) {
+      const groupId = await voteGroup(pool, voteId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Proposition introuvable");
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realProposalCtxFrom(actor, groupId, request, now());
+      return reply.code(200).send(await realProposals.execute(groupId, ctx, voteId));
+    }
     const ctx = proposalCtxFrom(request);
     return reply.code(200).send(proposals.execute(ctx, voteId));
   });
@@ -1452,6 +2034,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // autre groupe sous un chemin tiers → 404 non-divulgation).
   app.get("/v1/groups/:groupId/votes/:voteId", async (request, reply) => {
     const { groupId, voteId } = request.params as { groupId: string; voteId: string };
+    if (pool && realProposals) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realProposalReadCtxFrom(actor, groupId, now());
+      return reply.code(200).send(await realProposals.view(ctx, groupId, voteId));
+    }
     const ctx = proposalReadCtxFrom(request);
     return reply.code(200).send(proposals.view(ctx, groupId, voteId));
   });
@@ -1459,6 +2046,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Historique des décisions d'un groupe (7.5) : closes / exécutées / annulées.
   app.get("/v1/groups/:groupId/decisions", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
+    if (pool && realProposals) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      const ctx = realProposalReadCtxFrom(actor, groupId, now());
+      return reply.code(200).send({ decisions: await realProposals.history(ctx, groupId) });
+    }
     const ctx = proposalReadCtxFrom(request);
     return reply.code(200).send({ decisions: proposals.history(ctx, groupId) });
   });
@@ -1470,15 +2062,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // le domaine (`PRIVILEGE_NOT_GRANTED`, 403). Naît `pending_approval`, zéro accès.
   app.post("/v1/support/access-requests", async (request, reply) => {
     const body = supportAccessRequestBody.parse(request.body);
-    const ctx = supportCtxFrom(request);
-    const view = support.request(ctx, {
+    const input = {
       requestId: body.requestId,
       targetGroupId: body.targetGroupId,
       motif: body.motif,
       permissions: body.permissions,
       ttlSeconds: body.ttlSeconds,
-    });
-    return reply.code(201).send(view);
+    };
+    if (pool && realSupport) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realSupportCtxFrom(identityId, now());
+      return reply.code(201).send(await realSupport.request(ctx, input));
+    }
+    const ctx = supportCtxFrom(request);
+    return reply.code(201).send(support.request(ctx, input));
   });
 
   // Approbation par une identité DISTINCTE serveur (COM05). Au seuil de deux
@@ -1486,6 +2083,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/support/access-requests/:requestId/approvals", async (request, reply) => {
     const { requestId } = request.params as { requestId: string };
     const body = supportApprovalBody.parse(request.body);
+    if (pool && realSupport) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const groupId = await supportRequestGroup(pool, requestId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
+      const ctx = realSupportCtxFrom(identityId, now());
+      return reply.code(200).send(await realSupport.approve(ctx, groupId, requestId, body.ttlSeconds));
+    }
     const ctx = supportCtxFrom(request);
     return reply.code(200).send(support.approve(ctx, requestId, body.ttlSeconds));
   });
@@ -1497,6 +2101,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/support/access-requests/:requestId/actions", async (request, reply) => {
     const { requestId } = request.params as { requestId: string };
     const body = supportActionBody.parse(request.body);
+    if (pool && realSupport) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const groupId = await supportRequestGroup(pool, requestId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
+      const ctx = realSupportCtxFrom(identityId, now());
+      return reply.code(200).send(await realSupport.act(ctx, groupId, requestId, body.action));
+    }
     const ctx = supportCtxFrom(request);
     return reply.code(200).send(support.act(ctx, requestId, body.action));
   });
@@ -1504,6 +2115,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Révocation immédiate (fin d'assistance / incident) — coupe l'accès.
   app.post("/v1/support/access-requests/:requestId/revocations", async (request, reply) => {
     const { requestId } = request.params as { requestId: string };
+    if (pool && realSupport) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const groupId = await supportRequestGroup(pool, requestId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
+      const ctx = realSupportCtxFrom(identityId, now());
+      return reply.code(200).send(await realSupport.revoke(ctx, groupId, requestId));
+    }
     const ctx = supportCtxFrom(request);
     return reply.code(200).send(support.revoke(ctx, requestId));
   });
@@ -1512,6 +2130,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // groupe sous un chemin tiers → 404 non-divulgation).
   app.get("/v1/groups/:groupId/support/access-requests/:requestId", async (request, reply) => {
     const { groupId, requestId } = request.params as { groupId: string; requestId: string };
+    if (pool && realSupport) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realSupportCtxFrom(identityId, now());
+      return reply.code(200).send(await realSupport.view(ctx, groupId, requestId));
+    }
     const ctx = supportReadCtxFrom(request);
     return reply.code(200).send(support.view(ctx, groupId, requestId));
   });
@@ -1524,6 +2147,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/groups/:groupId/exports", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = createExportBody.parse(request.body ?? {});
+    if (pool && realExports) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realExportCtxFrom(identityId, now());
+      return reply.code(201).send(await realExports.create(ctx, groupId, body.cutoffSequence));
+    }
     const ctx = exportCtxFrom(request);
     const view = exportStore.create(ctx, groupId, body.cutoffSequence);
     return reply.code(201).send(view);
@@ -1532,6 +2160,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Vue du manifeste (empreintes, coupure, mention prudente) si accessible.
   app.get("/v1/exports/:manifestId/manifest", async (request, reply) => {
     const { manifestId } = request.params as { manifestId: string };
+    if (pool && realExports) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const groupId = await exportManifestGroup(pool, manifestId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Export introuvable");
+      const ctx = realExportCtxFrom(identityId, now());
+      return reply.code(200).send(await realExports.viewScoped(ctx, groupId, manifestId));
+    }
     const ctx = exportCtxFrom(request);
     return reply.code(200).send(exportStore.view(ctx, manifestId));
   });
@@ -1540,6 +2175,18 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Un membre sortant → 404 non-divulguant, jamais les octets.
   app.get("/v1/exports/:manifestId/download", async (request, reply) => {
     const { manifestId } = request.params as { manifestId: string };
+    if (pool && realExports) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const groupId = await exportManifestGroup(pool, manifestId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Export introuvable");
+      const ctx = realExportCtxFrom(identityId, now());
+      const file = await realExports.downloadScoped(ctx, groupId, manifestId);
+      return reply
+        .code(200)
+        .header("content-type", file.contentType)
+        .header("content-disposition", `attachment; filename="${file.fileName}"`)
+        .send(Buffer.from(file.bytes));
+    }
     const ctx = exportCtxFrom(request);
     const file = exportStore.download(ctx, manifestId);
     return reply
@@ -1552,6 +2199,18 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Téléchargement du CSV neutralisé (10.1) — mêmes ACL qu'au PDF.
   app.get("/v1/exports/:manifestId/csv", async (request, reply) => {
     const { manifestId } = request.params as { manifestId: string };
+    if (pool && realExports) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const groupId = await exportManifestGroup(pool, manifestId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Export introuvable");
+      const ctx = realExportCtxFrom(identityId, now());
+      const file = await realExports.csvScoped(ctx, groupId, manifestId);
+      return reply
+        .code(200)
+        .header("content-type", `${file.contentType}; charset=utf-8`)
+        .header("content-disposition", `attachment; filename="${file.fileName}"`)
+        .send(file.body);
+    }
     const ctx = exportCtxFrom(request);
     const file = exportStore.csv(ctx, manifestId);
     return reply
@@ -1566,6 +2225,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/exports/:manifestId/verifications", async (request, reply) => {
     const { manifestId } = request.params as { manifestId: string };
     const body = exportVerificationBody.parse(request.body);
+    if (pool && realExports) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const groupId = await exportManifestGroup(pool, manifestId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Export introuvable");
+      const ctx = realExportCtxFrom(identityId, now());
+      return reply.code(200).send(await realExports.verifyScoped(ctx, groupId, manifestId, body.bytesBase64));
+    }
     const ctx = exportCtxFrom(request);
     return reply.code(200).send(exportStore.verify(ctx, manifestId, body.bytesBase64));
   });
@@ -1576,6 +2242,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // notice à placeholder ou promettant une garantie/preuve (422 stable).
   app.post("/v1/privacy/notices", async (request, reply) => {
     const body = legalNoticeBody.parse(request.body);
+    if (pool && realPrivacy) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realPrivacyCtxFrom(identityId, now());
+      return reply.code(201).send(await realPrivacy.publishNotice(ctx, body));
+    }
     const ctx = privacyCtxFrom(request);
     return reply.code(201).send(privacyStore.publishNotice(ctx, body));
   });
@@ -1583,12 +2254,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Lecture d'une notice (404 non-divulguant si absente).
   app.get("/v1/privacy/notices/:noticeId", async (request, reply) => {
     const { noticeId } = request.params as { noticeId: string };
+    if (pool && realPrivacy) {
+      return reply.code(200).send(await realPrivacy.getNotice(noticeId));
+    }
     return reply.code(200).send(privacyStore.getNotice(noticeId));
   });
 
   // Enregistrement d'un traitement au registre (13.3) — factuel, base connue.
   app.post("/v1/privacy/processing-records", async (request, reply) => {
     const body = processingRecordBody.parse(request.body);
+    if (pool && realPrivacy) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realPrivacyCtxFrom(identityId, now());
+      return reply.code(201).send(await realPrivacy.registerProcessing(ctx, body));
+    }
     const ctx = privacyCtxFrom(request);
     return reply.code(201).send(privacyStore.registerProcessing(ctx, body));
   });
@@ -1597,11 +2276,21 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // service cœur RÉSOLU SERVEUR : un refus de recherche ne le coupe pas.
   app.post("/v1/privacy/consents", async (request, reply) => {
     const body = consentBody.parse(request.body);
+    if (pool && realPrivacy) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realPrivacyCtxFrom(identityId, now());
+      return reply.code(200).send(await realPrivacy.setConsentFor(ctx, body.category, body.granted));
+    }
     const ctx = privacyCtxFrom(request);
     return reply.code(200).send(privacyStore.setConsentFor(ctx, body.category, body.granted));
   });
 
   app.get("/v1/privacy/consents", async (request, reply) => {
+    if (pool && realPrivacy) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realPrivacyCtxFrom(identityId, now());
+      return reply.code(200).send(await realPrivacy.getConsent(ctx));
+    }
     const ctx = privacyCtxFrom(request);
     return reply.code(200).send(privacyStore.getConsent(ctx));
   });
@@ -1610,6 +2299,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // aucune exécution ici (statut `received`).
   app.post("/v1/privacy/rights-requests", async (request, reply) => {
     const body = rightsRequestOpenBody.parse(request.body);
+    if (pool && realPrivacy) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const groupId = await privacySubjectGroup(pool, identityId);
+      if (!groupId) {
+        throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Aucune adhésion active pour ce sujet");
+      }
+      const ctx = realPrivacyCtxFrom(identityId, now());
+      return reply.code(201).send(await realPrivacy.openRequest(ctx, groupId, body.requestId, body.kind));
+    }
     const ctx = privacyCtxFrom(request);
     return reply.code(201).send(privacyStore.openRequest(ctx, body.requestId, body.kind));
   });
@@ -1621,6 +2319,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     async (request, reply) => {
       const { requestId } = request.params as { requestId: string };
       const body = rightsVerificationBody.parse(request.body);
+      if (pool && realPrivacy) {
+        const identityId = await realIdentityFrom(pool, request, now);
+        const groupId = await privacyRightsGroup(pool, requestId);
+        if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande de droits introuvable");
+        const ctx = realPrivacyCtxFrom(identityId, now());
+        return reply.code(200).send(await realPrivacy.verifyRequest(ctx, groupId, requestId, body.level));
+      }
       const ctx = privacyCtxFrom(request);
       return reply.code(200).send(privacyStore.verifyRequest(ctx, requestId, body.level));
     },
@@ -1632,6 +2337,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     async (request, reply) => {
       const { requestId } = request.params as { requestId: string };
       const body = rightsRestrictionBody.parse(request.body);
+      if (pool && realPrivacy) {
+        const identityId = await realIdentityFrom(pool, request, now);
+        const groupId = await privacyRightsGroup(pool, requestId);
+        if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande de droits introuvable");
+        const ctx = realPrivacyCtxFrom(identityId, now());
+        return reply.code(200).send(await realPrivacy.restrictRequest(ctx, groupId, requestId, body.reason));
+      }
       const ctx = privacyCtxFrom(request);
       return reply.code(200).send(privacyStore.restrictRequest(ctx, requestId, body.reason));
     },
@@ -1641,6 +2353,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // doit appartenir au caller (sinon 404) ; vérification insuffisante ⇒ 403.
   app.post("/v1/privacy/rights-requests/:requestId/export", async (request, reply) => {
     const { requestId } = request.params as { requestId: string };
+    if (pool && realPrivacy) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const groupId = await privacyRightsGroup(pool, requestId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande de droits introuvable");
+      const ctx = realPrivacyCtxFrom(identityId, now());
+      return reply.code(201).send(await realPrivacy.executeExport(ctx, groupId, requestId));
+    }
     const ctx = privacyCtxFrom(request);
     return reply.code(201).send(privacyStore.executeExport(ctx, requestId));
   });
@@ -1649,12 +2368,24 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // tombstone et retire l'identité du service cœur.
   app.post("/v1/privacy/rights-requests/:requestId/erasure", async (request, reply) => {
     const { requestId } = request.params as { requestId: string };
+    if (pool && realPrivacy) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const groupId = await privacyRightsGroup(pool, requestId);
+      if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande de droits introuvable");
+      const ctx = realPrivacyCtxFrom(identityId, now());
+      return reply.code(200).send(await realPrivacy.executeErasure(ctx, groupId, requestId));
+    }
     const ctx = privacyCtxFrom(request);
     return reply.code(200).send(privacyStore.executeErasure(ctx, requestId));
   });
 
   // Point de restauration (18.10) : instantané des identités visibles.
   app.post("/v1/privacy/restore-points", async (request, reply) => {
+    if (pool && realPrivacy) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realPrivacyCtxFrom(identityId, now());
+      return reply.code(201).send(await realPrivacy.snapshotRestorePoint(ctx));
+    }
     const ctx = privacyCtxFrom(request);
     return reply.code(201).send(privacyStore.snapshotRestorePoint(ctx));
   });
@@ -1663,6 +2394,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // identité effacée après le point reste invisible (deleted_identity_visible false).
   app.post("/v1/privacy/restorations", async (request, reply) => {
     const body = restorationBody.parse(request.body);
+    if (pool && realPrivacy) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      const ctx = realPrivacyCtxFrom(identityId, now());
+      return reply.code(200).send(await realPrivacy.restoreLatest(ctx, body.probeIdentityId));
+    }
     const ctx = privacyCtxFrom(request);
     return reply.code(200).send(privacyStore.restoreLatest(ctx, body.probeIdentityId));
   });

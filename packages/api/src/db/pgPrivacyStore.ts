@@ -13,17 +13,16 @@
  * mêmes raisons déjà documentées dans pgContributionStore.ts/pgSupportStore.ts
  * (le groupe doit être connu AVANT toute lecture scopée RLS).
  *
- * Écart assumé (limite de schéma, pas une simulation) : la migration 0016 ne
- * pose AUCUNE table de stockage durable pour un "point de restauration"
- * (`RestorePoint`) — seul `data_erasure_tombstone` (réel, append-only) et
- * `membership`/`identity` (réels, migration 0004) existent. `snapshotRestorePoint`
- * calcule donc un point RÉEL (lecture réelle de l'appartenance active +
- * tombstones réels) mais ne le persiste pas lui-même entre deux appels
- * serveur distincts : l'appelant doit conserver la valeur retournée et la
- * repasser à `restoreLatest` (signature volontairement différente du
- * contrat fictif, qui relisait un point mémorisé en interne). Documenté
- * explicitement plutôt que fabriqué avec une table inventée hors du
- * périmètre autorisé (aucune nouvelle migration).
+ * Écart de schéma COMBLÉ par la migration 0021_privacy_restore_points.sql : un
+ * point de restauration (`RestorePoint`) est désormais PERSISTÉ dans la table
+ * append-only `restore_point` (taken_at, identities). `snapshotRestorePoint`
+ * calcule un point RÉEL (lecture réelle de l'appartenance active + tombstones
+ * réels, via les fonctions SECURITY DEFINER ÉTROITES de 0020 — `membership`/
+ * `identity_access` portent une RLS qui rend une lecture directe silencieusement
+ * vide) PUIS l'enregistre ; `restoreLatest` relit le DERNIER point enregistré —
+ * jamais une valeur fournie par l'appelant (contrat identique au store fictif,
+ * qui relisait un point mémorisé en interne). La colonne
+ * `rights_request.version` (monotone, contrat HTTP) est posée par 0020.
  */
 import type pg from "pg";
 import {
@@ -210,10 +209,11 @@ export class PgPrivacyStore {
       identityId,
     ]);
     if (erasedRes.rows.length > 0) return false;
-    const res = await this.pool.query(`SELECT 1 FROM membership WHERE identity_id = $1 AND state = 'active' LIMIT 1`, [
-      identityId,
-    ]);
-    return res.rows.length > 0;
+    // `membership` porte une RLS par groupe (0001) : une lecture directe sans
+    // `kombe.group_id` ne voit RIEN. La fonction SECURITY DEFINER étroite
+    // (0020) répond la seule question posée — adhésion active, oui/non.
+    const res = await this.pool.query(`SELECT kombe_privacy_is_active_member($1) AS active`, [identityId]);
+    return res.rows[0]?.active === true;
   }
 
   private async consentView(state: ConsentState): Promise<ConsentView> {
@@ -253,7 +253,7 @@ export class PgPrivacyStore {
   ): Promise<{ request: RightsRequest; version: number }> {
     const res = await client.query(
       `SELECT request_id, subject_identity_id, kind, status, verification_level, required_verification,
-              restriction_reason, opened_at, updated_at
+              restriction_reason, opened_at, updated_at, version
        FROM rights_request WHERE request_id = $1 FOR UPDATE`,
       [requestId],
     );
@@ -272,9 +272,7 @@ export class PgPrivacyStore {
       updatedAt: Math.floor(new Date(row.updated_at as string).getTime() / 1000),
       restrictionReason: row.restriction_reason,
     };
-    // version tracked via updated_at monotonicity in schema; this store tracks
-    // an explicit counter client-side via a dedicated column read:
-    return { request, version: Number(row.version ?? 1) };
+    return { request, version: Number(row.version) };
   }
 
   async openRequest(ctx: PrivacyContext, groupId: string, requestId: string, kind: string): Promise<RightsRequestView> {
@@ -402,22 +400,36 @@ export class PgPrivacyStore {
 
   /* --- 18.10 restauration --- */
 
-  /** Calcule un point RÉEL (lecture réelle de `membership`+`data_erasure_tombstone`).
-   *  Voir limite de schéma documentée en tête de fichier : non persisté ici. */
+  /** Calcule un point RÉEL (lecture réelle des identités actives via la
+   *  fonction SECURITY DEFINER étroite 0020 — `membership` porte une RLS par
+   *  groupe qui rend une lecture directe silencieusement vide) et le PERSISTE
+   *  (restore_point, 0021) : la restauration relit le dernier point
+   *  enregistré, jamais une valeur fournie par l'appelant. */
   async snapshotRestorePoint(ctx: PrivacyContext): Promise<RestorePoint> {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
-    const res = await this.pool.query(
-      `SELECT DISTINCT m.identity_id FROM membership m
-       LEFT JOIN data_erasure_tombstone t ON t.identity_id = m.identity_id
-       WHERE m.state = 'active' AND t.identity_id IS NULL`,
-    );
-    return { takenAt: ctx.serverNow, identities: res.rows.map((r) => String(r.identity_id)) };
+    const res = await this.pool.query(`SELECT identity_id FROM kombe_privacy_active_identities()`);
+    const point: RestorePoint = { takenAt: ctx.serverNow, identities: res.rows.map((r) => String(r.identity_id)) };
+    await this.pool.query(`INSERT INTO restore_point (taken_at, identities) VALUES ($1,$2)`, [
+      new Date(ctx.serverNow * 1000),
+      point.identities,
+    ]);
+    return point;
   }
 
-  /** Écart de signature assumé (voir en-tête) : `point` est passé explicitement
-   *  (pas relu d'un stockage interne, qui n'existe pas dans le schéma 0016). */
-  async restoreLatest(ctx: PrivacyContext, point: RestorePoint, probeIdentityId: string): Promise<RestoreReceipt> {
+  /** Relit le DERNIER point persisté (0021) — même contrat que le store
+   *  fictif : aucun point → RESERVATION_INCOHERENTE. Réapplique effacements
+   *  ET révocations ; une identité effacée après le point reste invisible. */
+  async restoreLatest(ctx: PrivacyContext, probeIdentityId: string): Promise<RestoreReceipt> {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
+    const pointRes = await this.pool.query(
+      `SELECT taken_at, identities FROM restore_point ORDER BY point_id DESC LIMIT 1`,
+    );
+    const pointRow = pointRes.rows[0];
+    if (!pointRow) throw new DomainError("RESERVATION_INCOHERENTE", "Aucun point de restauration");
+    const point: RestorePoint = {
+      takenAt: Math.floor(new Date(pointRow.taken_at as string).getTime() / 1000),
+      identities: pointRow.identities as string[],
+    };
     const tombRes = await this.pool.query(`SELECT identity_id, erased_at FROM data_erasure_tombstone`);
     const tombstones: Tombstone[] = tombRes.rows.map((r) => ({
       identityId: String(r.identity_id),
@@ -425,10 +437,9 @@ export class PgPrivacyStore {
     }));
     // Révocations : ce schéma n'a pas de table de révocation d'accès dédiée
     // hors `identity_access.state` (C02) — on considère "révoqué" un membre
-    // dont l'état d'accès n'est plus actif, lu en réel.
-    const revokedRes = await this.pool.query(
-      `SELECT identity_id FROM identity_access WHERE state <> 'active'`,
-    );
+    // dont l'état d'accès n'est plus actif, lu en réel via la fonction
+    // SECURITY DEFINER étroite (0020 ; identity_access est self-scope RLS).
+    const revokedRes = await this.pool.query(`SELECT identity_id FROM kombe_privacy_revoked_identities()`);
     const revokedIds = revokedRes.rows.map((r) => String(r.identity_id));
     const out = restoreFromPoint(point, tombstones, revokedIds);
     return {
