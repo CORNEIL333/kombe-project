@@ -64,6 +64,7 @@ REVOKE UPDATE, DELETE ON support_access_approver FROM kombe_app;
 REVOKE UPDATE, DELETE ON export_manifest FROM kombe_app;
 REVOKE UPDATE, DELETE ON legal_notice FROM kombe_app;
 REVOKE UPDATE, DELETE ON data_erasure_tombstone FROM kombe_app;
+REVOKE UPDATE, DELETE ON restore_point FROM kombe_app;
 REVOKE UPDATE, DELETE ON analytics_event FROM kombe_app;
 REVOKE UPDATE, DELETE ON unit_economics_snapshot FROM kombe_app;
 REVOKE INSERT, UPDATE, DELETE ON internal_notification, notification_delivery FROM kombe_app;

@@ -56,6 +56,8 @@ const UP_MIGRATIONS = [
   "migrations/0017_pilot_metrics.sql",
   "migrations/0018_session_resolver.sql",
   "migrations/0019_token_security.sql",
+  "migrations/0020_group_resolvers.sql",
+  "migrations/0021_privacy_restore_points.sql",
   "provision/roles.sql",
 ];
 
