@@ -238,8 +238,8 @@ export class PgContributionStore {
       await client.query(
         `INSERT INTO contribution
            (contribution_id, group_id, obligation_id, declared_amount, state, version,
-            channel, reference, justification, alleged_date, server_date)
-         VALUES ($1,$2,$3,$4,'declared',1,$5,$6,$7,$8,$9)`,
+            channel, reference, justification, alleged_date, server_date, declarant_identity_id)
+         VALUES ($1,$2,$3,$4,'declared',1,$5,$6,$7,$8,$9,$10)`,
         [
           contributionId,
           ob.groupId,
@@ -250,6 +250,11 @@ export class PgContributionStore {
           decl.justification ?? null,
           decl.allegedDate,
           ctx.serverDate,
+          // Indispensable à l'indépendance déclarant/confirmateur (6.3, 6.4,
+          // ADR-0018) : sans cette colonne posée, PgValidationStore/
+          // PgDisputeStore ne pourraient jamais détecter un auto-confirmateur
+          // (NULL != identifiant acteur est toujours vrai côté applicatif).
+          ctx.actorIdentityId,
         ],
       );
 
