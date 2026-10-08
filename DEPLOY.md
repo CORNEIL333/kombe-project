@@ -110,3 +110,61 @@ H00 sur un service PostgreSQL 16.
 Ces points sont des **jalons planifiés**, pas des zones floues : les portes G0
 exigent la persistance + preuves base réelle vertes avant toute mise en service
 du registre comme source de vérité.
+
+## 6. Sauvegarde et restauration (§23/§24)
+
+Procédure **hôte-agnostique** : elle ne suppose ni Neon ni Docker, uniquement un
+PostgreSQL 16+ joignable et le rôle propriétaire. Aucun PASS n'est déclaré pour
+son exécution tant qu'elle n'a pas tournée réellement — voir statut ci-dessous.
+
+### 6.1 Sauvegarde (quotidienne, rétention 30 jours)
+
+Dump **custom format** (compressé, parallélisable à la restauration) avec la base
+complète (schéma + données) : le schéma versionné du dépôt reste la référence des
+migrations, le dump est la protection contre la perte de données.
+
+```bash
+# KOMBE_DATABASE_URL = rôle propriétaire de la base de déploiement
+pg_dump "$KOMBE_DATABASE_URL" --format=custom --file="kombe-$(date +%F).dump"
+# Conservation : 30 générations, stockage hors site (S3-compatible) chiffré.
+```
+
+Sur **Neon**, les sauvegardes managées/PITR dépendent du plan souscrit : ne pas
+s'en remettre sans confirmation écrite du plan — la procédure `pg_dump` ci-dessus
+reste valable quoi qu'il arrive et en constitue le filet de sécurité minimal.
+
+### 6.2 Vérification de la sauvegarde (mensuelle, obligatoire)
+
+Une sauvegarde non restaurée est un espoir, pas une preuve. Une fois par mois :
+
+```bash
+createdb kombe_restore_check
+pg_restore --dbname="kombe_restore_check" "kombe-$(date +%F).dump" --exit-on-error
+# Contrôle d'intégrité : les jalons doivent être présents et le schéma complet.
+psql kombe_restore_check -c "SELECT count(*) FROM kombe_migration"   # 25 jalons
+psql kombe_restore_check -c "SELECT count(*) FROM journal"           # données
+dropdb kombe_restore_check
+```
+
+### 6.3 Restauration (incident)
+
+```bash
+# 1. Nouvelle base vierge (ou base existante vidée — jamais en production sans GO explicite).
+createdb kombe_restored
+# 2. Restaurer le dump.
+pg_restore --dbname="kombe_restored" "kombe-YYYY-MM-DD.dump" --exit-on-error
+# 3. Ré-appliquer le runner : idempotent via la table de jalons (skip de l'appliqué).
+KOMBE_DATABASE_URL="…/kombe_restored" node packages/db/scripts/migrate.mjs migrate
+# 4. Basculer KOMBE_API_DATABASE_URL vers kombe_restored, redémarrer l'API,
+#    vérifier : GET /v1/health/ready → {"status":"ready","mode":"réel"}.
+```
+
+### 6.4 Statut d'exécution
+
+- **Authorship** : procédure rédigée et relue (ce document).
+- **Exécution réelle** : **BLOCKED_EXTERNAL** sur cet hôte — ni Docker ni binaire
+  PostgreSQL (`pg_dump`/`pg_restore`/`createdb` absents) ; l'installation de
+  logiciels est hors mandat (§39). EXACT ACTION REQUIRED : exécuter 6.1 puis 6.2
+  sur l'hôte de déploiement (ou tout hôte disposant des outils PostgreSQL 16+ et
+  de `KOMBE_DATABASE_URL`). AFTER ACTION : coller le verdict réel dans le rapport
+  §41 et faire évoluer `RELEASE_READINESS.md`.
