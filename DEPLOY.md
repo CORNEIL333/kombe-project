@@ -216,22 +216,31 @@ quand le propriétaire crée le projet séparé.
    instance chaude** (`packages/api/src/httpGuards.ts`) — borne molle, pas un
    plafond global ; `maxDuration` 10 s par défaut (suffisant au pilote).
 
-### 7.3 Dashboards — Cloudflare Pages (opérations, direction, engineering)
+### 7.3 Dashboards — Cloudflare Workers Static Assets (opérations, direction, engineering)
 
-Un projet Pages **par dashboard**, paramètres identiques sauf le filtre :
-- Root Directory : racine du dépôt ; Build command :
-  `pnpm --filter @kombe/dashboard-operations... run build`
-  (resp. `@kombe/dashboard-direction`, `@kombe/dashboard-engineering`)
-- Output Directory : `apps/dashboard-operations/dist` (resp.)
-- Variable d'environnement : `NODE_VERSION=22`.
-- **Avant le premier build** : éditer
-  `apps/dashboard-<x>/public/kombe-dashboard-config.json` →
-  `{"apiBaseUrl":"https://<api>.vercel.app"}` puis commit + push. Ce fichier est
-  fetché au démarrage par `dashboard-core` (`loadRuntimeConfig`) et embarqué tel
-  quel par le build ; `VITE_KOMBE_API_BASE_URL` (env de build) n'est que le
-  repli si le fichier venait à manquer — le fichier gagne toujours.
-- L'URL publique est `https://<projet>.pages.dev` ; l'ajouter à
-  `KOMBE_CORS_ORIGINS` (§7.2) et redeploy l'API.
+Décision 2026-10-08 : hébergement sur **Workers Static Assets** (et non Pages) —
+le token Cloudflare fourni n'a aucun droit Pages ni d'écriture Workers à ce
+jour ; voie retenue validée par le propriétaire. Équivalence fonctionnelle avec
+Pages (SPA servie en HTTPS, URL publique `*.workers.dev`).
+
+Un **Worker par dashboard** (`apps/dashboard-<x>/wrangler.toml`, assets-only,
+fallback SPA pour le routage client) :
+- Build local : `pnpm --filter @kombe/dashboard-<x>... run build` →
+  `apps/dashboard-<x>/dist` (Vite). Le fichier
+  `apps/dashboard-<x>/public/kombe-dashboard-config.json` est embarqué tel quel ;
+  il est fetché au démarrage par `dashboard-core` (`loadRuntimeConfig`) — le
+  fichier gagne toujours, `VITE_KOMBE_API_BASE_URL` n'est que le repli.
+- Déploiement (wrangler ≥ 4, authentifié par `CLOUDFLARE_API_TOKEN` +
+  `CLOUDFLARE_ACCOUNT_ID`) :
+  ```bash
+  cd apps/dashboard-<x> && npx wrangler@4 deploy
+  ```
+- L'URL publique est `https://kombe-dashboard-<x>.<subdomaine>.workers.dev` ;
+  l'ajouter à `KOMBE_CORS_ORIGINS` (§7.2) et redeploy l'API.
+- Statut 2026-10-08 : builds des 3 dashboards **PASS** (exécutés), configs
+  pointées vers `https://kombe-api.vercel.app`, wrangler.toml versionnés ;
+  déploiement **BLOCKED_EXTERNAL** — token Cloudflare lecture seule
+  (§41 rapport, action exacte : token avec « Cloudflare Workers : Modifier »).
 
 ### 7.4 PWA (Flutter web) — Vercel
 
@@ -268,13 +277,15 @@ manuel `deploy-pwa-vercel`, image Flutter stable) puis `vercel deploy --prod`.
 
 1. **Vercel** : compte (Hobby gratuit) + créer 3 projets (API, PWA, admin) +
    token (`VERCEL_TOKEN`) pour la CI.
-2. **Cloudflare** : compte (gratuit) + 3 projets Pages (opérations, direction,
-   engineering).
+2. **Cloudflare** : compte (gratuit) + token avec permission **« Cloudflare
+   Workers : Modifier »** (Account) — le token « round-smoke-d372 » fourni le
+   2026-10-08 est lecture seule (aucun droit Pages ni écriture Workers) ;
+   révoquer l'ancien après remplacement.
 3. **Neon** : ~~créer projet~~ fait (base `kombe_prod`, §7.1) ; reste **optionnel** :
    projet dédié + bascule `pg_dump`/`pg_restore` (§6.3) pour un compute
    production isolé des preuves.
 4. **Domaines publics (J+3..J+5)** : DNS CNAME des domaines définitifs vers
-   Vercel (API/PWA/admin) et Cloudflare Pages (dashboards) ; puis mettre à jour
+   Vercel (API/PWA/admin) et Cloudflare Workers (dashboards) ; puis mettre à jour
    `KOMBE_CORS_ORIGINS` + les 4 `kombe-dashboard-config.json` avec les domaines
    définitifs, redeploy API + dashboards. En attendant, les URL
    `*.vercel.app` / `*.pages.dev` suffisent (HTTPS inclus).
