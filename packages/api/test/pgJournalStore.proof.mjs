@@ -72,8 +72,10 @@ try {
     DO $$ BEGIN
       UPDATE "group" SET state = 'closed'
         WHERE state NOT IN ('configuration','active','paused','closed');
+      -- 'executed' (C09) est terminal : conversion -> closed par 0012.down
+      -- (apres son DROP TRIGGER) ; ici le trigger vote_transition est actif.
       UPDATE vote SET state = 'closed'
-        WHERE state NOT IN ('open','closed','cancelled');
+        WHERE state NOT IN ('open','closed','cancelled','executed');
       DELETE FROM verification_token WHERE purpose NOT IN ('registration','recovery');
     EXCEPTION WHEN undefined_table THEN NULL;
     END $$;

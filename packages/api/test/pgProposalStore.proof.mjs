@@ -95,8 +95,16 @@ try {
     DO $$ BEGIN
       UPDATE "group" SET state = 'closed'
         WHERE state NOT IN ('configuration','active','paused','closed');
+      -- 'executed' (C09) est terminal : conversion -> closed par 0012.down
+      -- (apres son DROP TRIGGER) ; ici le trigger vote_transition est actif.
       UPDATE vote SET state = 'closed'
-        WHERE state NOT IN ('open','closed','cancelled');
+        WHERE state NOT IN ('open','closed','cancelled','executed');
+      -- 0019.down ré-ajoute la vérification étroite purpose IN
+      -- ('registration','recovery') ; des jetons 'login' résiduels d'un cycle
+      -- antérieur la violeraient au DOWN. Nettoyage dans le harness (jamais
+      -- dans les migrations) : cf. leçon « demote residual states pre-DOWN ».
+      DELETE FROM verification_token
+        WHERE purpose NOT IN ('registration','recovery');
     EXCEPTION WHEN undefined_table THEN NULL;
     END $$;
   `);
