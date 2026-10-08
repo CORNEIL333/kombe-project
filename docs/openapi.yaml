@@ -20,9 +20,13 @@ info:
 servers:
   - url: /v1
 security:
-  - sessionCookie: []
+  - bearerAuth: []
 
 tags:
+  - name: ops
+    description: Santé d'exploitation (liveness/readiness) — DÉPLOIEMENT
+  - name: access
+    description: Inscription, vérification de canal, récupération, connexion réelle et privilège opérateur (C02)
   - name: commands
     description: Suivi asynchrone des commandes (reprise, idempotence)
   - name: groups
@@ -74,21 +78,6 @@ tags:
       (C18, 16.1–16.3, 18.13)
 
 paths:
-  /commands/{commandId}:
-    get:
-      tags: [commands]
-      operationId: getCommand
-      summary: État d'une commande soumise (reprise) — A19
-      parameters:
-        - $ref: "#/components/parameters/CommandId"
-      responses:
-        "200":
-          description: Reçu de commande
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CommandReceipt" }
-        "404": { $ref: "#/components/responses/NotFound" }
-
   /groups:
     post:
       tags: [groups]
@@ -130,27 +119,6 @@ paths:
               schema: { $ref: "#/components/schemas/Membership" }
         "409": { $ref: "#/components/responses/Conflict" }
 
-  /groups/{groupId}/role-nominations:
-    post:
-      tags: [roles]
-      operationId: nominateRoles
-      summary: Le créateur PROPOSE une liste de fonctions (A19)
-      parameters:
-        - $ref: "#/components/parameters/GroupId"
-        - $ref: "#/components/parameters/IdempotencyKey"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/RoleNominationRequest" }
-      responses:
-        "201":
-          description: Nomination créée
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/RoleNomination" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
   /role-nominations/{nominationId}/acceptances:
     post:
       tags: [roles]
@@ -168,27 +136,6 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/RoleNomination" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /groups/{groupId}/role-change-requests:
-    post:
-      tags: [roles]
-      operationId: requestRoleChange
-      summary: Demande de changement de rôle après démarrage (A19)
-      parameters:
-        - $ref: "#/components/parameters/GroupId"
-        - $ref: "#/components/parameters/IdempotencyKey"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/RoleChangeRequest" }
-      responses:
-        "201":
-          description: Demande créée (circuit approbateur distinct)
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/RoleChangeRequest" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
   /role-change-requests/{requestId}/approvals:
@@ -212,27 +159,6 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
-  /groups/{groupId}/rules/acceptances:
-    post:
-      tags: [rules]
-      operationId: acceptRules
-      summary: Accepter la version de règles en vigueur (snapshot immuable)
-      parameters:
-        - $ref: "#/components/parameters/GroupId"
-        - $ref: "#/components/parameters/IdempotencyKey"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [rulesVersion]
-              properties:
-                rulesVersion: { type: integer, minimum: 1 }
-      responses:
-        "200": { description: Acceptation enregistrée }
-        "409": { $ref: "#/components/responses/Conflict" }
-
   /groups/{groupId}/contributions:
     post:
       tags: [contributions]
@@ -250,27 +176,6 @@ paths:
       responses:
         "201":
           description: Déclaration enregistrée
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Contribution" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /contributions/{contributionId}/validations:
-    post:
-      tags: [contributions]
-      operationId: validateContribution
-      summary: Valider une cotisation (trésorier ; validation par rôle unique)
-      parameters:
-        - name: contributionId
-          in: path
-          required: true
-          schema: { type: string }
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/ExpectedVersion"
-      responses:
-        "200":
-          description: Cotisation validée
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Contribution" }
@@ -466,89 +371,6 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Unprocessable" }
 
-  /disputes/{disputeId}/reopenings:
-    post:
-      tags: [disputes]
-      operationId: reopenDispute
-      summary: Rouvrir un litige clos (A19)
-      parameters:
-        - name: disputeId
-          in: path
-          required: true
-          schema: { type: string }
-        - $ref: "#/components/parameters/IdempotencyKey"
-      responses:
-        "200": { description: Litige rouvert }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /disbursements/{disbursementId}/reversal-requests:
-    post:
-      tags: [disbursements]
-      operationId: requestDisbursementReversal
-      summary: Demander la réversion d'un décaissement (A19)
-      parameters:
-        - name: disbursementId
-          in: path
-          required: true
-          schema: { type: string }
-        - $ref: "#/components/parameters/IdempotencyKey"
-      responses:
-        "202":
-          description: Demande acceptée (traitement hors pot par le pilote)
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/CommandReceipt" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /disbursements/{disbursementId}/reversals:
-    post:
-      tags: [disbursements]
-      operationId: confirmDisbursementReversal
-      summary: Confirmer la réversion (A19)
-      parameters:
-        - name: disbursementId
-          in: path
-          required: true
-          schema: { type: string }
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/ExpectedVersion"
-      responses:
-        "200": { description: Réversion confirmée }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /rounds/{roundId}/closures:
-    post:
-      tags: [rounds]
-      operationId: closeRound
-      summary: Clôturer un tour (A19)
-      parameters:
-        - name: roundId
-          in: path
-          required: true
-          schema: { type: string }
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/ExpectedVersion"
-      responses:
-        "200": { description: Tour clôturé }
-        "409": { $ref: "#/components/responses/Conflict" }
-
-  /groups/{groupId}/export:
-    get:
-      tags: [exports]
-      operationId: exportGroup
-      summary: Export privé filtré (anti-injection CSV, pas de PII inutile)
-      parameters:
-        - $ref: "#/components/parameters/GroupId"
-      responses:
-        "200":
-          description: Export CSV filtré
-          content:
-            text/csv:
-              schema: { type: string }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  # ── C03 — gouvernance des groupes (cycle de vie, amorçage, invitations, règles) ──
-  # NB : POST /groups (création en configuration) est déjà défini dans le socle C00.
   /groups/{groupId}/cycle-readiness:
     get:
       tags: [governance]
@@ -1858,7 +1680,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Unprocessable" }
 
-  /v1/privacy/notices:
+  /privacy/notices:
     post:
       tags: [privacy]
       summary: Publier une notice légale versionnée (13.1, 13.2)
@@ -1881,7 +1703,7 @@ paths:
               schema: { $ref: "#/components/schemas/LegalNoticeView" }
         "422": { $ref: "#/components/responses/Unprocessable" }
 
-  /v1/privacy/notices/{noticeId}:
+  /privacy/notices/{noticeId}:
     get:
       tags: [privacy]
       summary: Lire une notice légale
@@ -1898,7 +1720,7 @@ paths:
               schema: { $ref: "#/components/schemas/LegalNoticeView" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  /v1/privacy/processing-records:
+  /privacy/processing-records:
     post:
       tags: [privacy]
       summary: Enregistrer un traitement au registre (13.3)
@@ -1920,7 +1742,7 @@ paths:
               schema: { $ref: "#/components/schemas/ProcessingRecordView" }
         "422": { $ref: "#/components/responses/Unprocessable" }
 
-  /v1/privacy/consents:
+  /privacy/consents:
     post:
       tags: [privacy]
       summary: Accorder/retirer un consentement facultatif (13.4)
@@ -1957,7 +1779,7 @@ paths:
               schema: { $ref: "#/components/schemas/ConsentView" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
-  /v1/privacy/rights-requests:
+  /privacy/rights-requests:
     post:
       tags: [privacy]
       summary: Ouvrir une demande de droit (18.19)
@@ -1980,7 +1802,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Unprocessable" }
 
-  /v1/privacy/rights-requests/{requestId}/verifications:
+  /privacy/rights-requests/{requestId}/verifications:
     post:
       tags: [privacy]
       summary: Enregistrer un niveau de vérification proportionnée (18.19)
@@ -2007,7 +1829,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Unprocessable" }
 
-  /v1/privacy/rights-requests/{requestId}/restrictions:
+  /privacy/rights-requests/{requestId}/restrictions:
     post:
       tags: [privacy]
       summary: Geler/restreindre une demande pour un motif documenté (18.19)
@@ -2031,7 +1853,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/Unprocessable" }
 
-  /v1/privacy/rights-requests/{requestId}/export:
+  /privacy/rights-requests/{requestId}/export:
     post:
       tags: [privacy]
       summary: Exécuter un export personnel FILTRÉ (C16-EXPORT, 18.19)
@@ -2055,7 +1877,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  /v1/privacy/rights-requests/{requestId}/erasure:
+  /privacy/rights-requests/{requestId}/erasure:
     post:
       tags: [privacy]
       summary: Exécuter un effacement après vérification (18.10)
@@ -2077,7 +1899,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  /v1/privacy/restore-points:
+  /privacy/restore-points:
     post:
       tags: [privacy]
       summary: Prendre un point de restauration (18.10)
@@ -2091,7 +1913,7 @@ paths:
               schema: { $ref: "#/components/schemas/RestorePointView" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
-  /v1/privacy/restorations:
+  /privacy/restorations:
     post:
       tags: [privacy]
       summary: Restaurer en réappliquant effacements ET révocations (C16-RESTORE)
@@ -2116,7 +1938,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  /v1/metrics/analytics/events:
+  /metrics/analytics/events:
     post:
       tags: [metrics]
       summary: Journaliser un événement d'analytics pseudonymisé (16.1)
@@ -2140,7 +1962,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Unprocessable" }
 
-  /v1/metrics/analytics/funnel/{cohortId}:
+  /metrics/analytics/funnel/{cohortId}:
     get:
       tags: [metrics]
       summary: Entonnoir d'une cohorte, sans champ financier individuel (16.1)
@@ -2167,7 +1989,7 @@ paths:
               schema: { $ref: "#/components/schemas/AnalyticsFunnelView" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
-  /v1/metrics/cohorts:
+  /metrics/cohorts:
     post:
       tags: [metrics]
       summary: Créer/mettre à jour une cohorte de pilote (18.13)
@@ -2191,7 +2013,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Unprocessable" }
 
-  /v1/metrics/cohorts/{groupId}:
+  /metrics/cohorts/{groupId}:
     get:
       tags: [metrics]
       summary: Lire une cohorte (18.13)
@@ -2207,7 +2029,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  /v1/metrics/economics:
+  /metrics/economics:
     post:
       tags: [metrics]
       summary: Économie unitaire — paiement réel vs promesse, porte G2 (16.2)
@@ -2231,7 +2053,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/Unprocessable" }
 
-  /v1/metrics/risks:
+  /metrics/risks:
     post:
       tags: [metrics]
       summary: Enregistrer un risque au registre du pilote (16.3)
@@ -2268,7 +2090,7 @@ paths:
                 items: { $ref: "#/components/schemas/RiskView" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
-  /v1/metrics/extension-check:
+  /metrics/extension-check:
     post:
       tags: [metrics]
       summary: Contrôle d'extension du pilote (16.3)
@@ -2303,16 +2125,280 @@ paths:
               schema: { $ref: "#/components/schemas/ExtensionStatusView" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /health:
+    get:
+      tags: [ops]
+      operationId: getHealth
+      summary: Santé générique (alias docker-compose) — sonde PostgreSQL en mode réel
+      description: >
+        Mode réel : 200 uniquement si PostgreSQL est joignable (SELECT 1),
+        sinon 503 « degraded ». Mode fictif : « ok » honnête sans base.
+      responses:
+        "200":
+          description: API opérationnelle.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthView" }
+        "503":
+          description: Mode réel et PostgreSQL injoignable (dégradé).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /health/live:
+    get:
+      tags: [ops]
+      operationId: getLiveness
+      summary: Liveness — le process répond
+      responses:
+        "200":
+          description: Process vivant.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthView" }
+
+  /health/ready:
+    get:
+      tags: [ops]
+      operationId: getReadiness
+      summary: Readiness — en mode réel, vérifie réellement PostgreSQL (jamais une constante)
+      responses:
+        "200":
+          description: Prêt à servir (mode réel, PostgreSQL joignable ; mode fictif, prêt sans base).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HealthView" }
+        "503":
+          description: Mode réel et PostgreSQL injoignable.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /access/registrations:
+    post:
+      tags: [access]
+      operationId: requestRegistration
+      summary: Demande d'inscription — réponse anti-énumération 202 uniforme (1.1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegistrationRequest" }
+      responses:
+        "202":
+          description: Demande acceptée ; le code part hors bande (email/téléphone).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessReceipt" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /access/registrations/verifications:
+    post:
+      tags: [access]
+      operationId: verifyRegistration
+      summary: Vérification du canal par CODE (ADR-0024) puis activation du compte
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegistrationVerification" }
+      responses:
+        "200":
+          description: Compte activé ; état courant du compte renvoyé.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountStateView" }
+        "401": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /access/recovery-requests:
+    post:
+      tags: [access]
+      operationId: requestRecovery
+      summary: Demande de récupération — gabarit identique compte connu/inconnu (1.4)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecoveryRequest" }
+      responses:
+        "202":
+          description: "Demande acceptée (anti-énumération : même réponse dans tous les cas)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessReceipt" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /access/recovery-completions:
+    post:
+      tags: [access]
+      operationId: completeRecovery
+      summary: Achèvement de récupération — jeton à usage unique + révocation de toutes les sessions antérieures (1.4)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecoveryCompletion" }
+      responses:
+        "200":
+          description: Récupération effectuée ; génération de sessions incrémentée.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecoveryCompletionView" }
+        "401": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /access/operators/{identityId}/privilege:
+    get:
+      tags: [access]
+      operationId: getOperatorPrivilege
+      summary: Privilège opérateur RECALCULÉ serveur, jamais depuis le jeton (C02-PRIVILEGE)
+      parameters:
+        - { name: identityId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Accès opérateur courant (faux pour un compte inconnu).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OperatorPrivilegeView" }
+
+  /access/login-requests:
+    post:
+      tags: [access]
+      operationId: requestLogin
+      summary: Demande de connexion RÉELLE (ADR-0024) — active seulement en mode réel
+      description: >
+        N'existe pas en mode fictif. Réponse anti-énumération 202 uniforme ;
+        le code part hors bande uniquement si le compte est actif.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "202":
+          description: Demande acceptée (anti-énumération).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessReceipt" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /access/login-completions:
+    post:
+      tags: [access]
+      operationId: completeLogin
+      summary: Achèvement de connexion RÉELLE — sessionId généré serveur, jamais fourni par le client
+      description: >
+        N'existe pas en mode fictif. Le `sessionId` opaque retourné se présente
+        ensuite en `Authorization: Bearer <sessionId>`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginCompletion" }
+      responses:
+        "201":
+          description: Session établie.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionView" }
+        "401": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/mutations:
+    post:
+      tags: [governance]
+      operationId: attemptGroupMutation
+      summary: Sonde de mutation gardée par adhésion active + groupe mutable (C03-REVOKE)
+      description: >
+        En mode réel, l'identité sondée est l'ACTEUR résolu depuis la session
+        Bearer : le `identityId` du corps est validé puis ignoré (§14 — le
+        client ne choisit jamais son identité métier).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IdentityIdBody" }
+      responses:
+        "200":
+          description: Mutation acceptée.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupMutationReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/contribution-declarations:
+    post:
+      tags: [contributions]
+      operationId: declareGroupContribution
+      summary: Déclaration de cotisation — refusée sans acceptation des règles en vigueur
+      description: >
+        En mode réel, le déclarant testé est l'ACTEUR résolu depuis la session
+        Bearer : le `identityId` du corps est validé puis ignoré (§14).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IdentityIdBody" }
+      responses:
+        "200":
+          description: Déclaration admise (règles courantes acceptées par l'acteur).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContributionDeclarationReceipt" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/journal-tamper-tests:
+    post:
+      tags: [journal]
+      operationId: testJournalTamper
+      summary: C11-TAMPER — altère une COPIE du journal et la soumet au vérificateur
+      description: >
+        Lecture seule en mode réel : seule la copie fournie change, la chaîne
+        interne réelle reste intacte (re-vérification immédiate exigée à vrai).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [seq, amount]
+              properties:
+                seq: { type: integer, minimum: 1 }
+                amount: { type: integer, minimum: 0, maximum: 9007199254740991 }
+      responses:
+        "200":
+          description: Détection constatée sur la copie ; chaîne interne intacte.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TamperTestView" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+
 components:
   securitySchemes:
-    sessionCookie:
-      type: apiKey
-      in: cookie
-      name: kombe_session
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: sessionId
       description: |
-        Cookie de session HttpOnly/SameSite, contrôles CSRF et CORS fermé
-        (même origine). Les règles de groupe sont évaluées côté serveur, jamais
-        depuis un JWT durable de confiance (ARCHITECTURE_CIBLE §Frontières).
+        Session KÓMBE : en-tête `Authorization: Bearer <sessionId>` où
+        `sessionId` est un identifiant opaque généré serveur (haute entropie,
+        ADR-0024), jamais un JWT durable de confiance. Le sessionId est obtenu
+        par `POST /access/login-completions` (code reçu hors bande) ; l'identité
+        métier est ensuite résolue serveur depuis la session — le client ne
+        choisit jamais son identité et aucun en-tête `x-actor` n'existe en mode
+        réel. Les règles de groupe sont évaluées côté serveur
+        (ARCHITECTURE_CIBLE §Frontières).
 
   parameters:
     GroupId:
@@ -2704,7 +2790,11 @@ components:
       properties:
         seq: { type: integer, minimum: 1 }
         type: { type: string }
-        occurredAt: { type: string }
+        occurredAt:
+          type: string
+          description: >
+            Horodatage SERVEUR de l'événement (jamais client),
+            format ISO du journal (date « YYYY-MM-DD » ou datetime ISO).
         label: { type: string }
         summary:
           type: object
@@ -3435,6 +3525,116 @@ components:
           type: array
           items: { type: string }
           description: Identifiants des risques critiques sans contrôle effectif.
+
+    HealthView:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, ready, degraded] }
+        mode: { type: string, enum: [fictif, réel] }
+
+    RegistrationRequest:
+      type: object
+      required: [identityId, channel]
+      properties:
+        identityId: { type: string, minLength: 1, maxLength: 120 }
+        channel: { type: string, enum: [email, phone] }
+
+    RegistrationVerification:
+      type: object
+      required: [identityId, code]
+      properties:
+        identityId: { type: string, minLength: 1, maxLength: 120 }
+        code: { type: string, minLength: 4, maxLength: 20 }
+
+    RecoveryRequest:
+      type: object
+      required: [identityId]
+      properties:
+        identityId: { type: string, minLength: 1, maxLength: 120 }
+
+    RecoveryCompletion:
+      type: object
+      required: [identityId, code]
+      properties:
+        identityId: { type: string, minLength: 1, maxLength: 120 }
+        code: { type: string, minLength: 4, maxLength: 20 }
+        suspensionSeconds: { type: integer, minimum: 1, maximum: 86400 }
+
+    LoginRequest:
+      type: object
+      required: [identityId]
+      properties:
+        identityId: { type: string, minLength: 1, maxLength: 120 }
+
+    LoginCompletion:
+      type: object
+      required: [identityId, code]
+      properties:
+        identityId: { type: string, minLength: 1, maxLength: 120 }
+        code: { type: string, minLength: 4, maxLength: 20 }
+
+    AccessReceipt:
+      type: object
+      required: [accepted]
+      properties:
+        accepted: { type: boolean, enum: [true] }
+
+    AccountStateView:
+      type: object
+      required: [state]
+      properties:
+        state: { type: string, enum: [pending_verification, active, suspended, closed] }
+
+    RecoveryCompletionView:
+      type: object
+      required: [sessionGeneration, recoveryLockUntil]
+      properties:
+        sessionGeneration: { type: integer, format: int64 }
+        recoveryLockUntil: { type: integer, format: int64, nullable: true }
+
+    SessionView:
+      type: object
+      required: [sessionId, expiresAt]
+      properties:
+        sessionId: { type: string, description: Identifiant opaque généré serveur (jamais fourni par le client). }
+        expiresAt: { type: integer, format: int64, description: "Horodatage serveur (ms d'époque), jamais client." }
+
+    OperatorPrivilegeView:
+      type: object
+      required: [operator_access]
+      properties:
+        operator_access: { type: boolean }
+
+    IdentityIdBody:
+      type: object
+      required: [identityId]
+      properties:
+        identityId: { type: string, minLength: 1, maxLength: 120 }
+      description: >
+        En mode réel, l'identité du corps est IGNORÉE : l'acteur est résolu
+        serveur depuis la session Bearer (§14 — le client ne choisit jamais son
+        identité métier).
+
+    GroupMutationReceipt:
+      type: object
+      required: [mutation_accepted]
+      properties:
+        mutation_accepted: { type: boolean, enum: [true] }
+
+    ContributionDeclarationReceipt:
+      type: object
+      required: [allowed]
+      properties:
+        allowed: { type: boolean, enum: [true] }
+
+    TamperTestView:
+      type: object
+      required: [tamper_detected, error, internal_chain_intact]
+      properties:
+        tamper_detected: { type: boolean }
+        error: { type: string, nullable: true }
+        internal_chain_intact: { type: boolean }
 
   responses:
     Forbidden:

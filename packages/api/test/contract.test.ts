@@ -23,21 +23,58 @@ describe("openapi.yaml — contrat C00", () => {
     expect(doc.openapi.startsWith("3.1")).toBe(true);
   });
 
-  it("expose les routes A19 absentes du dossier v1", () => {
+  it("expose les routes A19 réellement implémentées", () => {
     const a19 = [
-      "/commands/{commandId}",
-      "/groups/{groupId}/role-nominations",
       "/role-nominations/{nominationId}/acceptances",
-      "/groups/{groupId}/role-change-requests",
       "/role-change-requests/{requestId}/approvals",
       "/proposals/{proposalId}/closures",
       "/proposals/{proposalId}/cancellations",
+    ];
+    for (const path of a19) {
+      expect(doc.paths[path], `route manquante : ${path}`).toBeDefined();
+    }
+  });
+
+  it("ne documente aucune route orpheline sans implémentation", () => {
+    // §13 : le contrat épouse le runtime. Ces routes du dossier v1 n'ont
+    // jamais eu d'implémentation server.ts ni de consommateur — elles sont
+    // retirées du contrat, jamais laissées comme vœu.
+    const orphans = [
+      "/commands/{commandId}",
+      "/groups/{groupId}/role-nominations",
+      "/groups/{groupId}/role-change-requests",
+      "/groups/{groupId}/rules/acceptances",
+      "/contributions/{contributionId}/validations",
       "/disputes/{disputeId}/reopenings",
       "/disbursements/{disbursementId}/reversal-requests",
       "/disbursements/{disbursementId}/reversals",
       "/rounds/{roundId}/closures",
+      "/groups/{groupId}/export",
     ];
-    for (const path of a19) {
+    for (const path of orphans) {
+      expect(doc.paths[path], `route orpheline documentée : ${path}`).toBeUndefined();
+    }
+  });
+
+  it("expose les routes d'exploitation et d'accès réellement implémentées", () => {
+    // §13/§18 : santé liveness/readiness et circuits d'accès C02 tels que
+    // câblés dans server.ts (Bearer session résolue serveur en mode réel).
+    const implemented = [
+      "/health",
+      "/health/live",
+      "/health/ready",
+      "/access/registrations",
+      "/access/registrations/verifications",
+      "/access/recovery-requests",
+      "/access/recovery-completions",
+      "/access/operators/{identityId}/privilege",
+      "/access/login-requests",
+      "/access/login-completions",
+      "/groups/{groupId}/mutations",
+      "/groups/{groupId}/contribution-declarations",
+      "/groups/{groupId}/journal-tamper-tests",
+    ];
+    for (const path of implemented) {
       expect(doc.paths[path], `route manquante : ${path}`).toBeDefined();
     }
   });
