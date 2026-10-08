@@ -163,7 +163,7 @@ propriétaire. Tant qu'une étape n'a pas tourné, son verdict reste PENDING
 
 | # | Étape | Plateforme | Débloque |
 |---|---|---|---|
-| 1 | Base de production + migrations (§7.1) | Neon | tout |
+| 1 | Base `kombe_prod` + migrations (§7.1) — **EXÉCUTÉ 2026-10-08** | Neon | tout |
 | 2 | API (§7.2) | Vercel | URL publique `https://<api>.vercel.app` |
 | 3 | Config dashboards → URL API (§7.3) | dépôt | builds dashboards |
 | 4 | Dashboards opérations/direction/engineering (§7.3) | Cloudflare Pages | front métier |
@@ -172,28 +172,28 @@ propriétaire. Tant qu'une étape n'a pas tourné, son verdict reste PENDING
 
 ### 7.1 Neon — base de production
 
-La base partagée de vérification (`square-resonance-19892972`) reste réservée
-aux preuves. La production exige un **projet Neon distinct** (gratuit).
+**Exécuté le 2026-10-08 (état réel, pas d'intention).** La cible initiale était un
+projet Neon séparé de la base de vérification ; le projet séparé exigeant un
+accès console/API que seul le propriétaire peut créer, la production a été posée
+dans le projet existant sous forme d'une **base dédiée `kombe_prod`**, créée par
+SQL (`CREATE DATABASE` exécuté avec succès en `neondb_owner`). Isolation réelle :
+les preuves de vérification se connectent à `neondb` / `kombe_test` et ne
+touchent jamais `kombe_prod` ; les rôles sont partagés au niveau branche, les
+données sont isolées au niveau base. Compromis assumé (compute partagé) : la
+bascule vers un projet dédié reste un `pg_dump`/`pg_restore` (§6.3), à faire
+quand le propriétaire crée le projet séparé.
 
-1. Créer le projet Neon, récupérer la chaîne du rôle principal
-   (ex. `postgresql://<principal>:<secret>@<hôte>/<base>?sslmode=require`).
-2. Migrations (n'importe quel hôte node 22 + pnpm : machine propriétaire ou CI) :
-   ```bash
-   export KOMBE_DATABASE_URL="postgresql://<principal>:<secret>@<hôte>/<base>?sslmode=require"
-   pnpm install --frozen-lockfile
-   pnpm --filter @kombe/db run migrate
-   ```
-   Le runner applique `provision/roles_create.sql` (rôles kombe_migrateur /
-   kombe_app / kombe_worker), les migrations 0001–0023, puis
-   `provision/roles.sql` (grants + DEFAULT PRIVILEGES).
-3. Activer la connexion applicative : dans l'éditeur SQL Neon (rôle principal) :
-   ```sql
-   ALTER ROLE kombe_app WITH LOGIN PASSWORD '<secret-fort>';
-   ```
-   (les rôles sont créés NOLOGIN sans secret — §15 : aucun secret dans le dépôt).
-4. Vérification réelle : `SELECT count(*) FROM kombe_migration` → **25**.
-5. La chaîne `KOMBE_API_DATABASE_URL` de l'API =
-   `postgresql://kombe_app:<secret-fort>@<hôte>/<base>?sslmode=require`.
+1. ~~Créer le projet~~ → base `kombe_prod` créée par SQL dans le projet existant
+   (rôle `neondb_owner`).
+2. Migrations exécutées réellement : `KOMBE_DATABASE_URL=…/kombe_prod pnpm
+   --filter @kombe/db run migrate` → **exit 0, 25 jalons** (rôles, migrations
+   0001–0023, `provision/roles.sql`).
+3. Connexion applicative activée : `ALTER ROLE kombe_app WITH LOGIN PASSWORD
+   '<fort>'` (mot de passe aléatoire 144 bits, enregistré hors dépôt dans
+   `.env.prod`, gitignored — §15). Vérifié en se connectant réellement en
+   `kombe_app` : 50 tables visibles, `SELECT` sur `journal` OK.
+4. La chaîne `KOMBE_API_DATABASE_URL` de l'API (Vercel) =
+   valeur de `KOMBE_PROD_API_DATABASE_URL` dans `.env.prod`.
 
 ### 7.2 API — Vercel serverless
 
@@ -270,7 +270,9 @@ manuel `deploy-pwa-vercel`, image Flutter stable) puis `vercel deploy --prod`.
    token (`VERCEL_TOKEN`) pour la CI.
 2. **Cloudflare** : compte (gratuit) + 3 projets Pages (opérations, direction,
    engineering).
-3. **Neon** : projet de production séparé (gratuit) + 2 chaînes (§7.1).
+3. **Neon** : ~~créer projet~~ fait (base `kombe_prod`, §7.1) ; reste **optionnel** :
+   projet dédié + bascule `pg_dump`/`pg_restore` (§6.3) pour un compute
+   production isolé des preuves.
 4. **Domaines publics (J+3..J+5)** : DNS CNAME des domaines définitifs vers
    Vercel (API/PWA/admin) et Cloudflare Pages (dashboards) ; puis mettre à jour
    `KOMBE_CORS_ORIGINS` + les 4 `kombe-dashboard-config.json` avec les domaines

@@ -26,6 +26,7 @@ Pages (dashboards opérations/direction/engineering). Runbook : DEPLOY.md §7.
 | §22 smoke release | `release-smoke.mjs` contre production déployée | **NON EXÉCUTÉ** — attend le déploiement (job CI `release-smoke` prêt) | — |
 | §17 vide→dernier jalon | `migrateEmptyToLatest.pg.mjs` sur base réelle | voir RELEASE_MANIFEST.json | 2026-10-08 |
 | §23/§24 backup/restore | 6.1 puis 6.2 de DEPLOY.md exécutés | **BLOCKED_EXTERNAL** (binaires PG absents de l'hôte) | — |
+| Base production Neon | DEPLOY.md §7.1 exécuté (base `kombe_prod`, 25 jalons, kombe_app vérifié) | **PASS (exécuté 2026-10-08)** — base dédiée dans le projet existant (bascule projet dédié : §6.3) | 2026-10-08 |
 | Décision hébergement | `[OPEN-D01]/[OPEN-D02]` de STACK.md | **TRANCHÉ** (2026-10-08, DEPLOY.md §4/§7) | 2026-10-08 |
 
 ## Prochaine transition
