@@ -1,4 +1,5 @@
 export * from './api/client';
+export * from './api/session';
 export * from './config/runtime';
 export { useRemote } from './hooks/useRemote';
 export * from './hooks/useMutation';
@@ -7,6 +8,7 @@ export * from './router/hashRouter';
 export * from './ui/AppShell';
 export * from './ui/Elements';
 export * from './ui/RemoteState';
+export * from './ui/SessionBar';
 export * from './ui/Forms';
 export * from './ui/Widgets';
 export * from './utils/money';

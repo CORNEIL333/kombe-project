@@ -39,20 +39,18 @@ describe("GroupAdminApi — toutes les routes passent par /v1", () => {
   });
 });
 
-describe("GroupAdminApi — actions C07/C08 portent x-actor et if-match-version", () => {
-  it("confirmContribution: version exigée, pas d'idempotency-key inventée", async () => {
+describe("GroupAdminApi — actions C07/C08 : aucun x-actor, if-match-version conservé", () => {
+  it("confirmContribution: version exigée, jamais d'en-tête x-actor", async () => {
     const calls = stubFetch();
     const api = new GroupAdminApi(new ApiClient({ baseUrl: "https://api.example.invalid" }));
-    await api.confirmContribution("grpA", "ctb_1", '{"handle":"idn_treasurer","role":"treasurer"}', 3);
+    await api.confirmContribution("grpA", "ctb_1", 3);
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
       url: "https://api.example.invalid/v1/groups/grpA/contributions/ctb_1/confirmations",
       method: "POST",
-      headers: {
-        "x-actor": '{"handle":"idn_treasurer","role":"treasurer"}',
-        "if-match-version": "3",
-      },
+      headers: { "if-match-version": "3" },
     });
+    expect(calls[0]?.headers["x-actor"]).toBeUndefined();
   });
 
   it("declareDisbursement: aucune version sur une création (CREATE, pas de mutation d'objet existant)", async () => {
@@ -70,22 +68,23 @@ describe("GroupAdminApi — actions C07/C08 portent x-actor et if-match-version"
         requiredControllers: 1,
         allegedDate: 1_700_000_000,
       },
-      '{"handle":"idn_treasurer","role":"treasurer"}',
     );
     expect(calls).toHaveLength(1);
     expect(calls[0]?.url).toBe("https://api.example.invalid/v1/groups/grpA/disbursements");
     expect(calls[0]?.method).toBe("POST");
     expect(calls[0]?.headers["if-match-version"]).toBeUndefined();
+    expect(calls[0]?.headers["x-actor"]).toBeUndefined();
   });
 
   it("requestDisbursementReversal: route /reversal-requests avec motif et version", async () => {
     const calls = stubFetch();
     const api = new GroupAdminApi(new ApiClient({ baseUrl: "https://api.example.invalid" }));
-    await api.requestDisbursementReversal("grpA", "dsb_1", "montant erroné", '{"role":"treasurer"}', 2);
+    await api.requestDisbursementReversal("grpA", "dsb_1", "montant erroné", 2);
     expect(calls[0]).toMatchObject({
       url: "https://api.example.invalid/v1/groups/grpA/disbursements/dsb_1/reversal-requests",
       method: "POST",
       headers: { "if-match-version": "2" },
     });
+    expect(calls[0]?.headers["x-actor"]).toBeUndefined();
   });
 });

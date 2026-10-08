@@ -90,6 +90,19 @@ describe("ApiClient.request — en-têtes et options", () => {
     const api = new ApiClient({ baseUrl: "https://api.example.invalid" });
     expect(await api.get("/v1/noop")).toBeNull();
   });
+
+  it("Bearer : authorization présent dès qu'un jeton de session existe (GET et POST), absent sinon", async () => {
+    let token: string | null = "ses_abc123";
+    const calls = stubFetch(() => ({ ok: true, status: 200, json: {} }));
+    const api = new ApiClient({ baseUrl: "https://api.example.invalid", getSessionToken: () => token });
+    await api.get("/v1/groups/grpA/schedule");
+    await api.post("/v1/groups/grpA/memberships", { handle: "idn_new" });
+    expect((only(calls).init.headers as Headers).get("authorization")).toBe("Bearer ses_abc123");
+    expect((calls[1]!.init.headers as Headers).get("authorization")).toBe("Bearer ses_abc123");
+    token = null;
+    await api.get("/v1/groups/grpA/schedule");
+    expect((calls[2]!.init.headers as Headers).get("authorization")).toBeNull();
+  });
 });
 
 describe("ApiClient — ApiError sur réponse non-OK", () => {
