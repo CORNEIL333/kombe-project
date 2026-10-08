@@ -20,6 +20,7 @@
 stages:
   - dbtest
   - h00
+  - deploy
 
 # ── Job 1 : dbtest — preuves base réelle C01 (RLS/verrous/pool) + recettes C13 ──
 # Reproduit à l'identique la commande prévue pour un hôte Docker :
@@ -125,3 +126,41 @@ h00-trusted:
     paths:
       - harness/reports/RAPPORT_G_CONSTRUCTION.json
     expire_in: 4 weeks
+
+# ── Job 3 : déploiement PWA (Flutter web) sur Vercel (§25) ──
+# Le PWA n'est pas constructible sur Vercel (pas de SDK Flutter) : la CI build
+# `flutter build web` avec l'URL API publique en dart-define, puis pousse le
+# dossier de sortie via le CLI Vercel. MANUEL : exige les variables CI
+# VERCEL_TOKEN et KOMBE_API_PUBLIC_URL (à créer dans GitLab → Settings → CI/CD
+# → Variables), fournies par le propriétaire des comptes (§39).
+deploy-pwa-vercel:
+  stage: deploy
+  image: ghcr.io/cirruslabs/flutter:stable
+  when: manual
+  dependencies: []
+  before_script:
+    - flutter --version
+    - corepack enable && npm install -g vercel
+  script:
+    - cd packages/mobile
+    - flutter pub get
+    # dart-define : URL API publique compilée dans le PWA (aucun secret).
+    - flutter build web --release --dart-define=KOMBE_API_BASE_URL="$KOMBE_API_PUBLIC_URL"
+    - vercel deploy --prod --yes --token "$VERCEL_TOKEN" .
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: manual
+
+# ── Job 4 : release:smoke contre l'environnement déployé (§22) ──
+# Jamais localhost (§33) : la variable CI KOMBE_SMOKE_BASE_URL pointe l'API
+# déployée (https://…). Exit 0 = SMOKE_PASS, exit 1 = SMOKE_FAIL → pipeline rouge.
+release-smoke:
+  stage: deploy
+  image: node:22-bookworm
+  when: manual
+  dependencies: []
+  script:
+    - node scripts/release-smoke.mjs
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: manual

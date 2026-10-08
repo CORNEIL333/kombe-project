@@ -1,0 +1,11 @@
+# KÓMBE PWA — exclusions upload Vercel (déploiement CI, §25).
+# build/web est le outputDirectory : il DOIT être uploadé.
+android
+ios
+linux
+windows
+macos
+test
+.dart_tool
+.metadata
+analysis_options.yaml

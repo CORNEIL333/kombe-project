@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "build/web",
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "x-content-type-options", "value": "nosniff" },
+        { "key": "x-frame-options", "value": "DENY" },
+        { "key": "referrer-policy", "value": "no-referrer" },
+        { "key": "cache-control", "value": "no-store" }
+      ]
+    }
+  ]
+}
