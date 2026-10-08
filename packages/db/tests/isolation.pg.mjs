@@ -84,12 +84,15 @@ async function main() {
         UPDATE "group" SET state = 'closed'
           WHERE state NOT IN ('configuration','active','paused','closed');
         UPDATE vote SET state = 'closed'
-          WHERE state NOT IN ('open','closed','cancelled');
+          WHERE state NOT IN ('open','closed','cancelled','executed');
+        DELETE FROM verification_token
+          WHERE purpose NOT IN ('registration','recovery');
       EXCEPTION WHEN undefined_table THEN NULL;
       END $$;
     `);
 
     // État initial reproductible : on repart d'un schéma propre en base de test.
+    await runSql(migrator, "migrations/0023_worker_discovery.down.sql");
     await runSql(migrator, "migrations/0022_cycle_schedule.down.sql");
     await runSql(migrator, "migrations/0021_privacy_restore_points.down.sql");
     await runSql(migrator, "migrations/0020_group_resolvers.down.sql");
@@ -146,6 +149,7 @@ async function main() {
     await runSql(migrator, "migrations/0020_group_resolvers.sql");
     await runSql(migrator, "migrations/0021_privacy_restore_points.sql");
     await runSql(migrator, "migrations/0022_cycle_schedule.sql");
+    await runSql(migrator, "migrations/0023_worker_discovery.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
