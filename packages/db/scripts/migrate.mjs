@@ -58,6 +58,7 @@ const UP_MIGRATIONS = [
   "migrations/0019_token_security.sql",
   "migrations/0020_group_resolvers.sql",
   "migrations/0021_privacy_restore_points.sql",
+  "migrations/0022_cycle_schedule.sql",
   "provision/roles.sql",
 ];
 

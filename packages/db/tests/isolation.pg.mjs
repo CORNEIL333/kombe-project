@@ -90,6 +90,7 @@ async function main() {
     `);
 
     // État initial reproductible : on repart d'un schéma propre en base de test.
+    await runSql(migrator, "migrations/0022_cycle_schedule.down.sql");
     await runSql(migrator, "migrations/0021_privacy_restore_points.down.sql");
     await runSql(migrator, "migrations/0020_group_resolvers.down.sql");
     await runSql(migrator, "migrations/0019_token_security.down.sql");
@@ -144,6 +145,7 @@ async function main() {
     await runSql(migrator, "migrations/0019_token_security.sql");
     await runSql(migrator, "migrations/0020_group_resolvers.sql");
     await runSql(migrator, "migrations/0021_privacy_restore_points.sql");
+    await runSql(migrator, "migrations/0022_cycle_schedule.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).

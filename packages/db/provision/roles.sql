@@ -47,7 +47,7 @@ END $$;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO kombe_app;
 
 -- Rétablir les restrictions sélectives posées par les migrations (miroir des REVOKE
--- dans 0007-0017). Sans ALTER DEFAULT PRIVILEGES fonctionnel (Neon), le GRANT blanket
+-- dans 0007-0022). Sans ALTER DEFAULT PRIVILEGES fonctionnel (Neon), le GRANT blanket
 -- redonnerait les droits que les triggers + REVOKE migraient. Cette section garantit
 -- la moindre privilège applicatif.
 REVOKE UPDATE, DELETE ON journal FROM kombe_app;
@@ -65,6 +65,7 @@ REVOKE UPDATE, DELETE ON export_manifest FROM kombe_app;
 REVOKE UPDATE, DELETE ON legal_notice FROM kombe_app;
 REVOKE UPDATE, DELETE ON data_erasure_tombstone FROM kombe_app;
 REVOKE UPDATE, DELETE ON restore_point FROM kombe_app;
+REVOKE DELETE ON cycle_schedule FROM kombe_app;
 REVOKE UPDATE, DELETE ON analytics_event FROM kombe_app;
 REVOKE UPDATE, DELETE ON unit_economics_snapshot FROM kombe_app;
 REVOKE INSERT, UPDATE, DELETE ON internal_notification, notification_delivery FROM kombe_app;
