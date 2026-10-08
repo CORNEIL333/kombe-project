@@ -162,6 +162,7 @@ describe("C12 — evenement d'export et langage prudent", () => {
     const payload = buildExportEventPayload(manifest);
     expect(payload.kind).toBe("statement_exported");
     expect(payload.pdfSha256).toBe(manifest.pdfSha256);
-    expect(EXPORT_PRUDENT_NOTICE).toMatch(/pas une preuve legale/);
+    expect(EXPORT_PRUDENT_NOTICE).toMatch(/ne constitue pas un document a valeur juridique/i);
+    expect(EXPORT_PRUDENT_NOTICE).not.toMatch(/preuve\s+(l[ée]gale)/i);
   });
 });

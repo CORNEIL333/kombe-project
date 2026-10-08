@@ -50,7 +50,7 @@ describe("C12 — génération d'un export relevé", () => {
     expect(body.cutoffSequence).toBe(3); // coupure = état courant (résolu serveur)
     expect(body.pdfSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(body.csvSha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(body.prudentNotice).toMatch(/pas une preuve legale/i);
+    expect(body.prudentNotice).toMatch(/document a valeur juridique/i);
     expect(body.downloadPath).toBe("/v1/exports/exp-grpA-3/download");
   });
 

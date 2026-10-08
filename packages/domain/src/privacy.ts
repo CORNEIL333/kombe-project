@@ -34,7 +34,7 @@ import { DomainError } from "./errors.js";
 
 /** Mention prudente de tout traitement de données personnelles KÓMBE. */
 export const PRIVACY_PRUDENT_NOTICE =
-  "KÓMBE est un registre partagé ; les paiements restent hors application et ne sont garantis par KÓMBE. Aucun document ne constitue une preuve légale automatique.";
+  "KÓMBE est un registre partagé ; les paiements restent hors application et ne sont garantis par KÓMBE. Aucun document ne confère, à lui seul, de valeur juridique.";
 
 /**
  * Motifs/formulations **interdits** : promesse de garantie des fonds ou de

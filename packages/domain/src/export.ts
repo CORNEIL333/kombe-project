@@ -24,8 +24,8 @@ export const EXPORT_GENERATOR_VERSION = "kombe-export/1";
 
 /** Mention prudente obligatoire ; ne promet aucune valeur juridique. */
 export const EXPORT_PRUDENT_NOTICE =
-  "Historique verifiable genere par KOMBE. Ne constitue pas une preuve legale "
-  + "et n'implique aucune signature juridique.";
+  "Historique verifiable genere par KOMBE. Ne constitue pas un document a valeur "
+  + "juridique et ne porte aucune signature.";
 
 const FORMULA_LEADERS = ["=", "+", "-", "@"];
 
