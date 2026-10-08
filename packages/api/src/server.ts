@@ -11,6 +11,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import type pg from "pg";
+import { registerHttpGuards } from "./httpGuards.js";
 import { DISPLAY_TZ, DomainError, type DomainErrorCode } from "@kombe/domain";
 import type { CycleSchedule, ContributionDeclaration } from "@kombe/domain";
 import { PgContributionStore } from "./db/pgContributionStore.js";
@@ -933,6 +934,11 @@ function realMetricsCtxFrom(identityId: string, nowMs: number): MetricsContext {
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
+
+  // CORS multi-origines + limitation de débit (§20/§25) : enregistrées avant
+  // tout autre hook pour que le pré-flight OPTIONS soit répondu sans toucher
+  // aux routes ni aux stores.
+  registerHttpGuards(app);
 
   // Durcissement sécurité (§20) : en-têtes de base posés sur CHAQUE réponse
   // de l'API (JSON authentifiée — aucune route à servir en frame ni en cache

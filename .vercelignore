@@ -1,0 +1,16 @@
+# KÓMBE — exclusions upload Vercel (API serverless, §25).
+node_modules
+.git
+*.log
+.env
+.env.*
+apps
+packages/*/test
+packages/*/tests
+harness
+docs
+KOMBE_Audit_Construction
+COORDINATION_MULTI_HARNESS
+# … sauf les dist indispensables au runtime de la fonction :
+!packages/api/dist
+!packages/domain/dist

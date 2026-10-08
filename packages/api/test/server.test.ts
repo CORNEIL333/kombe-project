@@ -33,6 +33,74 @@ const baseHeaders = {
   "x-actor": JSON.stringify(memberActor),
 };
 
+describe("gardes HTTP (§20/§25) : CORS à liste fermée + limitation de débit", () => {
+  it("pré-flight OPTIONS : 204 pour origine permise, 403 sinon, jamais de « * »", async () => {
+    process.env.KOMBE_CORS_ORIGINS = "https://ops.pages.dev,https://admin.vercel.app";
+    try {
+      const app = buildApp();
+      const ok = await app.inject({
+        method: "OPTIONS",
+        url: "/v1/groups/grpA/contributions",
+        headers: { origin: "https://ops.pages.dev", "access-control-request-method": "POST" },
+      });
+      expect(ok.statusCode).toBe(204);
+      expect(ok.headers["access-control-allow-origin"]).toBe("https://ops.pages.dev");
+      expect(ok.headers["access-control-allow-headers"]).toContain("authorization");
+      expect(ok.headers["access-control-allow-origin"]).not.toBe("*");
+
+      const ko = await app.inject({
+        method: "OPTIONS",
+        url: "/v1/groups/grpA/contributions",
+        headers: { origin: "https://evil.example" },
+      });
+      expect(ko.statusCode).toBe(403);
+      expect(ko.headers["access-control-allow-origin"]).toBeUndefined();
+    } finally {
+      delete process.env.KOMBE_CORS_ORIGINS;
+    }
+  });
+
+  it("requête simple : en-tête CORS seulement si origine permise", async () => {
+    process.env.KOMBE_CORS_ORIGINS = "https://ops.pages.dev";
+    try {
+      const app = buildApp();
+      const allowed = await app.inject({
+        method: "GET",
+        url: "/v1/health/live",
+        headers: { origin: "https://ops.pages.dev" },
+      });
+      expect(allowed.headers["access-control-allow-origin"]).toBe("https://ops.pages.dev");
+      const sameOrigin = await app.inject({ method: "GET", url: "/v1/health/live" });
+      expect(sameOrigin.headers["access-control-allow-origin"]).toBeUndefined();
+      const unknown = await app.inject({
+        method: "GET",
+        url: "/v1/health/live",
+        headers: { origin: "https://evil.example" },
+      });
+      expect(unknown.headers["access-control-allow-origin"]).toBeUndefined();
+    } finally {
+      delete process.env.KOMBE_CORS_ORIGINS;
+    }
+  });
+
+  it("limite serrée anti-force-brute sur /v1/access/* (10/min/IP)", async () => {
+    const app = buildApp();
+    let last = 0;
+    for (let i = 0; i < 11; i += 1) {
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/access/sessions",
+        payload: { handle: "mallory", password: "x" },
+        headers: { "content-type": "application/json" },
+      });
+      last = res.statusCode;
+    }
+    expect(last).toBe(429);
+    const health = await app.inject({ method: "GET", url: "/v1/health/live" });
+    expect(health.statusCode).toBe(200);
+  });
+});
+
 describe("POST declaration de cotisation (squelette)", () => {
   it("health ok", async () => {
     const res = await buildApp().inject({ method: "GET", url: "/v1/health" });
