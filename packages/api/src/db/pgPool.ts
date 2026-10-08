@@ -40,5 +40,11 @@ export function createApiPool(opts: PgPoolOptions): pg.Pool {
  */
 export function readApiDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const url = env.KOMBE_API_DATABASE_URL;
-  return url && url.length > 0 ? url : undefined;
+  if (!url || url.length === 0) return undefined;
+  // Fail-fast (§15) : une valeur présente mais mal formée doit faire échouer
+  // le démarrage, pas la première requête.
+  if (!/^postgres(ql)?:\/\//.test(url)) {
+    throw new Error("KOMBE_API_DATABASE_URL mal formée (attendu : postgresql://…)");
+  }
+  return url;
 }
