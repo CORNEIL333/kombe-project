@@ -1,0 +1,43 @@
+{
+  "release": "KÓMBÉ v0.9.0-rc.1 (préparation)",
+  "generatedAt": "2026-10-08",
+  "rule": "Verdicts réels d'exécution uniquement (§43) : jamais de PASS inventé. Une entrée PASS exige une exécution constatée ; sinon PENDING / BLOCKED_EXTERNAL avec action exacte.",
+  "evidenceLogs": {
+    "suite0023": "C:/Users/migco/AppData/Local/Temp/neon-suite-0023.log",
+    "rerun": "C:/Users/migco/AppData/Local/Temp/neon-rerun.log",
+    "rerun2": "C:/Users/migco/AppData/Local/Temp/neon-rerun2.log",
+    "flutter": "C:/Users/migco/AppData/Local/Temp/flutter-verify.log"
+  },
+  "databaseProofs": [
+    { "id": "pgAccessStore", "file": "packages/api/test/pgAccessStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "pgContributionStore", "file": "packages/api/test/pgContributionStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "pgDisbursementStore", "file": "packages/api/test/pgDisbursementStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "pgDisputeStore", "file": "packages/api/test/pgDisputeStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "pgJournalStore", "file": "packages/api/test/pgJournalStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "pgMetricsStore", "file": "packages/api/test/pgMetricsStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "pgProposalStore", "file": "packages/api/test/pgProposalStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "pgRulesStore", "file": "packages/api/test/pgRulesStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "pgScheduleStore", "file": "packages/api/test/pgScheduleStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "pgSessionResolver", "file": "packages/api/test/pgSessionResolver.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "pgValidationStore", "file": "packages/api/test/pgValidationStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "pgWorkerDiscovery", "file": "packages/api/test/pgWorkerDiscovery.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
+    { "id": "serverRealMode", "file": "packages/api/test/serverRealMode.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08", "note": "Échec initial (assertion santé obsolète A3-FICTIF-INTACT) corrigé au niveau preuve (commit à venir), re-exécution exit 0." },
+    { "id": "isolation", "file": "packages/db/tests/isolation.pg.mjs", "verdict": "PENDING", "note": "Échecs successifs : vote 'executed' (corrigé) puis jetons login vs CHECK 0019 (corrigé) ; re-exécution en cours — verdict à l'issue réelle." },
+    { "id": "migrateEmptyToLatest", "file": "packages/db/tests/migrateEmptyToLatest.pg.mjs", "verdict": "PENDING", "note": "§17 — chaîné après isolation ; en attente du verdict réel." }
+  ],
+  "testSuites": [
+    { "id": "api-unit", "cmd": "vitest packages/api/test/server.test.ts et suites associées", "verdict": "PASS", "date": "2026-10-08" },
+    { "id": "mobile-flutter-test", "cmd": "flutter test (packages/mobile)", "verdict": "PASS", "detail": "24/24", "date": "2026-10-08" },
+    { "id": "mobile-flutter-build-web", "cmd": "flutter build web", "verdict": "PENDING", "note": "Compilation en cours au moment de la rédaction." }
+  ],
+  "deploymentGates": [
+    { "id": "openapi-runtime", "verdict": "PASS", "evidence": "commit 6c98ebf" },
+    { "id": "health-liveness-readiness", "verdict": "PASS", "evidence": "commit ab60037" },
+    { "id": "security-headers", "verdict": "PASS", "evidence": "commit e23f9d8" },
+    { "id": "audit-deps-prod", "verdict": "PASS", "detail": "pnpm audit --prod sans vulnérabilité", "date": "2026-10-08" },
+    { "id": "secret-scan", "verdict": "PASS_SUBSTITUT", "detail": "gitleaks absent (installation interdite §39) ; scan manuel par motifs : propre (mot de passe CI dev connu, non secret réel)" },
+    { "id": "release-smoke-deployed", "cmd": "pnpm release:smoke", "verdict": "PENDING", "why": "Exige un staging déployé (§22/§25)." },
+    { "id": "backup-restore", "verdict": "BLOCKED_EXTERNAL", "what": "Exécution réelle pg_dump/pg_restore de DEPLOY.md §6.1/6.2", "why": "Binaires PostgreSQL absents de cet hôte ; installation hors mandat (§39)", "exactActionRequired": "Sur l'hôte de déploiement (ou tout hôte outillé PG 16+) : exécuter DEPLOY.md 6.1 puis 6.2 avec KOMBE_DATABASE_URL", "afterAction": "Reporter le verdict réel ici et dans RELEASE_READINESS.md" },
+    { "id": "staging-deploy", "verdict": "PENDING", "why": "Tentative à venir avec les accès existants (§25) ; décision hébergement prod [OPEN-D01]/[OPEN-D02] ouverte au propriétaire (§39)" }
+  ]
+}
