@@ -51,7 +51,8 @@ RUN addgroup -S kombe && adduser -S kombe -G kombe \
     && chown -R kombe:kombe /app
 USER kombe
 EXPOSE 3000
-# Santé : GET /v1/health (node 22 a fetch natif ; pas de curl dans l'image).
+# Santé : GET /v1/health/ready (readiness réelle : vérifie PostgreSQL en mode
+# réel ; node 22 a fetch natif, pas de curl dans l'image).
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "packages/api/dist/main.js"]

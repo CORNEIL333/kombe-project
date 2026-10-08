@@ -993,7 +993,31 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return reply.code(500).send({ code: "INTERNAL", message: "Erreur interne" });
   });
 
-  app.get("/v1/health", async () => ({ status: "ok", phase: "c00-skeleton" }));
+  // Santé d'exploitation (DÉPLOIEMENT) : liveness = le process répond ;
+  // readiness = en mode RÉEL, vérifie réellement PostgreSQL (jamais une
+  // constante) ; en mode FICTIF, le service est honnêtement « prêt » sans base.
+  app.get("/v1/health/live", async () => ({ status: "ok" }));
+  app.get("/v1/health/ready", async (request, reply) => {
+    if (!pool) return { status: "ready", mode: "fictif" };
+    try {
+      await pool.query("SELECT 1");
+      return { status: "ready", mode: "réel" };
+    } catch (error) {
+      request.log.error({ err: error }, "readiness : PostgreSQL injoignable");
+      return reply.code(503).send({ status: "degraded", mode: "réel" });
+    }
+  });
+  // Alias générique (docker-compose) : même sémantique que /ready.
+  app.get("/v1/health", async (request, reply) => {
+    if (!pool) return { status: "ok", mode: "fictif" };
+    try {
+      await pool.query("SELECT 1");
+      return { status: "ok", mode: "réel" };
+    } catch (error) {
+      request.log.error({ err: error }, "santé : PostgreSQL injoignable");
+      return reply.code(503).send({ status: "degraded", mode: "réel" });
+    }
+  });
 
   // Routes du squelette C00 (pipeline fictif) : n'existent PAS en mode réel
   // (aucune implémentation PG) — 404 Fastify, jamais de données fictives.

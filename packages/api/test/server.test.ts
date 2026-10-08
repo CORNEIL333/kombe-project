@@ -37,7 +37,18 @@ describe("POST declaration de cotisation (squelette)", () => {
   it("health ok", async () => {
     const res = await buildApp().inject({ method: "GET", url: "/v1/health" });
     expect(res.statusCode).toBe(200);
-    expect(res.json().phase).toBe("c00-skeleton");
+    // Contrat santé : en mode fictif (sans pool) le service se déclare prêt
+    // sans base — jamais l'ancienne constante « c00-skeleton ».
+    expect(res.json()).toEqual({ status: "ok", mode: "fictif" });
+  });
+
+  it("liveness et readiness exposées (DÉPLOIEMENT)", async () => {
+    const app = buildApp();
+    const live = await app.inject({ method: "GET", url: "/v1/health/live" });
+    expect(live.statusCode).toBe(200);
+    const ready = await app.inject({ method: "GET", url: "/v1/health/ready" });
+    expect(ready.statusCode).toBe(200);
+    expect(ready.json()).toEqual({ status: "ready", mode: "fictif" });
   });
 
   it("accepte une declaration entiere et versionnee", async () => {
