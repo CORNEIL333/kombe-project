@@ -74,21 +74,29 @@ Aucun secret réel dans le dépôt : `.gitignore` exclut `.env` / `.env.*` (sauf
 `.env.example`). En production, fournir mot de passe et hôtes via le gestionnaire
 de secrets de l'hébergeur.
 
-## 4. Cibles d'hébergement (décision ouverte)
+## 4. Cibles d'hébergement (décision propriétaire 2026-10-08)
 
-Choix tranché par ADR, pas ici : `STACK.md` `[OPEN-D01]` (app/worker) et
-`[OPEN-D02]` (PostgreSQL). La pile Docker fonctionne telle quelle sur un VPS
-conteneurisé ; pour Render/Railway/Fly, déployer le `Dockerfile` + une base
-managée, brancher `migrate` en phase de release.
+Hébergement tranché (confirme ADR-0021/ADR-0022) :
+
+| Brique | Plateforme | Mode |
+|---|---|---|
+| PostgreSQL production | **Neon** | Projet **séparé** de la base partagée de vérification |
+| API Fastify | **Vercel** | Serverless (`api/serverless.js` + `vercel.json` à la racine) |
+| Dashboards opérations / direction / engineering | **Cloudflare Pages** | Statique Vite (SPA) |
+| PWA (Flutter web) + dashboard admin | **Vercel** | PWA : build Flutter en CI (`.gitlab-ci.yml`) ; admin : projet Vercel statique Vite |
+
+Procédures pas-à-pas : §7. Pile Docker (§1) toujours valide pour un VPS
+autonome ; elle n'est plus la cible de production.
 
 ## 5. Ce que le déploiement NE fait PAS encore (honnêtement)
 
 - Worker outbox/delivery non lancé (hors périmètre, lot C13).
 - Exécution réelle backup/restore **BLOCKED_EXTERNAL** (§6.4) — procédure écrite,
   outils PostgreSQL absents de cet hôte.
-- Décision d'hébergement staging/production `[OPEN-D01]/[OPEN-D02]` — au
-  propriétaire (§39 : ni achat, ni contrat, ni engagement de dépense).
-- `release:smoke` à rejouer contre le staging déployé (§22).
+- Déploiement plateformes non exécuté depuis cet hôte : comptes/tokens Vercel +
+  Cloudflare et projet Neon de production sont des actions propriétaire (§39 —
+  §7.6 liste exacte). Aucun PASS de déploiement n'est déclaré avant exécution réelle.
+- `release:smoke` à rejouer contre la production déployée (§22).
 
 ## 6. Sauvegarde et restauration (§23/§24)
 
@@ -141,3 +149,143 @@ KOMBE_DATABASE_URL="…/kombe_restored" node packages/db/scripts/migrate.mjs mig
   6.2 sur l'hôte de déploiement (ou tout hôte disposant des outils PostgreSQL
   16+ et de `KOMBE_DATABASE_URL`). AFTER ACTION : coller le verdict réel dans le
   rapport §41 et faire évoluer `RELEASE_READINESS.md`.
+
+---
+
+## 7. Déploiement production — Neon + Vercel + Cloudflare (décision 2026-10-08)
+
+Cible : production fiable déployée le jour J, accessible publique sous 3–5 jours.
+Aucune étape ci-dessous n'a été exécutée depuis cet hôte : §7.6 liste les actions
+propriétaire. Tant qu'une étape n'a pas tourné, son verdict reste PENDING
+(§9 — jamais de PASS déclaré sans exécution).
+
+### 7.0 Ordre de déploiement (dépendances réelles)
+
+| # | Étape | Plateforme | Débloque |
+|---|---|---|---|
+| 1 | Base de production + migrations (§7.1) | Neon | tout |
+| 2 | API (§7.2) | Vercel | URL publique `https://<api>.vercel.app` |
+| 3 | Config dashboards → URL API (§7.3) | dépôt | builds dashboards |
+| 4 | Dashboards opérations/direction/engineering (§7.3) | Cloudflare Pages | front métier |
+| 5 | PWA (§7.4) + dashboard admin (§7.5) | Vercel | front public |
+| 6 | Smoke réel (§7.7) | CI/hôte | verdict §41/§43 |
+
+### 7.1 Neon — base de production
+
+La base partagée de vérification (`square-resonance-19892972`) reste réservée
+aux preuves. La production exige un **projet Neon distinct** (gratuit).
+
+1. Créer le projet Neon, récupérer la chaîne du rôle principal
+   (ex. `postgresql://<principal>:<secret>@<hôte>/<base>?sslmode=require`).
+2. Migrations (n'importe quel hôte node 22 + pnpm : machine propriétaire ou CI) :
+   ```bash
+   export KOMBE_DATABASE_URL="postgresql://<principal>:<secret>@<hôte>/<base>?sslmode=require"
+   pnpm install --frozen-lockfile
+   pnpm --filter @kombe/db run migrate
+   ```
+   Le runner applique `provision/roles_create.sql` (rôles kombe_migrateur /
+   kombe_app / kombe_worker), les migrations 0001–0023, puis
+   `provision/roles.sql` (grants + DEFAULT PRIVILEGES).
+3. Activer la connexion applicative : dans l'éditeur SQL Neon (rôle principal) :
+   ```sql
+   ALTER ROLE kombe_app WITH LOGIN PASSWORD '<secret-fort>';
+   ```
+   (les rôles sont créés NOLOGIN sans secret — §15 : aucun secret dans le dépôt).
+4. Vérification réelle : `SELECT count(*) FROM kombe_migration` → **25**.
+5. La chaîne `KOMBE_API_DATABASE_URL` de l'API =
+   `postgresql://kombe_app:<secret-fort>@<hôte>/<base>?sslmode=require`.
+
+### 7.2 API — Vercel serverless
+
+`vercel.json` (racine) et `api/serverless.js` sont versionnés : build
+`@kombe/api` (inclut `@kombe/domain`), rewrite `/v1/:path*` → `/api/serverless`.
+
+1. Projet Vercel : importer le dépôt, Root Directory = **racine du dépôt**,
+   framework « Other » (déjà fixé par `vercel.json`).
+2. Variables d'environnement **Production** :
+   | Var | Valeur |
+   |---|---|
+   | `KOMBE_API_DATABASE_URL` | chaîne `kombe_app` (§7.1.5) |
+   | `KOMBE_CORS_ORIGINS` | origines front exactes, séparées par virgules (§7.6.4) |
+   | `RESEND_API_KEY` / `KOMBE_EMAIL_FROM` | email transactionnel (déjà gérés, `.env.example`) |
+3. Deploy. Vérifications réelles obligatoires avant toute suite :
+   - `GET https://<api>.vercel.app/v1/health` → `{"status":"ok","mode":"réel"}`
+   - `GET https://<api>.vercel.app/v1/health/ready` → `{"status":"ready","mode":"réel"}`
+     (503 = base injoignable → **stop**, corriger §7.1 avant de continuer)
+4. Limites assumées (Hobby, documentées) : rate limiter en mémoire **par
+   instance chaude** (`packages/api/src/httpGuards.ts`) — borne molle, pas un
+   plafond global ; `maxDuration` 10 s par défaut (suffisant au pilote).
+
+### 7.3 Dashboards — Cloudflare Pages (opérations, direction, engineering)
+
+Un projet Pages **par dashboard**, paramètres identiques sauf le filtre :
+- Root Directory : racine du dépôt ; Build command :
+  `pnpm --filter @kombe/dashboard-operations... run build`
+  (resp. `@kombe/dashboard-direction`, `@kombe/dashboard-engineering`)
+- Output Directory : `apps/dashboard-operations/dist` (resp.)
+- Variable d'environnement : `NODE_VERSION=22`.
+- **Avant le premier build** : éditer
+  `apps/dashboard-<x>/public/kombe-dashboard-config.json` →
+  `{"apiBaseUrl":"https://<api>.vercel.app"}` puis commit + push. Ce fichier est
+  fetché au démarrage par `dashboard-core` (`loadRuntimeConfig`) et embarqué tel
+  quel par le build ; `VITE_KOMBE_API_BASE_URL` (env de build) n'est que le
+  repli si le fichier venait à manquer — le fichier gagne toujours.
+- L'URL publique est `https://<projet>.pages.dev` ; l'ajouter à
+  `KOMBE_CORS_ORIGINS` (§7.2) et redeploy l'API.
+
+### 7.4 PWA (Flutter web) — Vercel
+
+Vercel ne fournit pas de SDK Flutter : le build se fait en **CI GitLab** (job
+manuel `deploy-pwa-vercel`, image Flutter stable) puis `vercel deploy --prod`.
+
+1. Prérequis CI (Settings → CI/CD → Variables, masquées) : `VERCEL_TOKEN`,
+   `KOMBE_API_PUBLIC_URL=https://<api>.vercel.app`.
+2. Lancer le job `deploy-pwa-vercel` (master, manuel) : `flutter build web
+   --release --dart-define=KOMBE_API_BASE_URL=$KOMBE_API_PUBLIC_URL` puis
+   déploiement de `build/web` (`packages/mobile/vercel.json` : en-têtes de
+   sécurité, `outputDirectory: build/web`).
+3. Équivalent local (machine propriétaire avec Flutter) :
+   ```bash
+   cd packages/mobile && flutter pub get
+   flutter build web --release --dart-define=KOMBE_API_BASE_URL="https://<api>.vercel.app"
+   vercel deploy --prod .
+   ```
+4. Ajouter l'URL PWA à `KOMBE_CORS_ORIGINS`, redeploy l'API.
+5. Statut build web Flutter : `flutter test` 24/24 PASS ; le build `--release`
+   n'a pas abouti sur cet hôte (pas de verdict — BLOCKED_EXTERNAL, cf. task #14).
+
+### 7.5 Dashboard admin — Vercel
+
+1. Projet Vercel : Root Directory = `apps/dashboard-group-admin` (Vercel détecte
+   le workspace pnpm : install à la racine, build dans l'app), framework Vite,
+   output `dist`. `apps/dashboard-group-admin/vercel.json` versionné (en-têtes
+   de sécurité).
+2. Comme §7.3 : éditer `public/kombe-dashboard-config.json` → URL API réelle,
+   commit + push ; `VITE_KOMBE_API_BASE_URL` en env de build comme repli.
+3. Ajouter l'URL admin à `KOMBE_CORS_ORIGINS`, redeploy l'API.
+
+### 7.6 Actions propriétaire (§39 — aucune dépense, aucun secret dans le dépôt)
+
+1. **Vercel** : compte (Hobby gratuit) + créer 3 projets (API, PWA, admin) +
+   token (`VERCEL_TOKEN`) pour la CI.
+2. **Cloudflare** : compte (gratuit) + 3 projets Pages (opérations, direction,
+   engineering).
+3. **Neon** : projet de production séparé (gratuit) + 2 chaînes (§7.1).
+4. **Domaines publics (J+3..J+5)** : DNS CNAME des domaines définitifs vers
+   Vercel (API/PWA/admin) et Cloudflare Pages (dashboards) ; puis mettre à jour
+   `KOMBE_CORS_ORIGINS` + les 4 `kombe-dashboard-config.json` avec les domaines
+   définitifs, redeploy API + dashboards. En attendant, les URL
+   `*.vercel.app` / `*.pages.dev` suffisent (HTTPS inclus).
+
+### 7.7 Smoke final (verdict réel, §22)
+
+Après chaque étape déployée :
+
+```bash
+KOMBE_SMOKE_BASE_URL="https://<api>.vercel.app" node scripts/release-smoke.mjs
+# ou job CI manuel « release-smoke »
+```
+
+Le smoke exige notamment `GET /v1/health/ready` en `mode:"réel"` — un vert ici
+est la première preuve de bout en bout production. Verdict consigné dans
+`RELEASE_MANIFEST.json` (§41/§43).

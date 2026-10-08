@@ -43,7 +43,7 @@ Ces points ont été identifiés dans le dossier d'audit (`DECISIONS_ET_VERSION.
 
 | ID | Sujet | Options documentées | Référence audit |
 |---|---|---|---|
-| `[OPEN-D01]` | **Hébergeur application et worker** | **Tranché : Vercel (front/PWA/dashboards + API Fastify sur Node 22) + Cloudflare Workers/Durable Object (worker outbox) — voir ADR-0022** | TEC01, A15 |
+| `[OPEN-D01]` | **Hébergeur application et worker** | **Tranché : API Fastify serverless Vercel + PWA et dashboard admin Vercel + dashboards métier Cloudflare Pages + worker outbox Cloudflare Workers/Durable Object — voir ADR-0022 et DEPLOY.md §4/§7 (décision propriétaire 2026-10-08)** | TEC01, A15 |
 | ~~`[OPEN-D02]`~~ | ~~Fournisseur PostgreSQL géré~~ | **Tranché : Neon — voir §1 et ADR-0021** | TEC04, ZN03 |
 | `[OPEN-D03]` | **Client mobile natif** | PWA seule (pilote web) · Flutter en parallèle · React Native | TEC02/TEC03 |
 | ~~`[OPEN-D04]`~~ | ~~Email transactionnel~~ | **Tranché : Resend (décision humaine 2026-10-07) — clé API locale hors dépôt (`.env`, `RESEND_API_KEY`)** | TEC09 |
