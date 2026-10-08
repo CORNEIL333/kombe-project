@@ -28,6 +28,8 @@ import { PgJournalStore } from "./db/pgJournalStore.js";
 import { PgSupportStore, type SupportContext as PgSupportContext } from "./db/pgSupportStore.js";
 import { PgExportStore, type ExportContext as PgExportContext } from "./db/pgExportStore.js";
 import { PgPrivacyStore, type PrivacyContext as PgPrivacyContext } from "./db/pgPrivacyStore.js";
+import { PgRulesStore } from "./db/pgRulesStore.js";
+import { PgScheduleStore } from "./db/pgScheduleStore.js";
 import {
   invitationGroup,
   voteGroup,
@@ -970,6 +972,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const realSupport = pool ? new PgSupportStore(pool) : undefined;
   const realExports = pool ? new PgExportStore(pool) : undefined;
   const realPrivacy = pool ? new PgPrivacyStore(pool) : undefined;
+  const realRules = pool ? new PgRulesStore(pool, now) : undefined;
+  const realSchedule = pool ? new PgScheduleStore(pool) : undefined;
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
@@ -978,6 +982,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     if (error instanceof DomainError) {
       const status = STATUS_BY_CODE[error.code] ?? 400;
       return reply.code(status).send({ code: error.code, message: "Requête refusée" });
+    }
+    // Erreurs de PROTOCOLE Fastify (corps JSON vide/malformé, type de contenu
+    // refusé…) : statut 4xx porté par l'erreur elle-même ; jamais 500.
+    const proto = (error as { statusCode?: number }).statusCode;
+    if (typeof proto === "number" && proto >= 400 && proto < 500) {
+      return reply.code(proto).send({ code: "INVALID_REQUEST", message: "Requête invalide" });
     }
     app.log.error(error);
     return reply.code(500).send({ code: "INTERNAL", message: "Erreur interne" });
@@ -1231,50 +1241,73 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   /* --- C04 : moteur de règles versionnées et acceptations (3.1 → 3.7, 6.7) --- */
 
-  // Pas encore d'implémentation PG pour le moteur de règles versionnées (C04) :
-  // en mode réel ces routes n'existent pas (404) — jamais de données fictives.
-  if (!pool) {
-    // Publication d'une version de règle (compiler pour le pilote ; pénalités forcées
-    // à false). Le hash canonique scelle l'instantané (immuabilité).
-    app.post("/v1/groups/:groupId/rule-versions", async (request, reply) => {
-      const { groupId } = request.params as { groupId: string };
-      const body = publishRuleBody.parse(request.body);
-      const pub = rules.publish(groupId, body.snapshot, body.supersedes);
-      return reply.code(201).send({
-        version: pub.version,
-        hash: pub.hash,
-        penaltyEnabled: pub.snapshot.penaltyEnabled,
-      });
+  // Publication d'une version de règle (compiler pour le pilote ; pénalités forcées
+  // à false). Le hash canonique scelle l'instantané (immuabilité).
+  // Mode réel : persistance `rule_version` (append-only) sous session Bearer.
+  app.post("/v1/groups/:groupId/rule-versions", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = publishRuleBody.parse(request.body);
+    if (pool && realRules) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(201).send(await realRules.publish(groupId, body.snapshot, body.supersedes));
+    }
+    const pub = rules.publish(groupId, body.snapshot, body.supersedes);
+    return reply.code(201).send({
+      version: pub.version,
+      hash: pub.hash,
+      penaltyEnabled: pub.snapshot.penaltyEnabled,
     });
+  });
 
-    // Acceptation horodatée portant sur le hash EXACT d'une version publiée.
-    app.post("/v1/groups/:groupId/rule-versions/:version/acceptances", async (request, reply) => {
-      const { groupId } = request.params as { groupId: string };
-      const { version } = request.params as { version: string };
-      const body = ruleVersionAcceptanceBody.parse(request.body);
-      const acc = rules.accept(groupId, body.identityId, Number(version), body.hash);
-      return reply.code(201).send(acc);
-    });
+  // Acceptation horodatée portant sur le hash EXACT d'une version publiée.
+  // Mode réel : l'accepteur est l'ACTEUR résolu par session (§14 — jamais le
+  // corps) ; le hash soumis doit correspondre exactement (sinon 412).
+  app.post("/v1/groups/:groupId/rule-versions/:version/acceptances", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const { version } = request.params as { version: string };
+    const body = ruleVersionAcceptanceBody.parse(request.body);
+    if (pool && realRules) {
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(201).send(await realRules.accept(groupId, actor.identityId, Number(version), body.hash));
+    }
+    const acc = rules.accept(groupId, body.identityId, Number(version), body.hash);
+    return reply.code(201).send(acc);
+  });
 
-    // Changement de règle déjà publié : plan d'application + effectivité (C04-ACCEPT).
-    app.post("/v1/groups/:groupId/rule-changes", async (request, reply) => {
-      const { groupId } = request.params as { groupId: string };
-      const body = ruleChangeBody.parse(request.body);
-      return reply.code(200).send(rules.evaluateChange(groupId, body.version, body.concerned));
-    });
+  // Changement de règle déjà publié : plan d'application + effectivité (C04-ACCEPT).
+  // Mode réel : les personnes concernées sont les membres ACTIFS du groupe
+  // (source serveur) ; l'effectivité naît des acceptations PERSISTÉES.
+  app.post("/v1/groups/:groupId/rule-changes", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = ruleChangeBody.parse(request.body);
+    if (pool && realRules) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      const concerned = await realRules.activeMemberIdentities(groupId);
+      return reply.code(200).send(await realRules.evaluateChange(groupId, body.version, concerned));
+    }
+    return reply.code(200).send(rules.evaluateChange(groupId, body.version, body.concerned));
+  });
 
-    // Recalcul du cycle courant sous garde de non-rétroactivité (C04-RETRO).
-    app.post("/v1/groups/:groupId/cycle-recalculations", async (request, reply) => {
-      const { groupId } = request.params as { groupId: string };
-      return reply.code(200).send(rules.recalculateCurrentCycle(groupId));
-    });
+  // Recalcul du cycle courant sous garde de non-rétroactivité (C04-RETRO).
+  app.post("/v1/groups/:groupId/cycle-recalculations", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    if (pool && realRules) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realRules.recalculateCurrentCycle(groupId));
+    }
+    return reply.code(200).send(rules.recalculateCurrentCycle(groupId));
+  });
 
-    // Demande d'activation des pénalités — barrière serveur du pilote (C04-PENALTY).
-    app.post("/v1/groups/:groupId/penalty-requests", async (request, reply) => {
-      const body = penaltyRequestBody.parse(request.body);
-      return reply.code(200).send(rules.requestPenalty(body.desired));
-    });
-  }
+  // Demande d'activation des pénalités — barrière serveur du pilote (C04-PENALTY).
+  app.post("/v1/groups/:groupId/penalty-requests", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = penaltyRequestBody.parse(request.body);
+    if (pool && realRules) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(realRules.requestPenalty(body.desired));
+    }
+    return reply.code(200).send(rules.requestPenalty(body.desired));
+  });
 
   /* --- C05 : cycles, tours, échéances, bénéficiaires (5.1 → 5.5) --- */
 
@@ -1309,62 +1342,97 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // Construction du calendrier (brouillon) — refus si bénéficiaire dupliqué
   // (C05-UNIQUE : `schedule_accepted = false` réalisé par refus 422, aucune écriture).
-  // Pas encore d'implémentation PG pour les calendriers (C05) : en mode réel
-  // ces routes n'existent pas (404) — jamais de données fictives.
-  if (!pool) {
-    app.post("/v1/groups/:groupId/schedules", async (request, reply) => {
-      const body = buildScheduleBody.parse(request.body);
-      const s = schedule.build({
-        groupId: body.groupId,
+  // Mode réel : la cotisation, la fréquence et le jour d'échéance font AUTORITÉ
+  // depuis l'instantané de la règle publiée (`ruleVersion`) — jamais du corps
+  // de requête (§10/§12 : le client ne choisit pas ses données métier).
+  app.post("/v1/groups/:groupId/schedules", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = buildScheduleBody.parse(request.body);
+    if (pool && realSchedule) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      const s = await realSchedule.build(groupId, {
         ruleVersion: body.ruleVersion,
         members: body.members,
-        contribution: body.contribution,
-        frequency: body.frequency,
-        dueDay: body.dueDay,
+        beneficiaryOrder: body.beneficiaryOrder,
         startYear: body.startYear,
         startMonth: body.startMonth,
-        beneficiaryOrder: body.beneficiaryOrder,
       });
       return reply.code(201).send(viewSchedule(s));
+    }
+    const s = schedule.build({
+      groupId: body.groupId,
+      ruleVersion: body.ruleVersion,
+      members: body.members,
+      contribution: body.contribution,
+      frequency: body.frequency,
+      dueDay: body.dueDay,
+      startYear: body.startYear,
+      startMonth: body.startMonth,
+      beneficiaryOrder: body.beneficiaryOrder,
     });
+    return reply.code(201).send(viewSchedule(s));
+  });
 
-    // Lecture du calendrier courant d'un groupe.
-    app.get("/v1/groups/:groupId/schedules", async (request, reply) => {
-      const { groupId } = request.params as { groupId: string };
-      return reply.code(200).send(viewSchedule(schedule.get(groupId)));
-    });
+  // Lecture du calendrier courant d'un groupe.
+  app.get("/v1/groups/:groupId/schedules", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    if (pool && realSchedule) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(viewSchedule(await realSchedule.get(groupId)));
+    }
+    return reply.code(200).send(viewSchedule(schedule.get(groupId)));
+  });
 
-    // Démarrage (gel) du calendrier — ordre des bénéficiaires figé (5.3).
-    app.post("/v1/groups/:groupId/schedule-starts", async (request, reply) => {
-      const { groupId } = request.params as { groupId: string };
-      return reply.code(201).send(schedule.start(groupId));
-    });
+  // Démarrage (gel) du calendrier — ordre des bénéficiaires figé (5.3).
+  app.post("/v1/groups/:groupId/schedule-starts", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    if (pool && realSchedule) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(201).send(await realSchedule.start(groupId));
+    }
+    return reply.code(201).send(schedule.start(groupId));
+  });
 
-    // Réassignation d'un bénéficiaire — refusée après démarrage (SCHEDULE_FROZEN).
-    app.post("/v1/groups/:groupId/rounds/:seq/beneficiary", async (request, reply) => {
-      const { groupId } = request.params as { groupId: string };
-      const { seq } = request.params as { seq: string };
-      const body = beneficiaryReassignmentBody.parse(request.body);
-      const s = schedule.reassign(groupId, Number(seq), body.newBeneficiaryId);
+  // Réassignation d'un bénéficiaire — refusée après démarrage (SCHEDULE_FROZEN).
+  app.post("/v1/groups/:groupId/rounds/:seq/beneficiary", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const { seq } = request.params as { seq: string };
+    const body = beneficiaryReassignmentBody.parse(request.body);
+    if (pool && realSchedule) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      const s = await realSchedule.reassign(groupId, Number(seq), body.newBeneficiaryId);
       return reply.code(200).send({ seq: Number(seq), beneficiaryId: s.schedule[Number(seq) - 1]!.beneficiaryId });
-    });
+    }
+    const s = schedule.reassign(groupId, Number(seq), body.newBeneficiaryId);
+    return reply.code(200).send({ seq: Number(seq), beneficiaryId: s.schedule[Number(seq) - 1]!.beneficiaryId });
+  });
 
-    // Départ d'un membre — la dette reste affectée, les tours non réduits.
-    app.post("/v1/groups/:groupId/departures", async (request, reply) => {
-      const { groupId } = request.params as { groupId: string };
-      const body = departureBody.parse(request.body);
-      return reply.code(200).send(schedule.depart(groupId, body.identityId));
-    });
+  // Départ d'un membre — la dette reste affectée, les tours non réduits.
+  // `body.identityId` désigne la CIBLE du départ ; l'acteur vient de la session.
+  app.post("/v1/groups/:groupId/departures", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = departureBody.parse(request.body);
+    if (pool && realSchedule) {
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realSchedule.depart(groupId, body.identityId));
+    }
+    return reply.code(200).send(schedule.depart(groupId, body.identityId));
+  });
 
-    // Plan de renouvellement (5.5) — nouvelles acceptations si engagement changé.
-    app.post("/v1/groups/:groupId/cycle-renewals", async (request, reply) => {
-      const { groupId } = request.params as { groupId: string };
-      const body = cycleRenewalBody.parse(request.body);
+  // Plan de renouvellement (5.5) — nouvelles acceptations si engagement changé.
+  app.post("/v1/groups/:groupId/cycle-renewals", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = cycleRenewalBody.parse(request.body);
+    if (pool && realSchedule) {
+      await realGroupActorFrom(pool, request, groupId, now);
       return reply
         .code(200)
-        .send(schedule.renew(groupId, { version: body.version, memberCount: body.memberCount, contribution: body.contribution, rounds: body.rounds }));
-    });
-  }
+        .send(await realSchedule.renew(groupId, { version: body.version, memberCount: body.memberCount, contribution: body.contribution, rounds: body.rounds }));
+    }
+    return reply
+      .code(200)
+      .send(schedule.renew(groupId, { version: body.version, memberCount: body.memberCount, contribution: body.contribution, rounds: body.rounds }));
+  });
 
   /* --- C11 : journal d'événements, checkpoints, timeline (9.1 → 9.5) --- */
 
