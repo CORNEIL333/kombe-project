@@ -584,6 +584,220 @@ a:focus-visible {
   width: 100%;
 }
 
+/* ───────── Connexion : écran plein-bord à deux panneaux ──────────────
+   Casse la largeur maximale de `.app` (technique de « full-bleed
+   breakout ») pour occuper toute la largeur du viewport, exactement comme
+   une page de connexion dédiée — sans perdre l'en-tête/onglets au-dessus. */
+.ecran-connexion {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  min-height: min(44rem, 80vh);
+  border-radius: var(--rayon-l);
+  overflow: hidden;
+  box-shadow: var(--ombre-carte);
+}
+
+.panneau-marque {
+  position: relative;
+  padding: var(--espace-5) var(--espace-5) var(--espace-4);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #fff;
+  background:
+    linear-gradient(100deg, rgba(4, 60, 43, 0.94) 0%, rgba(4, 60, 43, 0.55) 48%, rgba(4, 60, 43, 0.82) 100%),
+    url("/brand/hero-communaute.jpg");
+  background-size: cover;
+  background-position: center 20%;
+  isolation: isolate;
+  overflow: hidden;
+}
+.panneau-marque::after {
+  /* Filigrane de l'emblème, même motif que les autres scènes immersives. */
+  content: "";
+  position: absolute;
+  width: 60%;
+  aspect-ratio: 1;
+  right: -16%;
+  bottom: -20%;
+  background-image: url("/brand/logo-emblem.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.1;
+  filter: brightness(3) saturate(0);
+  mix-blend-mode: screen;
+  z-index: -1;
+}
+
+.panneau-marque__marque {
+  display: flex;
+  align-items: center;
+  gap: var(--espace-2);
+}
+.panneau-marque__marque img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.panneau-marque__marque strong {
+  font-family: var(--police-affichage);
+  font-size: 1.2rem;
+  letter-spacing: 0.04em;
+  display: block;
+}
+.panneau-marque__marque small {
+  display: block;
+  opacity: 0.8;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panneau-marque__corps h1 {
+  font-family: var(--police-affichage);
+  font-size: clamp(1.8rem, 3.2vw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.12;
+  margin: 0 0 var(--espace-2);
+  letter-spacing: -0.01em;
+}
+.panneau-marque__corps h1 em {
+  font-style: normal;
+  color: var(--kombe-or);
+}
+.panneau-marque__corps p {
+  font-size: 1.02rem;
+  max-width: 30ch;
+  opacity: 0.92;
+  margin: 0 0 var(--espace-4);
+}
+
+.panneau-marque__atouts {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espace-3) var(--espace-4);
+  padding: 0;
+  margin: 0;
+}
+.panneau-marque__atouts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.panneau-marque__atouts .icone {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(212, 168, 62, 0.18);
+  color: var(--kombe-or);
+  font-size: 1rem;
+}
+.panneau-marque__atouts strong {
+  display: block;
+  font-size: 0.92rem;
+}
+.panneau-marque__atouts span {
+  display: block;
+  font-size: 0.78rem;
+  opacity: 0.78;
+  line-height: 1.3;
+}
+
+.panneau-marque__signature {
+  font-family: var(--police-affichage);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 1.05rem;
+  color: var(--kombe-or-clair, #f1d596);
+  margin: var(--espace-4) 0 0;
+}
+
+.panneau-formulaire {
+  background: var(--couleur-surface);
+  display: flex;
+  flex-direction: column;
+  padding: var(--espace-4);
+}
+.panneau-formulaire__interieur {
+  margin: auto;
+  width: 100%;
+  max-width: 23rem;
+  padding: var(--espace-4) 0;
+  animation: apparition var(--duree-lente) var(--ressort) both;
+}
+.panneau-formulaire__entete {
+  text-align: center;
+  margin-bottom: var(--espace-4);
+}
+.panneau-formulaire__entete img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  margin: 0 auto var(--espace-2);
+}
+.panneau-formulaire__entete h2 {
+  font-family: var(--police-affichage);
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin: var(--espace-3) 0 var(--espace-1);
+  color: var(--couleur-primaire-fonce);
+}
+
+.bouton-avec-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+.bouton-avec-icone .pastille-fleche {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--kombe-or);
+  color: var(--couleur-primaire-fonce);
+  display: grid;
+  place-items: center;
+  font-size: 0.9rem;
+  flex: none;
+}
+
+.panneau-formulaire__pied {
+  text-align: center;
+  margin-top: var(--espace-4);
+  color: var(--couleur-texte-affaibli);
+  font-size: 0.85rem;
+}
+.panneau-formulaire__pied::before {
+  content: "";
+  display: block;
+  width: 64px;
+  height: 2px;
+  background: var(--kombe-or);
+  margin: 0 auto var(--espace-3);
+  border-radius: 999px;
+}
+
+@media (max-width: 860px) {
+  .ecran-connexion {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+  .panneau-marque {
+    padding: var(--espace-4);
+  }
+  .panneau-marque__atouts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .etat-succes {
   color: var(--couleur-valide);
   font-weight: 700;
