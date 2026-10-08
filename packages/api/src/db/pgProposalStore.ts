@@ -280,23 +280,9 @@ export class PgProposalStore {
     });
   }
 
-  private async peekGroup(voteId: string): Promise<string> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const res = await client.query(`SELECT group_id FROM vote WHERE vote_id = $1`, [voteId]);
-      await client.query("COMMIT");
-      const row = res.rows[0];
-      if (!row) throw new DomainError("RESERVATION_INCOHERENTE", "Proposition introuvable");
-      return String(row.group_id);
-    } catch (error) {
-      await client.query("ROLLBACK").catch(() => {});
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
+  /** Le groupId vient de l'appelant (route/session) : sous RLS `kombe_app`
+   *  (sans BYPASSRLS), toute lecture group-scopée exige `kombe.group_id`
+   *  AVANT le SELECT — un « peek » hors contexte ne verrait aucune ligne. */
   private gateAccess(ctx: ProposalContext, held: { record: ProposalRecord; version: number }): void {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
     if (isCrossGroupAccess(ctx.actorGroupIds, held.record.groupId)) {
@@ -307,9 +293,8 @@ export class PgProposalStore {
     }
   }
 
-  async cast(ctx: ProposalContext, voteId: string, choice: BallotChoice): Promise<BallotReceipt> {
+  async cast(groupId: string, ctx: ProposalContext, voteId: string, choice: BallotChoice): Promise<BallotReceipt> {
     assertAllowed(ctx.actorRole, "vote.cast");
-    const groupId = await this.peekGroup(voteId);
     return withGroupTx(this.pool, groupId, async (client) => {
       const held = await loadRecord(client, voteId);
       if (!held) throw new DomainError("RESERVATION_INCOHERENTE", "Proposition introuvable");
@@ -353,11 +338,11 @@ export class PgProposalStore {
   }
 
   async close(
+    groupId: string,
     ctx: ProposalContext,
     voteId: string,
   ): Promise<{ state: ProposalState; tally: VoteTally; effectiveAt: number; version: number; eventHash: string }> {
     assertAllowed(ctx.actorRole, "vote.open");
-    const groupId = await this.peekGroup(voteId);
     return withGroupTx(this.pool, groupId, async (client) => {
       const held = await loadRecord(client, voteId);
       if (!held) throw new DomainError("RESERVATION_INCOHERENTE", "Proposition introuvable");
@@ -382,12 +367,12 @@ export class PgProposalStore {
   }
 
   async cancel(
+    groupId: string,
     ctx: ProposalContext,
     voteId: string,
     reason: string,
   ): Promise<{ state: ProposalState; version: number; eventHash: string }> {
     assertAllowed(ctx.actorRole, "vote.open");
-    const groupId = await this.peekGroup(voteId);
     return withGroupTx(this.pool, groupId, async (client) => {
       const held = await loadRecord(client, voteId);
       if (!held) throw new DomainError("RESERVATION_INCOHERENTE", "Proposition introuvable");
@@ -408,11 +393,11 @@ export class PgProposalStore {
   }
 
   async execute(
+    groupId: string,
     ctx: ProposalContext,
     voteId: string,
   ): Promise<{ state: ProposalState; executed: boolean; idempotent: boolean; version: number; eventHash?: string }> {
     assertAllowed(ctx.actorRole, "vote.open");
-    const groupId = await this.peekGroup(voteId);
     return withGroupTx(this.pool, groupId, async (client) => {
       const held = await loadRecord(client, voteId);
       if (!held) throw new DomainError("RESERVATION_INCOHERENTE", "Proposition introuvable");

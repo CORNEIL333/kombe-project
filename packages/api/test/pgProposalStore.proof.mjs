@@ -119,26 +119,47 @@ try {
   const pool = new pg.Pool({ connectionString: url, options: "-c role=kombe_app", max: 5 });
   const store = new PgProposalStore(pool);
 
-  const openedAt = Date.now() - 2000; // ouverte il y a 2s
+  // Établit la connexion du pool AVANT la première volée : le coût de premier
+  // contact (reprise compute Neon, TLS, auth) ne doit pas rogner la fenêtre de
+  // vote réelle — la `deadline` est ancrée à l'horloge au moment de l'`open`.
+  const tWarmup = Date.now();
+  await pool.query("SELECT 1");
+  observations["P-POOL-WARMUP-MS"] = Date.now() - tWarmup;
+
+  // Chronologie réelle : le trigger 0012 `ballot_guards` compare `now()` (horloge
+  // Postgres) à `deadline` ; un vote passé n'est jamais accepté. Chaque op store
+  // consomme 8-14 allers-retours réseau (harness → Neon ≈ 300 ms RTT) : la fenêtre
+  // doit être réellement future pendant TOUTE la séquence de bulletins — 25 s —
+  // et réellement dépassée à la clôture (attente 25,5 s puis `serverDate` fraîche).
+  const nowIso = () => new Date().toISOString();
+  const VOTE_DURATION_S = 25;
+  const PAST_DEADLINE_MS = 25500;
+  // RBAC réel (authorization.ts) : `vote.open` appartient à secretary/founder/
+  // animator, `vote.cast` à member/founder/animator. Deux contextes distincts
+  // pour exercer chaque acte avec un rôle réellement habilité.
   const ctx = {
-    actorIdentityId: "idn_p1", actorRole: "treasurer", actorGroupIds: ["grpP9"],
-    serverDate: new Date(openedAt).toISOString(), commandId: "cmd-p9-open", expectedVersion: 1,
+    actorIdentityId: "idn_p1", actorRole: "secretary", actorGroupIds: ["grpP9"],
+    serverDate: nowIso(), commandId: "cmd-p9-open", expectedVersion: 1,
   };
+  const castCtx = { ...ctx, actorRole: "member" };
   const rules = { quorumNumerator: 2, quorumDenominator: 3, rulesVersion: 1 };
 
   // P-OPEN : électorat scellé = membres actifs réels (3), jamais un électorat fourni par le client.
+  const tOpen1 = Date.now();
   const opened = await store.open(
-    ctx, "grpP9",
-    { proposalId: "vote_p9_1", subjectKind: "rule_change", subjectRef: "ref-1", reason: "Test réel C09", durationSeconds: 1 },
+    { ...ctx, serverDate: nowIso() }, "grpP9",
+    { proposalId: "vote_p9_1", subjectKind: "rule_change", subjectRef: "ref-1", reason: "Test réel C09", durationSeconds: VOTE_DURATION_S },
     rules,
   );
   check("P-OPEN", opened.state === "open" && opened.electorateSize === 3, {
     state: opened.state, electorateSize: opened.electorateSize,
+    deadlineDeltaMs: opened.deadline - Date.now(), openElapsedMs: Date.now() - tOpen1,
   });
 
   // P-NOT-ELIGIBLE : un non-électeur ne peut voter.
   const castOutsider = await store.cast(
-    { ...ctx, actorIdentityId: "idn_outsider", expectedVersion: opened.version },
+    "grpP9",
+    { ...castCtx, actorIdentityId: "idn_outsider", serverDate: nowIso(), expectedVersion: opened.version },
     "vote_p9_1", "yes",
   );
   check("P-NOT-ELIGIBLE", castOutsider.voteAccepted === false && castOutsider.reason === "NOT_ELIGIBLE", {
@@ -146,20 +167,20 @@ try {
   });
 
   // P-CAST-ONCE : un premier vote réussit, un second du même électeur est refusé.
-  const cast1 = await store.cast({ ...ctx, actorIdentityId: "idn_p1", expectedVersion: opened.version }, "vote_p9_1", "yes");
-  check("P-CAST-FIRST", cast1.voteAccepted === true, { voteAccepted: cast1.voteAccepted });
-  const cast1Again = await store.cast({ ...ctx, actorIdentityId: "idn_p1", expectedVersion: cast1.version }, "vote_p9_1", "no");
+  const cast1 = await store.cast("grpP9", { ...castCtx, actorIdentityId: "idn_p1", serverDate: nowIso(), expectedVersion: opened.version }, "vote_p9_1", "yes");
+  check("P-CAST-FIRST", cast1.voteAccepted === true, { voteAccepted: cast1.voteAccepted, reason: cast1.reason });
+  const cast1Again = await store.cast("grpP9", { ...castCtx, actorIdentityId: "idn_p1", serverDate: nowIso(), expectedVersion: cast1.version }, "vote_p9_1", "no");
   check("P-CAST-ONCE", cast1Again.voteAccepted === false && cast1Again.reason === "ALREADY_VOTED", {
     voteAccepted: cast1Again.voteAccepted, reason: cast1Again.reason,
   });
+  const cast2 = await store.cast("grpP9", { ...castCtx, actorIdentityId: "idn_p2", serverDate: nowIso(), expectedVersion: cast1.version }, "vote_p9_1", "yes");
+  check("P-CAST-SECOND", cast2.voteAccepted === true, { voteAccepted: cast2.voteAccepted, reason: cast2.reason });
 
-  const cast2 = await store.cast({ ...ctx, actorIdentityId: "idn_p2", expectedVersion: cast1.version }, "vote_p9_1", "yes");
-
-  // Attendre le délai (durationSeconds=1) pour pouvoir clôturer réellement.
-  await new Promise((r) => setTimeout(r, 1200));
+  // Attendre la fin réelle de l'échéance (durationSeconds=25) avant clôture.
+  await new Promise((r) => setTimeout(r, PAST_DEADLINE_MS));
 
   // P-CLOSE-TALLY : clôture réelle, tally conforme (2 yes / 0 no / 0 abstain sur 3 électeurs).
-  const closed = await store.close({ ...ctx, actorIdentityId: "idn_p1", expectedVersion: cast2.version }, "vote_p9_1");
+  const closed = await store.close("grpP9", { ...ctx, actorIdentityId: "idn_p1", serverDate: nowIso(), expectedVersion: cast2.version }, "vote_p9_1");
   check("P-CLOSE-TALLY", closed.tally.yes === 2 && closed.tally.no === 0 && closed.tally.turnout === 2, {
     tally: closed.tally,
   });
@@ -167,14 +188,14 @@ try {
 
   // ── Second scrutin : participation insuffisante -> approved=false ───────
   const opened2 = await store.open(
-    { ...ctx, commandId: "cmd-p9-open-2" }, "grpP9",
-    { proposalId: "vote_p9_2", subjectKind: "rule_change", subjectRef: "ref-2", reason: "Quorum insuffisant", durationSeconds: 1 },
+    { ...ctx, commandId: "cmd-p9-open-2", serverDate: nowIso() }, "grpP9",
+    { proposalId: "vote_p9_2", subjectKind: "rule_change", subjectRef: "ref-2", reason: "Quorum insuffisant", durationSeconds: VOTE_DURATION_S },
     rules,
   );
   // Un seul "yes" sur 3 électeurs, quorum 2/3 -> non atteint.
-  const cast3 = await store.cast({ ...ctx, actorIdentityId: "idn_p1", expectedVersion: opened2.version }, "vote_p9_2", "yes");
-  await new Promise((r) => setTimeout(r, 1200));
-  const closed2 = await store.close({ ...ctx, actorIdentityId: "idn_p1", expectedVersion: cast3.version }, "vote_p9_2");
+  const cast3 = await store.cast("grpP9", { ...castCtx, actorIdentityId: "idn_p1", serverDate: nowIso(), expectedVersion: opened2.version }, "vote_p9_2", "yes");
+  await new Promise((r) => setTimeout(r, PAST_DEADLINE_MS));
+  const closed2 = await store.close("grpP9", { ...ctx, actorIdentityId: "idn_p1", serverDate: nowIso(), expectedVersion: cast3.version }, "vote_p9_2");
   check("P-QUORUM-INSUFFICIENT", closed2.tally.approved === false, { tally: closed2.tally });
 
   // Journal réel : au moins les événements opened/ballot/closed pour le premier scrutin.

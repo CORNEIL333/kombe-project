@@ -242,6 +242,7 @@ export class PgDisbursementStore {
   }
 
   private async actOrView(
+    groupId: string,
     ctx: DisbursementContext,
     disbursementId: string,
     perform: (client: pg.PoolClient, held: { record: DisbursementRecord; version: number }) => Promise<{
@@ -251,8 +252,7 @@ export class PgDisbursementStore {
       reason?: string;
     }>,
   ): Promise<DisbursementActReceipt> {
-    const held0 = await this.peek(disbursementId);
-    return withGroupTx(this.pool, held0.record.groupId, async (client) => {
+    return withGroupTx(this.pool, groupId, async (client) => {
       const held = await loadRecord(client, disbursementId);
       if (!held) throw new DomainError("RESERVATION_INCOHERENTE", "Décaissement introuvable");
       this.gateAccess(ctx, held);
@@ -295,27 +295,9 @@ export class PgDisbursementStore {
     });
   }
 
-  /** Lecture hors transaction group-scopée, juste pour connaître le groupId
-   *  avant d'ouvrir `withGroupTx` (RLS exige group_id AVANT toute lecture
-   *  scopée) — même motif que la résolution de session avant group_id. */
-  private async peek(disbursementId: string): Promise<{ record: { groupId: string } }> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const res = await client.query(`SELECT group_id FROM disbursement WHERE disbursement_id = $1`, [
-        disbursementId,
-      ]);
-      await client.query("COMMIT");
-      const row = res.rows[0];
-      if (!row) throw new DomainError("RESERVATION_INCOHERENTE", "Décaissement introuvable");
-      return { record: { groupId: String(row.group_id) } };
-    } catch (error) {
-      await client.query("ROLLBACK").catch(() => {});
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
+  /** Le groupId vient de l'appelant (route/session) : sous RLS `kombe_app`
+   *  (sans BYPASSRLS), toute lecture group-scopée exige `kombe.group_id`
+   *  AVANT le SELECT — un « peek » hors contexte ne verrait aucune ligne. */
 
   private gateAccess(ctx: DisbursementContext, held: { record: DisbursementRecord; version: number }): void {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
@@ -327,8 +309,8 @@ export class PgDisbursementStore {
     }
   }
 
-  async confirm(ctx: DisbursementContext, disbursementId: string): Promise<DisbursementActReceipt> {
-    return this.actOrView(ctx, disbursementId, async (client, held) => {
+  async confirm(groupId: string, ctx: DisbursementContext, disbursementId: string): Promise<DisbursementActReceipt> {
+    return this.actOrView(groupId, ctx, disbursementId, async (client, held) => {
       const result = confirmDisbursement(held.record, ctx.actorIdentityId);
       if (result.actAccepted) {
         await client.query(
@@ -341,8 +323,8 @@ export class PgDisbursementStore {
     });
   }
 
-  async control(ctx: DisbursementContext, disbursementId: string): Promise<DisbursementActReceipt> {
-    return this.actOrView(ctx, disbursementId, async (client, held) => {
+  async control(groupId: string, ctx: DisbursementContext, disbursementId: string): Promise<DisbursementActReceipt> {
+    return this.actOrView(groupId, ctx, disbursementId, async (client, held) => {
       const result = controlDisbursement(held.record, ctx.actorIdentityId);
       if (result.actAccepted) {
         await client.query(
@@ -355,11 +337,10 @@ export class PgDisbursementStore {
     });
   }
 
-  async requestReversal(ctx: DisbursementContext, disbursementId: string, reason: string): Promise<ReversalReceipt> {
+  async requestReversal(groupId: string, ctx: DisbursementContext, disbursementId: string, reason: string): Promise<ReversalReceipt> {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
     assertAllowed(ctx.actorRole, "disbursement.reverse");
-    const peeked = await this.peek(disbursementId);
-    return withGroupTx(this.pool, peeked.record.groupId, async (client) => {
+    return withGroupTx(this.pool, groupId, async (client) => {
       const held = await loadRecord(client, disbursementId);
       if (!held) throw new DomainError("RESERVATION_INCOHERENTE", "Décaissement introuvable");
       this.gateAccess(ctx, held);
@@ -381,33 +362,25 @@ export class PgDisbursementStore {
     });
   }
 
-  async approveReversal(ctx: DisbursementContext, disbursementId: string): Promise<ReversalReceipt> {
+  async approveReversal(groupId: string, ctx: DisbursementContext, disbursementId: string): Promise<ReversalReceipt> {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
     assertAllowed(ctx.actorRole, "disbursement.reverse");
-    const peeked = await this.peek(disbursementId);
-    return withGroupTx(this.pool, peeked.record.groupId, async (client) => {
+    return withGroupTx(this.pool, groupId, async (client) => {
       const held = await loadRecord(client, disbursementId);
       if (!held) throw new DomainError("RESERVATION_INCOHERENTE", "Décaissement introuvable");
       this.gateAccess(ctx, held);
       const updatedRecord = approveDisbursementReversal(held.record, ctx.actorIdentityId);
       const newVersion = held.version + 1;
-      const updated = await client.query(
-        `UPDATE disbursement SET state='reversed', version=$2 WHERE disbursement_id=$1 AND version=$3`,
-        [disbursementId, newVersion, held.version],
-      );
-      if (updated.rowCount !== 1) throw new DomainError("EVENT_CHAIN_BREAK", "Version d'objet dépassée (conflit)");
-      let eventHash: string | undefined;
+      // INSERT **avant** l'UPDATE : le trigger 0011
+      // `kombe_disbursement_reversal_independence` lit l'état VIVANT de
+      // `disbursement` et exige `reversal_requested` au moment de l'insertion
+      // de la contre-écriture.
       try {
         await client.query(
           `INSERT INTO disbursement_reversal (disbursement_id, group_id, approved_by_identity_id, reversal_reason)
            VALUES ($1,$2,$3,$4)`,
           [disbursementId, held.record.groupId, ctx.actorIdentityId, held.record.reversalReason ?? ""],
         );
-        eventHash = await appendJournal(client, ctx, held.record.groupId, "disbursement.reversed", {
-          disbursementId,
-          obligationId: held.record.obligationId,
-          netAmount: held.record.netAmount.toString(),
-        });
       } catch (error) {
         // Contre-écriture concurrente ayant gagné la course sur la PRIMARY KEY
         // de `disbursement_reversal` (C08-CORRECTION) : traduit en erreur stable,
@@ -417,6 +390,16 @@ export class PgDisbursementStore {
         }
         throw error;
       }
+      const updated = await client.query(
+        `UPDATE disbursement SET state='reversed', version=$2 WHERE disbursement_id=$1 AND version=$3`,
+        [disbursementId, newVersion, held.version],
+      );
+      if (updated.rowCount !== 1) throw new DomainError("EVENT_CHAIN_BREAK", "Version d'objet dépassée (conflit)");
+      const eventHash = await appendJournal(client, ctx, held.record.groupId, "disbursement.reversed", {
+        disbursementId,
+        obligationId: held.record.obligationId,
+        netAmount: held.record.netAmount.toString(),
+      });
       return {
         disbursementId,
         state: updatedRecord.state,

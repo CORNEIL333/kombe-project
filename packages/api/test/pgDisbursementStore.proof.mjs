@@ -118,7 +118,7 @@ try {
       ON CONFLICT DO NOTHING;
     INSERT INTO round (round_id, group_id, seq) VALUES ('rnd_d8','grpD8',1) ON CONFLICT DO NOTHING;
     INSERT INTO obligation (obligation_id, group_id, round_id, member_membership_id, due_amount, validated_net, active_reserved, version)
-      VALUES ('ob_d8','grpD8','rnd_d8','mem_beneficiary','100000','40000','0',1) ON CONFLICT DO NOTHING;
+      VALUES ('ob_d8','grpD8','rnd_d8','mem_beneficiary','100000','40000','40000',1) ON CONFLICT DO NOTHING;
   `);
 
   const pool = new pg.Pool({ connectionString: url, options: "-c role=kombe_app", max: 5 });
@@ -154,8 +154,10 @@ try {
   });
 
   // DB-CONFIRM : le bénéficiaire confirme -> complété (0 contrôleur requis).
+  // groupId fourni par l'appelant (route/session) — sous RLS, aucun « peek »
+  // hors contexte n'est possible (kombe_app NOBYPASSRLS).
   const confirmCtx = { ...ctx, actorIdentityId: "idn_beneficiary", expectedVersion: declared.version };
-  const confirmed = await store.confirm(confirmCtx, "db_d8_1");
+  const confirmed = await store.confirm("grpD8", confirmCtx, "db_d8_1");
   check("DB-CONFIRM", confirmed.actAccepted === true && confirmed.completed === true && confirmed.state === "completed", {
     actAccepted: confirmed.actAccepted, completed: confirmed.completed, state: confirmed.state,
   });
@@ -172,18 +174,19 @@ try {
       requiredControllers: 1, allegedDate: Date.now(),
     },
   );
-  const notBeneficiary = await store.confirm({ ...ctx, actorIdentityId: "idn_controller", expectedVersion: declared2.version }, "db_d8_2");
+  const notBeneficiary = await store.confirm("grpD8", { ...ctx, actorIdentityId: "idn_controller", expectedVersion: declared2.version }, "db_d8_2");
   check("DB-NOT-BENEFICIARY", notBeneficiary.actAccepted === false && notBeneficiary.reason === "NOT_BENEFICIARY", {
     actAccepted: notBeneficiary.actAccepted, reason: notBeneficiary.reason,
   });
-  const confirmed2 = await store.confirm({ ...ctx, actorIdentityId: "idn_beneficiary", expectedVersion: declared2.version }, "db_d8_2");
-  const controlled2 = await store.control({ ...ctx, actorIdentityId: "idn_controller", expectedVersion: confirmed2.version }, "db_d8_2");
+  const confirmed2 = await store.confirm("grpD8", { ...ctx, actorIdentityId: "idn_beneficiary", expectedVersion: declared2.version }, "db_d8_2");
+  const controlled2 = await store.control("grpD8", { ...ctx, actorIdentityId: "idn_controller", expectedVersion: confirmed2.version }, "db_d8_2");
   check("DB-CONTROL-COMPLETES", controlled2.actAccepted === true && controlled2.completed === true && controlled2.state === "completed", {
     actAccepted: controlled2.actAccepted, completed: controlled2.completed, state: controlled2.state,
   });
 
   // DB-REVERSAL-ONCE : demande + approbation indépendante réelles -> 'reversed'.
   const reqReversal = await store.requestReversal(
+    "grpD8",
     { ...ctx, actorIdentityId: "idn_beneficiary", expectedVersion: controlled2.version },
     "db_d8_2",
     "Montant erroné, correction demandée",
@@ -191,6 +194,7 @@ try {
   check("DB-REVERSAL-REQUESTED", reqReversal.state === "reversal_requested", { state: reqReversal.state });
 
   const approved = await store.approveReversal(
+    "grpD8",
     { ...ctx, actorIdentityId: "idn_controller", expectedVersion: reqReversal.version },
     "db_d8_2",
   );
@@ -204,6 +208,7 @@ try {
   let alreadyReversedCode = null;
   try {
     await store.approveReversal(
+      "grpD8",
       { ...ctx, actorIdentityId: "idn_treasurer", expectedVersion: approved.version },
       "db_d8_2",
     );
