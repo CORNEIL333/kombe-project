@@ -6,11 +6,12 @@
  * Il ne change AUCUNE règle métier : il se contente de démarrer l'app Fastify
  * construite par buildApp() sur l'horôte/port lus dans l'environnement.
  *
- * HONNÊTETÉ DU SOCLE : les stores servis sont les FICTIFS en mémoire de C00
- * (l'état réinitialise à chaque redémarrage ; aucune persistance PostgreSQL,
- * pas de session réelle ni de RLS appliquée ici). La persistance et l'identité
- * serveur sont des lots ultérieurs (C01+). Ce démarrage rend le contrat
- * RÉELLEMENT ÉCOUTABLE pour le déploiement du squelette, rien de plus.
+ * HONNÊTETÉ : quand KOMBE_API_DATABASE_URL est posée, l'API sert ses stores
+ * Pg* persistants (sessions Bearer résolues côté serveur, RLS kombe_app par
+ * transaction, aucun x-actor). Sans cette variable, elle retombe
+ * explicitement sur les stores FICTIFS en mémoire de C00 — état de repli du
+ * squelette, jamais un backend de production (en mode réel, les routes sans
+ * store PG réel répondent 404 plutôt que de servir des données fictives).
  */
 import { buildApp } from "./server.js";
 import { createApiPool, readApiDatabaseUrl } from "./db/pgPool.js";
@@ -49,9 +50,9 @@ function readHost(): string {
 async function main(): Promise<void> {
   // Mode RÉEL (Piste A3) : seulement si KOMBE_API_DATABASE_URL est posée —
   // jamais un pool silencieusement absent qui ferait croire à un mode réel
-  // inactif. Périmètre réel actuel : connexion + déclaration/vue cotisation
-  // (voir BuildAppOptions.pool, server.ts). Tout le reste reste fictif tant
-  // que son propre store Postgres n'est pas câblé.
+  // inactif. Périmètre réel : l'ensemble des stores Pg* câblés (voir
+  // BuildAppOptions.pool, server.ts) ; toute route sans store PG réel répond
+  // 404 en mode réel plutôt que de servir des données fictives.
   const databaseUrl = readApiDatabaseUrl();
   const pool = databaseUrl ? createApiPool({ connectionString: databaseUrl }) : undefined;
   const app = buildApp(pool ? { pool } : {});
@@ -77,8 +78,8 @@ async function main(): Promise<void> {
     await app.listen({ port, host });
     say(
       pool
-        ? `à l'écoute sur http://${host}:${port} (mode RÉEL : connexion + cotisation sur Postgres ; reste fictif ; santé : GET /v1/health)`
-        : `à l'écoute sur http://${host}:${port} (socle C00, stores fictifs en mémoire ; santé : GET /v1/health)`,
+        ? `à l'écoute sur http://${host}:${port} (mode RÉEL : stores Pg* persistants, sessions Bearer, RLS kombe_app ; santé : GET /v1/health)`
+        : `à l'écoute sur http://${host}:${port} (REPLI FICTIF : KOMBE_API_DATABASE_URL absente ; état en mémoire, santé : GET /v1/health)`,
     );
   } catch (err) {
     sayErr("démarrage impossible", err);

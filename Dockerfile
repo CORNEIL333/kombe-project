@@ -1,14 +1,21 @@
 # syntax=docker/dockerfile:1
-# KÓMBE — image du socle déployable (API Fastify + scripts de déploiement db).
+# KÓMBE — image du socle déployable (API Fastify + worker outbox + scripts de
+# déploiement db).
 #
-# HONNÊTETÉ : cette image démarre l'API C00 (stores FICTIFS en mémoire ; l'état
-# réinitialise au redémarrage, aucune persistance PostgreSQL côté API à ce jour —
-# la persistance est un lot ultérieur). Elle embarque AUSSI les scripts réels de
-# packages/db (migrate.mjs, isolation.pg.mjs) pour qu'un hôte disposant de Docker
-# puisse appliquer le schéma et exécuter les preuves base réelle sur Postgres 16.
+# HONNÊTETÉ : cette image démarre l'API en mode RÉEL dès que
+# `KOMBE_API_DATABASE_URL` est fournie (stores Pg* persistants, sessions
+# Bearer, RLS kombe_app par transaction — preuves d'intégration Neon PASS).
+# SANS cette variable, l'API tombe explicitement sur ses stores FICTIFS en
+# mémoire : état de repli du squelette, PAS un backend de production. Le
+# worker (`node packages/worker/dist/main.js`, service `worker` de
+# docker-compose.yml) exige `KOMBE_WORKER_DATABASE_URL` et sort en erreur
+# sinon (fail-loud, jamais de boucle fictive). Elle embarque AUSSI les scripts
+# réels de packages/db (migrate.mjs, isolation.pg.mjs) pour qu'un hôte disposant
+# de Docker puisse appliquer le schéma et exécuter les preuves base réelle sur
+# Postgres 16.
 #
-# Le build ne compile QUE domain+api (tsc pur) : pas de Vite/esbuild du client
-# (placeholder), conformément à la politique sémantique de C00 (allowBuilds:false).
+# Le build ne compile QUE domain+worker+api (tsc pur) : pas de Vite/esbuild du
+# client (placeholder), conformément à la politique sémantique de C00 (allowBuilds:false).
 
 # ── Étape 1 : installation des dépendances + build ───────────────────────────
 FROM node:22-alpine AS build

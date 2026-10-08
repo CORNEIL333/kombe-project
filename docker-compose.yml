@@ -1,16 +1,19 @@
 # KÓMBE — pile de déploiement locale / hôte Docker (socle déployable).
 #
 # HONNÊTETÉ (à lire) :
-#   * `api` démarre l'API C00 sur ses stores FICTIFS en mémoire : l'état se
-#     réinitialise au redémarrage et l'API NE LIT/ÉCRIT PAS encore PostgreSQL
-#     (la persistance est un lot ultérieur). KOMBE_DATABASE_URL est fourni en
-#     anticipation, pas consommé aujourd'hui.
-#   * `postgres` + `migrate` + `dbtest` sont, eux, RÉELS : ils appliquent le
-#     schéma et exécutent les preuves base réelle (RLS/verrous/pool) dès que
-#     Docker est disponible — c'est ce qui fait passer ces preuves de BLOCKED
-#     (Windows sans base) à un PASS vérifiable sur tout hôte conteneurisé.
+#   * `api` + `worker` sont RÉELS dès que leur URL de base est fournie : l'API
+#     passe en mode PG (stores Pg*, sessions Bearer, RLS kombe_app) et le worker
+#     consomme l'outbox sous rôle kombe_worker. SANS `KOMBE_API_DATABASE_URL`,
+#     l'API démarre en mode fictif en mémoire — c'est un état de repli explicite,
+#     pas un backend de production. `KOMBE_API_DATABASE_URL` (lue par
+#     packages/api/src/db/pgPool.ts) est donc OBLIGATOIRE pour un déploiement
+#     réel : ne pas la confondre avec `KOMBE_DATABASE_URL` (rôle migrateur,
+#     lue par packages/db/scripts/migrate.mjs uniquement).
+#   * `postgres` + `migrate` + `dbtest` sont RÉELS : ils appliquent le schéma
+#     (provision + 0001→0023 + grants) et exécutent les preuves base réelle
+#     (RLS/verrous/pool/outbox) dès que Docker est disponible.
 #
-# Démarrage :  docker compose up --build            (postgres + api)
+# Démarrage :  docker compose up --build            (postgres + api + worker)
 # Migrations : docker compose --profile tools run --rm migrate
 # Preuve base réelle : docker compose --profile test run --rm dbtest
 
@@ -34,17 +37,51 @@ services:
       timeout: 3s
       retries: 10
 
+  # API Fastify : RÉELLE quand KOMBE_API_DATABASE_URL est posée (mode PG :
+  # stores persistants, sessions Bearer, RLS kombe_app par transaction). Le
+  # rôle est assumé via `-c role=kombe_app` (pgPool.ts) ; le user de connexion
+  # est le superuser local `kombe` (membre via provision/roles.sql + droit
+  # superuser), équivalent Docker du neondb_owner de Neon.
   api:
     build: .
-    # L'API C00 sert ses stores FICTIFS en mémoire et ne CONSOMME PAS PostgreSQL
-    # aujourd'hui : elle ne doit donc PAS être bloquée par la santé de la base.
-    # KOMBE_DATABASE_URL est fourni en anticipation de la persistance (lot ult.).
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       PORT: "3000"
       HOST: "0.0.0.0"
-      KOMBE_DATABASE_URL: postgresql://${POSTGRES_USER:-kombe}:${POSTGRES_PASSWORD:-kombe_dev_only}@postgres:5432/${POSTGRES_DB:-kombe}
+      KOMBE_API_DATABASE_URL: postgresql://${POSTGRES_USER:-kombe}:${POSTGRES_PASSWORD:-kombe_dev_only}@postgres:5432/${POSTGRES_DB:-kombe}
     ports:
       - "127.0.0.1:3000:3000"   # exposition locale uniquement
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # Worker outbox (C13) : consomme l'outbox sous rôle kombe_worker, découvre
+  # les groupes via kombe_c13_pending_groups() (SECURITY DEFINER 0023), santé
+  # HTTP sur /health. Canal push externe : aucun prestataire au socle → rejets
+  # tracés CHANNEL_NOT_VERIFIED (jamais de faux envoi). Sans
+  # KOMBE_WORKER_DATABASE_URL le service sort en erreur (fail-loud), jamais de
+  # boucle fictive.
+  worker:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      WORKER_PORT: "3001"
+      WORKER_POLL_MS: "1000"
+      KOMBE_WORKER_DATABASE_URL: postgresql://${POSTGRES_USER:-kombe}:${POSTGRES_PASSWORD:-kombe_dev_only}@postgres:5432/${POSTGRES_DB:-kombe}
+    command: ["node", "packages/worker/dist/main.js"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
   # One-shot d'application du schéma (idempotent, suit les jalons kombe_migration).
   migrate:
