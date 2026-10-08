@@ -8,6 +8,15 @@
     "rerun2": "C:/Users/migco/AppData/Local/Temp/neon-rerun2.log",
     "flutter": "C:/Users/migco/AppData/Local/Temp/flutter-verify.log"
   },
+  "hostingDecision": {
+    "date": "2026-10-08",
+    "decisionBy": "propriétaire",
+    "postgresql": "Neon — projet production SÉPARÉ de la base partagée de vérification (square-resonance-19892972)",
+    "api": "Vercel serverless (api/serverless.js + vercel.json racine)",
+    "dashboards": "Cloudflare Pages (opérations, direction, engineering — statique Vite)",
+    "pwaAndAdmin": "Vercel (PWA : build Flutter en CI ; dashboard admin : projet Vercel Vite)",
+    "runbook": "DEPLOY.md §7 (ordre §7.0, actions propriétaire §7.6)"
+  },
   "databaseProofs": [
     { "id": "pgAccessStore", "file": "packages/api/test/pgAccessStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
     { "id": "pgContributionStore", "file": "packages/api/test/pgContributionStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
@@ -21,23 +30,31 @@
     { "id": "pgSessionResolver", "file": "packages/api/test/pgSessionResolver.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
     { "id": "pgValidationStore", "file": "packages/api/test/pgValidationStore.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
     { "id": "pgWorkerDiscovery", "file": "packages/api/test/pgWorkerDiscovery.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08" },
-    { "id": "serverRealMode", "file": "packages/api/test/serverRealMode.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08", "note": "Échec initial (assertion santé obsolète A3-FICTIF-INTACT) corrigé au niveau preuve (commit à venir), re-exécution exit 0." },
+    { "id": "serverRealMode", "file": "packages/api/test/serverRealMode.proof.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08", "note": "Échec initial (assertion santé obsolète A3-FICTIF-INTACT) corrigé au niveau preuve, re-exécution exit 0." },
     { "id": "isolation", "file": "packages/db/tests/isolation.pg.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08", "note": "Deux échecs initiaux diagnostiqués puis corrigés au niveau preuve : vote 'executed' (CHECK transition) et jetons login vs CHECK 0019 (pré-nettoyage). Re-exécution exit 0." },
     { "id": "migrateEmptyToLatest", "file": "packages/db/tests/migrateEmptyToLatest.pg.mjs", "verdict": "PASS", "exit": 0, "date": "2026-10-08", "note": "§17 : runner réel vide → 25 jalons, objets 0023 présents, seconde passe applied=[] skipped=25." }
   ],
   "testSuites": [
-    { "id": "api-unit", "cmd": "vitest packages/api/test/server.test.ts et suites associées", "verdict": "PASS", "date": "2026-10-08" },
+    { "id": "api-unit", "cmd": "vitest packages/api (17 fichiers)", "verdict": "PASS", "detail": "207/207, dont 3 nouveaux tests gardes HTTP (CORS liste fermée, preflight 204/403, 429 après 10 POST /v1/access/*)", "date": "2026-10-08" },
     { "id": "mobile-flutter-test", "cmd": "flutter test (packages/mobile)", "verdict": "PASS", "detail": "24/24", "date": "2026-10-08" },
-    { "id": "mobile-flutter-build-web", "cmd": "flutter build web", "verdict": "PENDING", "note": "Compilation en cours au moment de la rédaction." }
+    { "id": "mobile-flutter-build-web", "cmd": "flutter build web --release", "verdict": "BLOCKED_EXTERNAL", "date": "2026-10-08", "what": "Build web Flutter de la PWA", "why": "Build lancé mais jamais abouti sur cet hôte (toolchain web interrompue) ; pas de verdict observé — jamais déclaré PASS", "exactActionRequired": "Lancer le job CI deploy-pwa-vercel (image Flutter complète) ou flutter build web --release sur une machine Flutter stable", "afterAction": "Reporter le verdict réel ici" }
+  ],
+  "deploymentArtifacts": [
+    { "id": "api-serverless", "files": ["api/serverless.js", "vercel.json", ".vercelignore", "packages/api/src/serverless.ts", "packages/api/src/httpGuards.ts"], "verdict": "PASS_LOCAL", "detail": "tsc build propre ; handler servi en HTTP réel local (santé fictif sans DB, CORS exact avec KOMBE_CORS_ORIGINS, preflight 204/403) ; déploiement PENDING (compte Vercel propriétaire)", "date": "2026-10-08" },
+    { "id": "dashboards-cloudflare", "files": ["apps/dashboard-operations", "apps/dashboard-direction", "apps/dashboard-engineering"], "verdict": "PASS_LOCAL", "detail": "4/4 builds Vite avec VITE_KOMBE_API_BASE_URL ; déploiement PENDING (compte Cloudflare propriétaire) ; config apiBaseUrl à pointer sur l'URL API réelle avant build (DEPLOY.md §7.3)", "date": "2026-10-08" },
+    { "id": "pwa-vercel", "files": ["packages/mobile/vercel.json", "packages/mobile/.vercelignore", ".gitlab-ci.yml (deploy-pwa-vercel)"], "verdict": "PENDING", "why": "Exige VERCEL_TOKEN + KOMBE_API_PUBLIC_URL en variables CI (propriétaire) et le build web Flutter (ci-dessus)" },
+    { "id": "admin-vercel", "files": ["apps/dashboard-group-admin/vercel.json"], "verdict": "PENDING", "why": "Exige le projet Vercel (Root Directory apps/dashboard-group-admin) et l'URL API réelle dans public/kombe-dashboard-config.json (DEPLOY.md §7.5)" }
   ],
   "deploymentGates": [
     { "id": "openapi-runtime", "verdict": "PASS", "evidence": "commit 6c98ebf" },
     { "id": "health-liveness-readiness", "verdict": "PASS", "evidence": "commit ab60037" },
     { "id": "security-headers", "verdict": "PASS", "evidence": "commit e23f9d8" },
+    { "id": "http-guards", "verdict": "PASS", "evidence": "packages/api/src/httpGuards.ts + 3 tests (commit 6e2cc75)", "detail": "CORS à liste fermée (KOMBE_CORS_ORIGINS), preflight explicite 204/403, jamais '*' ; rate limit global 120/min + auth 10/min par IP (borne molle par instance chaude — limite Hobby documentée DEPLOY.md §7.2)" },
     { "id": "audit-deps-prod", "verdict": "PASS", "detail": "pnpm audit --prod sans vulnérabilité", "date": "2026-10-08" },
     { "id": "secret-scan", "verdict": "PASS_SUBSTITUT", "detail": "gitleaks absent (installation interdite §39) ; scan manuel par motifs : propre (mot de passe CI dev connu, non secret réel)" },
-    { "id": "release-smoke-deployed", "cmd": "pnpm release:smoke", "verdict": "PENDING", "why": "Exige un staging déployé (§22/§25)." },
+    { "id": "neon-production", "verdict": "PENDING", "what": "Création du projet Neon de production séparé + migrations (25 jalons) + ALTER ROLE kombe_app LOGIN", "why": "Action propriétaire (§39 : création de compte/projet gratuite autorisée, mais tokens et décisions de compte restent au propriétaire)", "exactActionRequired": "DEPLOY.md §7.1 : créer le projet Neon, exporter KOMBE_DATABASE_URL, pnpm --filter @kombe/db run migrate, vérifier 25 jalons", "where": "Console Neon + machine node 22/pnpm (ou CI)", "afterAction": "Vérifier GET /v1/health/ready en mode réel une fois l'API déployée" },
+    { "id": "release-smoke-deployed", "cmd": "KOMBE_SMOKE_BASE_URL=https://<api>.vercel.app node scripts/release-smoke.mjs (ou job CI release-smoke)", "verdict": "PENDING", "why": "Exige l'API déployée en production (§22/§25)." },
     { "id": "backup-restore", "verdict": "BLOCKED_EXTERNAL", "what": "Exécution réelle pg_dump/pg_restore de DEPLOY.md §6.1/6.2", "why": "Binaires PostgreSQL absents de cet hôte ; installation hors mandat (§39)", "exactActionRequired": "Sur l'hôte de déploiement (ou tout hôte outillé PG 16+) : exécuter DEPLOY.md 6.1 puis 6.2 avec KOMBE_DATABASE_URL", "afterAction": "Reporter le verdict réel ici et dans RELEASE_READINESS.md" },
-    { "id": "staging-deploy", "verdict": "PENDING", "why": "Tentative à venir avec les accès existants (§25) ; décision hébergement prod [OPEN-D01]/[OPEN-D02] ouverte au propriétaire (§39)" }
+    { "id": "dns-public-domains", "verdict": "PENDING", "what": "Domaines publics définitifs (public sous 3–5 jours)", "why": "DNS et noms de domaine = action propriétaire", "exactActionRequired": "DEPLOY.md §7.6.4 : CNAME vers Vercel/Pages, mise à jour KOMBE_CORS_ORIGINS + des 4 kombe-dashboard-config.json, redeploy", "afterAction": "Smoke §7.7 contre les domaines définitifs" }
   ]
 }
