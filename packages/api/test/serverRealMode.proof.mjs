@@ -94,8 +94,10 @@ try {
     DO $$ BEGIN
       UPDATE "group" SET state = 'closed'
         WHERE state NOT IN ('configuration','active','paused','closed');
+      -- 'executed' (C09) est terminal : conversion -> closed par 0012.down
+      -- (apres son DROP TRIGGER) ; ici le trigger vote_transition est actif.
       UPDATE vote SET state = 'closed'
-        WHERE state NOT IN ('open','closed','cancelled');
+        WHERE state NOT IN ('open','closed','cancelled','executed');
       -- 0019.down ré-ajoute la vérification étroite purpose IN
       -- ('registration','recovery') ; des jetons 'login' résiduels d'un cycle
       -- antérieur la violeraient au DOWN. Nettoyage dans le harness (jamais
@@ -159,6 +161,13 @@ try {
     INSERT INTO rule_version (group_id, rules_version, snapshot)
       VALUES ('grpA3', 1, '{"quorum":{"numerator":1,"denominator":2},"penaltyEnabled":false}')
       ON CONFLICT DO NOTHING;
+    -- Dédié A4-C03 : membre à révoquer (dave) et invitation anonyme à racheter.
+    INSERT INTO identity (identity_id) VALUES ('dave@example.test') ON CONFLICT DO NOTHING;
+    INSERT INTO membership (membership_id, group_id, identity_id, state)
+      VALUES ('mem_a3_dave','grpA3','dave@example.test','active') ON CONFLICT DO NOTHING;
+    INSERT INTO invitation (invitation_id, group_id, channel, max_uses, used_count, issued_at, expires_at)
+      VALUES ('inv_a4','grpA3','link',2,0, now(), now() + interval '1 hour')
+      ON CONFLICT (invitation_id) DO NOTHING;
   `);
 
   const pool = createApiPool({ connectionString: url, max: 5 });
@@ -291,6 +300,121 @@ try {
   const aliceAuth = { authorization: `Bearer ${sessionId}` };
   const bobAuth = { authorization: `Bearer ${bobSession}` };
   const carolAuth = { authorization: `Bearer ${carolSession}` };
+
+  // ── A4-C03 : gouvernance réelle — l'identité métier vient de la SESSION,
+  //    jamais du corps (§14) ; révocation et invitation persistent en base ──
+  // Acceptation des règles par alice : le corps tente d'usurper dave — la
+  // réponse doit porter l'identité RÉSOLUE d'alice et la version courante (1).
+  const acceptRes = await inject({
+    method: "POST",
+    url: "/v1/groups/grpA3/rules-acceptances",
+    headers: aliceAuth,
+    payload: { identityId: "dave@example.test" },
+  });
+  check(
+    "A4-C03-ACCEPT",
+    acceptRes.statusCode === 201 &&
+      acceptRes.json().identityId === "alice@example.test" &&
+      acceptRes.json().rulesVersion === 1,
+    { status: acceptRes.statusCode, body: acceptRes.json() },
+  );
+
+  const spoofRows = await migrator.query(
+    `SELECT
+       count(*) FILTER (WHERE identity_id = 'alice@example.test')::int AS alice_rows,
+       count(*) FILTER (WHERE identity_id = 'dave@example.test')::int AS dave_rows
+     FROM rules_acceptance WHERE group_id = 'grpA3' AND rules_version = 1`,
+  );
+  check(
+    "A4-C03-ACCEPT-SPOOF-IGNORED",
+    spoofRows.rows[0]?.alice_rows === 1 && spoofRows.rows[0]?.dave_rows === 0,
+    spoofRows.rows[0],
+  );
+
+  // Barrière d'acceptation : alice (acceptée) passe même si le corps nomme
+  // carol ; carol (jamais acceptée) est refusée 403 RULES_NOT_ACCEPTED.
+  const declareAllowed = await inject({
+    method: "POST",
+    url: "/v1/groups/grpA3/contribution-declarations",
+    headers: aliceAuth,
+    payload: { identityId: "carol@example.test" },
+  });
+  check(
+    "A4-C03-DECLARE",
+    declareAllowed.statusCode === 200 && declareAllowed.json().allowed === true,
+    { status: declareAllowed.statusCode, body: declareAllowed.json() },
+  );
+
+  const declareRefused = await inject({
+    method: "POST",
+    url: "/v1/groups/grpA3/contribution-declarations",
+    headers: carolAuth,
+    payload: { identityId: "carol@example.test" },
+  });
+  check(
+    "A4-C03-DECLARE-REFUSED",
+    declareRefused.statusCode === 403 && declareRefused.json().code === "RULES_NOT_ACCEPTED",
+    { status: declareRefused.statusCode, body: declareRefused.json() },
+  );
+
+  // Révocation de l'adhésion de dave par la session d'alice (dave = CIBLE
+  // légitime) ; la transition active→revoked doit persister en base.
+  const terminateRes = await inject({
+    method: "POST",
+    url: "/v1/groups/grpA3/membership-terminations",
+    headers: aliceAuth,
+    payload: { identityId: "dave@example.test" },
+  });
+  check(
+    "A4-C03-TERMINATE",
+    terminateRes.statusCode === 200 && terminateRes.json().state === "revoked",
+    { status: terminateRes.statusCode, body: terminateRes.json() },
+  );
+
+  const revokedRows = await migrator.query(
+    `SELECT state FROM membership WHERE membership_id = 'mem_a3_dave'`,
+  );
+  check("A4-C03-TERMINATE-PERSIST", revokedRows.rows[0]?.state === "revoked", revokedRows.rows[0]);
+
+  // Rachat d'invitation anonyme : compté par racheteur, épuisable à max_uses,
+  // groupe résolu par le résolveur étroit 0020 (jamais fourni par le client).
+  const redeem1 = await inject({
+    method: "POST",
+    url: "/v1/invitations/inv_a4/redemptions",
+    headers: aliceAuth,
+  });
+  check(
+    "A4-C03-INVITE-REDEEM-1",
+    redeem1.statusCode === 200 && redeem1.json().usedCount === 1 && redeem1.json().groupId === "grpA3",
+    { status: redeem1.statusCode, body: redeem1.json() },
+  );
+
+  const redeem2 = await inject({
+    method: "POST",
+    url: "/v1/invitations/inv_a4/redemptions",
+    headers: carolAuth,
+  });
+  check(
+    "A4-C03-INVITE-REDEEM-2",
+    redeem2.statusCode === 200 && redeem2.json().usedCount === 2,
+    { status: redeem2.statusCode, body: redeem2.json() },
+  );
+
+  const redeem3 = await inject({
+    method: "POST",
+    url: "/v1/invitations/inv_a4/redemptions",
+    headers: bobAuth,
+  });
+  check(
+    "A4-C03-INVITE-EXHAUSTED",
+    redeem3.statusCode === 410 && redeem3.json().code === "INVITATION_INVALID",
+    { status: redeem3.statusCode, body: redeem3.json() },
+  );
+
+  const inviteRows = await migrator.query(
+    `SELECT used_count FROM invitation WHERE invitation_id = 'inv_a4'`,
+  );
+  check("A4-C03-INVITE-PERSIST", inviteRows.rows[0]?.used_count === 2, inviteRows.rows[0]);
 
   // ── A4-C08 : décaissement documenté, déclarant ≠ bénéficiaire ──────────
   const c08Declare = await inject({
