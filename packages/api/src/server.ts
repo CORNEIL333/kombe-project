@@ -933,6 +933,19 @@ function realMetricsCtxFrom(identityId: string, nowMs: number): MetricsContext {
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
+
+  // Durcissement sécurité (§20) : en-têtes de base posés sur CHAQUE réponse
+  // de l'API (JSON authentifiée — aucune route à servir en frame ni en cache
+  // partagé, aucun contenu mixte). Pas de dépendance helmet : le besoin tient
+  // en cinq lignes, un plugin serait une abstraction prématurée.
+  app.addHook("onSend", async (_request, reply) => {
+    reply.header("x-content-type-options", "nosniff");
+    reply.header("x-frame-options", "DENY");
+    reply.header("referrer-policy", "no-referrer");
+    reply.header("content-security-policy", "default-src 'none'; frame-ancestors 'none'");
+    reply.header("cache-control", "no-store");
+  });
+
   const store = options.store ?? new FictitiousCommandStore();
   const access = options.access ?? new FictitiousAccessStore();
   const governance = options.governance ?? new FictitiousGovernanceStore();

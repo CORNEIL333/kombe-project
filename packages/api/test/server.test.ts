@@ -51,6 +51,20 @@ describe("POST declaration de cotisation (squelette)", () => {
     expect(ready.json()).toEqual({ status: "ready", mode: "fictif" });
   });
 
+  it("en-têtes de sécurité posés sur chaque réponse, succès comme erreur (§20)", async () => {
+    const app = buildApp();
+    const ok = await app.inject({ method: "GET", url: "/v1/health/live" });
+    expect(ok.headers["x-content-type-options"]).toBe("nosniff");
+    expect(ok.headers["x-frame-options"]).toBe("DENY");
+    expect(ok.headers["referrer-policy"]).toBe("no-referrer");
+    expect(ok.headers["content-security-policy"]).toContain("default-src 'none'");
+    expect(ok.headers["cache-control"]).toBe("no-store");
+    // Même exigence sur une réponse d'erreur (onSend couvre toutes les réponses).
+    const err = await app.inject({ method: "GET", url: "/v1/groups/grpA/members" });
+    expect(err.headers["x-content-type-options"]).toBe("nosniff");
+    expect(err.headers["cache-control"]).toBe("no-store");
+  });
+
   it("accepte une declaration entiere et versionnee", async () => {
     const app = appWith([["obl_1", "grpA"]]);
     const res = await declare(app, { obligationId: "obl_1", amount: 5000 }, baseHeaders);
