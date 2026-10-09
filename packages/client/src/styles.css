@@ -9,22 +9,22 @@
 
 :root {
   /* Palette canonique KÓMBE (mobile kombe_colors.dart) */
-  --kombe-foret: #07583d;
-  --kombe-foret-sombre: #043c2b;
-  --kombe-emeraude: #0b7550;
-  --kombe-feuille: #3d8c63;
-  --kombe-or: #d4a83e;
-  --kombe-or-sombre: #b78417;
-  --kombe-creme: #fbf7ef;
-  --kombe-sable: #f2e9d8;
-  --kombe-menthe: #e8f3eb;
-  --kombe-encre: #102234;
-  --kombe-ardoise: #637084;
-  --kombe-ligne: #e3ded4;
+  --kombe-foret: var(--k-forest-900);
+  --kombe-foret-sombre: var(--k-forest-950);
+  --kombe-emeraude: var(--k-forest-700);
+  --kombe-feuille: var(--k-forest-500);
+  --kombe-or: var(--k-gold-500);
+  --kombe-or-sombre: var(--k-gold-600);
+  --kombe-creme: var(--k-sand-50);
+  --kombe-sable: var(--k-sand-100);
+  --kombe-menthe: var(--k-forest-50);
+  --kombe-encre: var(--k-content-primary);
+  --kombe-ardoise: var(--k-content-secondary);
+  --kombe-ligne: var(--k-line-strong);
 
   --couleur-fond: var(--kombe-creme);
   --couleur-surface: #ffffff;
-  --couleur-surface-voile: rgba(255, 255, 255, 0.9);
+  --couleur-surface-voile: var(--k-surface-raised);
   --couleur-fond-renforce: var(--kombe-sable);
   --couleur-texte: var(--kombe-encre);
   --couleur-texte-affaibli: var(--kombe-ardoise);
@@ -32,17 +32,16 @@
   --couleur-primaire-fonce: var(--kombe-foret-sombre);
   --couleur-primaire-texte: #ffffff;
   --couleur-or: var(--kombe-or);
-  --couleur-or-clair: #f1d596;
+  --couleur-or-clair: var(--k-gold-200);
   --couleur-bordure: var(--kombe-ligne);
-  --couleur-focus: var(--kombe-foret);
-  --couleur-alerte: #b42318;
-  --couleur-alerte-fond: #fdece4;
-  --couleur-valide: #067647;
-  --couleur-canevas: #9a6700;
+  --couleur-focus: var(--k-focus);
+  --couleur-alerte: var(--k-danger);
+  --couleur-alerte-fond: var(--k-danger-surface);
+  --couleur-valide: var(--k-success);
+  --couleur-canevas: var(--k-warning);
 
-  --police-affichage: "Fraunces", ui-serif, Georgia, serif;
-  --police-texte:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --police-affichage: var(--k-font-display);
+  --police-texte: var(--k-font-ui);
 
   --rayon-s: 10px;
   --rayon: 16px;
@@ -56,12 +55,12 @@
   --largeur-scene: 31rem;
   --taille-police: 1rem;
   --hauteur-ligne: 1.55;
-  --ombre-carte: 0 28px 70px -28px rgba(4, 60, 43, 0.35), 0 2px 10px rgba(4, 60, 43, 0.08);
+  --ombre-carte: var(--k-shadow-3);
 
-  --duree-rapide: 160ms;
-  --duree: 320ms;
-  --duree-lente: 900ms;
-  --ressort: cubic-bezier(0.22, 1, 0.36, 1);
+  --duree-rapide: var(--k-motion-fast);
+  --duree: var(--k-motion-spatial);
+  --duree-lente: var(--k-motion-brand);
+  --ressort: var(--k-ease-brand);
 }
 
 * {
@@ -74,6 +73,7 @@ html {
 
 body {
   margin: 0;
+  font-feature-settings: "kern";
   background: var(--couleur-fond);
   color: var(--couleur-texte);
   font-family: var(--police-texte);
@@ -116,11 +116,11 @@ body {
 }
 
 .entete h1 {
-  font-family: var(--police-affichage);
-  font-size: 1.6rem;
+  font-family: var(--police-texte);
+  font-size: 1.35rem;
   margin: 0;
-  letter-spacing: -0.01em;
-  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-weight: 800;
   color: var(--couleur-primaire-fonce);
 }
 
@@ -135,7 +135,6 @@ body {
   height: 46px;
   flex: none;
   object-fit: contain;
-  filter: drop-shadow(0 4px 10px rgba(4, 60, 43, 0.25));
 }
 
 /* Onglets principaux — pilules, état actif marqué par texte (aria-selected)
@@ -205,7 +204,6 @@ body {
   border-radius: var(--rayon-s);
   border: 1.5px solid var(--couleur-primaire);
   background: var(--couleur-primaire);
-  background-image: linear-gradient(135deg, var(--kombe-emeraude), var(--couleur-primaire-fonce));
   color: var(--couleur-primaire-texte);
   min-height: 46px;
   font-weight: 700;
@@ -216,12 +214,11 @@ body {
     filter var(--duree-rapide) var(--ressort);
 }
 .bouton:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.06);
-  box-shadow: 0 14px 28px -12px rgba(4, 60, 43, 0.55);
+  background-color: var(--kombe-emeraude);
+  border-color: var(--kombe-emeraude);
 }
 .bouton:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 .bouton-secondaire {
@@ -457,8 +454,16 @@ a:focus-visible {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: radial-gradient(130% 110% at 15% -10%, var(--kombe-emeraude) 0%, var(--couleur-primaire) 38%, var(--couleur-primaire-fonce) 78%);
+  background: var(--k-surface-sunken);
+  color: var(--k-forest-900);
   overflow: hidden;
+}
+.fond-immersif-anneau {
+  position: absolute;
+  width: min(78%, 620px);
+  right: -18%;
+  bottom: -26%;
+  opacity: 0.9;
 }
 /* Filigrane de l'emblème officiel — très grand, très discret, ancré dans un
    coin : un repère de marque, jamais un décor générique. */
@@ -469,20 +474,15 @@ a:focus-visible {
   aspect-ratio: 1;
   right: -14%;
   bottom: -18%;
-  background-image: url("/brand/logo-emblem.png");
+  background-image: url("/brand/kombe-mark.svg");
   background-size: contain;
   background-repeat: no-repeat;
   opacity: 0.16;
   filter: brightness(2.6) saturate(0);
   mix-blend-mode: screen;
-  animation: derive-filigrane 30s var(--ressort) infinite alternate;
 }
 .fond-immersif-lueur {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(50px);
-  opacity: 0.4;
-  animation: derive-tache 24s var(--ressort) infinite alternate;
+  display: none;
 }
 .fond-immersif-lueur-1 {
   width: 280px;
@@ -518,26 +518,18 @@ a:focus-visible {
   }
 }
 
-/* Variantes de teinte par étape — ambiance seulement, jamais une
-   information fonctionnelle (le texte de la carte fait foi). */
-.fond-immersif--code {
-  background: radial-gradient(130% 110% at 85% -10%, var(--kombe-or-sombre) 0%, #6b4a0c 42%, var(--couleur-primaire-fonce) 82%);
-}
-.fond-immersif--cotisation {
-  background: radial-gradient(130% 110% at 15% -10%, var(--kombe-feuille) 0%, var(--couleur-primaire) 42%, var(--couleur-primaire-fonce) 82%);
-}
-.fond-immersif--groupe {
-  background: radial-gradient(130% 110% at 85% -10%, var(--kombe-or) 0%, var(--kombe-or-sombre) 45%, var(--couleur-primaire-fonce) 85%);
-}
+/* Variantes : même surface ; seule la position de l'anneau change. */
+.fond-immersif--code .fond-immersif-anneau { right: auto; left: -22%; }
+.fond-immersif--cotisation .fond-immersif-anneau { bottom: auto; top: -30%; }
 
 .carte-etape {
   position: relative;
+  border: 1px solid var(--k-line);
+  box-shadow: var(--k-shadow-2);
   width: 100%;
   max-width: var(--largeur-scene);
   background: var(--couleur-surface-voile);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: var(--rayon-l) var(--rayon-l) 0 0;
+  border-radius: var(--rayon-l);
   padding: var(--espace-5) var(--espace-4) var(--espace-4);
   animation: apparition var(--duree-lente) var(--ressort) both;
 }
@@ -559,7 +551,6 @@ a:focus-visible {
   height: 56px;
   margin: 0 auto;
   object-fit: contain;
-  filter: drop-shadow(0 6px 14px rgba(4, 60, 43, 0.3));
 }
 
 .carte-etape__pied {
@@ -582,6 +573,7 @@ a:focus-visible {
 .motif-africain {
   display: block;
   width: 100%;
+  margin-top: var(--espace-4);
 }
 
 /* ───────── Connexion : écran plein-bord à deux panneaux ──────────────
@@ -623,7 +615,7 @@ a:focus-visible {
   aspect-ratio: 1;
   right: -16%;
   bottom: -20%;
-  background-image: url("/brand/logo-emblem.png");
+  background-image: url("/brand/kombe-mark.svg");
   background-size: contain;
   background-repeat: no-repeat;
   opacity: 0.1;
@@ -689,15 +681,13 @@ a:focus-visible {
   gap: 10px;
 }
 .panneau-marque__atouts .icone {
-  width: 30px;
-  height: 30px;
+  width: 18px;
+  height: 18px;
   flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
-  background: rgba(212, 168, 62, 0.18);
-  color: var(--kombe-or);
-  font-size: 1rem;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 3px solid var(--k-gold-400);
+  box-shadow: 0 0 0 4px rgba(199, 146, 46, 0.18);
 }
 .panneau-marque__atouts strong {
   display: block;
@@ -826,3 +816,9 @@ a:focus-visible {
     font-size: 1.3rem;
   }
 }
+
+/* Montants : chiffres tabulaires, jamais coupés. */
+.montant, .recapitulatif dd, .champ input[inputmode="numeric"] {
+  font-variant-numeric: tabular-nums;
+}
+.montant { white-space: nowrap; }

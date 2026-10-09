@@ -14,7 +14,8 @@
   "dependencies": {
     "@kombe/dashboard-core": "workspace:*",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "@kombe/brand": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

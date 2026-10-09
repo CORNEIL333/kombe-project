@@ -47,7 +47,7 @@ export function App() {
 
       <header className="entete">
         <div className="entete-marque">
-          <img className="marque-symbole" src="/brand/logo-emblem.png" alt="" aria-hidden="true" />
+          <img className="marque-symbole" src="/brand/kombe-mark.svg" alt="" aria-hidden="true" />
           <div>
             <h1>{t("app.titre")}</h1>
             <p className="aide-champ">{t("app.sousTitre")}</p>

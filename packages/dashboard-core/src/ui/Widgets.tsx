@@ -132,8 +132,8 @@ export function QuickActions(p: { readonly title: string; readonly actions: read
             className={a.tone === 'primary' ? 'k-quick-action k-quick-action-primary' : 'k-quick-action'}
             onClick={a.onClick}
           >
-            {a.icon && <span aria-hidden="true">{a.icon}</span>}
-            <span>{a.label}</span>
+            {a.icon && <span className="k-quick-action-icon" aria-hidden="true">{a.icon}</span>}
+            <span className="k-quick-action-label">{a.label}</span>
             <span aria-hidden="true" className="k-quick-action-chevron">›</span>
           </button>
         ))}

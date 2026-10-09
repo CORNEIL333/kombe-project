@@ -1,54 +1,74 @@
 import {useEffect,useMemo,useRef,useState,type FormEvent,type ReactNode} from 'react';
-import {AccessApi,ActionBar,ActivityList,ApiClient,CapabilityNotice,DashboardShell,DataTable,Field,JsonDisclosure,LocaleProvider,MetricCard,PageHeader,Panel,ProgressTrack,QuickActions,RemoteState,SessionBar,StatCard,StatusChip,SubmitButton,TextAreaField,TopSearch,UserBadge,formatXaf,loadRuntimeConfig,safeText,useHashRoute,useMutation,useRemote,useSession,type SessionController} from '@kombe/dashboard-core';
+import {AccessApi,ActionBar,ApiClient,CycleOrbit,StatusRing,CapabilityNotice,DashboardShell,DataTable,Field,JsonDisclosure,LocaleProvider,MetricCard,PageHeader,Panel,ProgressTrack,QuickActions,RemoteState,SessionBar,StatCard,StatusChip,SubmitButton,TextAreaField,TopSearch,UserBadge,formatXaf,loadRuntimeConfig,safeText,useHashRoute,useMutation,useRemote,useSession,type SessionController} from '@kombe/dashboard-core';
 import {GroupAdminApi} from './api';
 const messages={app:{fr:'Administration Groupe',en:'Group Administration'}} as const;
-const NAV=[{path:'/',label:'Vue d’ensemble',icon:'◫'},{path:'/members',label:'Membres',icon:'👥'},{path:'/cycle',label:'Cycle & tours',icon:'◌'},{path:'/contributions',label:'Cotisations',icon:'↥'},{path:'/disbursements',label:'Décaissements',icon:'↧'},{path:'/rules',label:'Règles',icon:'⚙'},{path:'/votes',label:'Votes & décisions',icon:'✓'},{path:'/disputes',label:'Litiges',icon:'!'},{path:'/exports',label:'Exports',icon:'⇩'},{path:'/audit',label:'Journal & audit',icon:'⌁'}] as const;
+const NAV=[{path:'/',label:'Vue d’ensemble'},{path:'/members',label:'Membres'},{path:'/cycle',label:'Cycle & tours'},{path:'/contributions',label:'Cotisations'},{path:'/disbursements',label:'Décaissements'},{path:'/rules',label:'Règles'},{path:'/votes',label:'Votes & décisions'},{path:'/disputes',label:'Litiges'},{path:'/exports',label:'Exports'},{path:'/audit',label:'Journal & audit'}] as const;
 function ScopeBar(p:{groupId:string;onChange:(v:string)=>void}){const[value,setValue]=useState(p.groupId);return <Panel><form onSubmit={e=>{e.preventDefault();p.onChange(value.trim())}} className="k-grid"><div className="k-span-8"><Field label="Identifiant du groupe" hint="Aucun groupe n’est préchargé." inputProps={{value,onChange:e=>setValue(e.target.value),autoComplete:'off'}}/></div><div className="k-span-4" style={{alignSelf:'end',paddingBottom:14}}><button className="k-button k-button-primary" type="submit">Ouvrir ce groupe</button></div></form></Panel>}
 function RequireGroup(p:{groupId:string;children:ReactNode}){return p.groupId?<>{p.children}</>:<CapabilityNotice title="Aucun groupe sélectionné">Saisissez un identifiant de groupe réellement autorisé. Aucune donnée locale n’est injectée.</CapabilityNotice>}
 function Overview({api,groupId,onNavigate}:{api:GroupAdminApi;groupId:string;onNavigate:(path:string)=>void}){
   const readiness=useRemote(s=>api.cycleReadiness(groupId,s),[api,groupId],{enabled:!!groupId});
   const schedule=useRemote(s=>api.schedule(groupId,s),[api,groupId],{enabled:!!groupId});
   const disputes=useRemote(s=>api.disputes(groupId,s),[api,groupId],{enabled:!!groupId,isEmpty:d=>d.length===0});
-  return <><PageHeader title="Vue d’ensemble du groupe" description="Synthèse composée uniquement depuis les réponses réelles de l’API KÓMBE — aucune donnée locale, aucun chiffre fabriqué."/>
+  return <><PageHeader title="Vue d’ensemble du groupe" description="Le cycle en cours, ce qui demande votre attention, puis le détail. Tout provient des réponses réelles de l’API KÓMBE."/>
     <RequireGroup groupId={groupId}>
       <RemoteState state={schedule.state} onRetry={schedule.reload}>{d=>{
         const roundsTotal=typeof d.rounds==='number'?d.rounds:0;
         const now=Date.now();
         const roundsPast=(d.schedule??[]).filter(r=>typeof (r as {dueAtMs?:number}).dueAtMs==='number'&&(r as {dueAtMs:number}).dueAtMs<now).length;
+        const started=d.state==='started';
+        // Tour courant = premier tour dont la date n'est pas encore échue (calendrier serveur).
+        const current=started?Math.min(roundsTotal+1,roundsPast+1):0;
         return <div className="k-grid">
-          <div className="k-span-12">
-            <div className="k-stats">
-              <StatCard icon="👥" label="Membres" value={String(d.memberCount??'—')}/>
-              <StatCard icon="◌" label="Tours du cycle" value={roundsTotal?`${roundsPast}/${roundsTotal}`:'—'} hint={d.state==='started'?'Cycle démarré':'Cycle en configuration'}/>
-              <StatCard icon="💰" label="Cotisation par membre" value={typeof d.contribution==='string'?formatXaf(d.contribution):'—'}/>
-              <RemoteState state={readiness.state} onRetry={readiness.reload}>{r=>
-                <StatCard icon="✓" label="Fonctions indépendantes" value={`${String((r as {acceptedIndependentRoles?:unknown}).acceptedIndependentRoles??'—')}/${String((r as {requiredIndependentRoles?:unknown}).requiredIndependentRoles??'—')}`} hint={(r as {rulesAcceptedByAllMembers?:boolean}).rulesAcceptedByAllMembers?'Règles acceptées par tous':'Acceptation des règles incomplète'}/>
-              }</RemoteState>
-            </div>
+          <div className="k-span-8">
+            <section className="k-cycle-hero" aria-labelledby="cycle-title">
+              {roundsTotal>0
+                ? <CycleOrbit total={roundsTotal} current={current} size={260} label={started?`Cycle de ${roundsTotal} tours, ${roundsPast} tours échus`:`Cycle de ${roundsTotal} tours, non démarré`} center={<div><span className="k-orbit-figure">{started?`${Math.min(current,roundsTotal)}/${roundsTotal}`:`0/${roundsTotal}`}</span><span className="k-orbit-caption">{started?'tour en cours':'non démarré'}</span></div>}/>
+                : null}
+              <div>
+                <span className="k-eyebrow">Cycle {started?'démarré':'en configuration'}</span>
+                <h2 id="cycle-title">{roundsTotal>0?`${roundsTotal} tours · ${String(d.memberCount??'—')} membres`:'Calendrier non encore construit'}</h2>
+                <StatusRing kind={started?'confirmed':'draft'} label={started?'Ordre des bénéficiaires gelé':'Ordre modifiable avant démarrage'}/>
+                <div className="k-metrics">
+                  <MetricCard label="Cotisation par membre" value={typeof d.contribution==='string'?formatXaf(d.contribution):'—'}/>
+                  <MetricCard label="Pot par tour" value={typeof d.roundPot==='string'?formatXaf(d.roundPot):'—'}/>
+                  <MetricCard label="Tours échus" value={roundsTotal?`${roundsPast}/${roundsTotal}`:'—'}/>
+                </div>
+              </div>
+            </section>
+          </div>
+          <div className="k-span-4">
+            <Panel title="À traiter">
+              <div className="k-attention">
+                <RemoteState state={readiness.state} onRetry={readiness.reload}>{r=>{
+                  const rr=r as {acceptedIndependentRoles?:unknown;requiredIndependentRoles?:unknown;rulesAcceptedByAllMembers?:boolean};
+                  return <>
+                    <div className="k-attention-item"><StatusRing kind={rr.rulesAcceptedByAllMembers?'confirmed':'pending'} label=""/><div><strong>Règles du groupe</strong><p>{rr.rulesAcceptedByAllMembers?'Acceptées par tous les membres.':'Acceptation incomplète.'}</p></div><span className="k-num">{rr.rulesAcceptedByAllMembers?'OK':'À suivre'}</span></div>
+                    <div className="k-attention-item"><StatusRing kind={rr.acceptedIndependentRoles===rr.requiredIndependentRoles?'confirmed':'pending'} label=""/><div><strong>Fonctions indépendantes</strong><p>Trésorier, contrôleur : pourvues et acceptées.</p></div><span className="k-num">{`${String(rr.acceptedIndependentRoles??'—')}/${String(rr.requiredIndependentRoles??'—')}`}</span></div>
+                  </>;
+                }}</RemoteState>
+                <RemoteState state={disputes.state} onRetry={disputes.reload} emptyTitle="Aucun litige en cours">{rows=>{
+                  const open=rows.filter(r=>r.state!=='resolved').length;
+                  return <div className="k-attention-item"><StatusRing kind={open?'disputed':'confirmed'} label=""/><div><strong>Litiges</strong><p>{open?'Dossiers ouverts à instruire.':'Aucun dossier ouvert.'}</p></div><span className="k-num">{open}</span></div>;
+                }}</RemoteState>
+              </div>
+            </Panel>
           </div>
           <div className="k-span-7">
             <Panel title="Progression du cycle">
               {roundsTotal>0
                 ? <ProgressTrack total={roundsTotal} completed={roundsPast} label="tours échus (date de calendrier dépassée)" caption="« Échu » signifie que la date du tour est passée — pas que les cotisations du tour sont validées (voir Cotisations)."/>
                 : <CapabilityNotice title="Calendrier non encore construit">Aucun tour n’a été calculé pour ce groupe.</CapabilityNotice>}
+              <JsonDisclosure value={d} label="Réponse serveur (diagnostic)"/>
             </Panel>
-            <div style={{height:16}}/>
-            <Panel title="Détail serveur"><JsonDisclosure value={d}/></Panel>
           </div>
           <div className="k-span-5">
             <Panel>
-              <QuickActions title="Actions rapides" actions={[
-                {key:'contrib',label:'Valider des cotisations',icon:'✓',tone:'primary',onClick:()=>onNavigate('/contributions')},
-                {key:'disb',label:'Déclarer un décaissement',icon:'↧',onClick:()=>onNavigate('/disbursements')},
-                {key:'votes',label:'Voir les votes & décisions',icon:'🗳',onClick:()=>onNavigate('/votes')},
-                {key:'audit',label:'Consulter le journal',icon:'⌁',onClick:()=>onNavigate('/audit')},
+              <QuickActions title="Actions" actions={[
+                {key:'contrib',label:'Valider des cotisations',tone:'primary',onClick:()=>onNavigate('/contributions')},
+                {key:'disb',label:'Déclarer un décaissement',onClick:()=>onNavigate('/disbursements')},
+                {key:'votes',label:'Votes & décisions',onClick:()=>onNavigate('/votes')},
+                {key:'audit',label:'Journal du groupe',onClick:()=>onNavigate('/audit')},
               ]}/>
-            </Panel>
-            <div style={{height:16}}/>
-            <Panel>
-              <RemoteState state={disputes.state} onRetry={disputes.reload} emptyTitle="Aucun litige en cours">{rows=>
-                <ActivityList title="Litiges (activité récente)" empty="Aucun litige en cours." items={rows.map((r,i)=>({id:String((r as {disputeId?:unknown}).disputeId??i),text:`Dossier ${safeText((r as {disputeId?:unknown}).disputeId)}`,meta:safeText((r as {state?:unknown}).state),tone:(r as {state?:unknown}).state==='resolved'?'ok':'warn'}))}/>
-              }</RemoteState>
             </Panel>
           </div>
         </div>;

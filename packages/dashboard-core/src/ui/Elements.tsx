@@ -1,6 +1,6 @@
-import type {PropsWithChildren,ReactNode} from 'react';import {useLocale} from '../i18n/locale';
+import type {PropsWithChildren,ReactNode} from 'react';import {useLocale} from '../i18n/locale';import {KombeMark} from './Orbit';
 export interface NavItem{readonly path:string;readonly label:string;readonly icon?:string}
-export function BrandMark(){return <div className="k-brand" aria-label="KÓMBE"><img className="k-brand-symbol" src="/brand/logo-emblem.png" alt="" aria-hidden="true"/><span><strong>KÓMBE</strong><small>Ma tontine, simplement.</small></span></div>}
+export function BrandMark(){return <div className="k-brand" aria-label="KÓMBE — Votre tontine, plus claire."><KombeMark size={36}/><span><strong>KÓMBE</strong><small>Votre tontine, plus claire.</small></span></div>}
 export function Panel(p:PropsWithChildren<{title?:string;action?:ReactNode;className?:string}>){return <section className={`k-panel ${p.className??''}`.trim()}>{(p.title||p.action)&&<header className="k-panel-head">{p.title?<h2>{p.title}</h2>:<span/>}{p.action}</header>}{p.children}</section>}
 export function PageHeader(p:{title:string;description?:string;actions?:ReactNode}){return <header className="k-page-head"><div><h1>{p.title}</h1>{p.description&&<p>{p.description}</p>}</div>{p.actions&&<div className="k-page-actions">{p.actions}</div>}</header>}
 export function MetricCard(p:{label:string;value:string;hint?:string}){return <article className="k-metric"><span>{p.label}</span><strong>{p.value}</strong>{p.hint&&<small>{p.hint}</small>}</article>}

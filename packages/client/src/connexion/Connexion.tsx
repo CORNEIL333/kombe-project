@@ -29,10 +29,10 @@ function messageErreur(err: unknown): string {
 }
 
 const ATOUTS: ReadonlyArray<{ readonly icone: string; readonly titre: CleI18n; readonly texte: CleI18n }> = [
-  { icone: "🛡", titre: "atout.securise.titre", texte: "atout.securise.texte" },
-  { icone: "🤝", titre: "atout.solidaire.titre", texte: "atout.solidaire.texte" },
-  { icone: "📱", titre: "atout.simple.titre", texte: "atout.simple.texte" },
-  { icone: "📈", titre: "atout.durable.titre", texte: "atout.durable.texte" },
+  { icone: "", titre: "atout.securise.titre", texte: "atout.securise.texte" },
+  { icone: "", titre: "atout.solidaire.titre", texte: "atout.solidaire.texte" },
+  { icone: "", titre: "atout.simple.titre", texte: "atout.simple.texte" },
+  { icone: "", titre: "atout.durable.titre", texte: "atout.durable.texte" },
 ];
 
 function PanneauMarque() {
@@ -40,7 +40,7 @@ function PanneauMarque() {
   return (
     <aside className="panneau-marque">
       <div className="panneau-marque__marque">
-        <img src="/brand/logo-emblem.png" alt="" aria-hidden="true" />
+        <img src="/brand/kombe-mark.svg" alt="" aria-hidden="true" />
         <span>
           <strong>{t("app.titre")}</strong>
           <small>{t("marque.tagline")}</small>
@@ -126,7 +126,7 @@ export function Connexion({ onConnecte }: ConnexionProps) {
       <section className="panneau-formulaire" aria-labelledby="connexion-titre">
         <div className="panneau-formulaire__interieur">
           <header className="panneau-formulaire__entete">
-            <img src="/brand/logo-emblem.png" alt="" aria-hidden="true" />
+            <img src="/brand/kombe-mark.svg" alt="" aria-hidden="true" />
             <PointsEtape etape={etape === "email" ? 0 : 1} />
             <h2 id="connexion-titre">{etape === "email" ? t("connexion.bonRetour") : t("connexion.titre")}</h2>
             <p className="aide-champ">{etape === "email" ? t("connexion.consigne") : t("connexion.codeEnvoye")}</p>

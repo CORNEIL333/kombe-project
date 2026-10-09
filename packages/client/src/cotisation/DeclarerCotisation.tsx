@@ -93,7 +93,7 @@ export function DeclarerCotisation({ session }: DeclarerCotisationProps) {
       <ImmersiveBackdrop variante="cotisation" />
       <div className="carte-etape" style={{ maxWidth: "36rem" }}>
       <header className="carte-etape__entete">
-        <img className="carte-etape__symbole" src="/brand/logo-emblem.png" alt="" aria-hidden="true" />
+        <img className="carte-etape__symbole" src="/brand/kombe-mark.svg" alt="" aria-hidden="true" />
         <h2 id="cotisation-titre">{t("cotisation.titre")}</h2>
         <p className="aide-champ">{t("cotisation.consigne")}</p>
       </header>
