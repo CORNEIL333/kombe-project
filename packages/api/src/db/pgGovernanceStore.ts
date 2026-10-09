@@ -256,13 +256,17 @@ export class PgGovernanceStore {
   }
 
   async startCycle(groupId: string): Promise<{ state: GroupState }> {
+    // Porte de typologie d'abord (fail-fast, indépendant de l'effectif) : une
+    // typologie P1 (tirage/négocié) est refusée fermée avant même d'évaluer la
+    // préparation au démarrage (C03 §2.3, C05 §5.3). Même ordre que le store
+    // fictif pour un contrat cohérent.
+    await withGroupTx(this.pool, groupId, async (client) => {
+      assertRotationTypeStartable((await this.groupRow(client, groupId)).rotationType);
+    });
     const readiness = await this.readiness(groupId);
     assertCycleStartable(readiness);
     return withGroupTx(this.pool, groupId, async (client) => {
       const g = await this.groupRow(client, groupId);
-      // Typologie P1 (tirage/négocié) : reconnue à la création mais non
-      // démarrable au pilote — refus fermé (C03 §2.3, C05 §5.3).
-      assertRotationTypeStartable(g.rotationType);
       const next = transitionGroupState(g.state, "active");
       await client.query(`UPDATE "group" SET state = $2, version = version + 1 WHERE group_id = $1`, [
         groupId,

@@ -66,6 +66,10 @@ REVOKE UPDATE, DELETE ON legal_notice FROM kombe_app;
 REVOKE UPDATE, DELETE ON data_erasure_tombstone FROM kombe_app;
 REVOKE UPDATE, DELETE ON restore_point FROM kombe_app;
 REVOKE DELETE ON cycle_schedule FROM kombe_app;
+-- Parrainage (0024) : un parrainage tranché reste dans l'audit trail — jamais de
+-- suppression par le rôle applicatif (le GRANT blanket ci-dessus a redonné DELETE,
+-- on le retire explicitement ici, conformément au miroir des REVOKE de migrations).
+REVOKE DELETE ON sponsorship FROM kombe_app;
 REVOKE UPDATE, DELETE ON analytics_event FROM kombe_app;
 REVOKE UPDATE, DELETE ON unit_economics_snapshot FROM kombe_app;
 REVOKE INSERT, UPDATE, DELETE ON internal_notification, notification_delivery FROM kombe_app;
