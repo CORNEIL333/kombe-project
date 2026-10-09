@@ -84,6 +84,7 @@ async function runSql(client, relPath) {
 
 const migrator = new pg.Client({ connectionString: url });
 await migrator.connect();
+await (await import("../../db/scripts/guard.mjs")).assertNonProdTeardown(migrator, "kombe.api.pgRulesStore");
 const observations = {};
 let failures = 0;
 

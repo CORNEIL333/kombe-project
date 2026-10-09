@@ -71,6 +71,7 @@ async function withIdentity(client, identityId, fn) {
 async function main() {
   const migrator = new pg.Client({ connectionString: url });
   await migrator.connect();
+  await (await import("../scripts/guard.mjs")).assertNonProdTeardown(migrator, "kombe.db.isolation");
   const observations = {};
 
   try {

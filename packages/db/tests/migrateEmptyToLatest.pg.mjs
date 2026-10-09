@@ -69,6 +69,7 @@ const EXPECTED_JALONS = 27; // roles_create.sql + 25 migrations (0001..0025) + r
 
 try {
   await client.connect();
+  await (await import("../scripts/guard.mjs")).assertNonProdTeardown(client, "kombe.db.migrateEmptyToLatest");
 
   // Pré-nettoyage identique aux preuves (états non-DROPpable → valeur fermée).
   await client.query(`
