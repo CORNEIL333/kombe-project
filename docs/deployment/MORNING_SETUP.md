@@ -50,6 +50,19 @@ vercel env add KOMBE_EMAIL_FROM production         # ex. no-reply@kombe.app
 vercel env add KOMBE_CORS_ORIGINS production       # listes d'origines (voir D)
 vercel --prod
 ```
+
+**⚠️ Email d'inscription — domaine Vérifié OBLIGATOIRE (≈ 2 min, sinon les
+inscrits récents échouent en silencieux).** En mode réel, `requireResendSender()`
+exige `RESEND_API_KEY` (sinon l'API **démarre pas** — pas de repli simulé). Mais
+si `KOMBE_EMAIL_FROM` est **absent**, le code retombe sur
+`KÓMBE <onboarding@resend.dev>`, l'expéditeur de TEST Resend qui **ne livre
+qu'à la boîte du propriétaire du compte Resend** : toute inscription d'un vrai
+utilisateur (autre email) renvoie `502 EMAIL_DELIVERY_FAILED`. **Action
+propriétaire** : dans Resend → Domains, vérifier un domaine (DKIM/SPF, ~2 min,
+ex. `kombe.app`), puis régler `KOMBE_EMAIL_FROM` sur une adresse de ce domaine
+(ex. `no-reply@kombe.app`). Sans domaine vérifié, la PWA/mobile **ne peuvent pas
+inscrire d'utilisateurs réels** — ce n'est pas un bug du code, c'est la config
+Resend.
 **Vérif obligatoire** (stop si échec) :
 ```bash
 curl https://kombe-api.vercel.app/v1/health/ready   # → {"status":"ready","mode":"réel"}
