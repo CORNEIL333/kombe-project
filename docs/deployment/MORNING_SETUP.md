@@ -21,6 +21,18 @@ Dernière mise à jour : 2026-10-09. Branche : `claude/overnight-release`.
 | Auth clients | **paires RÉELLES utilisées** | PWA + mobile appellent `/access/login-requests` + `/login-completions` + `/registrations(/verifications)` + `/recovery-*` ; **jamais** `/access/sessions` (fictif) |
 | Artefacts de build prod | **versionnés et validés** | `vercel.json` + `api/serverless.js` → `packages/api/dist/serverless.js` (présent) ; 4 `kombe-dashboard-config.json` pointés vers `https://kombe-api.vercel.app` (dont admin, aligné 2026-10-09) |
 
+**⚠️ Garde anti-teardown-prod (ajoutée 2026-10-09).** Les preuves de recette
+(`packages/api/test/*.proof.mjs`, `isolation.pg.mjs`, `migrateEmptyToLatest.pg.mjs`)
+font un **DROP complet** du schéma à chaque cycle DOWN/UP. Elles ne doivent
+JAMAIS viser `kombe_prod`. Incident réel : une variable d'env résiduelle du shell
+(`$env:KOMBE_API_DATABASE_URL`) écrasait `--env-file` (Node ne remplace pas une
+variable déjà définie) et redirigeait les preuves vers la prod. Dorénavant
+`packages/db/scripts/guard.mjs` lit `current_database()` avant tout teardown et
+ABORTE (`status:BLOCKED exit 2`) si la base est dans `KOMBE_PROD_DATABASE_NAMES`
+(défaut : `kombe_prod`). Lancer les preuves dans un shell **neuf** (ou après
+`Remove-Item Env:\KOMBE_API_DATABASE_URL`) ; `node --env-file=.env
+scripts/run_neon_proofs.mjs` doit afficher **14/14 PASS**, jamais BLOCKED.
+
 **Ce qui manque UNIQUEMENT :** les jetons de compte (personnel) + 5 clics de
 déploiement.
 
