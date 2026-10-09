@@ -18,8 +18,10 @@ import {
   demanderParrainage,
   rejoindreParCode,
   repertorierTontines,
+  mesTontines,
   type ModeleTontine,
   type TontineDecouvrable,
+  type TontineAdheree,
   type TypologieRotation,
 } from "../api/kombeApi.js";
 import type { SessionOuverte } from "../connexion/Connexion.js";
@@ -28,7 +30,7 @@ export interface AmorcageTontineProps {
   readonly session: SessionOuverte;
 }
 
-type Mode = "creer" | "rejoindre" | "decouvrir" | "parrainage";
+type Mode = "creer" | "rejoindre" | "decouvrir" | "parrainage" | "mesTontines";
 
 const MODELES: ReadonlyArray<{ readonly valeur: ModeleTontine; readonly cle: CleI18n }> = [
   { valeur: "famille", cle: "modele.famille" },
@@ -49,6 +51,11 @@ const clePourModele = (m: string): CleI18n =>
   MODELES.find((x) => x.valeur === m)?.cle ?? "modele.personnalise";
 const clePourTypologie = (r: string): CleI18n =>
   TYPOLOGIES.find((x) => x.valeur === r)?.cle ?? "typologie.rotativeFermee";
+const clePourAdhesion = (s: string): CleI18n =>
+  s === "active" ? "adhesion.active"
+    : s === "pending" ? "adhesion.pending"
+    : s === "revoked" ? "adhesion.revoked"
+    : "adhesion.departed";
 
 function messageErreur(err: unknown): string {
   if (err instanceof ApiError) return err.message;
@@ -80,6 +87,9 @@ export function AmorcageTontine({ session }: AmorcageTontineProps) {
 
   // Découvrir
   const [liste, setListe] = useState<readonly TontineDecouvrable[] | null>(null);
+
+  // Mes tontines (vue multi-adhésion consolidée)
+  const [mesListe, setMesListe] = useState<readonly TontineAdheree[] | null>(null);
 
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -142,11 +152,18 @@ export function AmorcageTontine({ session }: AmorcageTontineProps) {
     });
   };
 
+  const chargerMesTontines = () => {
+    lancer(async () => {
+      setMesListe(await mesTontines(session.sessionId));
+    });
+  };
+
   const ONGLETS: ReadonlyArray<{ valeur: Mode; cle: CleI18n }> = [
     { valeur: "creer", cle: "amorce.creer" },
     { valeur: "rejoindre", cle: "amorce.rejoindre" },
     { valeur: "decouvrir", cle: "amorce.decouvrir" },
     { valeur: "parrainage", cle: "amorce.parrainage" },
+    { valeur: "mesTontines", cle: "amorce.mesTontines" },
   ];
 
   return (
@@ -237,6 +254,31 @@ export function AmorcageTontine({ session }: AmorcageTontineProps) {
                   <li key={g.groupId}>
                     <strong>{g.groupName}</strong>{" "}
                     — {t(clePourModele(g.tontineModel))} · {t(clePourTypologie(g.rotationType))}
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : null}
+        </div>
+      ) : null}
+
+      {mode === "mesTontines" ? (
+        <div role="group" aria-label={t("amorce.mesTontines")}>
+          <button type="button" className="bouton bouton-secondaire" onClick={chargerMesTontines} disabled={enCours}>
+            {t("amorce.chargerMesTontines")}
+          </button>
+          {mesListe ? (
+            mesListe.length === 0 ? (
+              <p role="status" className="aide-champ">{t("amorce.mesTontinesVide")}</p>
+            ) : (
+              <ul>
+                {mesListe.map((g) => (
+                  <li key={g.groupId}>
+                    <strong>{g.displayName}</strong>{" "}
+                    — {t(clePourModele(g.tontineModel))} · {t(clePourTypologie(g.rotationType))} · {t(clePourAdhesion(g.membershipState))}
+                    {g.parentGroupId ? (
+                      <em> ({t("amorce.superviseePar", { id: g.parentGroupId })})</em>
+                    ) : null}
                   </li>
                 ))}
               </ul>

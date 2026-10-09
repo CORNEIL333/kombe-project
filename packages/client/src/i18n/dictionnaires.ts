@@ -98,6 +98,15 @@ export const fr = {
   "amorce.listeVide": "Aucune tontine publique à découvrir pour le moment.",
   "amorce.typologieP1":
     "Typologie reconnue mais non démarrable au pilote (recette dédiée à venir).",
+  "amorce.mesTontines": "Mes adhésions",
+  "amorce.chargerMesTontines": "Voir mes tontines",
+  "amorce.mesTontinesVide":
+    "Vous n'êtes membre d'aucune tontine pour le moment.",
+  "amorce.superviseePar": "supervisée par {id}",
+  "adhesion.active": "membre actif",
+  "adhesion.pending": "adhésion en attente",
+  "adhesion.revoked": "révoqué",
+  "adhesion.departed": "parti",
   "champ.modeleTontine": "Modèle de tontine",
   "champ.typologie": "Typologie de rotation",
   "champ.parentGroupe": "Groupe parent de supervision (facultatif)",
@@ -277,6 +286,15 @@ export const en: Record<CleI18n, string> = {
   "amorce.listeVide": "No public tontine to discover right now.",
   "amorce.typologieP1":
     "Rotation type recognized but not startable on the pilot (dedicated recipe to come).",
+  "amorce.mesTontines": "My memberships",
+  "amorce.chargerMesTontines": "View my tontines",
+  "amorce.mesTontinesVide":
+    "You are not a member of any tontine yet.",
+  "amorce.superviseePar": "supervised by {id}",
+  "adhesion.active": "active member",
+  "adhesion.pending": "membership pending",
+  "adhesion.revoked": "revoked",
+  "adhesion.departed": "departed",
   "champ.modeleTontine": "Tontine model",
   "champ.typologie": "Rotation type",
   "champ.parentGroupe": "Supervising parent group (optional)",

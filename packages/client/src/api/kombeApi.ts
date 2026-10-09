@@ -248,3 +248,30 @@ export async function demanderParrainage(
     authHeaders(sessionId),
   );
 }
+
+export interface TontineAdheree {
+  readonly groupId: string;
+  readonly displayName: string;
+  readonly tontineModel: ModeleTontine;
+  readonly rotationType: TypologieRotation;
+  readonly groupState: string;
+  readonly parentGroupId: string | null;
+  readonly membershipState: "pending" | "active" | "departed" | "revoked";
+}
+
+/** Vue consolidée « Mes tontines » (C21 §2.5, `GET /v1/me/groups`) — MULTI-
+ *  ADHÉSION : un membre peut appartenir à plusieurs tontines. L'identité est
+ *  résolue SERVEUR depuis le Bearer (§14) ; la PWA ne choisit jamais de quelle
+ *  identité elle liste. `parentGroupId` révèle la hiérarchie de supervision
+ *  (une grande tontine en supervise plusieurs), sans AUCUN champ financier. */
+export async function mesTontines(
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<readonly TontineAdheree[]> {
+  const api = await client();
+  return api.request<readonly TontineAdheree[]>(
+    "/v1/me/groups",
+    { method: "GET", headers: authHeaders(sessionId) },
+    signal,
+  );
+}

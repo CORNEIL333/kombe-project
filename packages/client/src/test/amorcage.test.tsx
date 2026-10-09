@@ -186,3 +186,42 @@ describe("AMO-DISCOVER — découvrabilité publique (GET /v1/discoverable-group
     await waitFor(() => expect(screen.getByText(/Collègues/)).toBeInTheDocument());
   });
 });
+
+describe("AMO-MYGROUPS — vue multi-adhésion serveur (GET /v1/me/groups)", () => {
+  it("liste les tontines du membre, révèle la hiérarchie parent et l'état d'adhésion", async () => {
+    const journal: Appel[] = [];
+    stubFetch((url, init) => {
+      const cfg = configOk(url);
+      if (cfg) return cfg;
+      if (url.endsWith("/v1/access/login-requests")) return { ok: true, status: 202, json: { accepted: true } };
+      if (url.endsWith("/v1/access/login-completions")) return { ok: true, status: 201, json: { sessionId: "sess-mg-1", expiresAt: 1 } };
+      if (url.endsWith("/v1/me/groups") && init.method === "GET") {
+        return {
+          ok: true,
+          status: 200,
+          json: [
+            { groupId: "grpA", displayName: "Tontine Mbarga", tontineModel: "famille", rotationType: "rotative_fermee", groupState: "configuration", parentGroupId: null, membershipState: "active" },
+            { groupId: "grpB", displayName: "Tontine artisans", tontineModel: "collegues", rotationType: "rotative_fermee", groupState: "active", parentGroupId: "grpA", membershipState: "pending" },
+          ],
+        };
+      }
+      throw new Error(`URL inattendue en test : ${url} (${init.method})`);
+    }, journal);
+
+    monter();
+    await ouvrirSession();
+    fireEvent.click(screen.getByRole("button", { name: "Mes adhésions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voir mes tontines" }));
+
+    await screen.findByText(/Tontine Mbarga/);
+    expect(screen.getByText(/Tontine artisans/)).toBeInTheDocument();
+    // Hiérarchie de supervision révélée (une grande tontine en chapeaute une autre).
+    expect(screen.getByText(/supervisée par grpA/)).toBeInTheDocument();
+    // État d'adhésion distinct affiché (multi-adhésion : active vs en attente).
+    expect(screen.getByText(/adhésion en attente/)).toBeInTheDocument();
+    // La liste est SERVIE depuis l'identité de session (Bearer), jamais un choix client.
+    const appel = journal.find((a) => a.url.endsWith("/v1/me/groups"));
+    expect(appel?.init.method).toBe("GET");
+    expect(new Headers(appel!.init.headers).get("authorization")).toBe("Bearer sess-mg-1");
+  });
+});
