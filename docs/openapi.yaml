@@ -119,6 +119,77 @@ paths:
               schema: { $ref: "#/components/schemas/Membership" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /discoverable-groups:
+    get:
+      tags: [governance]
+      operationId: listDiscoverableGroups
+      summary: Découvrabilité publique des groupes (sans registre réel, C03 §4.1)
+      security: []
+      responses:
+        "200":
+          description: >
+            Tableau des groupes ouvrables à la découverte — nom + modèle +
+            typologie seulement, jamais de registre avant adhésion.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DiscoverableGroup" }
+
+  /groups/{groupId}/sponsorships:
+    post:
+      tags: [governance]
+      operationId: requestSponsorship
+      summary: Demander un parrainage / cooptation (C03 §4.1)
+      description: >
+        Le candidat est l'acteur de session (résolu serveur, §14) ; le parrain
+        (CIBLE) doit être membre actif réel. Parrain = soi-même → refus ; parrain
+        non membre actif → refus ; demande déjà ouverte pour le candidat → conflit.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SponsorshipRequest" }
+      responses:
+        "201":
+          description: Parrainage demandé (état requested)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sponsorship" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/sponsorships/{sponsorshipId}/decision:
+    post:
+      tags: [governance]
+      operationId: decideSponsorship
+      summary: Décider un parrainage ouvert (endorsed/rejected)
+      description: >
+        Le décideur doit être membre actif du groupe (anti-IVOR). Un parrainage
+        déjà tranché ne peut être redécidé (conflit d'état).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - name: sponsorshipId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SponsorshipDecisionRequest" }
+      responses:
+        "200":
+          description: Décision appliquée
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sponsorship" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /role-nominations/{nominationId}/acceptances:
     post:
       tags: [roles]
@@ -2532,11 +2603,74 @@ components:
         groupId: { type: string }
         version: { type: integer }
         state: { type: string, enum: [configuration, active, paused, closed] }
+        displayName: { type: string, maxLength: 120 }
+        tontineModel: { type: string, enum: [famille, collegues, fetes, construction, etudiant, personnalise] }
+        rotationType: { type: string, enum: [rotative_fermee, tirage, negocie] }
+        parentGroupId: { type: string, nullable: true }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        timezone: { type: string, maxLength: 64 }
     CreateGroupRequest:
       type: object
-      required: [name]
+      description: >
+        Amorçage d'une tontine (C03, migration 0024). Le `groupId` est une clé
+        métier fournie par le contrat ; l'acteur/créateur n'est JAMAIS choisi
+        ici — il est résolu serveur depuis la session Bearer (§14). Devise et
+        fuseau sont des invariants serveur (XAF / Africa/Douala au pilote) : les
+        champs `currency`/`timezone` sont ignorés si absents et refusés si
+        incompatibles. Les typologies `tirage`/`negocie` sont reconnues à la
+        création mais non démarrables au pilote (échec fermé, P1).
+      required: [groupId]
       properties:
-        name: { type: string, minLength: 1, maxLength: 120 }
+        groupId: { type: string, minLength: 1, maxLength: 120 }
+        displayName: { type: string, minLength: 1, maxLength: 120 }
+        tontineModel: { type: string, enum: [famille, collegues, fetes, construction, etudiant, personnalise] }
+        rotationType: { type: string, enum: [rotative_fermee, tirage, negocie] }
+        parentGroupId: { type: string, minLength: 1, maxLength: 120, description: Groupe parent de supervision (faîtière) ; aucun droit financier dérivé. }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        timezone: { type: string, minLength: 1, maxLength: 64 }
+        minimumMembers: { type: integer, minimum: 2, maximum: 1000 }
+        requiredIndependentRoles: { type: integer, minimum: 0, maximum: 10 }
+    DiscoverableGroup:
+      type: object
+      description: >
+        Vue publique minimale d'un groupe ouvrable à la découverte (C03 §4.1) :
+        nom + modèle + typologie seulement, JAMAIS de registre réel avant
+        adhésion (`revealsRegistry` toujours false au pilote).
+      required: [groupId, groupName, tontineModel, rotationType, revealsRegistry]
+      properties:
+        groupId: { type: string }
+        groupName: { type: string }
+        tontineModel: { type: string, enum: [famille, collegues, fetes, construction, etudiant, personnalise] }
+        rotationType: { type: string, enum: [rotative_fermee, tirage, negocie] }
+        revealsRegistry: { type: boolean }
+    SponsorshipRequest:
+      type: object
+      description: >
+        Demande de parrainage / cooptation (C03 §4.1). Le CANDIDAT est l'acteur
+        de session (résolu serveur, §14) — `candidateId` n'est porté ici que
+        pour satisfaire le contrat ; `sponsorId` est la CIBLE (membre actif à
+        confirmer serveur ; un parrain non actif ou soi-même est refusé).
+      required: [sponsorshipId, candidateId, sponsorId]
+      properties:
+        sponsorshipId: { type: string, minLength: 1, maxLength: 120 }
+        candidateId: { type: string, minLength: 1, maxLength: 120 }
+        sponsorId: { type: string, minLength: 1, maxLength: 120 }
+    SponsorshipDecisionRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [endorsed, rejected] }
+    Sponsorship:
+      type: object
+      required: [sponsorshipId, groupId, candidateId, sponsorId, state]
+      properties:
+        sponsorshipId: { type: string }
+        groupId: { type: string }
+        candidateId: { type: string }
+        sponsorId: { type: string }
+        state: { type: string, enum: [requested, endorsed, rejected] }
+        createdAt: { type: integer, description: Epoch millis serveur. }
+        decidedAt: { type: integer, nullable: true, description: Epoch millis serveur ; null tant que non décidé. }
     Membership:
       type: object
       required: [membershipId, groupId, state]
