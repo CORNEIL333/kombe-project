@@ -1346,6 +1346,21 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return reply.code(200).send(governance.listDiscoverable());
   });
 
+  // Vue MULTI-ADHÉSION d'un membre (C21 §2.5) : la liste des tontines dont il
+  // fait partie, avec modèle/typologie/hiérarchie (parent) et état d'adhésion.
+  // Mode RÉEL : l'identité listée est celle de la SESSION Bearer, résolue
+  // SERVEUR (§14) — le client ne choisit jamais de quelle identité il liste.
+  // Mode fictif : identité du squelette via query (C01 la résoudra depuis
+  // session + RLS). Aucune donnée financière n'est exposée.
+  app.get("/v1/me/groups", async (request, reply) => {
+    if (pool && realGovernance) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      return reply.code(200).send(await realGovernance.listGroupsForMember(identityId));
+    }
+    const { identityId } = request.query as { identityId?: string };
+    return reply.code(200).send(governance.listGroupsForMember(identityId ?? ""));
+  });
+
   /* --- C04 : moteur de règles versionnées et acceptations (3.1 → 3.7, 6.7) --- */
 
   // Publication d'une version de règle (compiler pour le pilote ; pénalités forcées

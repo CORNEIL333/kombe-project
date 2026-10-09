@@ -81,7 +81,7 @@ async function codeOf(fn) {
 }
 
 const DOWN = [
-  "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql",
+  "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql",
   "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql",
   "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql", "migrations/0016_privacy_law.down.sql",
   "migrations/0015_export_manifest.down.sql", "migrations/0014_support_security.down.sql", "migrations/0013_outbox.down.sql",
@@ -98,7 +98,7 @@ const UP = [
   "migrations/0014_support_security.sql", "migrations/0015_export_manifest.sql", "migrations/0016_privacy_law.sql",
   "migrations/0017_pilot_metrics.sql", "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql",
   "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql",
-  "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "provision/roles.sql",
+  "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "provision/roles.sql",
 ];
 
 try {
@@ -227,6 +227,35 @@ try {
   const ids = discoverable.map((d) => d.groupId).sort();
   const d1 = discoverable.find((d) => d.groupId === "grpD1");
   check("O-DISCOVERABLE", ids.includes("grpD1") && !ids.includes("grpD2") && !!d1 && d1.revealsRegistry === false && d1.groupName === "Tontine ouverte", { ids, d1 });
+
+  // ── O-MYGROUPS : vue MULTI-ADHÉSION serveur C21 §2.5 (listGroupsForMember) ─
+  // idn_sponsor est déjà membre actif de grpO1 (mémé); on l'ajoute aussi membre
+  // actif de grpChild (enfant de grpO1). Un membre peut être dans plusieurs
+  // tontines ; la projection joint membership ⨝ group par identity_id et révèle
+  // la hiérarchie parent sans AUCUN champ financier.
+  await migrator.query(`
+    INSERT INTO membership (membership_id, group_id, identity_id, state)
+      VALUES ('mem_sponsor_child','grpChild','idn_sponsor','active') ON CONFLICT DO NOTHING;
+  `);
+  const mine = await store.listGroupsForMember("idn_sponsor");
+  const idsMine = mine.map((m) => m.groupId).sort();
+  const childView = mine.find((m) => m.groupId === "grpChild");
+  check("O-MYGROUPS-MULTI", idsMine.includes("grpO1") && idsMine.includes("grpChild"), { idsMine });
+  check(
+    "O-MYGROUPS-HIERARCHY",
+    !!childView && childView.parentGroupId === "grpO1" && childView.membershipState === "active" && childView.groupState === "configuration",
+    { childView },
+  );
+  // Aucune donnée financière exposée (champs strictement bornés à la projection).
+  const fieldKeys = childView ? Object.keys(childView).sort() : [];
+  check(
+    "O-MYGROUPS-NO-MONEY",
+    JSON.stringify(fieldKeys) === JSON.stringify(["displayName", "groupId", "groupState", "membershipState", "parentGroupId", "rotationType", "tontineModel"]),
+    { fieldKeys },
+  );
+  // Isolation serveur : une identité sans adhésion ne voit aucune tontine.
+  const noneForMember = await store.listGroupsForMember("idn_ghost_zzz");
+  check("O-MYGROUPS-ISOLATION", Array.isArray(noneForMember) && noneForMember.length === 0, { noneForMember });
 
   await pool.end();
   await migrator.end();

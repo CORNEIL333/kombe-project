@@ -36,6 +36,7 @@ import {
   type Sponsorship,
   type TontineModel,
   type RotationType,
+  type MemberGroupSummary,
 } from "@kombe/domain";
 
 interface GroupRecord {
@@ -320,5 +321,30 @@ export class FictitiousGovernanceStore {
       rotationType: g.rotationType,
       revealsRegistry: false as const,
     }));
+  }
+
+  /**
+   * Vue consolidée C21 §2.5 (parité avec le store RÉEL `listGroupsForMember`) :
+   * les tontines dont un membre fait partie — la multi-adhésion est un droit
+   * produit (un membre est dans plusieurs tontines). Ne porte aucun champ
+   * financier ; parent/enfant et état d'adhésion seulement.
+   */
+  listGroupsForMember(identityId: string): MemberGroupSummary[] {
+    const out: MemberGroupSummary[] = [];
+    for (const m of this.memberships.values()) {
+      if (m.identityId !== identityId) continue;
+      const g = this.groups.get(m.groupId);
+      if (!g) continue;
+      out.push({
+        groupId: g.groupId,
+        displayName: g.displayName,
+        tontineModel: g.tontineModel,
+        rotationType: g.rotationType,
+        groupState: g.state,
+        parentGroupId: g.parentGroupId,
+        membershipState: m.state,
+      });
+    }
+    return out.sort((a, b) => a.groupId.localeCompare(b.groupId));
   }
 }

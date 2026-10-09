@@ -170,3 +170,39 @@ describe("Amorçage — découvrabilité sans registre réel (4.1)", () => {
     });
   });
 });
+
+describe("Amorçage — vue multi-adhésion d'un membre (C21 §2.5, GET /v1/me/groups)", () => {
+  it("liste les tontines d'un membre avec hiérarchie parent + état d'adhésion, isolé par identité", async () => {
+    const g = new FictitiousGovernanceStore();
+    g.createGroup({ groupId: "grpParent", displayName: "Grande tontine", tontineModel: "famille" });
+    g.createGroup({
+      groupId: "grpChild",
+      displayName: "Petite tontine",
+      tontineModel: "collegues",
+      parentGroupId: "grpParent",
+    });
+    // Un membre peut être dans PLUSIEURS tontines (multi-adhésion).
+    g.seedActiveMember("grpParent", "alice");
+    g.seedActiveMember("grpChild", "alice");
+    const app = buildApp({ governance: g });
+
+    const res = await app.inject({ method: "GET", url: "/v1/me/groups?identityId=alice" });
+    expect(res.statusCode).toBe(200);
+    const list = res.json() as Array<Record<string, unknown>>;
+    expect(list.map((x) => x.groupId)).toEqual(["grpChild", "grpParent"]);
+    const child = list.find((x) => x.groupId === "grpChild")!;
+    expect(child.displayName).toBe("Petite tontine");
+    expect(child.tontineModel).toBe("collegues");
+    expect(child.parentGroupId).toBe("grpParent");
+    expect(child.membershipState).toBe("active");
+    // Aucune donnée financière exposée dans la vue.
+    expect(Object.keys(child).sort()).toEqual(
+      ["displayName", "groupId", "groupState", "membershipState", "parentGroupId", "rotationType", "tontineModel"],
+    );
+
+    // Isolation par identité : un non-membre ne voit aucune tontine.
+    const bob = await app.inject({ method: "GET", url: "/v1/me/groups?identityId=bob" });
+    expect(bob.statusCode).toBe(200);
+    expect(bob.json()).toEqual([]);
+  });
+});

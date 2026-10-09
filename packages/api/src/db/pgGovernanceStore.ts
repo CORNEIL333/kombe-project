@@ -42,6 +42,7 @@ import {
   type Sponsorship,
   type TontineModel,
   type RotationType,
+  type MemberGroupSummary,
 } from "@kombe/domain";
 import { withGroupTx } from "./txContext.js";
 
@@ -543,6 +544,36 @@ export class PgGovernanceStore {
       tontineModel: (r.tontine_model ?? "personnalise") as TontineModel,
       rotationType: (r.rotation_type ?? "rotative_fermee") as RotationType,
       revealsRegistry: false as const,
+    }));
+  }
+
+  /**
+   * Vue consolidée C21 §2.5 : les tontines dont un membre fait partie (vue
+   * MULTI-ADHÉSION — un membre peut être dans plusieurs tontines). Lecture
+   * SERVEUR depuis l'identité résolue par la session (§14) : la PWA/mobile ne
+   * choisit jamais de quelle identité elle liste les groupes. `membership` est
+   * sous RLS tenant (0001 : `group_id = current_setting('kombe.group_id')`) et ne
+   * peut donc PAS être relu à travers les tenants par une jointure directe ; on
+   * passe par le pont `SECURITY DEFINER` `kombe_member_groups(text)` (migration
+   * 0025, même auditoire que `kombe_privacy_subject_group` 0020), scotché à
+   * l'identité serveur et n'exposant AUCUN champ financier : identité de la
+   * tontine + son rôle dans la hiérarchie (parent) + état de l'adhésion.
+   */
+  async listGroupsForMember(identityId: string): Promise<MemberGroupSummary[]> {
+    const res = await this.pool.query(
+      `SELECT group_id, display_name, tontine_model, rotation_type,
+              state, parent_group_id, membership_state
+         FROM kombe_member_groups($1)`,
+      [identityId],
+    );
+    return res.rows.map((r) => ({
+      groupId: String(r.group_id),
+      displayName: (r.display_name ?? r.group_id) as string,
+      tontineModel: (r.tontine_model ?? "personnalise") as TontineModel,
+      rotationType: (r.rotation_type ?? "rotative_fermee") as RotationType,
+      groupState: r.state as MemberGroupSummary["groupState"],
+      parentGroupId: (r.parent_group_id ?? null) as string | null,
+      membershipState: r.membership_state as MemberGroupSummary["membershipState"],
     }));
   }
 }

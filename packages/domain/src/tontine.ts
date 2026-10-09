@@ -24,6 +24,7 @@
  */
 import { DomainError } from "./errors.js";
 import { CURRENCY } from "./money.js";
+import type { GroupState } from "./group.js";
 
 /** Fuseau métier du pilote (dates affichées ; instants persistés en UTC). */
 export const PILOT_TIMEZONE = "Africa/Douala" as const;
@@ -302,4 +303,22 @@ export function consolidateCommitments(
     }
   }
   return { totalDue, nextDueAtUtc, groupCount: commitments.length };
+}
+
+/**
+ * Vue consolidée C21 §2.5 (surface légère) : le RÉSUMÉ d'une tontine dont le
+ * membre fait partie. Fourni par le serveur (projection membership ⨝ group) ;
+ * ne porte AUCUN pouvoir financier ni décision — la supervision parent/enfant
+ * est purement informative ici. `parentGroupId` révèle la hiérarchie (une
+ * grande tontine qui en supervise plusieurs), `membershipState` distingue
+ * l'adhésion active d'une demande en cours.
+ */
+export interface MemberGroupSummary {
+  readonly groupId: string;
+  readonly displayName: string;
+  readonly tontineModel: TontineModel;
+  readonly rotationType: RotationType;
+  readonly groupState: GroupState;
+  readonly parentGroupId: string | null;
+  readonly membershipState: "pending" | "active" | "departed" | "revoked";
 }
