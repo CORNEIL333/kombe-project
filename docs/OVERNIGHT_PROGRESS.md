@@ -30,7 +30,10 @@ Original vision CONFIRMS these are legitimate (not invented):
 
 ## Slice log (append as completed)
 - [x] Regenerate brand derived tokens (Windows CRLF false-fail in `build-tokens.mjs --check`).
-- [ ] Domain: tontine type + parrainage + parent/child + multi-membership concepts + tests.
+- [x] Domain: tontine type + parrainage + parent/child + multi-membership concepts + tests (`a902ab0`).
+- [x] API: createGroup(name/model/type/parent) + join-by-code + sponsorship + discoverable routes; HTTP status map; `onboarding.test.ts` (api 215 green) (`a062b77`).
+- [x] DB: migration 0024 (group display_name/tontine_model/rotation_type/parent_group_id/join_code + sponsorship table); registered across 14 proof lists + reverse-down; real Neon proof PASS (`pgOnboardingStore.proof.mjs`) + roles.sql REVOKE mirror (`81f2bd9`).
+- [x] Mobile onboarding drift FIXED (`6b8ac25`): after-login flow only offered JOIN. Added Créer (CreateGroupScreen: name+model+rotation-type+optional parent), Découvrir (DiscoverGroupsScreen + parrainage/coopetation dialog, candidate resolved server-side from session), Rejoindre par code. Wired real HttpGroupRepository into AppDependencies.configured() (replaced the mock UnavailableGroupRepository); KombeApiClient wraps top-level JSON arrays under 'items'. flutter test 37 passed / 1 skipped; 0 analyze errors. Contract test `http_group_repository_test.dart` (8).
 - [ ] DB: migrations for group.type / parent_group_id / sponsorship; register + reverse-down.
 - [ ] API: createGroup(type,parent), join-by-code, discoverable list, sponsorship; wire + tests.
 - [ ] Mobile: create-group flow (type + parrainage) + multi-group; wire routes.
