@@ -10,6 +10,8 @@ abstract final class ScreenManifest {
     'dashboard',
     'groups',
     'join_group',
+    'create_group',
+    'discover_groups',
     'group_detail',
     'group_settings',
     'invite_member',

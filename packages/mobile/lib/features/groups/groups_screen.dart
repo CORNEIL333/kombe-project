@@ -12,6 +12,39 @@ import '../../domain/repositories/group_repository.dart';
 import '../../l10n/app_localizations.dart';
 import 'groups_view_models.dart';
 
+/// Carte d'action d'amorçage (créer / rejoindre / découvrir) — ligne tactile
+/// pleine largeur alignée sur la charte (icône + libellé + chevron).
+class _OnboardingAction extends StatelessWidget {
+  const _OnboardingAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          alignment: AlignmentDirectional.centerStart,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        onPressed: onTap,
+        icon: Icon(icon, color: KombeColors.forest),
+        label: Text(label, style: Theme.of(context).textTheme.titleSmall),
+      ),
+    );
+  }
+}
+
 class GroupsScreen extends StatefulWidget {
   const GroupsScreen({super.key});
 
@@ -64,10 +97,22 @@ class _GroupsScreenState extends State<GroupsScreen> {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: () => context.push('/app/groups/join'),
-              icon: const Icon(Icons.add),
-              label: Text(l10n.joinGroup),
+            // Amorçage complet (C03) : créer / rejoindre par code / découvrir
+            // (avec parrainage). Le parcours ne proposait que « rejoindre ».
+            _OnboardingAction(
+              icon: Icons.add_circle_outline,
+              label: 'Créer une tontine',
+              onTap: () => context.push('/app/groups/create'),
+            ),
+            _OnboardingAction(
+              icon: Icons.vpn_key_outlined,
+              label: l10n.joinGroup,
+              onTap: () => context.push('/app/groups/join'),
+            ),
+            _OnboardingAction(
+              icon: Icons.explore_outlined,
+              label: 'Découvrir des tontines',
+              onTap: () => context.push('/app/groups/discover'),
             ),
             const SizedBox(height: 16),
             ResourceView<List<GroupSummary>>(

@@ -124,6 +124,27 @@ final class UnavailableGroupRepository implements GroupRepository {
     required String groupId,
     required String phoneE164,
   }) async => const OperationBlocked<void>(_reason);
+
+  @override
+  Future<OperationResult<String>> createGroup({
+    required String groupId,
+    required String displayName,
+    required String tontineModel,
+    required String rotationType,
+    String? parentGroupId,
+  }) async => const OperationBlocked<String>(_reason);
+
+  @override
+  Future<Resource<List<DiscoverableGroup>>> listDiscoverable() async =>
+      const ResourceUnavailable<List<DiscoverableGroup>>();
+
+  @override
+  Future<OperationResult<void>> requestSponsorship({
+    required String groupId,
+    required String sponsorshipId,
+    required String candidateId,
+    required String sponsorId,
+  }) async => const OperationBlocked<void>(_reason);
 }
 
 final class UnavailableContributionRepository

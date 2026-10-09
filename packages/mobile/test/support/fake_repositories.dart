@@ -282,6 +282,51 @@ final class FakeGroupRepository implements GroupRepository {
     await _lag();
     return const OperationSuccess<void>(null);
   }
+
+  @override
+  Future<OperationResult<String>> createGroup({
+    required String groupId,
+    required String displayName,
+    required String tontineModel,
+    required String rotationType,
+    String? parentGroupId,
+  }) async {
+    await _lag();
+    w.groups.insert(
+      0,
+      GroupSummary(
+        id: groupId,
+        name: displayName,
+        role: GroupRole.administrator,
+        memberCount: 1,
+        cycleIndex: 0,
+        cycleTotal: 1,
+        contributionAmountXaf: 0,
+        nextDueAtUtc: w.nextDue,
+      ),
+    );
+    return OperationSuccess<String>(groupId);
+  }
+
+  @override
+  Future<Resource<List<DiscoverableGroup>>> listDiscoverable() async {
+    await _lag();
+    return const ResourceReady<List<DiscoverableGroup>>(<DiscoverableGroup>[
+      DiscoverableGroup(groupId: 'decouvrir-1', name: 'Tontine des artisans', tontineModel: 'collegues', rotationType: 'rotative_fermee'),
+      DiscoverableGroup(groupId: 'decouvrir-2', name: 'Épargne construction', tontineModel: 'construction', rotationType: 'rotative_fermee'),
+    ]);
+  }
+
+  @override
+  Future<OperationResult<void>> requestSponsorship({
+    required String groupId,
+    required String sponsorshipId,
+    required String candidateId,
+    required String sponsorId,
+  }) async {
+    await _lag();
+    return const OperationSuccess<void>(null);
+  }
 }
 
 final class FakeContributionRepository implements ContributionRepository {
