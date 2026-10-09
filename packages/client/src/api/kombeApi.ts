@@ -106,3 +106,114 @@ export async function declarerCotisation(
     authHeaders(sessionId, { "idempotency-key": idempotencyKey, "if-match-version": String(expectedVersion) }),
   );
 }
+
+/* --- Amorçage des tontines (C03, 0024) — routes RÉELLEMENT prouvées base
+   réelle (`packages/api/test/pgOnboardingStore.proof.mjs`) : créer une tontine
+   (nom + modèle + typologie + parent de supervision), découvrir les tontines
+   publiques, rejoindre par code, demander un parrainage. Les décisions
+   (devise/fuseau/identités/typologie P1 non démarrable) restent SERVEUR : la
+   PWA n'appelle le contrat, elle ne choisit jamais son identité métier. --- */
+
+export type ModeleTontine =
+  | "famille"
+  | "collegues"
+  | "fetes"
+  | "construction"
+  | "etudiant"
+  | "personnalise";
+
+export type TypologieRotation = "rotative_fermee" | "tirage" | "negocie";
+
+export interface CreationTontineInput {
+  readonly groupId: string;
+  readonly displayName: string;
+  readonly tontineModel: ModeleTontine;
+  readonly rotationType: TypologieRotation;
+  readonly parentGroupId?: string | undefined;
+}
+
+export interface TontineCreee {
+  readonly state: string;
+  readonly groupId: string;
+  readonly tontineModel?: ModeleTontine;
+  readonly rotationType?: TypologieRotation;
+}
+
+/** Créer une tontine (`POST /v1/groups`) — session OBLIGATOIRE (anti-spam
+ *  anonyme, §14) ; le créateur/acteur est résolu serveur depuis le Bearer. */
+export async function creerTontine(
+  sessionId: string,
+  input: CreationTontineInput,
+): Promise<TontineCreee> {
+  const api = await client();
+  const corps: Record<string, string> = {
+    groupId: input.groupId,
+    displayName: input.displayName,
+    tontineModel: input.tontineModel,
+    rotationType: input.rotationType,
+  };
+  if (input.parentGroupId) corps.parentGroupId = input.parentGroupId;
+  return api.post<TontineCreee>("/v1/groups", corps, authHeaders(sessionId));
+}
+
+export interface TontineDecouvrable {
+  readonly groupId: string;
+  readonly groupName: string;
+  readonly tontineModel: ModeleTontine;
+  readonly rotationType: TypologieRotation;
+  readonly revealsRegistry: boolean;
+}
+
+/** Découvrabilité publique (`GET /v1/discoverable-groups`) — aucune session,
+ *  aucun registre réel (nom + modèle + typologie seulement). */
+export async function repertorierTontines(
+  signal?: AbortSignal,
+): Promise<readonly TontineDecouvrable[]> {
+  const api = await client();
+  return api.request<readonly TontineDecouvrable[]>(
+    "/v1/discoverable-groups",
+    { method: "GET" },
+    signal,
+  );
+}
+
+/** Rejoindre par code reçu (`POST /v1/invitations/:code/redemptions`) — le
+ *  racheteur est l'acteur de session (Bearer), jamais un champ du client. */
+export async function rejoindreParCode(
+  sessionId: string,
+  invitationCode: string,
+): Promise<void> {
+  const api = await client();
+  await api.post(
+    `/v1/invitations/${encodeURIComponent(invitationCode)}/redemptions`,
+    {},
+    authHeaders(sessionId),
+  );
+}
+
+export interface ParrainageInput {
+  readonly groupId: string;
+  readonly sponsorshipId: string;
+  readonly candidateId: string;
+  readonly sponsorId: string;
+}
+
+/** Parrainage / cooptation (`POST /v1/groups/:id/sponsorships`) — le CANDIDAT
+ *  est l'acteur de session résolu serveur ; le corps porte un `candidateId`
+ *  seulement pour satisfaire le contrat de schéma. Le parrain (CIBLE) doit être
+ *  membre actif réel, vérifié serveur. */
+export async function demanderParrainage(
+  sessionId: string,
+  input: ParrainageInput,
+): Promise<void> {
+  const api = await client();
+  await api.post(
+    `/v1/groups/${encodeURIComponent(input.groupId)}/sponsorships`,
+    {
+      sponsorshipId: input.sponsorshipId,
+      candidateId: input.candidateId,
+      sponsorId: input.sponsorId,
+    },
+    authHeaders(sessionId),
+  );
+}

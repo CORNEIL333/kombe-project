@@ -6,13 +6,14 @@
 import { useEffect, useState } from "react";
 import { useLangue, BasculeLangue } from "./i18n/ContexteLangue.js";
 import { ParcoursGuide } from "./parcours/ParcoursGuide.js";
+import { AmorcageTontine } from "./parcours/AmorcageTontine.js";
 import { BandeauHorsLigne } from "./horsLigne/BandeauHorsLigne.js";
 import { Connexion, type SessionOuverte } from "./connexion/Connexion.js";
 import { DeclarerCotisation } from "./cotisation/DeclarerCotisation.js";
 import { ImmersiveBackdrop } from "./composants/ImmersiveBackdrop.js";
 import { MotifAfricain } from "./composants/MotifAfricain.js";
 
-type Onglet = "groupe" | "cotisation";
+type Onglet = "groupe" | "tontines" | "cotisation";
 
 export function App() {
   const { t } = useLangue();
@@ -74,6 +75,15 @@ export function App() {
           <button
             type="button"
             role="tab"
+            aria-selected={onglet === "tontines"}
+            className={onglet === "tontines" ? "bouton" : "bouton bouton-secondaire"}
+            onClick={() => setOnglet("tontines")}
+          >
+            {t("nav.tontines")}
+          </button>
+          <button
+            type="button"
+            role="tab"
             aria-selected={onglet === "cotisation"}
             className={onglet === "cotisation" ? "bouton" : "bouton bouton-secondaire"}
             onClick={() => setOnglet("cotisation")}
@@ -87,6 +97,24 @@ export function App() {
             <ImmersiveBackdrop variante="groupe" />
             <div className="carte-etape" style={{ maxWidth: "40rem" }}>
               <ParcoursGuide />
+            </div>
+            <MotifAfricain />
+          </section>
+        ) : null}
+        {onglet === "tontines" ? (
+          <section className="scene-immersive" aria-label={t("nav.tontines")}>
+            <ImmersiveBackdrop variante="groupe" />
+            <div className="carte-etape" style={{ maxWidth: "40rem" }}>
+              {session ? (
+                <AmorcageTontine session={session} />
+              ) : (
+                <>
+                  <p role="status" className="aide-champ">
+                    {t("amorce.sessionRequise")}
+                  </p>
+                  <Connexion onConnecte={setSession} />
+                </>
+              )}
             </div>
             <MotifAfricain />
           </section>

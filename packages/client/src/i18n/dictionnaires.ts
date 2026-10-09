@@ -81,6 +81,43 @@ export const fr = {
   "nav.creerGroupe": "Créer un groupe",
   "nav.cotisation": "Ma cotisation",
 
+  "nav.tontines": "Mes tontines",
+  "amorce.titre": "Créer, rejoindre ou découvrir une tontine",
+  "amorce.consigne":
+    "Ces actions parlent au serveur réel. Les décisions (devise, fuseau, identités, typologie) restent serveur.",
+  "amorce.creer": "Créer une tontine",
+  "amorce.rejoindre": "Rejoindre avec un code",
+  "amorce.decouvrir": "Découvrir des tontines",
+  "amorce.parrainage": "Demander un parrainage",
+  "amorce.sessionRequise":
+    "Ouvrez une session réelle pour créer une tontine, rejoindre ou être parrainé.",
+  "amorce.chargerListe": "Charger la liste publique",
+  "amorce.creee": "Tontine créée sur le serveur.",
+  "amorce.rejointe": "Demande d'adhésion transmise (en attente de validation).",
+  "amorce.parrainDemande": "Demande de parrainage transmise au serveur.",
+  "amorce.listeVide": "Aucune tontine publique à découvrir pour le moment.",
+  "amorce.typologieP1":
+    "Typologie reconnue mais non démarrable au pilote (recette dédiée à venir).",
+  "champ.modeleTontine": "Modèle de tontine",
+  "champ.typologie": "Typologie de rotation",
+  "champ.parentGroupe": "Groupe parent de supervision (facultatif)",
+  "aide.parentGroupe":
+    "Une association faîtière supervise des tontines ; la supervision n'a aucun droit financier.",
+  "champ.codeInvitation": "Code d'invitation reçu",
+  "champ.identifiantParrain": "Identifiant du parrain (membre actif)",
+  "bouton.creerTontine": "Créer la tontine",
+  "bouton.rejoindre": "Rejoindre",
+  "bouton.demanderParrainage": "Demander le parrainage",
+  "modele.famille": "Famille",
+  "modele.collegues": "Collègues",
+  "modele.fetes": "Fêtes",
+  "modele.construction": "Construction",
+  "modele.etudiant": "Étudiant",
+  "modele.personnalise": "Personnalisé",
+  "typologie.rotativeFermee": "Rotation fermée (égale)",
+  "typologie.tirage": "Tirage au sort",
+  "typologie.negocie": "Négocié",
+
   "connexion.titre": "Connexion",
   "connexion.consigne":
     "Un code à 6 chiffres vous est envoyé par email — aucun mot de passe.",
@@ -211,6 +248,43 @@ export const en: Record<CleI18n, string> = {
 
   "nav.creerGroupe": "Create a group",
   "nav.cotisation": "My contribution",
+
+  "nav.tontines": "My tontines",
+  "amorce.titre": "Create, join or discover a tontine",
+  "amorce.consigne":
+    "These actions talk to the real server. Decisions (currency, timezone, identities, rotation type) stay server-side.",
+  "amorce.creer": "Create a tontine",
+  "amorce.rejoindre": "Join with a code",
+  "amorce.decouvrir": "Discover tontines",
+  "amorce.parrainage": "Request a sponsorship",
+  "amorce.sessionRequise":
+    "Open a real session to create a tontine, join, or be sponsored.",
+  "amorce.chargerListe": "Load the public list",
+  "amorce.creee": "Tontine created on the server.",
+  "amorce.rejointe": "Join request submitted (awaiting validation).",
+  "amorce.parrainDemande": "Sponsorship request submitted to the server.",
+  "amorce.listeVide": "No public tontine to discover right now.",
+  "amorce.typologieP1":
+    "Rotation type recognized but not startable on the pilot (dedicated recipe to come).",
+  "champ.modeleTontine": "Tontine model",
+  "champ.typologie": "Rotation type",
+  "champ.parentGroupe": "Supervising parent group (optional)",
+  "aide.parentGroupe":
+    "An umbrella association supervises tontines; supervision carries no financial rights.",
+  "champ.codeInvitation": "Invitation code received",
+  "champ.identifiantParrain": "Sponsor identifier (active member)",
+  "bouton.creerTontine": "Create the tontine",
+  "bouton.rejoindre": "Join",
+  "bouton.demanderParrainage": "Request the sponsorship",
+  "modele.famille": "Family",
+  "modele.collegues": "Colleagues",
+  "modele.fetes": "Parties",
+  "modele.construction": "Construction",
+  "modele.etudiant": "Student",
+  "modele.personnalise": "Custom",
+  "typologie.rotativeFermee": "Closed (equal) rotation",
+  "typologie.tirage": "Random draw",
+  "typologie.negocie": "Negotiated",
 
   "connexion.titre": "Sign in",
   "connexion.consigne":
