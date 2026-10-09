@@ -126,6 +126,55 @@ void main() {
     });
   });
 
+  group('listMyGroups → GET /me/groups (multi-adhésion C21 §2.5)', () {
+    test('tableau enveloppé sous items puis décodé sans champ financier',
+        () async {
+      final repo = repoFor((req) async {
+        expect(req.method, 'GET');
+        expect(req.url.path, '/v1/me/groups');
+        return http.Response(
+          jsonEncode(<Map<String, dynamic>>[
+            <String, dynamic>{
+              'groupId': 'grpA',
+              'displayName': 'Tontine A',
+              'tontineModel': 'famille',
+              'rotationType': 'rotative_fermee',
+              'groupState': 'active',
+              'membershipState': 'active',
+              'parentGroupId': null,
+            },
+            <String, dynamic>{
+              'groupId': 'grpB',
+              'displayName': 'Sous-tontine B',
+              'tontineModel': 'collegues',
+              'rotationType': 'rotative_fermee',
+              'groupState': 'configuration',
+              'membershipState': 'pending',
+              'parentGroupId': 'grpA',
+            },
+          ]),
+          200,
+        );
+      });
+
+      final result = await repo.listMyGroups();
+      expect(result, isA<ResourceReady<List<MemberGroup>>>());
+      final list = (result as ResourceReady<List<MemberGroup>>).data;
+      expect(list.length, 2);
+      expect(list.first.groupId, 'grpA');
+      expect(list.first.displayName, 'Tontine A');
+      expect(list.first.membershipState, 'active');
+      expect(list.last.parentGroupId, 'grpA');
+      expect(list.last.membershipState, 'pending');
+    });
+
+    test('corps non-JSON → ResourceFailure honnête (pas d’invention)', () async {
+      final repo = repoFor((_) async => http.Response('oops', 200));
+      final result = await repo.listMyGroups();
+      expect(result, isA<ResourceFailure<List<MemberGroup>>>());
+    });
+  });
+
   group('parrainage / adhésion', () {
     test('requestSponsorship → POST /groups/{id}/sponsorships', () async {
       late http.Request captured;

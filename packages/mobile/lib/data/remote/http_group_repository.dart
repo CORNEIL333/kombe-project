@@ -10,6 +10,7 @@ import 'kombe_api_client.dart';
 /// routes d'amorçage prouvées base réelle (0024, `pgOnboardingStore.proof.mjs`) :
 ///   * `POST /groups` (créer une tontine : nom, modèle, typologie, parent) ;
 ///   * `GET  /discoverable-groups` (découvrabilité publique, sans registre) ;
+///   * `GET  /me/groups` (vue multi-adhésion « mes tontines », C21 §2.5) ;
 ///   * `POST /groups/{id}/sponsorships` (parrainage / cooptation) ;
 ///   * `POST /invitations/{code}/redemptions` (rejoindre via un code reçu) ;
 ///   * `POST /groups/{id}/memberships` (invitation directe d'un handle).
@@ -97,6 +98,35 @@ final class HttpGroupRepository implements GroupRepository {
       return ResourceReady<List<DiscoverableGroup>>(groups);
     } on ApiFailure catch (e) {
       return ResourceFailure<List<DiscoverableGroup>>(e);
+    }
+  }
+
+  @override
+  Future<Resource<List<MemberGroup>>> listMyGroups() async {
+    try {
+      final ApiResponse res = await _api.get('/me/groups');
+      final Object? items = res.body['items'];
+      if (items is! List<dynamic>) {
+        return ResourceFailure<List<MemberGroup>>(
+          ApiFailure(statusCode: res.statusCode, code: 'RESPONSE_NOT_JSON'),
+        );
+      }
+      final List<MemberGroup> groups = <MemberGroup>[
+        for (final Object? e in items)
+          if (e is Map<String, dynamic>)
+            MemberGroup(
+              groupId: e['groupId'] as String? ?? '',
+              displayName: e['displayName'] as String? ?? '',
+              tontineModel: e['tontineModel'] as String? ?? 'personnalise',
+              rotationType: e['rotationType'] as String? ?? 'rotative_fermee',
+              groupState: e['groupState'] as String? ?? 'configuration',
+              membershipState: e['membershipState'] as String? ?? 'pending',
+              parentGroupId: e['parentGroupId'] as String?,
+            ),
+      ];
+      return ResourceReady<List<MemberGroup>>(groups);
+    } on ApiFailure catch (e) {
+      return ResourceFailure<List<MemberGroup>>(e);
     }
   }
 

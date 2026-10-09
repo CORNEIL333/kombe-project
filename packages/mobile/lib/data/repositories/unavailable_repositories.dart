@@ -139,6 +139,10 @@ final class UnavailableGroupRepository implements GroupRepository {
       const ResourceUnavailable<List<DiscoverableGroup>>();
 
   @override
+  Future<Resource<List<MemberGroup>>> listMyGroups() async =>
+      const ResourceUnavailable<List<MemberGroup>>();
+
+  @override
   Future<OperationResult<void>> requestSponsorship({
     required String groupId,
     required String sponsorshipId,

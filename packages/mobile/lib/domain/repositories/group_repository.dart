@@ -31,6 +31,11 @@ abstract interface class GroupRepository {
   /// ouverts, sans registre réel.
   Future<Resource<List<DiscoverableGroup>>> listDiscoverable();
 
+  /// Vue consolidée « mes tontines » (C21 §2.5) : TOUTES les tontines dont
+  /// l'identité de session fait partie (multi-adhésion). L'identité est
+  /// résolue SERVEUR depuis la session (§14) ; aucune donnée financière.
+  Future<Resource<List<MemberGroup>>> listMyGroups();
+
   /// Parrainage / cooptation : un candidat demande à rejoindre sous la
   /// caution d'un membre actif. Le serveur résout le candidat depuis la
   /// session ; `candidateId` n'est transmis que pour satisfaire le contrat.

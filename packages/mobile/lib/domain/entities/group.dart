@@ -53,6 +53,39 @@ final class DiscoverableGroup {
   final String rotationType;
 }
 
+/// Vue consolidée MULTI-ADHÉSION d'une tontine pour un membre (C21 §2.5) :
+/// projection `GET /me/groups` (`MemberGroupSummary` domaine). N'expose AUCUN
+/// champ financier (contrairement à [GroupSummary], maquette non servie au
+/// pilote) : identité de la tontine, son rôle dans la hiérarchie (parent de
+/// supervision) et l'état de l'adhésion. Un membre peut en avoir plusieurs.
+final class MemberGroup {
+  const MemberGroup({
+    required this.groupId,
+    required this.displayName,
+    required this.tontineModel,
+    required this.rotationType,
+    required this.groupState,
+    required this.membershipState,
+    this.parentGroupId,
+  });
+
+  final String groupId;
+  final String displayName;
+  final String tontineModel;
+  final String rotationType;
+  final String groupState;
+  final String membershipState;
+  final String? parentGroupId;
+}
+
+/// Étiquette lisible de l'état d'adhésion d'un membre dans une tontine.
+String membershipStateLabel(String state) => switch (state) {
+  'active' => 'Membre actif',
+  'pending' => 'Adhésion en attente',
+  'revoked' => 'Révoqué',
+  _ => 'Parti',
+};
+
 final class GroupSummary {
   const GroupSummary({
     required this.id,

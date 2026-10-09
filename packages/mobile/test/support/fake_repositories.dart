@@ -318,6 +318,22 @@ final class FakeGroupRepository implements GroupRepository {
   }
 
   @override
+  Future<Resource<List<MemberGroup>>> listMyGroups() async {
+    await _lag();
+    return ResourceReady<List<MemberGroup>>(<MemberGroup>[
+      for (final GroupSummary g in w.groups)
+        MemberGroup(
+          groupId: g.id,
+          displayName: g.name,
+          tontineModel: 'famille',
+          rotationType: 'rotative_fermee',
+          groupState: 'active',
+          membershipState: 'active',
+        ),
+    ]);
+  }
+
+  @override
   Future<OperationResult<void>> requestSponsorship({
     required String groupId,
     required String sponsorshipId,

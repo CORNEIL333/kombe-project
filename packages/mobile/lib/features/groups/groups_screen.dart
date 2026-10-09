@@ -114,6 +114,11 @@ class _GroupsScreenState extends State<GroupsScreen> {
               label: 'Découvrir des tontines',
               onTap: () => context.push('/app/groups/discover'),
             ),
+            _OnboardingAction(
+              icon: Icons.groups_rounded,
+              label: 'Mes tontines (multi-adhésion)',
+              onTap: () => context.push('/app/groups/mine'),
+            ),
             const SizedBox(height: 16),
             ResourceView<List<GroupSummary>>(
               resource: vm.state,

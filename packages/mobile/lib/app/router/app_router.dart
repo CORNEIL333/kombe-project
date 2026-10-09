@@ -26,6 +26,7 @@ import '../../features/groups/invite_member_screen.dart';
 import '../../features/groups/join_group_screen.dart';
 import '../../features/groups/member_detail_screen.dart';
 import '../../features/groups/members_screen.dart';
+import '../../features/groups/my_groups_screen.dart';
 import '../../features/groups/rules_screen.dart';
 import '../../features/home/dashboard_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
@@ -126,6 +127,10 @@ final class AppRouter {
         GoRoute(
           path: '/app/groups/discover',
           builder: (_, __) => const DiscoverGroupsScreen(),
+        ),
+        GoRoute(
+          path: '/app/groups/mine',
+          builder: (_, __) => const MyGroupsScreen(),
         ),
         GoRoute(
           path: '/app/groups/:groupId',
