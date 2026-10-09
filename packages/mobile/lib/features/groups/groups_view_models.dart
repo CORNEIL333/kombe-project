@@ -19,23 +19,6 @@ final class GroupsViewModel extends ChangeNotifier {
   }
 }
 
-/// ViewModel de la vue consolidée « mes tontines » (C21 §2.5, multi-adhésion).
-/// Distingue de [GroupsViewModel] (maquette [GroupSummary] non servie au
-/// pilote) : celui-ci appelle la route RÉELLE `GET /me/groups`.
-final class MyGroupsViewModel extends ChangeNotifier {
-  MyGroupsViewModel(this._repository);
-  final GroupRepository _repository;
-
-  Resource<List<MemberGroup>> state = const ResourceLoading<List<MemberGroup>>();
-
-  Future<void> load() async {
-    state = const ResourceLoading<List<MemberGroup>>();
-    notifyListeners();
-    state = await _repository.listMyGroups();
-    notifyListeners();
-  }
-}
-
 final class GroupDetailViewModel extends ChangeNotifier {
   GroupDetailViewModel(this._repository, this.groupId);
   final GroupRepository _repository;
