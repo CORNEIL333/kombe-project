@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/formatters/labels.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/section_card.dart';
@@ -125,7 +126,7 @@ class _GroupListCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              Text('${group.memberCount} membres • ${group.role.name}'),
+              Text('${group.memberCount} membres • ${KombeLabels.role(group.role)}'),
               const SizedBox(height: 10),
               Row(
                 children: <Widget>[

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/group.dart';
@@ -30,7 +32,7 @@ class GroupHeroCard extends StatelessWidget {
           child: Stack(
             children: <Widget>[
               Positioned.fill(
-                child: CustomPaint(painter: const _MountainPatternPainter()),
+                child: CustomPaint(painter: _GroupOrbitPainter(total: group.cycleTotal, current: group.cycleIndex)),
               ),
               Padding(
                 padding: const EdgeInsets.all(20),
@@ -93,29 +95,44 @@ class GroupHeroCard extends StatelessWidget {
   }
 }
 
-class _MountainPatternPainter extends CustomPainter {
-  const _MountainPatternPainter();
+/// Orbite du groupe en filigrane (remplace l'ancien motif « montagnes ») :
+/// même grammaire que KombeCycleOrbit, tons clairs sur fond forêt.
+class _GroupOrbitPainter extends CustomPainter {
+  const _GroupOrbitPainter({required this.total, required this.current});
+  final int total;
+  final int current;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint p1 = Paint()..color = KombeColors.gold.withValues(alpha: .12);
-    final Paint p2 = Paint()..color = Colors.black.withValues(alpha: .08);
-    final Path mountain = Path()
-      ..moveTo(size.width * .38, size.height)
-      ..lineTo(size.width * .72, size.height * .35)
-      ..lineTo(size.width, size.height * .64)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(mountain, p1);
-    final Path base = Path()
-      ..moveTo(0, size.height * .78)
-      ..quadraticBezierTo(size.width * .55, size.height * .62, size.width, size.height * .8)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(base, p2);
+    final int n = math.max(1, total);
+    final double r = size.height * .62;
+    final Offset c = Offset(size.width - r * .55, size.height * .62);
+    final Paint ring = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5
+      ..color = Colors.white.withValues(alpha: .10);
+    canvas.drawCircle(c, r, ring);
+    if (current > 1) {
+      canvas.drawArc(Rect.fromCircle(center: c, radius: r), -math.pi / 2, 2 * math.pi * math.min(1, (current - 1) / n), false,
+          ring..color = KombeColors.leaf.withValues(alpha: .55)..strokeCap = StrokeCap.round);
+    }
+    for (int i = 0; i < n; i++) {
+      final double a = -math.pi / 2 + i * 2 * math.pi / n;
+      final Offset p = c + Offset(math.cos(a), math.sin(a)) * r;
+      final int round = i + 1;
+      canvas.drawCircle(
+        p,
+        round == current ? 7 : 5,
+        Paint()
+          ..color = round == current
+              ? KombeColors.gold
+              : round < current
+                  ? Colors.white.withValues(alpha: .55)
+                  : Colors.white.withValues(alpha: .14),
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _MountainPatternPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _GroupOrbitPainter o) => o.total != total || o.current != current;
 }

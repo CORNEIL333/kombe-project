@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -107,10 +110,16 @@ class _ValidationDetailScreenState extends State<ValidationDetailScreen> {
     if (!mounted) return;
     switch (result) {
       case OperationSuccess<void>():
+        // Confirmé par le serveur uniquement : retour haptique et message proportionnés.
+        unawaited(HapticFeedback.mediumImpact());
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Décision enregistrée dans l’historique du groupe.')),
+        );
         await _load();
       case OperationBlocked<void>():
         await showServerAuthorityRequired(context);
       case OperationFailure<void>(:final error):
+        unawaited(HapticFeedback.heavyImpact());
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error.toString())),
         );

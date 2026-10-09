@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/formatters/xaf.dart';
@@ -6,10 +9,12 @@ import '../../core/state/operation_result.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/server_action_guard.dart';
 import '../../core/widgets/step_indicator.dart';
+import '../../core/widgets/transparency_card.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/draft_repository.dart';
 import '../../l10n/app_localizations.dart';
+import 'contribution_sent_sheet.dart';
 
 class ContributionReviewScreen extends StatefulWidget {
   const ContributionReviewScreen({
@@ -55,10 +60,15 @@ class _ContributionReviewScreenState extends State<ContributionReviewScreen> {
     switch (result) {
       case OperationSuccess<Contribution>():
         await context.read<ContributionDraftRepository>().deleteDraft(draft.localId);
+        if (!mounted) return;
+        // Retour discret, proportionné : la déclaration est envoyée, pas validée.
+        unawaited(HapticFeedback.lightImpact());
+        await showContributionSentSheet(context);
         if (mounted) Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
       case OperationBlocked<Contribution>():
         await showServerAuthorityRequired(context);
       case OperationFailure<Contribution>(:final error):
+        unawaited(HapticFeedback.heavyImpact());
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
@@ -102,7 +112,7 @@ class _ContributionReviewScreenState extends State<ContributionReviewScreen> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(l10n.paymentMethod),
-              trailing: Text(draft.channel.name),
+              trailing: Text(_channelLabel(l10n, draft.channel)),
             ),
             const Divider(),
             ListTile(
@@ -119,14 +129,24 @@ class _ContributionReviewScreenState extends State<ContributionReviewScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            const Text(
-              'La soumission est une commande serveur. Tant que le serveur n’a pas accepté la commande, ce brouillon ne devient jamais une cotisation déclarée.',
+            const TransparencyCard(
+              rows: <(String, String)>[
+                ('Ce qui va se passer', 'Votre déclaration est envoyée au groupe. Tant que le serveur ne l’a pas acceptée, elle reste un brouillon sur cet appareil.'),
+                ('Qui doit valider', 'Un membre autorisé du groupe. Jusque-là, elle apparaît « en attente ».'),
+                ('Où elle restera', 'Dans l’historique du groupe, avec sa date et son statut.'),
+              ],
             ),
             const SizedBox(height: 20),
-            FilledButton(onPressed: _submit, child: Text(l10n.submit)),
+            FilledButton(onPressed: _submit, child: const Text('Déclarer ma cotisation')),
           ],
         ),
       ),
     );
   }
 }
+
+String _channelLabel(AppLocalizations l10n, PaymentChannel channel) => switch (channel) {
+      PaymentChannel.mobileMoney => l10n.mobileMoney,
+      PaymentChannel.bankTransfer => l10n.bankTransfer,
+      PaymentChannel.cash => l10n.cash,
+    };

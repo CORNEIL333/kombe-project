@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/formatters/labels.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/section_card.dart';
 import '../../domain/entities/group.dart';
@@ -67,7 +68,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  member.role.name,
+                  KombeLabels.role(member.role),
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
@@ -79,7 +80,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                         contentPadding: EdgeInsets.zero,
                         leading: const Icon(Icons.badge_outlined),
                         title: const Text('Rôle'),
-                        trailing: Text(member.role.name),
+                        trailing: Text(KombeLabels.role(member.role)),
                       ),
                       const Divider(),
                       ListTile(

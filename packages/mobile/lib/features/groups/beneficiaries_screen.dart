@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/formatters/labels.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/cycle.dart';
 import '../../domain/repositories/group_repository.dart';
@@ -53,7 +54,7 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
                       Localizations.localeOf(context).toLanguageTag(),
                     ).format(item.dueAtUtc.toLocal()),
                   ),
-                  trailing: Text(item.status.name),
+                  trailing: Text(KombeLabels.beneficiaryStatus(item.status)),
                 );
               },
             ),

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/formatters/labels.dart';
 import '../../core/widgets/group_hero_card.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/section_card.dart';
@@ -116,7 +117,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                 child: Icon(Icons.person_outline),
                               ),
                               title: Text(member.displayName),
-                              subtitle: Text(member.role.name),
+                              subtitle: Text(KombeLabels.role(member.role)),
                               trailing: const Icon(Icons.chevron_right),
                               onTap: () => context.push(
                                 '/app/groups/${widget.groupId}/members/${member.identityId}',

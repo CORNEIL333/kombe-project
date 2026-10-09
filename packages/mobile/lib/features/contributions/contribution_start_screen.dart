@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/widgets/status_ring.dart';
 import '../../core/widgets/step_indicator.dart';
+import '../../core/widgets/transparency_card.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/repositories/draft_repository.dart';
 import '../../l10n/app_localizations.dart';
@@ -104,30 +106,20 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
             const SizedBox(height: 20),
             Text(l10n.paymentMethod, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
-            SegmentedButton<PaymentChannel>(
-              segments: <ButtonSegment<PaymentChannel>>[
-                ButtonSegment<PaymentChannel>(
-                  value: PaymentChannel.mobileMoney,
-                  icon: const Icon(Icons.phone_android),
-                  label: Text(l10n.mobileMoney),
+            for (final (PaymentChannel value, IconData icon, String label) in <(PaymentChannel, IconData, String)>[
+              (PaymentChannel.mobileMoney, Icons.phone_android_rounded, l10n.mobileMoney),
+              (PaymentChannel.bankTransfer, Icons.account_balance_outlined, l10n.bankTransfer),
+              (PaymentChannel.cash, Icons.payments_outlined, l10n.cash),
+            ])
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _ChannelOption(
+                  icon: icon,
+                  label: label,
+                  selected: _channel == value,
+                  onTap: () => setState(() => _channel = value),
                 ),
-                ButtonSegment<PaymentChannel>(
-                  value: PaymentChannel.bankTransfer,
-                  icon: const Icon(Icons.account_balance_outlined),
-                  label: Text(l10n.bankTransfer),
-                ),
-                ButtonSegment<PaymentChannel>(
-                  value: PaymentChannel.cash,
-                  icon: const Icon(Icons.payments_outlined),
-                  label: Text(l10n.cash),
-                ),
-              ],
-              selected: <PaymentChannel>{_channel},
-              onSelectionChanged: (Set<PaymentChannel> value) {
-                setState(() => _channel = value.single);
-              },
-              showSelectedIcon: false,
-            ),
+              ),
             const SizedBox(height: 20),
             TextField(
               controller: _note,
@@ -135,25 +127,12 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
               decoration: InputDecoration(labelText: l10n.noteOptional),
             ),
             const SizedBox(height: 16),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: KombeColors.mint,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: <Widget>[
-                    Icon(Icons.info_outline, color: KombeColors.forest),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Cet écran crée uniquement un brouillon local. Aucun paiement n’est considéré comme reçu ou validé.',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            const TransparencyCard(
+              leading: KombeStatusRing(status: KombeStatus.draft, label: 'Brouillon sur cet appareil'),
+              rows: <(String, String)>[
+                ('Pour l''instant', 'Rien n''est envoyé au groupe. Aucun paiement n''est considéré comme reçu ou validé.'),
+                ('Ensuite', 'Vous joindrez une preuve, puis vous relirez avant d''envoyer.'),
+              ],
             ),
             const SizedBox(height: 24),
             FilledButton(onPressed: _next, child: Text(l10n.next)),
@@ -162,4 +141,53 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
       ),
     );
   }
+}
+
+/// Choix du moyen de paiement : ligne pleine largeur (cible ≥ 56 px),
+/// sélection marquée par l'anneau ET le contour, jamais la couleur seule.
+class _ChannelOption extends StatelessWidget {
+  const _ChannelOption({required this.icon, required this.label, required this.selected, required this.onTap});
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        inMutuallyExclusiveGroup: true,
+        checked: selected,
+        button: true,
+        label: label,
+        child: ExcludeSemantics(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: selected ? KombeColors.mint : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: selected ? KombeColors.emerald : KombeColors.lineStrong, width: selected ? 2 : 1.5),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(icon, color: selected ? KombeColors.forest : KombeColors.slate),
+                  const SizedBox(width: 14),
+                  Expanded(child: Text(label, style: Theme.of(context).textTheme.titleSmall)),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: selected ? KombeColors.forest : KombeColors.lineStrong, width: selected ? 7 : 2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 }

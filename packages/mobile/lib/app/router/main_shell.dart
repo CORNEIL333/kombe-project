@@ -66,16 +66,21 @@ class MainShell extends StatelessWidget {
     return Scaffold(
       body: SafeArea(bottom: false, child: navigationShell),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: KombeColors.gold,
-        foregroundColor: Colors.white,
+        backgroundColor: KombeColors.forest,
+        foregroundColor: KombeColors.cream,
+        elevation: 2,
+        highlightElevation: 4,
+        shape: const CircleBorder(side: BorderSide(color: KombeColors.gold, width: 3)),
         tooltip: 'Action rapide',
         onPressed: () => _showQuickActions(context),
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add_rounded, size: 28),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
         color: Colors.white,
-        elevation: 12,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
         notchMargin: 8,
         shape: const CircularNotchedRectangle(),
         padding: EdgeInsets.zero,
@@ -86,7 +91,7 @@ class MainShell extends StatelessWidget {
               child: _NavButton(
                 selected: navigationShell.currentIndex == 0,
                 icon: Icons.home_outlined,
-                selectedIcon: Icons.home,
+                selectedIcon: Icons.home_rounded,
                 label: l10n.home,
                 onTap: () => _goBranch(0),
               ),
@@ -95,7 +100,7 @@ class MainShell extends StatelessWidget {
               child: _NavButton(
                 selected: navigationShell.currentIndex == 1,
                 icon: Icons.groups_outlined,
-                selectedIcon: Icons.groups,
+                selectedIcon: Icons.groups_rounded,
                 label: l10n.groups,
                 onTap: () => _goBranch(1),
               ),
@@ -104,8 +109,8 @@ class MainShell extends StatelessWidget {
             Expanded(
               child: _NavButton(
                 selected: navigationShell.currentIndex == 2,
-                icon: Icons.notifications_none,
-                selectedIcon: Icons.notifications,
+                icon: Icons.notifications_none_rounded,
+                selectedIcon: Icons.notifications_rounded,
                 label: l10n.notifications,
                 onTap: () => _goBranch(2),
               ),
@@ -114,7 +119,7 @@ class MainShell extends StatelessWidget {
               child: _NavButton(
                 selected: navigationShell.currentIndex == 3,
                 icon: Icons.more_horiz,
-                selectedIcon: Icons.more,
+                selectedIcon: Icons.more_horiz_rounded,
                 label: l10n.more,
                 onTap: () => _goBranch(3),
               ),
@@ -156,13 +161,26 @@ class _NavButton extends StatelessWidget {
                 selected ? selectedIcon : icon,
                 color: selected ? KombeColors.forest : KombeColors.slate,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: selected ? KombeColors.forest : KombeColors.slate,
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
-                    ),
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.fade,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  letterSpacing: 0,
+                  color: selected ? KombeColors.forest : KombeColors.slate,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 3),
+              // Nœud « vous êtes ici » (grammaire de l'orbite), pas seulement la couleur.
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: selected ? 6 : 0,
+                height: 6,
+                decoration: const BoxDecoration(color: KombeColors.gold, shape: BoxShape.circle),
               ),
             ],
           ),
