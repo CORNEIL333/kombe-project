@@ -51,8 +51,8 @@ vercel env add KOMBE_CORS_ORIGINS production       # listes d'origines (voir D)
 vercel --prod
 ```
 
-**⚠️ Email d'inscription — domaine Vérifié OBLIGATOIRE (≈ 2 min, sinon les
-inscrits récents échouent en silencieux).** En mode réel, `requireResendSender()`
+**⚠️ Email d'inscription — domaine vérifié OBLIGATOIRE (≈ 2 min, sinon les
+inscriptions d'utilisateurs réels échouent en silence).** En mode réel, `requireResendSender()`
 exige `RESEND_API_KEY` (sinon l'API **démarre pas** — pas de repli simulé). Mais
 si `KOMBE_EMAIL_FROM` est **absent**, le code retombe sur
 `KÓMBE <onboarding@resend.dev>`, l'expéditeur de TEST Resend qui **ne livre
@@ -63,6 +63,7 @@ ex. `kombe.app`), puis régler `KOMBE_EMAIL_FROM` sur une adresse de ce domaine
 (ex. `no-reply@kombe.app`). Sans domaine vérifié, la PWA/mobile **ne peuvent pas
 inscrire d'utilisateurs réels** — ce n'est pas un bug du code, c'est la config
 Resend.
+
 **Vérif obligatoire** (stop si échec) :
 ```bash
 curl https://kombe-api.vercel.app/v1/health/ready   # → {"status":"ready","mode":"réel"}
@@ -103,6 +104,16 @@ output `dist`. `vercel.json` déjà versionné. Sa config pointe déjà l'URL AP
 ---
 
 ## C. C-order final (après B)
+
+> ⚠️ **URL de l'API « collée » au build.** L'URL API est embarquée À LA
+> COMPILATION dans 3 points : les 4 `apps/dashboard-*/public/kombe-dashboard-config.json`
+> (`apiBaseUrl`, actuellement `https://kombe-api.vercel.app`), et le
+> `--dart-define=KOMBE_API_BASE_URL` de la PWA (§B.3). **Si l'URL réelle produite
+> par Vercel diffère** de `https://kombe-api.vercel.app` (ex. sous-domaine
+> `kombe-api-<hash>.vercel.app` ou un domaine perso), il faut : (1) saisir
+> l'URL exacte dans les 4 configs + le `--dart-define`, (2) **re-builder et
+> re-déployer** dashboards + PWA. Une config qui pointe une URL morte = écrans
+> qui tournent à vide (jamais un « ça marche » silencieux).
 
 Rajouter chaque URL publique obtenue à `KOMBE_CORS_ORIGINS` (API) puis
 redeploy l'API :
