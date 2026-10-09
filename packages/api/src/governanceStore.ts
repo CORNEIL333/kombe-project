@@ -19,11 +19,23 @@ import {
   assertContributionAllowed,
   transitionMembership,
   assertIdentityActiveInGroup,
+  assertGroupDefaults,
+  assertRotationTypeKnown,
+  assertRotationTypeStartable,
+  assertParentAssignable,
+  modelPreset,
+  CURRENCY,
+  PILOT_TIMEZONE,
+  requestSponsorship,
+  decideSponsorship,
   type CycleReadiness,
   type GroupState,
   type Invitation,
   type Membership,
   type RulesAcceptance,
+  type Sponsorship,
+  type TontineModel,
+  type RotationType,
 } from "@kombe/domain";
 
 interface GroupRecord {
@@ -34,6 +46,24 @@ interface GroupRecord {
   requiredIndependentRoles: number;
   acceptedIndependentRoles: number;
   treasurerSubstituteDesignated: boolean;
+  displayName: string;
+  tontineModel: TontineModel;
+  rotationType: RotationType;
+  currency: string;
+  timezone: string;
+  parentGroupId: string | null;
+}
+
+interface CreateGroupInput {
+  groupId: string;
+  displayName?: string | undefined;
+  tontineModel?: TontineModel | undefined;
+  rotationType?: RotationType | undefined;
+  currency?: string | undefined;
+  timezone?: string | undefined;
+  parentGroupId?: string | undefined;
+  minimumMembers?: number | undefined;
+  requiredIndependentRoles?: number | undefined;
 }
 
 export class FictitiousGovernanceStore {
@@ -41,17 +71,38 @@ export class FictitiousGovernanceStore {
   private readonly memberships = new Map<string, Membership>();
   private readonly acceptances: RulesAcceptance[] = [];
   private readonly invitations = new Map<string, Invitation>();
+  private readonly sponsorships = new Map<string, Sponsorship>();
   private now = 1_700_000_000;
 
   setNow(now: number): void {
     this.now = now;
   }
 
-  createGroup(input: {
+  createGroup(input: CreateGroupInput): {
+    state: GroupState;
     groupId: string;
-    minimumMembers?: number | undefined;
-    requiredIndependentRoles?: number | undefined;
-  }): { state: GroupState } {
+    tontineModel: TontineModel;
+    rotationType: RotationType;
+  } {
+    const currency = input.currency ?? CURRENCY;
+    const timezone = input.timezone ?? PILOT_TIMEZONE;
+    const rotationType = input.rotationType ?? "rotative_fermee";
+    const tontineModel = input.tontineModel ?? "personnalise";
+    // Garde d'amorçage (C03 §2.1-2.3), évaluée AVANT toute écriture : refus
+    // serveur (jamais seulement UI) sur devise/fuseau non du pilote ou
+    // typologie/modèle inconnus.
+    assertGroupDefaults({ currency, timezone });
+    assertRotationTypeKnown(rotationType);
+    modelPreset(tontineModel);
+    if (input.parentGroupId !== undefined) {
+      const parent = this.groups.get(input.parentGroupId);
+      if (!parent) throw new DomainError("GROUP_PARENT_UNKNOWN", "Groupe parent introuvable");
+      assertParentAssignable({
+        groupId: input.groupId,
+        parentId: input.parentGroupId,
+        ancestorIds: this.ancestorChain(input.parentGroupId),
+      });
+    }
     this.groups.set(input.groupId, {
       groupId: input.groupId,
       state: "configuration",
@@ -60,8 +111,25 @@ export class FictitiousGovernanceStore {
       requiredIndependentRoles: input.requiredIndependentRoles ?? 4,
       acceptedIndependentRoles: 0,
       treasurerSubstituteDesignated: false,
+      displayName: input.displayName ?? input.groupId,
+      tontineModel,
+      rotationType,
+      currency,
+      timezone,
+      parentGroupId: input.parentGroupId ?? null,
     });
-    return { state: "configuration" };
+    return { state: "configuration", groupId: input.groupId, tontineModel, rotationType };
+  }
+
+  /** Chaîne d'ascendance (parents) du plus proche au plus lointain, anti-boucle. */
+  private ancestorChain(groupId: string): string[] {
+    const chain: string[] = [];
+    let cur = this.groups.get(groupId)?.parentGroupId ?? null;
+    while (cur && chain.length < 64) {
+      chain.push(cur);
+      cur = this.groups.get(cur)?.parentGroupId ?? null;
+    }
+    return chain;
   }
 
   private group(groupId: string): GroupRecord {
@@ -119,6 +187,9 @@ export class FictitiousGovernanceStore {
    * groupe de `configuration` à `active`.
    */
   startCycle(groupId: string): { state: GroupState } {
+    // Typologie P1 (tirage/négocié) : reconnue à la création mais non
+    // démarrable au pilote — refus fermé (C03 §2.3, C05 §5.3).
+    assertRotationTypeStartable(this.group(groupId).rotationType);
     assertCycleStartable(this.readiness(groupId));
     this.group(groupId).state = transitionGroupState(this.group(groupId).state, "active");
     return { state: "active" };
@@ -201,5 +272,53 @@ export class FictitiousGovernanceStore {
     const next = redeemInvitation(inv, this.now);
     this.invitations.set(invitationId, next);
     return { usedCount: next.usedCount, groupId: next.groupId };
+  }
+
+  /* --- Parrainage / cooptation (le parrain doit être un membre actif réel) --- */
+
+  requestSponsorship(input: {
+    sponsorshipId: string;
+    groupId: string;
+    candidateId: string;
+    sponsorId: string;
+  }): Sponsorship {
+    const g = this.group(input.groupId);
+    assertGroupMutable(g.state);
+    const open = [...this.sponsorships.values()].find(
+      (s) => s.groupId === input.groupId && s.candidateId === input.candidateId && s.state === "requested",
+    );
+    if (open) throw new DomainError("SPONSORSHIP_ALREADY_OPEN", "Un parrainage est déjà ouvert pour ce candidat");
+    const sponsorActive = this.memberships.get(`mem_${input.groupId}_${input.sponsorId}`)?.state === "active";
+    const s = requestSponsorship({ ...input, sponsorIsActiveMember: sponsorActive, now: this.now });
+    this.sponsorships.set(s.sponsorshipId, s);
+    return s;
+  }
+
+  decideSponsorship(sponsorshipId: string, decision: "endorsed" | "rejected"): Sponsorship {
+    const s = this.sponsorships.get(sponsorshipId);
+    if (!s) throw new DomainError("SPONSORSHIP_STATE_INVALID", "Parrainage introuvable");
+    const next = decideSponsorship(s, decision, this.now);
+    this.sponsorships.set(sponsorshipId, next);
+    return next;
+  }
+
+  /**
+   * Vue publique des groupes découvrables : uniquement nom + modèle + typologie,
+   * JAMAIS de registre réel (membres, montants, historique) avant adhésion (4.1).
+   */
+  listDiscoverable(): Array<{
+    groupId: string;
+    groupName: string;
+    tontineModel: TontineModel;
+    rotationType: RotationType;
+    revealsRegistry: false;
+  }> {
+    return [...this.groups.values()].map((g) => ({
+      groupId: g.groupId,
+      groupName: g.displayName,
+      tontineModel: g.tontineModel,
+      rotationType: g.rotationType,
+      revealsRegistry: false as const,
+    }));
   }
 }

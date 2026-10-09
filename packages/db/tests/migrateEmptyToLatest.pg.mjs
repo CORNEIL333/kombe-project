@@ -51,7 +51,7 @@ function check(name, cond, detail) {
 
 // Même liste canonique que migrate.mjs / isolation.pg.mjs ( Down : inversé ).
 const DOWN = [
-  "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql",
+  "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql",
   "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql",
   "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql",
   "migrations/0017_pilot_metrics.down.sql", "migrations/0016_privacy_law.down.sql",

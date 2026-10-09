@@ -60,6 +60,7 @@ const UP_MIGRATIONS = [
   "migrations/0021_privacy_restore_points.sql",
   "migrations/0022_cycle_schedule.sql",
   "migrations/0023_worker_discovery.sql",
+  "migrations/0024_group_onboarding.sql",
   "provision/roles.sql",
 ];
 

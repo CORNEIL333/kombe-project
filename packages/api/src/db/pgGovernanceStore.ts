@@ -26,37 +26,113 @@ import {
   assertContributionAllowed,
   transitionMembership,
   assertIdentityActiveInGroup,
+  assertGroupDefaults,
+  assertRotationTypeKnown,
+  assertRotationTypeStartable,
+  assertParentAssignable,
+  modelPreset,
+  CURRENCY,
+  PILOT_TIMEZONE,
+  requestSponsorship as domainRequestSponsorship,
+  decideSponsorship as domainDecideSponsorship,
   type CycleReadiness,
   type GroupState,
   type Membership,
   type RulesAcceptance,
+  type Sponsorship,
+  type TontineModel,
+  type RotationType,
 } from "@kombe/domain";
 import { withGroupTx } from "./txContext.js";
 
 const INDEPENDENT_ROLES = ["animator", "treasurer", "secretary", "auditor"] as const;
+
+interface GroupRow {
+  state: GroupState;
+  version: number;
+  rotationType: RotationType;
+  displayName: string;
+  tontineModel: TontineModel;
+}
 
 export class PgGovernanceStore {
   constructor(private readonly pool: pg.Pool) {}
 
   async createGroup(input: {
     groupId: string;
+    displayName?: string | undefined;
+    tontineModel?: TontineModel | undefined;
+    rotationType?: RotationType | undefined;
+    currency?: string | undefined;
+    timezone?: string | undefined;
+    parentGroupId?: string | undefined;
     minimumMembers?: number | undefined;
     requiredIndependentRoles?: number | undefined;
-  }): Promise<{ state: GroupState }> {
+  }): Promise<{
+    state: GroupState;
+    groupId: string;
+    tontineModel: TontineModel;
+    rotationType: RotationType;
+  }> {
+    // Garde d'amorçage (C03 §2.1-2.3), évaluée AVANT toute écriture : refus
+    // serveur (jamais seulement UI) sur devise/fuseau non du pilote ou
+    // typologie/modèle inconnus. Mêmes défauts que le store fictif.
+    const currency = input.currency ?? CURRENCY;
+    const timezone = input.timezone ?? PILOT_TIMEZONE;
+    const rotationType = input.rotationType ?? "rotative_fermee";
+    const tontineModel = input.tontineModel ?? "personnalise";
+    assertGroupDefaults({ currency, timezone });
+    assertRotationTypeKnown(rotationType);
+    modelPreset(tontineModel);
+    const minimumMembers = input.minimumMembers ?? 3;
+    const requiredIndependentRoles = input.requiredIndependentRoles ?? 4;
     await withGroupTx(this.pool, input.groupId, async (client) => {
+      if (input.parentGroupId !== undefined) {
+        const parent = await client.query(`SELECT 1 FROM "group" WHERE group_id = $1`, [
+          input.parentGroupId,
+        ]);
+        if (parent.rows.length === 0) {
+          throw new DomainError("GROUP_PARENT_UNKNOWN", "Groupe parent introuvable");
+        }
+        assertParentAssignable({
+          groupId: input.groupId,
+          parentId: input.parentGroupId,
+          ancestorIds: await this.ancestorChain(client, input.parentGroupId),
+        });
+      }
       await client.query(
-        `INSERT INTO "group" (group_id, state, version) VALUES ($1,'configuration',1)
+        `INSERT INTO "group"
+           (group_id, state, version, display_name, tontine_model, rotation_type,
+            currency, timezone, minimum_members, required_independent_roles, parent_group_id)
+         VALUES ($1,'configuration',1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT (group_id) DO NOTHING`,
-        [input.groupId],
+        [
+          input.groupId,
+          input.displayName ?? input.groupId,
+          tontineModel,
+          rotationType,
+          currency,
+          timezone,
+          minimumMembers,
+          requiredIndependentRoles,
+          input.parentGroupId ?? null,
+        ],
       );
-      // minimumMembers/requiredIndependentRoles n'ont pas de colonne dédiée au
-      // socle 0001/0004 : mêmes valeurs par défaut que le store fictif
-      // (3 / 4), appliquées côté lecture (readiness) plutôt que stockées —
-      // limite assumée, documentée (pas de migration nouvelle autorisée ici).
-      void input.minimumMembers;
-      void input.requiredIndependentRoles;
     });
-    return { state: "configuration" };
+    return { state: "configuration", groupId: input.groupId, tontineModel, rotationType };
+  }
+
+  /** Chaîne d'ascendance (parents) du plus proche au plus lointain, anti-boucle. */
+  private async ancestorChain(client: pg.PoolClient, groupId: string): Promise<string[]> {
+    const chain: string[] = [];
+    const res = await client.query(`SELECT parent_group_id FROM "group" WHERE group_id = $1`, [groupId]);
+    let cur = (res.rows[0]?.parent_group_id as string | null | undefined) ?? null;
+    while (cur && chain.length < 64) {
+      chain.push(cur);
+      const next = await client.query(`SELECT parent_group_id FROM "group" WHERE group_id = $1`, [cur]);
+      cur = (next.rows[0]?.parent_group_id as string | null | undefined) ?? null;
+    }
+    return chain;
   }
 
   /** Amorçage de test RÉEL (pas un seed en mémoire) : insère une adhésion
@@ -109,11 +185,20 @@ export class PgGovernanceStore {
     });
   }
 
-  private async groupRow(client: pg.PoolClient, groupId: string): Promise<{ state: GroupState; version: number }> {
-    const res = await client.query(`SELECT state, version FROM "group" WHERE group_id = $1`, [groupId]);
+  private async groupRow(client: pg.PoolClient, groupId: string): Promise<GroupRow> {
+    const res = await client.query(
+      `SELECT state, version, rotation_type, display_name, tontine_model FROM "group" WHERE group_id = $1`,
+      [groupId],
+    );
     const row = res.rows[0];
     if (!row) throw new DomainError("RESERVATION_INCOHERENTE", "Groupe introuvable");
-    return { state: row.state as GroupState, version: Number(row.version) };
+    return {
+      state: row.state as GroupState,
+      version: Number(row.version),
+      rotationType: (row.rotation_type ?? "rotative_fermee") as RotationType,
+      displayName: (row.display_name ?? groupId) as string,
+      tontineModel: (row.tontine_model ?? "personnalise") as TontineModel,
+    };
   }
 
   async readiness(groupId: string): Promise<CycleReadiness> {
@@ -175,6 +260,9 @@ export class PgGovernanceStore {
     assertCycleStartable(readiness);
     return withGroupTx(this.pool, groupId, async (client) => {
       const g = await this.groupRow(client, groupId);
+      // Typologie P1 (tirage/négocié) : reconnue à la création mais non
+      // démarrable au pilote — refus fermé (C03 §2.3, C05 §5.3).
+      assertRotationTypeStartable(g.rotationType);
       const next = transitionGroupState(g.state, "active");
       await client.query(`UPDATE "group" SET state = $2, version = version + 1 WHERE group_id = $1`, [
         groupId,
@@ -349,5 +437,108 @@ export class PgGovernanceStore {
       ]);
       return { usedCount: next.usedCount, groupId: next.groupId };
     });
+  }
+
+  /* --- Parrainage / cooptation (le parrain doit être un membre actif réel) --- */
+
+  private static mapSponsorship(r: Record<string, unknown>): Sponsorship {
+    return {
+      sponsorshipId: String(r.sponsorship_id),
+      groupId: String(r.group_id),
+      candidateId: String(r.candidate_id),
+      sponsorId: String(r.sponsor_id),
+      state: r.state as Sponsorship["state"],
+      createdAt: Number(r.created_at),
+      decidedAt: r.decided_at === null ? null : Number(r.decided_at),
+    };
+  }
+
+  async requestSponsorship(input: {
+    sponsorshipId: string;
+    groupId: string;
+    candidateId: string;
+    sponsorId: string;
+  }): Promise<Sponsorship> {
+    return withGroupTx(this.pool, input.groupId, async (client) => {
+      const g = await this.groupRow(client, input.groupId);
+      assertGroupMutable(g.state);
+      const open = await client.query(
+        `SELECT 1 FROM sponsorship WHERE group_id = $1 AND candidate_id = $2 AND state = 'requested'`,
+        [input.groupId, input.candidateId],
+      );
+      if (open.rows.length > 0) {
+        throw new DomainError("SPONSORSHIP_ALREADY_OPEN", "Un parrainage est déjà ouvert pour ce candidat");
+      }
+      const sponsorRes = await client.query(
+        `SELECT 1 FROM membership WHERE group_id = $1 AND identity_id = $2 AND state = 'active'`,
+        [input.groupId, input.sponsorId],
+      );
+      const sponsorActive = sponsorRes.rows.length > 0;
+      const s = domainRequestSponsorship({
+        sponsorshipId: input.sponsorshipId,
+        groupId: input.groupId,
+        candidateId: input.candidateId,
+        sponsorId: input.sponsorId,
+        sponsorIsActiveMember: sponsorActive,
+        now: Date.now(),
+      });
+      await client.query(
+        `INSERT INTO sponsorship (sponsorship_id, group_id, candidate_id, sponsor_id, state, created_at)
+         VALUES ($1,$2,$3,$4,'requested', to_timestamp($5/1000.0))`,
+        [s.sponsorshipId, s.groupId, s.candidateId, s.sponsorId, s.createdAt],
+      );
+      return s;
+    });
+  }
+
+  async decideSponsorship(
+    groupId: string,
+    sponsorshipId: string,
+    decision: "endorsed" | "rejected",
+  ): Promise<Sponsorship> {
+    return withGroupTx(this.pool, groupId, async (client) => {
+      const res = await client.query(
+        `SELECT sponsorship_id, group_id, candidate_id, sponsor_id, state,
+                extract(epoch from created_at)::bigint*1000 AS created_at,
+                extract(epoch from decided_at)::bigint*1000 AS decided_at
+         FROM sponsorship WHERE sponsorship_id = $1 AND group_id = $2 FOR UPDATE`,
+        [sponsorshipId, groupId],
+      );
+      const row = res.rows[0];
+      if (!row) throw new DomainError("SPONSORSHIP_STATE_INVALID", "Parrainage introuvable");
+      const next = domainDecideSponsorship(PgGovernanceStore.mapSponsorship(row), decision, Date.now());
+      await client.query(
+        `UPDATE sponsorship SET state = $2, decided_at = to_timestamp($3/1000.0) WHERE sponsorship_id = $1`,
+        [sponsorshipId, next.state, next.decidedAt],
+      );
+      return next;
+    });
+  }
+
+  /**
+   * Vue publique des groupes découvrables (nom + modèle + typologie), JAMAIS de
+   * registre réel. La table `group` n'est pas sous RLS ; la filtrage se fait par
+   * le drapeau `is_discoverable` (défaut false).
+   */
+  async listDiscoverable(): Promise<
+    Array<{
+      groupId: string;
+      groupName: string;
+      tontineModel: TontineModel;
+      rotationType: RotationType;
+      revealsRegistry: false;
+    }>
+  > {
+    const res = await this.pool.query(
+      `SELECT group_id, display_name, tontine_model, rotation_type
+       FROM "group" WHERE is_discoverable = true ORDER BY group_id`,
+    );
+    return res.rows.map((r) => ({
+      groupId: String(r.group_id),
+      groupName: (r.display_name ?? r.group_id) as string,
+      tontineModel: (r.tontine_model ?? "personnalise") as TontineModel,
+      rotationType: (r.rotation_type ?? "rotative_fermee") as RotationType,
+      revealsRegistry: false as const,
+    }));
   }
 }
