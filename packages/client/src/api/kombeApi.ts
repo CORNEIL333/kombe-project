@@ -72,6 +72,37 @@ export async function confirmerConnexion(
   return api.post<{ sessionId: string; expiresAt: number }>("/v1/access/login-completions", { identityId, code });
 }
 
+/* --- Création de compte RÉELLE (C02, ADR-0024) ---
+   Le PWA n'offrait QUE la connexion : un nouvel utilisateur ne pouvait pas
+   créer de compte (`login-requests` renvoie `accepted` MAIS n'envoie aucun code
+   et n'active aucun compte pour une email inconnue — anti-énumération serveur,
+   `pgAccessStore.requestLogin`). Ces deux fonctions branchent le contrat
+   d'inscription DÉJÀ PRÉSENT et PROUVÉ côté serveur (`/v1/access/registrations
+   (/verifications)`, le même que le mobile `HttpAuthRepository`). La PWA ne
+   choisit jamais son identité : l'activation vient du serveur depuis l'email
+   vérifié ; la session reste délivrée uniquement par login-completions. --- */
+
+/** Étape 1/2 de l'inscription (`POST /v1/access/registrations`) : crée
+ *  l'identité + le compte (`pending_verification`) et envoie un code de
+ *  vérification du canal email. Réponse anti-énumération (202) dans tous les
+ *  cas — ne révèle jamais si l'email existe déjà. */
+export async function creerCompte(identityId: string): Promise<void> {
+  const api = await client();
+  await api.post("/v1/access/registrations", { identityId, channel: "email" });
+}
+
+/** Étape 2/2 de l'inscription (`POST /v1/access/registrations/verifications`) :
+ *  vérifie le code et ACTIVE le compte côté serveur. Ne délivre PAS de session
+ *  (state serveur renvoyé) ; après activation, l'utilisateur se connecte via
+ *  `demanderConnexion`/`confirmerConnexion`. */
+export async function verifierInscription(
+  identityId: string,
+  code: string,
+): Promise<{ readonly state: string }> {
+  const api = await client();
+  return api.post<{ state: string }>("/v1/access/registrations/verifications", { identityId, code });
+}
+
 /** Vue de l'obligation : capacité sous verrou et restant dû (lecture
  *  authentifiée — anti-IDOR serveur, adhésion active requise dans ce groupe). */
 export async function voirObligation(

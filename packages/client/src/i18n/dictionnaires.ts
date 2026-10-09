@@ -139,6 +139,17 @@ export const fr = {
   "connexion.sousAccroche": "Les tours, les cotisations et les décisions du groupe, visibles par chaque membre.",
   "connexion.signature": "Votre tontine reste votre tontine. KÓMBE la rend plus claire.",
   "connexion.bonRetour": "Bon retour !",
+  "connexion.ongletConnexion": "Se connecter",
+  "connexion.ongletInscription": "Créer un compte",
+  "connexion.titreInscription": "Créer votre compte",
+  "connexion.consigneInscription":
+    "Un code à 6 chiffres valide votre adresse email — aucun mot de passe.",
+  "connexion.codeInscriptionEnvoye":
+    "Code d'inscription envoyé — vérifiez votre boîte de réception.",
+  "bouton.creerCompte": "Créer mon compte",
+  "bouton.verifierCompte": "Vérifier et activer mon compte",
+  "connexion.compteVerifie":
+    "Compte vérifié — saisisez le code de connexion qui vient de vous être envoyé.",
   "marque.tagline": "Votre tontine, plus claire.",
   "atout.securise.titre": "Traçable",
   "atout.securise.texte": "Chaque cotisation est datée et validée par le groupe",
@@ -307,6 +318,17 @@ export const en: Record<CleI18n, string> = {
   "connexion.sousAccroche": "Rounds, contributions and group decisions, visible to every member.",
   "connexion.signature": "Your tontine stays yours. KÓMBE makes it clear.",
   "connexion.bonRetour": "Welcome back!",
+  "connexion.ongletConnexion": "Sign in",
+  "connexion.ongletInscription": "Create an account",
+  "connexion.titreInscription": "Create your account",
+  "connexion.consigneInscription":
+    "A 6-digit code verifies your email address — no password.",
+  "connexion.codeInscriptionEnvoye":
+    "Sign-up code sent — check your inbox.",
+  "bouton.creerCompte": "Create my account",
+  "bouton.verifierCompte": "Verify and activate my account",
+  "connexion.compteVerifie":
+    "Account verified — enter the sign-in code that was just sent to you.",
   "marque.tagline": "Your tontine, made clear.",
   "atout.securise.titre": "Traceable",
   "atout.securise.texte": "Every contribution is dated and validated by the group",
