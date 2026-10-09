@@ -136,6 +136,27 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/DiscoverableGroup" }
 
+  /me/groups:
+    get:
+      tags: [governance]
+      operationId: listMyGroups
+      summary: Vue consolidée « mes tontines » d'un membre (multi-adhésion, C21 §2.5)
+      description: >
+        Liste TOUTES les tontines dont l'identité de session fait partie (un
+        membre peut appartenir à plusieurs tontines). L'identité est résolue
+        SERVEUR depuis le Bearer (§14) — jamais transmise/choisie par le client.
+        Révèle la hiérarchie de supervision (`parentGroupId`) mais N'EXPOSE AUCUN
+        champ financier. Pont `SECURITY DEFINER` `kombe_member_groups(text)`
+        (migration 0025) car `membership` est sous RLS tenant.
+      responses:
+        "200":
+          description: Tableau des adhésions du membre (toutes tontines).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MemberGroupSummary" }
+
   /groups/{groupId}/sponsorships:
     post:
       tags: [governance]
@@ -2643,6 +2664,21 @@ components:
         tontineModel: { type: string, enum: [famille, collegues, fetes, construction, etudiant, personnalise] }
         rotationType: { type: string, enum: [rotative_fermee, tirage, negocie] }
         revealsRegistry: { type: boolean }
+    MemberGroupSummary:
+      type: object
+      description: >
+        Projection multi-adhésion d'une tontine pour un membre (C21 §2.5) :
+        identité de la tontine + son rôle dans la hiérarchie (parent de
+        supervision) + état de l'adhésion. Aucun champ financier ni pouvoir.
+      required: [groupId, displayName, tontineModel, rotationType, groupState, parentGroupId, membershipState]
+      properties:
+        groupId: { type: string }
+        displayName: { type: string }
+        tontineModel: { type: string, enum: [famille, collegues, fetes, construction, etudiant, personnalise] }
+        rotationType: { type: string, enum: [rotative_fermee, tirage, negocie] }
+        groupState: { type: string, enum: [configuration, active, paused, closed] }
+        parentGroupId: { type: string, nullable: true }
+        membershipState: { type: string, enum: [pending, active, departed, revoked] }
     SponsorshipRequest:
       type: object
       description: >
