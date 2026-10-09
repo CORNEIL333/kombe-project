@@ -29,7 +29,32 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   sqflite_common_ffi: ^2.4.3
+  shared_preferences_platform_interface: ^2.4.2
 
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    - assets/fonts/OFL-Manrope.txt
+    - assets/fonts/OFL-Fraunces.txt
+  # Polices OFL auto-hébergées : instances statiques tirées des fichiers
+  # variables Google Fonts (voir docs/design-system/KOMBE_DESIGN_SYSTEM.md).
+  fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-400.ttf
+          weight: 400
+        - asset: assets/fonts/Manrope-500.ttf
+          weight: 500
+        - asset: assets/fonts/Manrope-600.ttf
+          weight: 600
+        - asset: assets/fonts/Manrope-700.ttf
+          weight: 700
+        - asset: assets/fonts/Manrope-800.ttf
+          weight: 800
+    - family: Fraunces
+      fonts:
+        - asset: assets/fonts/Fraunces-Display-500.ttf
+          weight: 500
+        - asset: assets/fonts/Fraunces-Title-600.ttf
+          weight: 600

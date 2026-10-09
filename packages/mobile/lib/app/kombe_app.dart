@@ -22,8 +22,11 @@ import 'router/app_router.dart';
 import 'session_controller.dart';
 
 class KombeApp extends StatefulWidget {
-  const KombeApp({required this.dependencies, super.key});
+  const KombeApp({required this.dependencies, super.key, this.builder});
   final AppDependencies dependencies;
+
+  /// Habillage optionnel autour de l'app (ex. bandeau du mode essai). Absent en production.
+  final TransitionBuilder? builder;
 
   @override
   State<KombeApp> createState() => _KombeAppState();
@@ -85,6 +88,7 @@ class _KombeAppState extends State<KombeApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
           routerConfig: _router.router,
+          builder: widget.builder,
         ),
       ),
     );
