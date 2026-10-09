@@ -1,0 +1,82 @@
+{
+  "$description": "KÓMBE — jetons canoniques (source unique). Générés vers CSS (packages/brand/css/kombe.css) et Dart (packages/mobile/lib/core/design/kombe_tokens.g.dart) par scripts/build-tokens.mjs. Ne jamais éditer les fichiers générés.",
+  "color": {
+    "forest": { "50": "#EEF5F1", "100": "#D7E8DF", "200": "#B0D2C1", "300": "#7FB59C", "400": "#4E9A7A", "500": "#2A8A68", "600": "#1F7A5C", "700": "#176B52", "800": "#145140", "900": "#103C32", "950": "#082C26" },
+    "gold":   { "50": "#FBF5E8", "100": "#F5E7C6", "200": "#EBD199", "300": "#DFB766", "400": "#D3A343", "500": "#C7922E", "600": "#A8771F", "700": "#865C18", "800": "#654515", "900": "#4A3312", "950": "#2B1D09" },
+    "sand":   { "50": "#FBF8F1", "100": "#F3ECDD", "200": "#E7DFCC", "300": "#D9D0BC", "400": "#BFB49C", "500": "#A0957E", "600": "#7F7663", "700": "#625B4C", "800": "#46413A", "900": "#2E2B27", "950": "#1B1A17" },
+    "ink":    { "50": "#F4F6F5", "100": "#E6EAE8", "200": "#CDD4D1", "300": "#A9B3AF", "400": "#85918C", "500": "#66746E", "600": "#5B6963", "700": "#3D4A44", "800": "#2A3530", "900": "#1B2621", "950": "#13211C" }
+  },
+  "semantic": {
+    "brand":            "#103C32",
+    "brand-deep":       "#082C26",
+    "brand-action":     "#176B52",
+    "brand-living":     "#2A8A68",
+    "accent":           "#C7922E",
+    "surface-canvas":   "#FBF8F1",
+    "surface-raised":   "#FFFFFF",
+    "surface-sunken":   "#F3ECDD",
+    "surface-inverse":  "#103C32",
+    "line":             "#E7DFCC",
+    "line-strong":      "#D9D0BC",
+    "content-primary":  "#13211C",
+    "content-secondary":"#5B6963",
+    "content-tertiary": "#85918C",
+    "content-inverse":  "#FBF8F1",
+    "content-brand":    "#103C32",
+    "focus":            "#176B52",
+    "success":          "#147A54",
+    "success-surface":  "#E6F3EC",
+    "warning":          "#A15C00",
+    "warning-surface":  "#FBF0DE",
+    "danger":           "#B42318",
+    "danger-surface":   "#FBEAE7",
+    "info":             "#1D4ED8",
+    "info-surface":     "#EAF0FD",
+    "orbit-ring":       "#E7DFCC",
+    "orbit-arc":        "#176B52",
+    "orbit-past":       "#103C32",
+    "orbit-future":     "#FBF8F1",
+    "orbit-beneficiary":"#C7922E"
+  },
+  "dataviz": ["#176B52", "#C7922E", "#2A8A68", "#865C18", "#7FB59C", "#46413A"],
+  "font": {
+    "family-ui": "Manrope",
+    "family-display": "Fraunces",
+    "fallback": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+  },
+  "type": {
+    "display-xl": { "size": 96, "line": 92, "weight": 500, "family": "display", "tracking": -0.04 },
+    "display":    { "size": 64, "line": 64, "weight": 500, "family": "display", "tracking": -0.035 },
+    "hero-mobile":{ "size": 44, "line": 44, "weight": 500, "family": "display", "tracking": -0.03 },
+    "h1":         { "size": 40, "line": 46, "weight": 700, "family": "ui", "tracking": -0.025 },
+    "h2":         { "size": 32, "line": 38, "weight": 700, "family": "ui", "tracking": -0.02 },
+    "h3":         { "size": 24, "line": 30, "weight": 700, "family": "ui", "tracking": -0.015 },
+    "title":      { "size": 18, "line": 24, "weight": 700, "family": "ui", "tracking": -0.01 },
+    "body-lg":    { "size": 18, "line": 28, "weight": 400, "family": "ui", "tracking": 0 },
+    "body":       { "size": 16, "line": 24, "weight": 400, "family": "ui", "tracking": 0 },
+    "meta":       { "size": 14, "line": 20, "weight": 500, "family": "ui", "tracking": 0 },
+    "caption":    { "size": 12, "line": 16, "weight": 600, "family": "ui", "tracking": 0.02 },
+    "eyebrow":    { "size": 11, "line": 14, "weight": 700, "family": "ui", "tracking": 0.2 },
+    "amount":     { "size": 28, "line": 32, "weight": 700, "family": "ui", "tracking": -0.02 }
+  },
+  "space": { "0": 0, "1": 4, "2": 8, "3": 12, "4": 16, "5": 20, "6": 24, "8": 32, "10": 40, "12": 48, "16": 64, "20": 80, "24": 96, "32": 128 },
+  "radius": { "xs": 6, "sm": 10, "md": 14, "lg": 20, "xl": 28, "pill": 999 },
+  "shadow": {
+    "1": "0 1px 2px rgba(8,44,38,.06)",
+    "2": "0 8px 24px -12px rgba(8,44,38,.22)",
+    "3": "0 24px 56px -24px rgba(8,44,38,.34)"
+  },
+  "motion": {
+    "duration": { "instant": 100, "fast": 150, "ui": 220, "spatial": 300, "brand": 420, "expressive": 560 },
+    "easing": {
+      "standard": [0.2, 0, 0, 1],
+      "enter":    [0, 0.4, 0, 1],
+      "exit":     [0.4, 0, 1, 1],
+      "spatial":  [0.4, 0, 0, 1],
+      "brand":    [0.2, 0.8, 0.2, 1]
+    }
+  },
+  "touch": { "min": 48 },
+  "layout": { "form-max": 560, "content-max": 1200, "gutter-compact": 16, "gutter-medium": 24, "gutter-expanded": 32 },
+  "breakpoint": { "compact": 0, "medium": 600, "expanded": 840, "large": 1200, "xlarge": 1600 }
+}

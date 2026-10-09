@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Direction 03 — Contemporary African Editorial</title>
+<link rel="stylesheet" href="base.css">
+<style>
+:root{--deep:#082C26;--forest:#103C32;--green:#176B52;--gold:#C7922E;--sand:#FBF8F1;--sand2:#F3ECDD;--ink:#13211C;--muted:#66746E}
+body{background:var(--sand2);color:var(--ink)}
+.hero{display:grid;grid-template-columns:58% 42%;height:940px;position:relative;overflow:hidden}
+.photo{position:relative;background:url("../../../packages/client/public/brand/hero-communaute.jpg") 40% 25%/cover;filter:contrast(1.05) saturate(.9)}
+.photo::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,44,38,.15),rgba(8,44,38,.75))}
+.photo .rule{position:absolute;right:0;top:0;bottom:0;width:10px;background:var(--gold);z-index:2}
+.masthead{position:absolute;z-index:3;top:28px;left:40px;right:40px;display:flex;justify-content:space-between;color:var(--sand)}
+.masthead b{font:800 15px Manrope;letter-spacing:.32em}
+.masthead span{font:600 12px Manrope;letter-spacing:.2em;text-transform:uppercase;opacity:.85}
+.big{position:absolute;z-index:3;left:40px;bottom:64px;color:var(--sand);line-height:.86}
+.big .a{display:block;font:800 168px Manrope;letter-spacing:-.045em}
+.big .b{display:block;font-family:Fraunces;font-style:italic;font-variation-settings:"opsz" 144,"SOFT" 100,"WONK" 1;font-weight:400;font-size:168px;letter-spacing:-.04em;color:var(--gold);margin-left:220px;white-space:nowrap}
+.side{padding:120px 56px 56px;display:flex;flex-direction:column;justify-content:space-between;background:var(--sand2)}
+.index{font:700 12px Manrope;letter-spacing:.24em;text-transform:uppercase;color:var(--green)}
+.words{list-style:none;margin:28px 0 0;padding:0}
+.words li{display:grid;grid-template-columns:56px 1fr;align-items:baseline;border-top:2px solid var(--ink);padding:14px 0;font:800 46px/1 Manrope;letter-spacing:-.03em;color:#B9B2A3;transition:color 300ms}
+.words li small{font:700 12px Manrope;letter-spacing:.1em;color:var(--muted)}
+.words li.on{color:var(--forest)}
+.words li.on small{color:var(--gold)}
+.side p{font-size:18px;line-height:1.55;max-width:34ch;color:#3D4A44;margin:0 0 28px}
+.btn{display:inline-block;font:800 15px Manrope;letter-spacing:.06em;text-transform:uppercase;background:var(--ink);color:var(--sand);padding:20px 28px}
+
+.band{height:72px;background:var(--forest);display:flex;align-items:center;overflow:hidden;gap:0}
+.band svg{flex:none}
+
+.spread{display:grid;grid-template-columns:1fr 1fr;min-height:900px}
+.spread .l{background:var(--forest);color:var(--sand2);padding:96px 56px;position:relative;overflow:hidden}
+.spread .l h2{font-family:Fraunces;font-variation-settings:"opsz" 144,"SOFT" 100;font-weight:400;font-size:120px;line-height:.9;letter-spacing:-.04em;margin:0}
+.spread .l h2 em{color:var(--gold)}
+.spread .l p{font-size:19px;line-height:1.6;max-width:36ch;opacity:.85;margin-top:36px}
+.spread .l .num-huge{position:absolute;right:-30px;bottom:-80px;font:800 420px/1 Manrope;letter-spacing:-.06em;color:rgba(243,236,221,.06)}
+.spread .r{display:grid;place-items:center;background:var(--sand)}
+
+.screen{background:var(--sand);color:var(--ink)}
+.e-top{padding:16px 20px 0;display:flex;justify-content:space-between;font:800 12px Manrope;letter-spacing:.24em}
+.e-turn{padding:18px 20px 0}
+.e-turn small{font:700 10px Manrope;letter-spacing:.2em;text-transform:uppercase;color:var(--green)}
+.e-turn h3{font-family:Fraunces;font-variation-settings:"opsz" 144,"SOFT" 100;font-weight:400;font-size:84px;line-height:.85;letter-spacing:-.05em;margin:6px 0 0;color:var(--forest)}
+.e-turn h3 em{font-size:.4em;color:var(--muted);font-style:normal;font-family:Manrope;font-weight:700;letter-spacing:0}
+.e-strip{display:flex;gap:6px;padding:14px 20px 0}
+.e-strip span{flex:1;height:34px;display:grid;place-items:center;font:800 11px Manrope;background:#E9E1CF;color:var(--muted)}
+.e-strip span.d{background:var(--forest);color:var(--sand2)}
+.e-strip span.c{background:var(--gold);color:var(--deep)}
+.e-block{margin:18px 20px 0;background:var(--ink);color:var(--sand2);padding:20px}
+.e-block small{font:700 10px Manrope;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.e-block .amt{font:800 34px Manrope;letter-spacing:-.03em;margin:8px 0}
+.e-block .b{border:2px solid var(--sand2);text-align:center;padding:12px;font:800 13px Manrope;letter-spacing:.08em;text-transform:uppercase}
+.e-feed{margin:16px 20px 0;font-size:13px}
+.e-feed div{display:flex;justify-content:space-between;border-top:2px solid var(--ink);padding:10px 0}
+.e-feed b{font:800 11px Manrope;letter-spacing:.1em;text-transform:uppercase}
+.e-nav{position:absolute;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,1fr);background:var(--ink);color:#8F978F;padding:16px 0 24px;font:800 10px Manrope;letter-spacing:.14em;text-transform:uppercase;text-align:center}
+.e-nav b{color:var(--gold)}
+@media (prefers-reduced-motion:reduce){.words li{transition:none}}
+</style>
+</head>
+<body>
+<span class="fixture">Direction 03 · fixtures de design</span>
+
+<section class="hero">
+  <div class="photo"><div class="rule"></div>
+    <div class="masthead"><b>KÓMBE</b><span>N° 01 — La tontine, en clair</span></div>
+    <div class="big"><span class="a">ENSEMBLE.</span><span class="b">clairement.</span></div>
+  </div>
+  <div class="side">
+    <div>
+      <div class="index">Ce que fait le groupe</div>
+      <ol class="words" id="words">
+        <li class="on"><small>01</small>Organiser.</li>
+        <li><small>02</small>Contribuer.</li>
+        <li><small>03</small>Valider.</li>
+        <li><small>04</small>Décider.</li>
+        <li><small>05</small>Ensemble.</li>
+      </ol>
+    </div>
+    <div><p>KÓMBE tient le registre de votre tontine : qui a cotisé, qui reçoit, ce que le groupe a décidé.</p><span class="btn">Ouvrir ma tontine</span></div>
+  </div>
+</section>
+<div class="band" id="band" aria-hidden="true"></div>
+
+<section class="spread">
+  <div class="l">
+    <div class="index" style="color:var(--gold)">Acte 04 — Le cycle</div>
+    <h2>Chacun<br>son <em>tour.</em></h2>
+    <p>Douze membres, douze tours. L’ordre est voté, gelé au démarrage, visible par tous. Personne ne le réécrit en silence.</p>
+    <div class="num-huge num">04</div>
+  </div>
+  <div class="r">
+    <div class="phone"><div class="screen">
+      <div class="status num"><span>9:41</span><span>●●●</span></div>
+      <div class="e-top"><span>KÓMBE</span><span style="color:var(--muted)">FR</span></div>
+      <div class="e-turn"><small>Les Étoiles de Yaoundé</small><h3>Tour 04<em> / 12</em></h3></div>
+      <div class="e-strip num"><span class="d">1</span><span class="d">2</span><span class="d">3</span><span class="c">4</span><span>5</span><span>6</span><span>…</span><span>12</span></div>
+      <div class="e-block"><small>Votre tour de cotiser</small><div class="amt num">25 000 XAF</div><div class="b">Déclarer</div></div>
+      <div class="e-feed"><div><span>Paul A. — cotisation</span><b style="color:var(--green)">Validée</b></div><div><span>Marie A. — cotisation</span><b style="color:#A15C00">En attente</b></div><div><span>Règles v3</span><b>Acceptées</b></div></div>
+      <div class="e-nav"><b>Accueil</b><span>Groupe</span><span>Registre</span><span>Profil</span></div>
+    </div></div>
+  </div>
+</section>
+
+<script>
+// Bande rythmique dérivée de la grammaire (nœud + arc), pas d'un motif textile.
+const band=document.getElementById('band');
+let s='';for(let i=0;i<40;i++){const f=i%4===0?'#C7922E':(i%3===0?'#F3ECDD':'#176B52');s+=`<svg width="72" height="72" viewBox="0 0 72 72"><path d="M0 54 A36 36 0 0 1 72 54" fill="none" stroke="${i%2?'#176B52':'#0E3A30'}" stroke-width="10"/><circle cx="36" cy="30" r="9" fill="${f}"/></svg>`}
+band.innerHTML=s;
+const items=[...document.querySelectorAll('#words li')];let k=0;
+if(!matchMedia('(prefers-reduced-motion: reduce)').matches){setInterval(()=>{items[k].classList.remove('on');k=(k+1)%items.length;items[k].classList.add('on')},1400)}
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+// QA visuelle des actes illustrés du site (états avant/après), desktop.
+import { createRequire } from "node:module";
+const req = createRequire(new URL("../../packages/client/package.json", import.meta.url));
+const { chromium } = req("@playwright/test");
+const [base = "http://localhost:4313", out = "docs/brand/screens", w = "1440", h = "900"] = process.argv.slice(2);
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: +w, height: +h } });
+const errors = [];
+p.on("pageerror", (e) => errors.push(String(e)));
+await p.goto(base); await p.waitForTimeout(1500);
+const at = async (y, name) => { await p.evaluate((t) => window.scrollTo({ top: t, behavior: "instant" }), y); await p.waitForTimeout(1600); await p.screenshot({ path: `${out}/site-${name}-${w}.png` }); };
+const top = async (id) => p.evaluate((i) => document.getElementById(i).offsetTop, id);
+const a2 = await top("acte-2");
+await at(a2 + 10, "act2-before");
+await at(a2 + (await p.evaluate(() => document.getElementById("acte-2").offsetHeight - innerHeight)) * 0.8, "act2-after");
+await at(await top("acte-4") + 40, "act4");
+await at(await top("acte-6"), "act6"); await p.click("#gather"); await p.waitForTimeout(1800);
+await p.screenshot({ path: `${out}/site-act6-vote-${w}.png` });
+await at(await top("acte-7"), "act7");
+console.log(JSON.stringify({ errors }));
+await b.close();
