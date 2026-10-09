@@ -96,6 +96,22 @@ vercel deploy --prod .          # vercel.json embarqué (en-têtes, outputDirect
 ```
 (Équivalent CI : job manuel `deploy-pwa-vercel`, exige `VERCEL_TOKEN`.)
 
+> **Décision PWA — option de secours PROUVÉE.** La décision d'hébergement
+> (`RELEASE_MANIFEST.hostingDecision`, propriétaire) retient la PWA **Flutter
+> web** (`packages/mobile`), mais son `flutter build web --release` est
+> `BLOCKED_EXTERNAL` sur cet hôte (toolchain web interrompue — voir
+> `RELEASE_MANIFEST.testSuites`). Une **alternative web fonctionnelle existe
+> déjà** : `@kombe/client` (React + Vite) — **build Vite ✓ et 29 tests verts sur
+> cet hôte**, mêmes parcours (Connexion/inscription, amorçage créer/rejoindre/
+> type/parrainage, « Mes adhésions », déclaration de cotisation). Elle lit son
+> URL API au **runtime** via le même mécanisme éprouvé que les dashboards
+> (`loadRuntimeConfig` → `/kombe-dashboard-config.json` servi, repli
+> `VITE_KOMBE_API_BASE_URL`). Déploiement (≈ 2 min, si le propriétaire la
+> choisit) : `pnpm --filter @kombe/client build` → héberger `dist/` en statique
+> (Vercel/Cloudflare) + servir un `kombe-dashboard-config.json` avec l'URL API
+> réelle. **Ce n'est PAS un changement de décision** — juste une porte de sortie
+> si le build Flutter reste bloqué. À trancher par le propriétaire.
+
 ### 4) Dashboard admin — Vercel (≈ 3 min)
 Projet Vercel, Root Directory = `apps/dashboard-group-admin`, framework Vite,
 output `dist`. `vercel.json` déjà versionné. Sa config pointe déjà l'URL API
