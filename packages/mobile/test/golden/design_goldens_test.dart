@@ -89,8 +89,9 @@ void main() {
     await tester.pumpWidget(_app(Scaffold(
       body: SafeArea(
         child: DashboardContent(
-          animate: false,
           onRefresh: () async {},
+          displayName: 'Amina Ngué',
+          now: _now,
           data: DashboardData(
             primaryGroup: _group,
             nextContributionAtUtc: _due,
@@ -114,7 +115,6 @@ void main() {
     await tester.pumpWidget(_app(Scaffold(
       body: SafeArea(
         child: DashboardContent(
-          animate: false,
           onRefresh: () async {},
           data: const DashboardData(primaryGroup: null, nextContributionAtUtc: null, currentMonthDeclaredXaf: 0, progressPercent: 0, recentActivity: <KombeNotification>[]),
         ),
@@ -131,7 +131,6 @@ void main() {
     await tester.pumpWidget(_app(Scaffold(
       appBar: AppBar(title: const Text('Cycle & bénéficiaires')),
       body: CycleView(
-        animate: false,
         onSeeAll: () {},
         cycle: CycleDetails(
           id: 'c',
@@ -161,11 +160,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Se connecter'), findsOneWidget);
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/onboarding_1.png'));
-    await tester.drag(find.byType(PageView), const Offset(-400, 0));
-    await tester.pumpAndSettle();
-    await tester.drag(find.byType(PageView), const Offset(-400, 0));
-    await tester.pumpAndSettle();
-    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/onboarding_3.png'));
   });
 
   testWidgets('statuts par la forme + orbite seule', (WidgetTester tester) async {

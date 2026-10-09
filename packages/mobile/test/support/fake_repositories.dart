@@ -1,40 +1,44 @@
-// KÓMBE — MODE ESSAI (30 jours) : dépôts en mémoire pour tester l'UI/UX.
-//
-// ISOLEMENT GARANTI : ce dossier n'est importé QUE par `lib/main_trial.dart`
-// (build `-t lib/main_trial.dart`). L'application de production (`main.dart`,
-// `app/`, `features/`, `core/`) n'y fait jamais référence — vérifié par
-// `test/data/no_embedded_business_data_test.dart`. Toutes les données ci-dessous
-// sont FICTIVES et l'interface l'affiche en permanence (bandeau « Mode essai »).
+// Dépôts FACTICES pour les tests visuels (golden, visite d'écrans).
+// Vivent dans test/ : jamais embarqués dans l'application.
 import 'dart:async';
 
-import '../core/state/operation_result.dart';
-import '../core/state/resource.dart';
-import '../domain/entities/auth.dart';
-import '../domain/entities/contribution.dart';
-import '../domain/entities/cycle.dart';
-import '../domain/entities/dashboard.dart';
-import '../domain/entities/dispute.dart';
-import '../domain/entities/document.dart';
-import '../domain/entities/governance.dart';
-import '../domain/entities/group.dart';
-import '../domain/entities/notification.dart';
-import '../domain/entities/profile.dart';
-import '../domain/repositories/auth_repository.dart';
-import '../domain/repositories/contribution_repository.dart';
-import '../domain/repositories/dashboard_repository.dart';
-import '../domain/repositories/dispute_repository.dart';
-import '../domain/repositories/document_repository.dart';
-import '../domain/repositories/governance_repository.dart';
-import '../domain/repositories/group_repository.dart';
-import '../domain/repositories/notification_repository.dart';
-import '../domain/repositories/profile_repository.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:kombe_mobile/app/di/app_dependencies.dart';
+import 'package:kombe_mobile/core/security/biometric_service.dart';
+import 'package:kombe_mobile/core/security/secure_session_store.dart';
+import 'package:kombe_mobile/data/local/contribution_draft_database.dart';
+import 'package:kombe_mobile/data/local/preferences_repository_impl.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:kombe_mobile/core/state/operation_result.dart';
+import 'package:kombe_mobile/core/state/resource.dart';
+import 'package:kombe_mobile/domain/entities/auth.dart';
+import 'package:kombe_mobile/domain/entities/contribution.dart';
+import 'package:kombe_mobile/domain/entities/cycle.dart';
+import 'package:kombe_mobile/domain/entities/dashboard.dart';
+import 'package:kombe_mobile/domain/entities/dispute.dart';
+import 'package:kombe_mobile/domain/entities/document.dart';
+import 'package:kombe_mobile/domain/entities/governance.dart';
+import 'package:kombe_mobile/domain/entities/group.dart';
+import 'package:kombe_mobile/domain/entities/notification.dart';
+import 'package:kombe_mobile/domain/entities/profile.dart';
+import 'package:kombe_mobile/domain/repositories/auth_repository.dart';
+import 'package:kombe_mobile/domain/repositories/contribution_repository.dart';
+import 'package:kombe_mobile/domain/repositories/dashboard_repository.dart';
+import 'package:kombe_mobile/domain/repositories/dispute_repository.dart';
+import 'package:kombe_mobile/domain/repositories/document_repository.dart';
+import 'package:kombe_mobile/domain/repositories/governance_repository.dart';
+import 'package:kombe_mobile/domain/repositories/group_repository.dart';
+import 'package:kombe_mobile/domain/repositories/notification_repository.dart';
+import 'package:kombe_mobile/domain/repositories/profile_repository.dart';
 
 /// Latence simulée : assez pour voir les états de chargement, jamais bloquante.
 Future<void> _lag([int ms = 380]) => Future<void>.delayed(Duration(milliseconds: ms));
 
 /// État partagé du bac à sable : les actions d'un écran se voient dans les autres.
-final class TrialWorld {
-  TrialWorld() {
+final class FakeWorld {
+  FakeWorld() {
     final DateTime now = DateTime.now().toUtc();
     final DateTime cycleStart = DateTime.utc(now.year, now.month, 15).subtract(const Duration(days: 92));
     turns = <BeneficiaryTurn>[
@@ -111,8 +115,8 @@ final class TrialWorld {
   String nextId(String prefix) => 'essai-$prefix-${_seq++}';
 }
 
-final class TrialAuthRepository implements AuthRepository {
-  TrialAuthRepository();
+final class FakeAuthRepository implements AuthRepository {
+  FakeAuthRepository();
   final StreamController<Resource<AuthSession?>> _ctrl = StreamController<Resource<AuthSession?>>.broadcast();
   AuthSession? _session;
 
@@ -169,7 +173,7 @@ final class TrialAuthRepository implements AuthRepository {
   }
 }
 
-final class TrialProfileRepository implements ProfileRepository {
+final class FakeProfileRepository implements ProfileRepository {
   UserProfile _p = const UserProfile(identityId: 'essai@kombe.app', displayName: 'Amina Ngué', phoneE164: '+237670123456', localeCode: 'fr');
 
   @override
@@ -192,9 +196,9 @@ final class TrialProfileRepository implements ProfileRepository {
   }
 }
 
-final class TrialGroupRepository implements GroupRepository {
-  TrialGroupRepository(this.w);
-  final TrialWorld w;
+final class FakeGroupRepository implements GroupRepository {
+  FakeGroupRepository(this.w);
+  final FakeWorld w;
 
   GroupSummary? _g(String id) {
     for (final GroupSummary g in w.groups) {
@@ -215,7 +219,7 @@ final class TrialGroupRepository implements GroupRepository {
     final GroupSummary? g = _g(groupId);
     if (g == null) return const ResourceUnavailable<GroupDetails>();
     return ResourceReady<GroupDetails>(
-      GroupDetails(summary: g, description: 'Unissons nos forces pour bâtir ensemble. (Groupe fictif — mode essai.)', currentRulesVersion: 3),
+      GroupDetails(summary: g, description: 'Unissons nos forces pour bâtir ensemble. (Groupe fictif.)', currentRulesVersion: 3),
     );
   }
 
@@ -280,9 +284,9 @@ final class TrialGroupRepository implements GroupRepository {
   }
 }
 
-final class TrialContributionRepository implements ContributionRepository {
-  TrialContributionRepository(this.w);
-  final TrialWorld w;
+final class FakeContributionRepository implements ContributionRepository {
+  FakeContributionRepository(this.w);
+  final FakeWorld w;
 
   @override
   Future<Resource<List<Contribution>>> listHistory({String? groupId}) async {
@@ -325,9 +329,9 @@ final class TrialContributionRepository implements ContributionRepository {
   }
 }
 
-final class TrialGovernanceRepository implements GovernanceRepository {
-  TrialGovernanceRepository(this.w);
-  final TrialWorld w;
+final class FakeGovernanceRepository implements GovernanceRepository {
+  FakeGovernanceRepository(this.w);
+  final FakeWorld w;
   final Set<String> _voted = <String>{};
 
   @override
@@ -385,9 +389,9 @@ final class TrialGovernanceRepository implements GovernanceRepository {
   }
 }
 
-final class TrialDisputeRepository implements DisputeRepository {
-  TrialDisputeRepository(this.w);
-  final TrialWorld w;
+final class FakeDisputeRepository implements DisputeRepository {
+  FakeDisputeRepository(this.w);
+  final FakeWorld w;
 
   @override
   Future<Resource<List<DisputeSummary>>> listDisputes() async {
@@ -423,9 +427,9 @@ final class TrialDisputeRepository implements DisputeRepository {
   }
 }
 
-final class TrialNotificationRepository implements NotificationRepository {
-  TrialNotificationRepository(this.w);
-  final TrialWorld w;
+final class FakeNotificationRepository implements NotificationRepository {
+  FakeNotificationRepository(this.w);
+  final FakeWorld w;
 
   @override
   Future<Resource<List<KombeNotification>>> listNotifications() async {
@@ -444,7 +448,7 @@ final class TrialNotificationRepository implements NotificationRepository {
   }
 }
 
-final class TrialDocumentRepository implements DocumentRepository {
+final class FakeDocumentRepository implements DocumentRepository {
   @override
   Future<Resource<List<KombeDocument>>> listDocuments() async {
     await _lag();
@@ -462,9 +466,9 @@ final class TrialDocumentRepository implements DocumentRepository {
   }
 }
 
-final class TrialDashboardRepository implements DashboardRepository {
-  TrialDashboardRepository(this.w);
-  final TrialWorld w;
+final class FakeDashboardRepository implements DashboardRepository {
+  FakeDashboardRepository(this.w);
+  final FakeWorld w;
 
   @override
   Future<Resource<DashboardData>> loadDashboard() async {
@@ -480,4 +484,24 @@ final class TrialDashboardRepository implements DashboardRepository {
       recentActivity: w.notifications.take(4).toList(),
     ));
   }
+}
+
+/// Dépendances complètes de l'app branchées sur les dépôts factices (tests uniquement).
+AppDependencies fakeDependencies() {
+  final FakeWorld world = FakeWorld();
+  return AppDependencies(
+    authRepository: FakeAuthRepository(),
+    profileRepository: FakeProfileRepository(),
+    groupRepository: FakeGroupRepository(world),
+    contributionRepository: FakeContributionRepository(world),
+    governanceRepository: FakeGovernanceRepository(world),
+    disputeRepository: FakeDisputeRepository(world),
+    notificationRepository: FakeNotificationRepository(world),
+    documentRepository: FakeDocumentRepository(),
+    dashboardRepository: FakeDashboardRepository(world),
+    draftRepository: ContributionDraftDatabase(),
+    preferencesRepository: PreferencesRepositoryImpl(SharedPreferencesAsync()),
+    biometricService: BiometricService(LocalAuthentication()),
+    secureSessionStore: const SecureSessionStore(FlutterSecureStorage()),
+  );
 }

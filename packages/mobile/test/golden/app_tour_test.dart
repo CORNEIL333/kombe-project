@@ -1,5 +1,5 @@
-// Visite visuelle de TOUTE l'app en mode essai (QA UI/UX, mandat §52).
-// Lance la vraie app (routeur, thème, écrans) sur les dépôts d'essai, se
+// Visite visuelle de TOUTE l'app (QA UI/UX, mandat §52).
+// Lance la vraie app (routeur, thème, écrans) sur des dépôts factices de test, se
 // connecte, puis capture chaque route. Données datées « aujourd'hui » : ce test
 // ne s'exécute que sur demande, il ne sert pas de régression.
 //   KOMBE_TOUR=1 flutter test test/golden/app_tour_test.dart --update-goldens
@@ -11,10 +11,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kombe_mobile/app/di/app_dependencies.dart';
 import 'package:kombe_mobile/app/kombe_app.dart';
-import 'package:kombe_mobile/trial/trial_mode.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import '../support/fake_repositories.dart';
 
 Future<void> _loadFonts() async {
   Future<void> family(String name, List<String> files) async {
@@ -73,16 +74,12 @@ void main() {
     await _loadFonts();
   });
 
-  testWidgets('tour de l\'app en mode essai', (WidgetTester tester) async {
+  testWidgets('tour de l\'app', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(390 * 2, 844 * 2);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    final AppDependencies deps = trialDependencies();
-    final TrialStatus status = TrialStatus(DateTime.now().toUtc().subtract(const Duration(days: 7)), DateTime.now().toUtc());
-    await tester.pumpWidget(KombeApp(
-      dependencies: deps,
-      builder: (BuildContext c, Widget? child) => TrialBanner(status: status, child: child!),
-    ));
+    final AppDependencies deps = fakeDependencies();
+    await tester.pumpWidget(KombeApp(dependencies: deps));
     for (int i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }

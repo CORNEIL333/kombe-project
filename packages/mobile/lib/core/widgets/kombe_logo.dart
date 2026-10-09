@@ -1,10 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../design/kombe_colors.dart';
-import 'kombe_mark.dart';
 
-/// Logotype KÓMBE : signe à anneau + mot-symbole + signature canonique
-/// « Votre tontine, plus claire. » (l'ancien emblème « personnes » est retiré).
 class KombeLogo extends StatelessWidget {
   const KombeLogo({super.key, this.compact = false, this.size = 48});
 
@@ -13,40 +12,88 @@ class KombeLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget mark = KombeMark(size: size);
-    if (compact) return Semantics(label: 'KÓMBE', image: true, child: ExcludeSemantics(child: mark));
+    final Widget emblem = SizedBox.square(
+      dimension: size,
+      child: CustomPaint(painter: const _KombeEmblemPainter()),
+    );
+    if (compact) return Semantics(label: 'KÓMBE', image: true, child: emblem);
     return Semantics(
-      label: 'KÓMBE — Votre tontine, plus claire.',
+      label: 'KÓMBE — Ma tontine, simplement.',
       header: true,
-      child: ExcludeSemantics(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            mark,
-            SizedBox(width: size * .24),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  'KÓMBE',
-                  style: TextStyle(
-                    color: KombeColors.forest,
-                    fontWeight: FontWeight.w800,
-                    fontSize: size * .5,
-                    letterSpacing: size * .03,
-                    height: 1.05,
-                  ),
-                ),
-                Text(
-                  'Votre tontine, plus claire.',
-                  style: TextStyle(color: KombeColors.emerald, fontSize: (size * .24).clamp(11, 16), fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ],
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          emblem,
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                'KÓMBE',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: KombeColors.forest,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                    ),
+              ),
+              Text(
+                'Ma tontine, simplement.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: KombeColors.forest,
+                    ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
+}
+
+class _KombeEmblemPainter extends CustomPainter {
+  const _KombeEmblemPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Offset c = size.center(Offset.zero);
+    final double r = size.shortestSide / 2;
+    final Paint gold = Paint()
+      ..color = KombeColors.gold
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(2, r * .11);
+    final Paint green = Paint()..color = KombeColors.forest;
+    final Paint leaf = Paint()..color = KombeColors.leaf;
+    final Paint goldFill = Paint()..color = KombeColors.gold;
+
+    canvas.drawCircle(c, r * .82, gold);
+
+    final double headR = r * .13;
+    final List<Offset> heads = <Offset>[
+      Offset(c.dx, c.dy - r * .34),
+      Offset(c.dx - r * .28, c.dy - r * .12),
+      Offset(c.dx + r * .28, c.dy - r * .12),
+      Offset(c.dx - r * .13, c.dy + r * .08),
+      Offset(c.dx + r * .13, c.dy + r * .08),
+    ];
+    for (int i = 0; i < heads.length; i++) {
+      canvas.drawCircle(heads[i], headR, i == 0 ? goldFill : green);
+    }
+
+    final Path left = Path()
+      ..moveTo(c.dx - r * .48, c.dy + r * .08)
+      ..quadraticBezierTo(c.dx - r * .38, c.dy + r * .55, c.dx, c.dy + r * .66)
+      ..quadraticBezierTo(c.dx - r * .10, c.dy + r * .26, c.dx - r * .48, c.dy + r * .08)
+      ..close();
+    final Path right = Path()
+      ..moveTo(c.dx + r * .48, c.dy + r * .08)
+      ..quadraticBezierTo(c.dx + r * .38, c.dy + r * .55, c.dx, c.dy + r * .66)
+      ..quadraticBezierTo(c.dx + r * .10, c.dy + r * .26, c.dx + r * .48, c.dy + r * .08)
+      ..close();
+    canvas.drawPath(left, leaf);
+    canvas.drawPath(right, green);
+  }
+
+  @override
+  bool shouldRepaint(covariant _KombeEmblemPainter oldDelegate) => false;
 }

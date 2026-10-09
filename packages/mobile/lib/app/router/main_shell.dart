@@ -66,11 +66,11 @@ class MainShell extends StatelessWidget {
     return Scaffold(
       body: SafeArea(bottom: false, child: navigationShell),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: KombeColors.forest,
-        foregroundColor: KombeColors.cream,
-        elevation: 2,
-        highlightElevation: 4,
-        shape: const CircleBorder(side: BorderSide(color: KombeColors.gold, width: 3)),
+        backgroundColor: KombeColors.gold,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        highlightElevation: 6,
+        shape: const CircleBorder(),
         tooltip: 'Action rapide',
         onPressed: () => _showQuickActions(context),
         child: const Icon(Icons.add_rounded, size: 28),

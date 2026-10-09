@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/design/kombe_colors.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/widgets/african_pattern_band.dart';
 import '../../core/widgets/kombe_logo.dart';
@@ -75,16 +76,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         icon: const Icon(Icons.arrow_back_ios_new),
                       ),
                       const SizedBox(height: 18),
-                      const Center(child: KombeLogo(size: 52)),
-                      const SizedBox(height: 50),
+                      const Center(child: KombeLogo(size: 60)),
+                      const SizedBox(height: 36),
                       Text(
                         'Connexion',
-                        style: Theme.of(context).textTheme.headlineLarge,
+                        style: Theme.of(context).textTheme.displaySmall?.copyWith(color: KombeColors.ink),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Retrouvez votre espace et continuez à faire grandir votre communauté.',
-                        style: Theme.of(context).textTheme.bodyLarge,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: KombeColors.slate),
                       ),
                       const SizedBox(height: 28),
                       TextFormField(
@@ -93,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         autofillHints: const <String>[AutofillHints.email],
                         decoration: InputDecoration(
                           labelText: l10n.email,
-                          prefixIcon: const Icon(Icons.alternate_email),
+                          prefixIcon: const Icon(Icons.mail_outline_rounded),
                         ),
                         validator: (String? value) =>
                             AuthValidators.isEmail(value ?? '')
@@ -110,13 +111,46 @@ class _LoginScreenState extends State<LoginScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : Text(l10n.sendCode),
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: <Widget>[
+                                  Text(l10n.sendCode),
+                                  const SizedBox(width: 10),
+                                  const Icon(Icons.arrow_forward_rounded),
+                                ],
+                              ),
                       ),
                       const SizedBox(height: 10),
                       Center(
                         child: TextButton(
                           onPressed: () => context.go('/recovery-request'),
                           child: Text(l10n.forgotCode),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      // Note exacte (pas de promesse de chiffrement non garantie).
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(color: KombeColors.mint, borderRadius: BorderRadius.circular(16)),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            const Icon(Icons.verified_user_outlined, color: KombeColors.forest, size: 28),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text('Connexion sans mot de passe', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: KombeColors.forest)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Un code à usage unique est envoyé à votre adresse email. Il n''est valable qu''une fois.',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: KombeColors.ink),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

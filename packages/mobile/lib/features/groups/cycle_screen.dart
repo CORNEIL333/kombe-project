@@ -5,13 +5,18 @@ import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_tokens.g.dart';
-import '../../core/widgets/cycle_orbit.dart';
+import '../../core/formatters/labels.dart';
+import '../../core/state/resource.dart';
+import '../../core/widgets/group_hero_card.dart';
+import '../../core/widgets/kombe_logo.dart';
+import '../../core/widgets/kombe_visuals.dart';
 import '../../core/widgets/screen_states.dart';
-import '../../core/widgets/status_ring.dart';
 import '../../domain/entities/cycle.dart';
+import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
 import 'groups_view_models.dart';
 
+/// Cycle & bénéficiaires (maquette « Suivi du cycle et ordre des bénéficiaires »).
 class CycleScreen extends StatefulWidget {
   const CycleScreen({required this.groupId, super.key});
   final String groupId;
@@ -22,11 +27,16 @@ class CycleScreen extends StatefulWidget {
 
 class _CycleScreenState extends State<CycleScreen> {
   CycleViewModel? _vm;
+  Future<Resource<GroupDetails>>? _group;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _vm ??= CycleViewModel(context.read<GroupRepository>(), widget.groupId)..load();
+    if (_vm == null) {
+      final GroupRepository repo = context.read<GroupRepository>();
+      _vm = CycleViewModel(repo, widget.groupId)..load();
+      _group = repo.getGroup(widget.groupId);
+    }
   }
 
   @override
@@ -37,166 +47,214 @@ class _CycleScreenState extends State<CycleScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Cycle & bénéficiaires')),
+        appBar: AppBar(centerTitle: true, title: const KombeLogo(size: 38)),
         body: ListenableBuilder(
           listenable: _vm!,
           builder: (BuildContext context, Widget? child) => ResourceView<CycleDetails>(
             resource: _vm!.state,
-            builder: (BuildContext context, CycleDetails cycle) => CycleView(
-              cycle: cycle,
-              onSeeAll: () => context.push('/app/groups/${widget.groupId}/beneficiaries'),
+            builder: (BuildContext context, CycleDetails cycle) => FutureBuilder<Resource<GroupDetails>>(
+              future: _group,
+              builder: (BuildContext context, AsyncSnapshot<Resource<GroupDetails>> snap) => CycleView(
+                cycle: cycle,
+                group: switch (snap.data) {
+                  ResourceReady<GroupDetails>(:final GroupDetails data) => data.summary,
+                  _ => null,
+                },
+                onSeeAll: () => context.push('/app/groups/${widget.groupId}/beneficiaries'),
+              ),
             ),
           ),
         ),
       );
 }
 
-/// Détail du cycle : l'orbite est l'objet principal ; toucher un nœud
-/// révèle le tour correspondant (sélection contextuelle, mandat §23).
-class CycleView extends StatefulWidget {
-  const CycleView({required this.cycle, required this.onSeeAll, super.key, this.animate = true});
+class CycleView extends StatelessWidget {
+  const CycleView({required this.cycle, required this.onSeeAll, super.key, this.group});
   final CycleDetails cycle;
+  final GroupSummary? group;
   final VoidCallback onSeeAll;
-  final bool animate;
-
-  @override
-  State<CycleView> createState() => _CycleViewState();
-}
-
-class _CycleViewState extends State<CycleView> {
-  int? _selected;
-
-  BeneficiaryTurn? _turn(int n) {
-    for (final BeneficiaryTurn t in widget.cycle.beneficiaries) {
-      if (t.turnNumber == n) return t;
-    }
-    return null;
-  }
 
   @override
   Widget build(BuildContext context) {
-    final CycleDetails cycle = widget.cycle;
     final TextTheme t = Theme.of(context).textTheme;
-    final int focus = _selected ?? cycle.currentTurn;
-    final BeneficiaryTurn? focused = _turn(focus);
-    final String locale = Localizations.localeOf(context).toLanguageTag();
+    BeneficiaryTurn? current;
+    for (final BeneficiaryTurn b in cycle.beneficiaries) {
+      if (b.status == BeneficiaryStatus.current) current = b;
+    }
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
       children: <Widget>[
-        Center(
-          child: KombeCycleOrbit(
-            total: cycle.totalTurns,
-            current: cycle.currentTurn,
-            size: 260,
-            animate: widget.animate,
-            selected: _selected,
-            onSelect: (int n) => setState(() => _selected = n == _selected ? null : n),
-            semanticLabel: 'Cycle de ${cycle.totalTurns} tours, tour ${cycle.currentTurn} en cours. Touchez un tour pour le détail.',
-            center: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text('Tour', style: t.labelMedium),
-                Text('$focus', style: t.displaySmall?.copyWith(fontFamily: 'Manrope', fontWeight: FontWeight.w800)),
-                Text('sur ${cycle.totalTurns}', style: t.bodySmall),
-              ],
-            ),
-          ),
+        if (group != null) ...<Widget>[GroupHeroCard(group: group!), const SizedBox(height: 22)],
+        Row(
+          children: <Widget>[
+            Expanded(child: Text('Progression du cycle', style: t.titleLarge)),
+            Text('${cycle.currentTurn}/${cycle.totalTurns} tours', style: t.bodyMedium),
+          ],
         ),
-        const SizedBox(height: 12),
-        AnimatedSwitcher(
-          duration: KombeMotion.ui,
-          child: focused == null
-              ? const SizedBox(height: 8)
-              : Container(
-                  key: ValueKey<int>(focused.turnNumber),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(KombeTokens.radiusLg),
-                    border: Border.all(color: KombeColors.line),
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      _TurnBadge(turn: focused),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(_statusLabel(focused.status).toUpperCase(), style: t.labelSmall),
-                            const SizedBox(height: 2),
-                            Text(focused.displayName, style: t.titleMedium),
-                            Text(DateFormat.yMMMd(locale).format(focused.dueAtUtc.toLocal()), style: t.bodySmall),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-        ),
+        const SizedBox(height: 14),
+        _TurnTrack(current: cycle.currentTurn, total: cycle.totalTurns),
+        if (current != null) ...<Widget>[
+          const SizedBox(height: 22),
+          _CurrentBeneficiary(turn: current),
+        ],
         const SizedBox(height: 24),
         Row(
           children: <Widget>[
             Expanded(child: Text('Ordre des bénéficiaires', style: t.titleLarge)),
-            TextButton(onPressed: widget.onSeeAll, child: const Text('Voir tout')),
+            TextButton(
+              onPressed: onSeeAll,
+              style: TextButton.styleFrom(foregroundColor: KombeColors.goldDark),
+              child: const Text('Voir tout'),
+            ),
           ],
         ),
-        const SizedBox(height: 4),
-        for (final BeneficiaryTurn item in cycle.beneficiaries.take(6))
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: KombeColors.line))),
-            child: Row(
-              children: <Widget>[
-                _TurnBadge(turn: item),
-                const SizedBox(width: 12),
-                Expanded(child: Text(item.displayName, style: t.titleSmall)),
-                KombeStatusRing(status: _ring(item.status), label: _statusLabel(item.status)),
-              ],
-            ),
-          ),
+        for (final BeneficiaryTurn item in cycle.beneficiaries.take(6)) _TurnRow(turn: item),
       ],
     );
   }
 }
 
-String _statusLabel(BeneficiaryStatus s) => switch (s) {
-      BeneficiaryStatus.received => 'Reçu',
-      BeneficiaryStatus.current => 'Tour en cours',
-      BeneficiaryStatus.upcoming => 'À venir',
-    };
+/// Frise T1, T2, … : coché = passé, cerclé = en cours, gris = à venir.
+class _TurnTrack extends StatelessWidget {
+  const _TurnTrack({required this.current, required this.total});
+  final int current;
+  final int total;
 
-KombeStatus _ring(BeneficiaryStatus s) => switch (s) {
-      BeneficiaryStatus.received => KombeStatus.confirmed,
-      BeneficiaryStatus.current => KombeStatus.pending,
-      BeneficiaryStatus.upcoming => KombeStatus.draft,
-    };
+  @override
+  Widget build(BuildContext context) {
+    final int shown = total <= 7 ? total : 6;
+    final List<Widget> nodes = <Widget>[];
+    for (int i = 1; i <= shown; i++) {
+      final bool done = i < current;
+      final bool now = i == current;
+      nodes.add(Column(
+        children: <Widget>[
+          Container(
+            width: now ? 34 : 28,
+            height: now ? 34 : 28,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: done || now ? KombeColors.forest : KombeTokens.sand200,
+              boxShadow: now ? <BoxShadow>[BoxShadow(color: KombeColors.forest.withValues(alpha: .18), spreadRadius: 5)] : null,
+            ),
+            child: done || now ? const Icon(Icons.check_rounded, size: 18, color: Colors.white) : null,
+          ),
+          const SizedBox(height: 6),
+          Text('T$i', style: TextStyle(fontSize: 12, fontWeight: now ? FontWeight.w800 : FontWeight.w600, color: now ? KombeColors.ink : KombeColors.slate)),
+        ],
+      ));
+      if (i < shown || total > shown) {
+        nodes.add(Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Container(height: 3, color: i < current ? KombeColors.forest : KombeTokens.sand200),
+          ),
+        ));
+      }
+    }
+    if (total > shown) {
+      nodes.add(const Column(children: <Widget>[
+        SizedBox(height: 28, child: Center(child: Text('…', style: TextStyle(color: KombeColors.slate, fontWeight: FontWeight.w800)))),
+        SizedBox(height: 6),
+        Text(' ', style: TextStyle(fontSize: 12)),
+      ]));
+    }
+    return Semantics(
+      label: 'Tour $current sur $total',
+      child: ExcludeSemantics(child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: nodes)),
+    );
+  }
+}
 
-class _TurnBadge extends StatelessWidget {
-  const _TurnBadge({required this.turn});
+class _CurrentBeneficiary extends StatelessWidget {
+  const _CurrentBeneficiary({required this.turn});
   final BeneficiaryTurn turn;
 
   @override
   Widget build(BuildContext context) {
-    final bool current = turn.status == BeneficiaryStatus.current;
-    final bool past = turn.status == BeneficiaryStatus.received;
+    final TextTheme t = Theme.of(context).textTheme;
+    final String locale = Localizations.localeOf(context).toLanguageTag();
     return Container(
-      width: 36,
-      height: 36,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: current ? KombeColors.gold : past ? KombeColors.forest : Colors.white,
-        border: Border.all(color: current || past ? Colors.transparent : KombeColors.lineStrong, width: 1.5),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: KombeTokens.forest50, borderRadius: BorderRadius.circular(20)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(children: <Widget>[
+            const Icon(Icons.workspace_premium_rounded, color: KombeColors.gold, size: 22),
+            const SizedBox(width: 8),
+            Text.rich(TextSpan(children: <InlineSpan>[
+              TextSpan(text: 'Bénéficiaire actuel ', style: t.titleSmall?.copyWith(fontSize: 16)),
+              TextSpan(text: '(Tour ${turn.turnNumber})', style: t.bodyMedium?.copyWith(color: KombeColors.ink)),
+            ])),
+          ]),
+          const SizedBox(height: 14),
+          Row(
+            children: <Widget>[
+              KombeAvatar(name: turn.displayName, url: turn.avatarUrl, size: 76),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(turn.displayName, style: t.titleLarge),
+                    const SizedBox(height: 4),
+                    Text('Reçoit le pot de ce tour', style: t.bodyMedium),
+                    const SizedBox(height: 4),
+                    Text(DateFormat.yMMMMd(locale).format(turn.dueAtUtc.toLocal()), style: t.titleMedium?.copyWith(color: KombeColors.forest)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
-      child: Text(
-        '${turn.turnNumber}',
-        style: TextStyle(
-          fontWeight: FontWeight.w800,
-          fontSize: 13,
-          color: past ? KombeColors.cream : KombeColors.ink,
-          fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-        ),
+    );
+  }
+}
+
+class _TurnRow extends StatelessWidget {
+  const _TurnRow({required this.turn});
+  final BeneficiaryTurn turn;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme t = Theme.of(context).textTheme;
+    final String locale = Localizations.localeOf(context).toLanguageTag();
+    final bool current = turn.status == BeneficiaryStatus.current;
+    final Widget chip = switch (turn.status) {
+      BeneficiaryStatus.received => KombeChip(label: KombeLabels.beneficiaryStatus(turn.status), icon: Icons.check_circle_outline_rounded),
+      BeneficiaryStatus.current => const KombeChip(label: 'En cours', tone: ChipTone.gold),
+      BeneficiaryStatus.upcoming => KombeChip(label: KombeLabels.beneficiaryStatus(turn.status), tone: ChipTone.neutral),
+    };
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: current ? KombeTokens.gold50 : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: current ? KombeColors.goldDark : Colors.white,
+              border: Border.all(color: current ? Colors.transparent : KombeColors.lineStrong),
+            ),
+            child: Text('${turn.turnNumber}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: current ? Colors.white : KombeColors.ink)),
+          ),
+          const SizedBox(width: 10),
+          KombeAvatar(name: turn.displayName, url: turn.avatarUrl, size: 40),
+          const SizedBox(width: 10),
+          Expanded(child: Text(turn.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleSmall)),
+          chip,
+          const SizedBox(width: 10),
+          Text(DateFormat.MMMd(locale).format(turn.dueAtUtc.toLocal()), style: t.bodySmall),
+        ],
       ),
     );
   }

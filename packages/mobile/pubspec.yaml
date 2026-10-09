@@ -37,6 +37,7 @@ flutter:
   assets:
     - assets/fonts/OFL-Manrope.txt
     - assets/fonts/OFL-Fraunces.txt
+    - assets/images/
   # Polices OFL auto-hébergées : instances statiques tirées des fichiers
   # variables Google Fonts (voir docs/design-system/KOMBE_DESIGN_SYSTEM.md).
   fonts:
