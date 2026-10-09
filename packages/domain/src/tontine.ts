@@ -106,24 +106,36 @@ export function rotationTypeSupportedAtPilot(type: string): boolean {
 }
 
 /**
- * Garde de démarrage : la devise, le fuseau et la typologie doivent être ceux
- * attestés au pilote. Le refus est une erreur stable, non contournable.
+ * Garde de CRÉATION : la devise et le fuseau doivent être ceux attestés au
+ * pilote. La typologie de rotation doit être CONNUE (le fondateur peut choisir
+ * un type P1 à la création, mais pas le démarrer — voir
+ * `assertRotationTypeStartable`). Erreurs stables, non contournables.
  */
-export function assertGroupDefaults(input: {
-  currency: string;
-  timezone: string;
-  rotationType: string;
-}): void {
+export function assertGroupDefaults(input: { currency: string; timezone: string }): void {
   if (input.currency !== CURRENCY) {
     throw new DomainError("GROUP_CURRENCY_UNSUPPORTED", "Devise non prise en charge au pilote");
   }
   if (input.timezone !== PILOT_TIMEZONE) {
     throw new DomainError("GROUP_TIMEZONE_UNSUPPORTED", "Fuseau non pris en charge au pilote");
   }
-  if (!isRotationType(input.rotationType)) {
+}
+
+/** À la création, la typologie demandée doit exister dans le catalogue. */
+export function assertRotationTypeKnown(type: string): void {
+  if (!isRotationType(type)) {
     throw new DomainError("ROTATION_TYPE_UNKNOWN", "Typologie de rotation inconnue");
   }
-  if (!rotationTypeSupportedAtPilot(input.rotationType)) {
+}
+
+/**
+ * Garde de DÉMARRAGE du cycle : seule une typologie attestée au pilote (P0)
+ * peut démarrer. `tirage`/`négocié` (P1) échouent fermé tant que la recette
+ * dédiée n'existe pas (C05 §5.3, C03 ligne 73) — mécanise le refus serveur,
+ * jamais seulement le masquage UI.
+ */
+export function assertRotationTypeStartable(type: string): void {
+  assertRotationTypeKnown(type);
+  if (!rotationTypeSupportedAtPilot(type)) {
     throw new DomainError(
       "ROTATION_TYPE_NOT_READY",
       "Typologie reconnue mais non activable au pilote (P1, recette dédiée requise)",

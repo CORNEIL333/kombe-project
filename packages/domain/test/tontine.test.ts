@@ -15,6 +15,8 @@ import {
   isRotationType,
   rotationTypeSupportedAtPilot,
   assertGroupDefaults,
+  assertRotationTypeKnown,
+  assertRotationTypeStartable,
   MAX_PARENT_DEPTH,
   MAX_CHILD_GROUPS,
   assertParentAssignable,
@@ -86,31 +88,35 @@ describe("2.3 typologie de rotation", () => {
     expect(isRotationType("tirage")).toBe(true);
   });
 
-  it("accepte les defaults du pilote (XAF / Africa/Douala / rotation fermée)", () => {
+  it("accepte les defaults du pilote (XAF / Africa/Douala)", () => {
     expect(
-      codes(() =>
-        assertGroupDefaults({
-          currency: "XAF",
-          timezone: PILOT_TIMEZONE,
-          rotationType: "rotative_fermee",
-        }),
-      ),
+      codes(() => assertGroupDefaults({ currency: "XAF", timezone: PILOT_TIMEZONE })),
+    ).toBe(null);
+    expect(
+      codes(() => assertRotationTypeKnown("rotative_fermee")),
+    ).toBe(null);
+    expect(
+      codes(() => assertRotationTypeStartable("rotative_fermee")),
     ).toBe(null);
   });
 
-  it("échoue fermé sur devise, fuseau, typologie inconnue ou typologie P1", () => {
-    expect(
-      codes(() => assertGroupDefaults({ currency: "EUR", timezone: PILOT_TIMEZONE, rotationType: "rotative_fermee" })),
-    ).toBe("GROUP_CURRENCY_UNSUPPORTED");
-    expect(
-      codes(() => assertGroupDefaults({ currency: "XAF", timezone: "UTC", rotationType: "rotative_fermee" })),
-    ).toBe("GROUP_TIMEZONE_UNSUPPORTED");
-    expect(
-      codes(() => assertGroupDefaults({ currency: "XAF", timezone: PILOT_TIMEZONE, rotationType: "????" })),
-    ).toBe("ROTATION_TYPE_UNKNOWN");
-    expect(
-      codes(() => assertGroupDefaults({ currency: "XAF", timezone: PILOT_TIMEZONE, rotationType: "tirage" })),
-    ).toBe("ROTATION_TYPE_NOT_READY");
+  it("échoue fermé sur devise ou fuseau non du pilote", () => {
+    expect(codes(() => assertGroupDefaults({ currency: "EUR", timezone: PILOT_TIMEZONE }))).toBe(
+      "GROUP_CURRENCY_UNSUPPORTED",
+    );
+    expect(codes(() => assertGroupDefaults({ currency: "XAF", timezone: "UTC" }))).toBe(
+      "GROUP_TIMEZONE_UNSUPPORTED",
+    );
+  });
+
+  it("la création accepte une typologie connue ; le démarrage seul refuse une P1", () => {
+    // typologie inconnue : refus dès la création
+    expect(codes(() => assertRotationTypeKnown("????"))).toBe("ROTATION_TYPE_UNKNOWN");
+    // tirage/negocie : CONNUES (création OK) mais non démarrables au pilote
+    expect(codes(() => assertRotationTypeKnown("tirage"))).toBe(null);
+    expect(codes(() => assertRotationTypeKnown("negocie"))).toBe(null);
+    expect(codes(() => assertRotationTypeStartable("tirage"))).toBe("ROTATION_TYPE_NOT_READY");
+    expect(codes(() => assertRotationTypeStartable("negocie"))).toBe("ROTATION_TYPE_NOT_READY");
   });
 });
 
