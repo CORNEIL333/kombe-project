@@ -3,12 +3,12 @@
    secrétaire, trésorier, commissaire). Types partagés : @kombe/domain. */
 import { ApiClient, encodePath } from '@kombe/dashboard-core';
 import type {
-  AidView, DebtView, DueView, FineView, InvitationView, JournalEntryView, MeetingDetail, MeetingSummary,
+  AidView, DebtView, DecisionView, SanctionView, DueView, FineView, InvitationView, JournalEntryView, MeetingDetail, MeetingSummary,
   MemberView, MovementView, RoundGridView, RoundView, StatutesView, TontineDetail, TontineSummary,
 } from '@kombe/domain';
 
 export type {
-  AidView, DebtView, DueView, FineView, InvitationView, JournalEntryView, MeetingDetail, MeetingSummary,
+  AidView, DebtView, DecisionView, SanctionView, DueView, FineView, InvitationView, JournalEntryView, MeetingDetail, MeetingSummary,
   MemberView, MovementView, RoundGridView, RoundView, StatutesView, TontineDetail, TontineSummary,
 };
 
@@ -42,6 +42,9 @@ export class GroupAdminApi {
   fines(id: string, s?: AbortSignal) { return this.api.get<FineView[]>(`${this.t(id)}/fines`, undefined, s); }
   aids(id: string, s?: AbortSignal) { return this.api.get<AidView[]>(`${this.t(id)}/aids`, undefined, s); }
   debts(id: string, s?: AbortSignal) { return this.api.get<DebtView[]>(`${this.t(id)}/debts`, undefined, s); }
+  decisions(id: string, s?: AbortSignal) { return this.api.get<DecisionView[]>(`${this.t(id)}/decisions`, undefined, s); }
+  sanctions(id: string, s?: AbortSignal) { return this.api.get<SanctionView[]>(`${this.t(id)}/sanctions`, undefined, s); }
+  closeDecision(id: string, did: string) { return this.api.post<DecisionView>(`${this.t(id)}/decisions/${encodePath(did)}/close`, {}, W()); }
   statutes(id: string, s?: AbortSignal) { return this.api.get<StatutesView>(`${this.t(id)}/statutes`, undefined, s); }
   journal(id: string, s?: AbortSignal) { return this.api.get<{ valid: boolean; entries: JournalEntryView[] }>(`${this.t(id)}/journal`, undefined, s); }
 }

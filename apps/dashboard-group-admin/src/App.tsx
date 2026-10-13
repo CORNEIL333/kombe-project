@@ -9,7 +9,7 @@ import {
   CapabilityNotice, DashboardBoot, DashboardShell, DataTable, KeyValue, PageHeader, Panel, RemoteState, StatCard, StatusChip,
   formatServerDate, formatXaf, useHashRoute, useRemote, type DashboardContext,
 } from '@kombe/dashboard-core';
-import { GroupAdminApi, downloadCsv, toCsv, type MeetingDetail, type MovementView, type TontineSummary } from './api';
+import { GroupAdminApi, type DecisionView, downloadCsv, toCsv, type MeetingDetail, type MovementView, type TontineSummary } from './api';
 
 const messages = { app: { fr: 'Espace bureau', en: 'Board space' } } as const;
 const NAV = [
@@ -19,6 +19,7 @@ const NAV = [
   { path: '/membres', label: 'Membres & invitations' },
   { path: '/seances', label: 'Séances & PV' },
   { path: '/discipline', label: 'Amendes, secours, dettes' },
+  { path: '/votes', label: 'Votes & sanctions' },
   { path: '/registre', label: 'Registre' },
   { path: '/reglement', label: 'Règlement & statuts' },
 ] as const;
@@ -85,6 +86,7 @@ function Espace({ ctx }: { readonly ctx: DashboardContext }) {
       case '/membres': page = <Membres {...p} />; break;
       case '/seances': page = <Seances {...p} />; break;
       case '/discipline': page = <Discipline {...p} />; break;
+      case '/votes': page = <Votes {...p} />; break;
       case '/registre': page = <Registre {...p} />; break;
       case '/reglement': page = <Reglement {...p} />; break;
       default: page = <Overview {...p} onNavigate={navigate} />;
@@ -378,6 +380,56 @@ function Discipline({ api, g }: P) {
             { header: 'État', render: (d) => <StatusChip status={{ open: 'En cours', settled: 'Réglée', written_off: 'Abandonnée' }[d.state]} tone={d.state === 'settled' ? 'ok' : d.state === 'open' ? 'warn' : 'neutral'} /> },
           ]} />
         )}</RemoteState></Panel></div>
+      </div>
+    </>
+  );
+}
+
+const DECISION: Record<string, string> = {
+  pause: 'Pause des séances', removal: 'Destitution', exclusion: 'Exclusion', payout_suspension: 'Suspension du droit de bouffer', replacement: 'Reprise de place',
+};
+const DECISION_ETAT: Record<string, [string, 'ok' | 'warn' | 'danger' | 'neutral']> = {
+  open: ['Vote en cours', 'warn'], adopted: ['Adoptée', 'ok'], rejected: ['Rejetée', 'danger'], cancelled: ['Annulée', 'neutral'], lifted: ['Levée', 'neutral'],
+};
+const SANCTION: Record<string, [string, 'ok' | 'warn' | 'danger' | 'neutral']> = {
+  warning: ['Avertissement', 'neutral'], fine: ['Amende', 'warn'], payout_suspended: ['Suspension du droit de bouffer', 'danger'], exclusion_vote: ['Vote d’exclusion', 'danger'],
+};
+
+function Votes({ api, g }: P) {
+  const d = useRemote((s) => api.decisions(g.groupId, s), [api, g.groupId]);
+  const sn = useRemote((s) => api.sanctions(g.groupId, s), [api, g.groupId], { isEmpty: (rows) => rows.every((r) => r.lateCount === 0 && !r.payoutSuspended) });
+  const [err, setErr] = useState<string | null>(null);
+  const objet = (x: DecisionView) =>
+    x.kind === 'removal' ? `${x.targetName ?? ''} — ${ROLE[x.targetRole ?? ''] ?? ''}`
+      : x.kind === 'replacement' ? `${String(x.params.incomingName ?? '')} reprend la place de ${x.targetName ?? ''}`
+        : x.kind === 'pause' ? `${String(x.params.occurrences ?? 1)} séance(s)` : (x.targetName ?? '');
+  return (
+    <>
+      <PageHeader title="Votes & sanctions" description="Décisions de l’assemblée à la majorité absolue des électeurs (la personne concernée ne vote pas). Le vote est secret jusqu’au dépouillement ; les membres votent dans l’application." />
+      {err ? <CapabilityNotice title="Action refusée">{err}</CapabilityNotice> : null}
+      <div className="k-grid">
+        <div className="k-span-12"><Panel title="Votes de l’assemblée" action={d.state.kind === 'ready' ? <button type="button" className="k-button k-button-secondary" onClick={() => d.state.kind === 'ready' && downloadCsv(`kombe-votes-${g.name.replace(/\W+/g, '-')}.csv`, toCsv(['Ouvert le', 'Objet', 'Concerné', 'Motif', 'État', 'Électeurs', 'Oui', 'Non', 'Abstention', 'Exécution'], d.state.data.map((x) => [x.openedAt, DECISION[x.kind], objet(x), x.reason, DECISION_ETAT[x.state]?.[0], x.electorate, x.result?.yes, x.result?.no, x.result?.abstain, x.outcomeNote])))}>Exporter en CSV</button> : undefined}>
+          <RemoteState state={d.state} onRetry={d.reload} emptyTitle="Aucun vote">{(rows) => (
+            <DataTable rows={rows} rowKey={(x) => x.decisionId} caption="Votes" columns={[
+              { header: 'Objet', render: (x) => DECISION[x.kind] }, { header: 'Concerné', render: (x) => objet(x) }, { header: 'Motif', render: (x) => x.reason },
+              { header: 'Bulletins', render: (x) => x.result ? `Oui ${x.result.yes} · Non ${x.result.no} · Abst. ${x.result.abstain} / ${x.electorate}` : `${x.ballots} / ${x.electorate} (secret)` },
+              { header: 'Clôture', render: (x) => formatServerDate(x.closesAt) },
+              { header: 'État', render: (x) => <StatusChip status={DECISION_ETAT[x.state]?.[0] ?? x.state} tone={DECISION_ETAT[x.state]?.[1] ?? 'neutral'} /> },
+              { header: 'Exécution', render: (x) => x.outcomeNote ?? (x.can.close ? <button type="button" className="k-button k-button-secondary" onClick={() => { setErr(null); api.closeDecision(g.groupId, x.decisionId).then(d.reload, (e: unknown) => setErr(errText(e))); }}>Dépouiller</button> : '—') },
+            ]} />
+          )}</RemoteState>
+        </Panel></div>
+        <div className="k-span-12"><Panel title="Graduation des sanctions (suggestion)">
+          <p className="k-hint">Avertissement → amende → suspension du droit de bouffer → vote d’exclusion, d’après les retards et dettes non régularisés. Le bureau décide ; l’assemblée vote.</p>
+          <RemoteState state={sn.state} onRetry={sn.reload} emptyTitle="Aucun retard à signaler">{(rows) => (
+            <DataTable rows={rows.filter((r) => r.lateCount > 0 || r.payoutSuspended)} rowKey={(r) => r.membershipId} caption="Sanctions" columns={[
+              { header: 'Membre', render: (r) => r.displayName }, { header: 'Retards / dettes', render: (r) => String(r.lateCount) },
+              { header: 'En retard', render: (r) => xaf(r.lateAmount) }, { header: 'Dette ouverte', render: (r) => xaf(r.openDebt) },
+              { header: 'Suggestion', render: (r) => <StatusChip status={SANCTION[r.suggested]?.[0] ?? r.suggested} tone={SANCTION[r.suggested]?.[1] ?? 'neutral'} /> },
+              { header: 'Droit de bouffer', render: (r) => r.payoutSuspended ? <StatusChip status="Suspendu" tone="danger" /> : 'Normal' },
+            ]} />
+          )}</RemoteState>
+        </Panel></div>
       </div>
     </>
   );
