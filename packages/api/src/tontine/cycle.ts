@@ -90,7 +90,7 @@ export class CycleService {
       const r = await db.query(`SELECT commitment, seed, result FROM draw WHERE group_id = $1 AND draw_id = $2`, [groupId, drawId]);
       if (!r.rows[0]) throw new DomainError("OBJET_INTROUVABLE", "Tirage introuvable");
       const names = await loadNames(db, groupId);
-      const shares = await loadShares(db, groupId);
+      const shares = await loadShares(db, groupId, 1);
       const holderOf = new Map(shares.map((s) => [s.shareId, s.holders[0]?.membershipId ?? ""]));
       const result = (r.rows[0].result as string[] | null) ?? null;
       return {
@@ -119,7 +119,7 @@ export class CycleService {
         throw new DomainError("SCHEDULE_FROZEN", "Cycle déjà démarré");
       }
       const members = await db.query(
-        `SELECT membership_id, identity_id, share_count, joined_at FROM membership WHERE group_id = $1 AND state = 'active' ORDER BY joined_at, membership_id`,
+        `SELECT membership_id, identity_id, share_count, joined_at, share_partner_membership_id FROM membership WHERE group_id = $1 AND state = 'active' ORDER BY joined_at, membership_id`,
         [groupId],
       );
       if (members.rows.length < 2) throw new DomainError("CYCLE_START_NOT_READY", "Au moins deux membres actifs");
@@ -138,22 +138,34 @@ export class CycleService {
         throw new DomainError("RULES_NOT_ACCEPTED", "Tous les membres doivent accepter la dernière version des statuts");
       }
 
-      // Parts : une ligne par « main » voulue par chaque membre (L-14).
-      const holders: { shareId: string; membershipId: string; joinedAt: string }[] = [];
+      // Parts : une ligne par « main » voulue par chaque membre (L-14) ; deux
+      // membres qui partagent une part (« demi-main ») la tiennent ensemble,
+      // chacun pour moitié.
+      const holders: { shareId: string; membershipId: string; joinedAt: string; partnerId: string | null }[] = [];
+      const activeIds = new Set(members.rows.map((x) => String(x.membership_id)));
+      const paired = new Set<string>();
       for (const row of members.rows) {
-        const n = Number(row.share_count ?? 1);
-        for (let i = 1; i <= n; i++) {
-          holders.push({
-            shareId: newId("shr"),
-            membershipId: String(row.membership_id),
-            joinedAt: new Date(row.joined_at as string).toISOString().slice(0, 10),
-          });
+        const id = String(row.membership_id);
+        const partner = row.share_partner_membership_id ? String(row.share_partner_membership_id) : null;
+        const joinedAt = new Date(row.joined_at as string).toISOString().slice(0, 10);
+        if (partner) {
+          if (!activeIds.has(partner)) throw new DomainError("SHARES_INVALID", "Part partagée avec un membre inactif");
+          if (paired.has(id)) continue;
+          paired.add(id).add(partner);
+          holders.push({ shareId: newId("shr"), membershipId: id, joinedAt, partnerId: partner });
+          continue;
         }
+        const n = Number(row.share_count ?? 1);
+        for (let i = 1; i <= n; i++) holders.push({ shareId: newId("shr"), membershipId: id, joinedAt, partnerId: null });
       }
+      if (holders.length < 2) throw new DomainError("CYCLE_START_NOT_READY", "Au moins deux parts");
       if (holders.length > 60) throw new DomainError("SHARES_INVALID", "Au plus 60 parts par cycle");
       for (const [i, h] of holders.entries()) {
-        await db.query(`INSERT INTO share (share_id, group_id, label) VALUES ($1,$2,$3)`, [h.shareId, groupId, `Part ${i + 1}`]);
+        await db.query(`INSERT INTO share (share_id, group_id, label) VALUES ($1,$2,$3)`, [h.shareId, groupId, h.partnerId ? `Part ${i + 1} (partagée)` : `Part ${i + 1}`]);
         await db.query(`INSERT INTO share_holder (group_id, share_id, membership_id, weight) VALUES ($1,$2,$3,1)`, [groupId, h.shareId, h.membershipId]);
+        if (h.partnerId) {
+          await db.query(`INSERT INTO share_holder (group_id, share_id, membership_id, weight) VALUES ($1,$2,$3,1)`, [groupId, h.shareId, h.partnerId]);
+        }
       }
 
       // Ordre de passage.
@@ -248,7 +260,7 @@ export class CycleService {
       const rounds = await loadRoundRows(db, groupId);
       if (!rounds.some((r) => r.seq === seq)) throw new DomainError("OBJET_INTROUVABLE", "Tour introuvable");
       const rotation = await fundOfKind(db, groupId, "rotation");
-      const shares = await loadShares(db, groupId);
+      const shares = await loadShares(db, groupId, seq);
       const dueMap = memberDueForRound(shares, BigInt(group.settings.contributionPerShare));
       const names = await loadNames(db, groupId);
       const sums = await db.query(
@@ -314,6 +326,17 @@ export class CycleService {
       if (beneficiary === actor.membershipId) {
         throw new DomainError("APPROVER_NOT_DISTINCT", "Le bénéficiaire ne déclare pas sa propre remise : le trésorier adjoint s'en charge");
       }
+      // Place vacante (membre exclu ou parti) : une reprise de place doit d'abord être votée.
+      const bstate = await db.query(`SELECT state FROM membership WHERE group_id = $1 AND membership_id = $2`, [groupId, beneficiary]);
+      if (bstate.rows[0]?.state !== "active") {
+        throw new DomainError("DECISION_STATE_INVALID", "Place vacante : faites voter une reprise de place avant la remise");
+      }
+      // Suspension du droit de bouffer votée et non levée (L-09).
+      const susp = await db.query(
+        `SELECT 1 FROM group_decision WHERE group_id = $1 AND kind = 'payout_suspension' AND state = 'adopted' AND target_membership_id = $2`,
+        [groupId, beneficiary],
+      );
+      if (susp.rows.length > 0) throw new DomainError("PAYOUT_SUSPENDED", "Droit de bouffer suspendu par vote de l'assemblée");
       const rotation = await fundOfKind(db, groupId, "rotation");
       if (!rotation) throw new DomainError("FUND_INVALID", "Caisse de rotation absente");
       const prior = await db.query(
@@ -346,7 +369,7 @@ export class CycleService {
       }
 
       // Impayés du tour : avance du fonds de caisse, remise réduite ou attente.
-      const shares = await loadShares(db, groupId);
+      const shares = await loadShares(db, groupId, seq);
       const perShare = BigInt(group.settings.contributionPerShare);
       const expectedPot = BigInt(shares.length) * perShare;
       const dueMap = memberDueForRound(shares, perShare);

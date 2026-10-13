@@ -314,11 +314,12 @@ export class GroupService {
 
   /* ── Membres ──────────────────────────────────────────────────────── */
 
-  async members(headers: Record<string, unknown>, groupId: string): Promise<MemberView[]> {
+  /** Membres actifs et en attente ; `all` ajoute les anciens (partis, exclus) pour l'historique et la reprise de place. */
+  async members(headers: Record<string, unknown>, groupId: string, all = false): Promise<MemberView[]> {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => {
       const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
-      return loadMembers(db, actor);
+      return loadMembers(db, actor, { includeInactive: all });
     });
   }
 
@@ -402,19 +403,61 @@ export class GroupService {
     });
   }
 
-  async setShares(headers: Record<string, unknown>, groupId: string, membershipId: string, shares: number): Promise<MemberView> {
+  /**
+   * Nombre de « mains » d'un membre (1 à 5), ou part PARTAGÉE avec un autre
+   * membre (« demi-main », L-14) : chacun cotise la moitié et la remise du
+   * tour revient aux deux. `sharedWith: null` défait le partage.
+   */
+  async setShares(
+    headers: Record<string, unknown>,
+    groupId: string,
+    membershipId: string,
+    input: { shares: number; sharedWith?: string | null | undefined },
+  ): Promise<MemberView> {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => {
       const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
       requireAct(actor, "group.manage");
       if (await cycleStarted(db, groupId)) throw new DomainError("SCHEDULE_FROZEN", "Parts figées après le démarrage");
+      const shares = input.shares;
       if (!Number.isInteger(shares) || shares < 1 || shares > 5) throw new DomainError("SHARES_INVALID", "De 1 à 5 parts");
-      const r = await db.query(`UPDATE membership SET share_count = $3 WHERE group_id = $1 AND membership_id = $2 AND state = 'active'`, [
-        groupId,
-        membershipId,
-        shares,
-      ]);
-      if (r.rowCount === 0) throw new DomainError("OBJET_INTROUVABLE", "Membre introuvable");
+      const cur = await db.query(
+        `SELECT share_partner_membership_id FROM membership WHERE group_id = $1 AND membership_id = $2 AND state = 'active' FOR UPDATE`,
+        [groupId, membershipId],
+      );
+      if (!cur.rows[0]) throw new DomainError("OBJET_INTROUVABLE", "Membre introuvable");
+      const previous = cur.rows[0].share_partner_membership_id ? String(cur.rows[0].share_partner_membership_id) : null;
+      if (input.sharedWith !== undefined) {
+        // On défait d'abord tout partage existant des deux côtés.
+        if (previous) {
+          await db.query(`UPDATE membership SET share_partner_membership_id = NULL WHERE group_id = $1 AND membership_id = $2`, [groupId, previous]);
+        }
+        await db.query(`UPDATE membership SET share_partner_membership_id = NULL WHERE group_id = $1 AND membership_id = $2`, [groupId, membershipId]);
+        if (input.sharedWith) {
+          if (input.sharedWith === membershipId) throw new DomainError("SHARES_INVALID", "Une part se partage avec un autre membre");
+          const p = await db.query(
+            `SELECT share_partner_membership_id FROM membership WHERE group_id = $1 AND membership_id = $2 AND state = 'active' FOR UPDATE`,
+            [groupId, input.sharedWith],
+          );
+          if (!p.rows[0]) throw new DomainError("OBJET_INTROUVABLE", "Membre introuvable");
+          if (p.rows[0].share_partner_membership_id) throw new DomainError("SHARES_INVALID", "Ce membre partage déjà une part");
+          await db.query(`UPDATE membership SET share_partner_membership_id = $3, share_count = 1 WHERE group_id = $1 AND membership_id = $2`, [
+            groupId,
+            membershipId,
+            input.sharedWith,
+          ]);
+          await db.query(`UPDATE membership SET share_partner_membership_id = $3, share_count = 1 WHERE group_id = $1 AND membership_id = $2`, [
+            groupId,
+            input.sharedWith,
+            membershipId,
+          ]);
+          await appendEvent(db, actor, "member.share_shared", { membershipId, partnerMembershipId: input.sharedWith }, nowMs);
+          return this.memberView(db, actor, membershipId);
+        }
+      } else if (previous && shares !== 1) {
+        throw new DomainError("SHARES_INVALID", "Une part partagée reste unique : défaites d'abord le partage");
+      }
+      await db.query(`UPDATE membership SET share_count = $3 WHERE group_id = $1 AND membership_id = $2`, [groupId, membershipId, shares]);
       await appendEvent(db, actor, "member.shares_set", { membershipId, shares }, nowMs);
       return this.memberView(db, actor, membershipId);
     });

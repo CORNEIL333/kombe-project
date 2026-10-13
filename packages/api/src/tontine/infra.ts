@@ -266,7 +266,8 @@ export type NotificationKind =
   | "order_change"
   | "membership"
   | "minutes_ready"
-  | "general";
+  | "general"
+  | "decision";
 
 /**
  * Notifie des identités du groupe courant. Libellé SANS montant ni nom

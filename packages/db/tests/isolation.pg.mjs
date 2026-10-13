@@ -93,6 +93,7 @@ async function main() {
     `);
 
     // État initial reproductible : on repart d'un schéma propre en base de test.
+    await runSql(migrator, "migrations/0030_decisions.down.sql");
     await runSql(migrator, "migrations/0029_ops_console.down.sql");
     await runSql(migrator, "migrations/0028_product_api.down.sql");
     await runSql(migrator, "migrations/0027_association.down.sql");
@@ -163,6 +164,7 @@ async function main() {
     await runSql(migrator, "migrations/0027_association.sql");
     await runSql(migrator, "migrations/0028_product_api.sql");
     await runSql(migrator, "migrations/0029_ops_console.sql");
+    await runSql(migrator, "migrations/0030_decisions.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
@@ -844,12 +846,51 @@ async function main() {
       reopen_cross_link_accepted: reopenCrossAccepted,
     };
 
+    // ── C30-DECISION : scrutins et bulletins isolés par groupe, bulletin définitif.
+    await migrator.query(`
+      INSERT INTO group_decision (decision_id, group_id, kind, params, reason, opened_by_identity_id, closes_at, electorate)
+        VALUES ('dec_a','grpA','pause','{}','Pause fictive','idn_a', now() + interval '1 day', 1),
+               ('dec_b','grpB','pause','{}','Pause fictive','idn_b', now() + interval '1 day', 1)
+        ON CONFLICT DO NOTHING;
+    `);
+    const c30Cross = await withTenant(app, "grpA", async () => {
+      const r = await app.query("SELECT count(*)::int AS n FROM group_decision WHERE decision_id = 'dec_b'");
+      return r.rows[0].n;
+    });
+    let c30ForeignBallot = true;
+    try {
+      await withTenant(app, "grpA", async () => {
+        await app.query("INSERT INTO decision_ballot (group_id, decision_id, membership_id, choice) VALUES ('grpB','dec_b','mem_b','yes')");
+      });
+    } catch {
+      c30ForeignBallot = false;
+    }
+    let c30BallotUpdate = true;
+    await app.query("BEGIN");
+    await app.query("SELECT set_config('kombe.group_id', 'grpA', true)");
+    await app.query("INSERT INTO decision_ballot (group_id, decision_id, membership_id, choice) VALUES ('grpA','dec_a','mem_a','yes')");
+    try {
+      await app.query("SAVEPOINT s");
+      await app.query("UPDATE decision_ballot SET choice = 'no' WHERE decision_id = 'dec_a'");
+    } catch {
+      c30BallotUpdate = false;
+    }
+    await app.query("ROLLBACK");
+    observations.C30_DECISION = {
+      cross_group_rows: c30Cross,
+      foreign_ballot_accepted: c30ForeignBallot,
+      ballot_update_accepted: c30BallotUpdate,
+    };
+
     await app.end();
 
     const { runC13 } = await import("../../worker/test/postgres.mjs");
     Object.assign(observations, await runC13(pg, migrator, url));
 
     const pass =
+      observations.C30_DECISION.cross_group_rows === 0 &&
+      observations.C30_DECISION.foreign_ballot_accepted === false &&
+      observations.C30_DECISION.ballot_update_accepted === false &&
       observations.C01_TENANT.cross_group_rows === 0 &&
       observations.C01_FK.foreign_link_accepted === false &&
       observations.C01_POOL.leaked_rows === 0 &&

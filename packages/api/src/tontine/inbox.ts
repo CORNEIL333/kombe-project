@@ -83,6 +83,15 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   "aid.rejected": "Secours refusé",
   "aid.paid": "Secours remis",
   "debt.written_off": "Dette abandonnée",
+  "member.share_shared": "Part partagée entre deux membres",
+  "decision.opened": "Vote ouvert",
+  "decision.ballot_cast": "Bulletin déposé",
+  "decision.adopted": "Décision adoptée par vote",
+  "decision.rejected": "Décision rejetée par vote",
+  "decision.cancelled": "Vote annulé",
+  "decision.lifted": "Suspension levée",
+  "schedule.paused": "Séances décalées (pause votée)",
+  "order.place_taken_over": "Reprise de place",
 };
 
 export class InboxService {

@@ -40,6 +40,8 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
                       {m.login ? ` · ${m.login}` : ""}
                       {m.offline ? ` · ${tx("mb.sansSmartphone")}` : ""}
                       {m.shares > 1 ? ` · ${tx("mb.parts")} : ${m.shares}` : ""}
+                      {m.sharePartnerMembershipId ? ` · ${tx("mb.partageAvec", { nom: membres.find((x) => x.membershipId === m.sharePartnerMembershipId)?.displayName ?? "" })}` : ""}
+                      {m.state !== "active" && m.state !== "pending" ? ` · ${dyn(`mb.etat.${m.state}`)}` : ""}
                     </span>
                     {m.state === "pending" ? <Pastille ton="attente">{tx("mb.attente")}</Pastille> : null}
                     {m.isMe && m.pendingRoles.length
@@ -83,19 +85,39 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
                       </>
                     ) : null}
                     {m.state === "active" && avantDemarrage && peut(ctx.roles, "group.manage") ? (
-                      <label className="champ-inline">
-                        {tx("mb.parts")}
-                        <select
-                          value={m.shares}
-                          onChange={(e) => void action.lancer(() => tontines.parts(ctx.session, gid, m.membershipId, Number(e.target.value))).then(apres)}
-                        >
-                          {[1, 2, 3, 4, 5].map((n) => (
-                            <option key={n} value={n}>
-                              {n}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <>
+                        {!m.sharePartnerMembershipId ? (
+                          <label className="champ-inline">
+                            {tx("mb.parts")}
+                            <select
+                              value={m.shares}
+                              onChange={(e) => void action.lancer(() => tontines.parts(ctx.session, gid, m.membershipId, Number(e.target.value))).then(apres)}
+                            >
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <option key={n} value={n}>
+                                  {n}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ) : null}
+                        <label className="champ-inline">
+                          {tx("mb.partage")}
+                          <select
+                            value={m.sharePartnerMembershipId ?? ""}
+                            onChange={(e) => void action.lancer(() => tontines.partager(ctx.session, gid, m.membershipId, e.target.value || null)).then(apres)}
+                          >
+                            <option value="">{tx("mb.personne")}</option>
+                            {membres
+                              .filter((x) => x.state === "active" && x.membershipId !== m.membershipId && (!x.sharePartnerMembershipId || x.sharePartnerMembershipId === m.membershipId))
+                              .map((x) => (
+                                <option key={x.membershipId} value={x.membershipId}>
+                                  {x.displayName}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                      </>
                     ) : null}
                   </div>
                 </li>

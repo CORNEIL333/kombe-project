@@ -80,21 +80,51 @@ export async function cycleStarted(db: Db, groupId: string): Promise<boolean> {
   return r.rows[0]?.state === "started";
 }
 
-/** Parts du cycle démarré (L-14). Vide avant le démarrage. */
-export async function loadShares(db: Db, groupId: string): Promise<Share[]> {
+/** Titulaire d'une part sur une plage de tours (reprise de place, 0030). */
+export interface ShareHolding {
+  readonly shareId: string;
+  readonly membershipId: string;
+  readonly weight: number;
+  readonly fromSeq: number;
+  readonly untilSeq: number | null;
+}
+
+export async function loadShareHoldings(db: Db, groupId: string): Promise<ShareHolding[]> {
   const r = await db.query(
-    `SELECT s.share_id, h.membership_id, h.weight FROM share s
+    `SELECT s.share_id, h.membership_id, h.weight, h.from_seq, h.until_seq FROM share s
        JOIN share_holder h ON h.group_id = s.group_id AND h.share_id = s.share_id
-      WHERE s.group_id = $1 ORDER BY s.share_id, h.membership_id`,
+      WHERE s.group_id = $1 ORDER BY s.share_id, h.from_seq, h.membership_id`,
     [groupId],
   );
+  return r.rows.map((row) => ({
+    shareId: String(row.share_id),
+    membershipId: String(row.membership_id),
+    weight: Number(row.weight),
+    fromSeq: Number(row.from_seq),
+    untilSeq: row.until_seq === null || row.until_seq === undefined ? null : Number(row.until_seq),
+  }));
+}
+
+/**
+ * Parts et titulaires au tour `seq` (ou titulaires actuels si absent). Une
+ * part sans titulaire à ce tour (place vacante après exclusion) disparaît :
+ * elle ne doit rien et ne compte pas dans la remise attendue.
+ */
+export function sharesAt(holdings: readonly ShareHolding[], seq?: number): Share[] {
   const map = new Map<string, { membershipId: string; weight: number }[]>();
-  for (const row of r.rows) {
-    const list = map.get(String(row.share_id)) ?? [];
-    list.push({ membershipId: String(row.membership_id), weight: Number(row.weight) });
-    map.set(String(row.share_id), list);
+  for (const h of holdings) {
+    const covers = seq === undefined ? h.untilSeq === null : h.fromSeq <= seq && (h.untilSeq === null || h.untilSeq >= seq);
+    if (!covers) continue;
+    const list = map.get(h.shareId) ?? [];
+    list.push({ membershipId: h.membershipId, weight: h.weight });
+    map.set(h.shareId, list);
   }
   return [...map.entries()].map(([shareId, holders]) => ({ shareId, holders }));
+}
+
+/** Parts du cycle démarré (L-14). Vide avant le démarrage. */
+export async function loadShares(db: Db, groupId: string, seq?: number): Promise<Share[]> {
+  return sharesAt(await loadShareHoldings(db, groupId), seq);
 }
 
 export async function loadMembers(db: Db, actor: Actor, opts: { readonly includeInactive?: boolean } = {}): Promise<MemberView[]> {
@@ -116,7 +146,7 @@ export async function loadMembers(db: Db, actor: Actor, opts: { readonly include
     target.set(String(row.membership_id), list.filter((x) => x !== "member"));
   }
   const r = await db.query(
-    `SELECT membership_id, identity_id, display_name, state, sponsor_membership_id, proxy_membership_id, joined_at, share_count
+    `SELECT membership_id, identity_id, display_name, state, sponsor_membership_id, proxy_membership_id, joined_at, share_count, share_partner_membership_id
        FROM membership WHERE group_id = $1 ${opts.includeInactive ? "" : "AND state IN ('active','pending')"}
       ORDER BY joined_at NULLS LAST, membership_id`,
     [actor.groupId],
@@ -141,6 +171,7 @@ export async function loadMembers(db: Db, actor: Actor, opts: { readonly include
       offline,
       joinedAt: isoInstant(row.joined_at),
       shares: started ? (shareCount.get(id) ?? 0) : Number(row.share_count ?? 1),
+      sharePartnerMembershipId: row.share_partner_membership_id ? String(row.share_partner_membership_id) : null,
     } satisfies MemberView;
   });
 }
@@ -233,7 +264,9 @@ export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> 
   if (rows.length === 0) return [];
   const names = await loadNames(db, group.groupId);
   const rotation = await fundOfKind(db, group.groupId, "rotation");
-  const pot = BigInt(rows.length) * BigInt(group.settings.contributionPerShare);
+  const holdings = await loadShareHoldings(db, group.groupId);
+  const perShare = BigInt(group.settings.contributionPerShare);
+  const potAt = (seq: number): bigint => (holdings.length > 0 ? BigInt(sharesAt(holdings, seq).length) : BigInt(rows.length)) * perShare;
   const coll = await db.query(
     `SELECT round_seq, COALESCE(SUM(amount),0)::text AS s FROM fund_movement
       WHERE group_id = $1 AND fund_id = $2 AND kind = 'contribution' AND state IN ('confirmed','validated')
@@ -259,7 +292,7 @@ export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> 
     beneficiaryMembershipId: r.beneficiaryMembershipId,
     beneficiaryName: r.beneficiaryMembershipId ? (names.byMembership.get(r.beneficiaryMembershipId) ?? null) : null,
     meetingId: meetingOf.get(r.seq) ?? null,
-    expectedPot: m(pot),
+    expectedPot: m(potAt(r.seq)),
     collected: collected.get(r.seq) ?? "0",
     payoutState: payout.get(r.seq) ?? "none",
   }));
@@ -295,9 +328,12 @@ export async function computeDues(
   const rounds = await loadRoundRows(db, group.groupId);
   if (rounds.length === 0) return [];
   const funds = (await loadFundRows(db, group.groupId)).filter((f) => f.state === "active");
-  const shares = await loadShares(db, group.groupId);
+  const holdings = await loadShareHoldings(db, group.groupId);
   const perShare = BigInt(group.settings.contributionPerShare);
-  const rotationDue = shares.length > 0 ? (memberDueForRound(shares, perShare).get(membershipId) ?? 0n) : 0n;
+  const rotationDueAt = (seq: number): bigint => {
+    const at = sharesAt(holdings, seq);
+    return at.length > 0 ? (memberDueForRound(at, perShare).get(membershipId) ?? 0n) : 0n;
+  };
   const mem = await db.query(`SELECT joined_at FROM membership WHERE group_id = $1 AND membership_id = $2`, [group.groupId, membershipId]);
   const joined = mem.rows[0]?.joined_at ? (isoInstant(mem.rows[0].joined_at) as string).slice(0, 10) : "0000-00-00";
 
@@ -336,7 +372,7 @@ export async function computeDues(
   for (const r of relevant) {
     for (const f of funds) {
       let due = 0n;
-      if (f.kind === "rotation") due = rotationDue;
+      if (f.kind === "rotation") due = rotationDueAt(r.seq);
       else if (f.perMeeting > 0n && r.date >= joined) due = f.perMeeting;
       if (due === 0n) continue;
       const p = paid.get(`${f.fundId}|${r.seq}`) ?? { confirmed: 0n, declared: 0n };

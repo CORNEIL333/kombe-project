@@ -7,10 +7,11 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type pg from "pg";
 import { z } from "zod";
 import type { CreateTontineInput, DeclareMovementInput, PayoutInput } from "@kombe/domain";
-import { AID_EVENTS, ATTENDANCE_STATUSES, FINE_KINDS, GROUP_ROLES, PAYMENT_CHANNELS } from "@kombe/domain";
+import { AID_EVENTS, ATTENDANCE_STATUSES, BALLOT_CHOICES, DECISION_KINDS, FINE_KINDS, GROUP_ROLES, PAYMENT_CHANNELS } from "@kombe/domain";
 import type { EmailSender } from "../email/emailSender.js";
 import { TontineAuth } from "./auth.js";
 import { CycleService } from "./cycle.js";
+import { DecisionService } from "./decisions.js";
 import { DisciplineService } from "./discipline.js";
 import { GroupService } from "./groups.js";
 import { InboxService } from "./inbox.js";
@@ -37,7 +38,7 @@ const S = {
   settings: z.object({ name: z.string().min(1).max(120).optional(), settings: settingsSchema }),
   offline: z.object({ displayName: z.string().min(1).max(80), proxyMembershipId: id }),
   admission: z.object({ decision: z.enum(["admit", "reject"]), shares: z.number().int().min(1).max(5).optional() }),
-  shares: z.object({ shares: z.number().int().min(1).max(5) }),
+  shares: z.object({ shares: z.number().int().min(1).max(5), sharedWith: id.nullable().optional() }),
   role: z.object({ membershipId: id, role: z.enum(GROUP_ROLES), mandateEnd: isoDate.nullable().optional() }),
   roleAccept: z.object({ role: z.enum(GROUP_ROLES) }),
   invitation: z.object({ maxUses: z.number().int().min(1).max(200).optional(), days: z.number().int().min(1).max(90).optional() }),
@@ -92,6 +93,17 @@ const S = {
     overrideReason: z.string().max(300).optional(),
   }),
   aidPayout: z.object(channelFields),
+  decision: z.object({
+    kind: z.enum(DECISION_KINDS),
+    reason: z.string().trim().min(3).max(500),
+    targetMembershipId: id.optional(),
+    targetRole: z.enum(GROUP_ROLES).optional(),
+    hours: z.number().int().min(1).max(336).optional(),
+    occurrences: z.number().int().min(1).max(6).optional(),
+    fromSeq: z.number().int().min(1).optional(),
+    incomingMembershipId: id.optional(),
+  }),
+  ballot: z.object({ choice: z.enum(BALLOT_CHOICES) }),
   notificationsRead: z.object({ ids: z.union([z.array(z.string().max(20)).max(500), z.literal("all")]) }),
   reason,
 };
@@ -119,6 +131,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   const money = new MoneyService(pool, now);
   const discipline = new DisciplineService(pool, now);
   const inbox = new InboxService(pool, now);
+  const decisions = new DecisionService(pool, now);
 
   const H = (r: FastifyRequest): Record<string, unknown> => r.headers as Record<string, unknown>;
   const seqOf = (raw: string | undefined): number => z.coerce.number().int().min(1).max(10_000).parse(raw);
@@ -160,7 +173,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   app.post("/v1/tontines", async (req, reply) => write(req, reply, 201, () => groups.create(H(req), S.create.parse(req.body) as CreateTontineInput)));
   app.get("/v1/tontines/:id", async (req) => groups.detail(H(req), (req.params as P).id as string));
   app.patch("/v1/tontines/:id/settings", async (req) => groups.updateSettings(H(req), (req.params as P).id as string, S.settings.parse(req.body)));
-  app.get("/v1/tontines/:id/members", async (req) => groups.members(H(req), (req.params as P).id as string));
+  app.get("/v1/tontines/:id/members", async (req) => groups.members(H(req), (req.params as P).id as string, (req.query as Q).all === "1"));
   app.post("/v1/tontines/:id/members/offline", async (req, reply) =>
     write(req, reply, 201, () => groups.addOffline(H(req), (req.params as P).id as string, S.offline.parse(req.body))),
   );
@@ -170,7 +183,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   });
   app.post("/v1/tontines/:id/members/:mid/shares", async (req) => {
     const p = req.params as P;
-    return groups.setShares(H(req), p.id as string, p.mid as string, S.shares.parse(req.body).shares);
+    return groups.setShares(H(req), p.id as string, p.mid as string, S.shares.parse(req.body));
   });
   app.post("/v1/tontines/:id/roles", async (req) => groups.proposeRole(H(req), (req.params as P).id as string, S.role.parse(req.body)));
   app.post("/v1/tontines/:id/roles/acceptance", async (req) => groups.acceptRole(H(req), (req.params as P).id as string, S.roleAccept.parse(req.body).role));
@@ -314,6 +327,29 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     const p = req.params as P;
     return discipline.writeOff(H(req), p.id as string, p.did as string, S.reason.parse(req.body).reason);
   });
+
+  /* ── Décisions votées, sanctions (ADR-0038) ───────────────────────── */
+  app.get("/v1/tontines/:id/decisions", async (req) => decisions.list(H(req), (req.params as P).id as string));
+  app.post("/v1/tontines/:id/decisions", async (req, reply) =>
+    write(req, reply, 201, () => decisions.open(H(req), (req.params as P).id as string, S.decision.parse(req.body))),
+  );
+  app.post("/v1/tontines/:id/decisions/:did/ballots", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 201, () => decisions.vote(H(req), p.id as string, p.did as string, S.ballot.parse(req.body).choice));
+  });
+  app.post("/v1/tontines/:id/decisions/:did/close", async (req) => {
+    const p = req.params as P;
+    return decisions.close(H(req), p.id as string, p.did as string);
+  });
+  app.post("/v1/tontines/:id/decisions/:did/cancel", async (req) => {
+    const p = req.params as P;
+    return decisions.cancel(H(req), p.id as string, p.did as string, S.reason.parse(req.body).reason);
+  });
+  app.post("/v1/tontines/:id/decisions/:did/lift", async (req) => {
+    const p = req.params as P;
+    return decisions.lift(H(req), p.id as string, p.did as string, S.reason.parse(req.body).reason);
+  });
+  app.get("/v1/tontines/:id/sanctions", async (req) => decisions.sanctions(H(req), (req.params as P).id as string));
 
   /* ── Registre ──────────────────────────────────────────────────────── */
   app.get("/v1/tontines/:id/journal", async (req) => inbox.journal(H(req), (req.params as P).id as string));

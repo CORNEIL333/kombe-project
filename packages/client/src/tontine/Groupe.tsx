@@ -14,10 +14,11 @@ import { Seances } from "./Seances.js";
 import { Argent, CANAUX, FormulaireDeclaration } from "./Argent.js";
 import { Tours } from "./Tours.js";
 import { Discipline } from "./Discipline.js";
+import { Decisions } from "./Decisions.js";
 import { Statuts, Journal } from "./Statuts.js";
 import { Reglages } from "./Reglages.js";
 
-type Onglet = "apercu" | "membres" | "seances" | "argent" | "tours" | "discipline" | "statuts" | "journal" | "reglages";
+type Onglet = "apercu" | "membres" | "seances" | "argent" | "tours" | "discipline" | "decisions" | "statuts" | "journal" | "reglages";
 const ONGLETS: { id: Onglet; cle: CleTexte }[] = [
   { id: "apercu", cle: "td.apercu" },
   { id: "argent", cle: "td.argent" },
@@ -25,6 +26,7 @@ const ONGLETS: { id: Onglet; cle: CleTexte }[] = [
   { id: "tours", cle: "td.tours" },
   { id: "membres", cle: "td.membres" },
   { id: "discipline", cle: "td.discipline" },
+  { id: "decisions", cle: "td.decisions" },
   { id: "statuts", cle: "td.statuts" },
   { id: "journal", cle: "td.journal" },
   { id: "reglages", cle: "td.reglages" },
@@ -77,6 +79,7 @@ export function Groupe({ session, groupId, onRetour }: { readonly session: Sessi
               {onglet === "argent" ? <Argent ctx={ctx} /> : null}
               {onglet === "tours" ? <Tours ctx={ctx} /> : null}
               {onglet === "discipline" ? <Discipline ctx={ctx} /> : null}
+              {onglet === "decisions" ? <Decisions ctx={ctx} /> : null}
               {onglet === "statuts" ? <Statuts ctx={ctx} /> : null}
               {onglet === "journal" ? <Journal ctx={ctx} /> : null}
               {onglet === "reglages" ? <Reglages ctx={ctx} /> : null}

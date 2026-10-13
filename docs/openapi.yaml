@@ -3239,7 +3239,7 @@ paths:
       - tontine
       operationId: postTontinesByIdMembersByMidShares
       summary: MemberView
-      description: 'Rôle requis : bureau (avant démarrage). Corps → réponse : { shares: 1..5 } → MemberView. Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      description: 'Rôle requis : bureau (avant démarrage). Corps → réponse : { shares: 1..5, sharedWith?: membershipId | null } → MemberView. Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
       parameters:
       - name: id
         in: path
@@ -3258,7 +3258,7 @@ paths:
           application/json:
             schema:
               type: object
-              description: '{ shares: 1..5 }'
+              description: '{ shares: 1..5, sharedWith?: membershipId | null }'
       responses:
         '200':
           description: Succès
@@ -6211,6 +6211,412 @@ paths:
                 $ref: '#/components/schemas/TontineError'
 
 
+  /tontines/{id}/decisions:
+    get:
+      tags:
+      - tontine
+      operationId: getTontinesByIdDecisions
+      summary: 'DecisionView[] (vote secret : result publié au dépouillement)'
+      description: 'Rôle requis : membre. Corps → réponse : → DecisionView[] (vote secret : result publié au dépouillement). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DecisionView'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+    post:
+      tags:
+      - tontine
+      operationId: postTontinesByIdDecisions
+      summary: DecisionView (201)
+      description: 'Rôle requis : selon la décision : pause → bureau (calendrier) ; destitution → tout membre ; exclusion → Président / VP ; suspension → Censeur / Président / VP ; reprise de place → bureau. Corps → réponse : { kind, reason, targetMembershipId?, targetRole?, hours?, occurrences?, fromSeq?, incomingMembershipId? } → DecisionView (201). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ kind, reason, targetMembershipId?, targetRole?, hours?, occurrences?, fromSeq?, incomingMembershipId? }'
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionView'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/decisions/{did}/ballots:
+    post:
+      tags:
+      - tontine
+      operationId: postTontinesByIdDecisionsByDidBallots
+      summary: DecisionView (201 ; exécute la décision si la majorité absolue est acquise)
+      description: 'Rôle requis : électeur (membre actif, ≠ personne visée). Corps → réponse : "abstain" } → DecisionView (201 ; exécute la décision si la majorité absolue est acquise). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: did
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '"abstain" }'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionView'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/decisions/{did}/close:
+    post:
+      tags:
+      - tontine
+      operationId: postTontinesByIdDecisionsByDidClose
+      summary: 'DecisionView (dépouillement : échéance passée ou issue certaine)'
+      description: 'Rôle requis : membre. Corps → réponse : → DecisionView (dépouillement : échéance passée ou issue certaine). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: did
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionView'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/decisions/{did}/cancel:
+    post:
+      tags:
+      - tontine
+      operationId: postTontinesByIdDecisionsByDidCancel
+      summary: DecisionView
+      description: 'Rôle requis : auteur du vote / Président / VP. Corps → réponse : { reason } → DecisionView. Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: did
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ reason }'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionView'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/decisions/{did}/lift:
+    post:
+      tags:
+      - tontine
+      operationId: postTontinesByIdDecisionsByDidLift
+      summary: DecisionView (levée d'une suspension)
+      description: 'Rôle requis : Président / VP (≠ personne visée). Corps → réponse : { reason } → DecisionView (levée d''une suspension). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: did
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ reason }'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionView'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/sanctions:
+    get:
+      tags:
+      - tontine
+      operationId: getTontinesByIdSanctions
+      summary: 'SanctionView[] (graduation suggérée : avertissement, amende, suspension, vote d''exclusion)'
+      description: 'Rôle requis : bureau (tous) / membre (soi). Corps → réponse : → SanctionView[] (graduation suggérée : avertissement, amende, suspension, vote d''exclusion). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SanctionView'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
 components:
   securitySchemes:
     bearerAuth:
@@ -6282,6 +6688,14 @@ components:
       schema: { type: string }
 
   schemas:
+    DecisionView:
+      type: object
+      additionalProperties: true
+      description: Type `DecisionView` de packages/domain/src/tontine/dto.ts (montants en chaînes d’entiers XAF, dates AAAA-MM-JJ).
+    SanctionView:
+      type: object
+      additionalProperties: true
+      description: Type `SanctionView` de packages/domain/src/tontine/dto.ts (montants en chaînes d’entiers XAF, dates AAAA-MM-JJ).
     AidView:
       type: object
       additionalProperties: true

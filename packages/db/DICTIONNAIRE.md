@@ -192,10 +192,10 @@ structurel en base).
 > refusé) = scénarios C10-CASE / C10-INDEP / C10-REOPEN de
 > `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
 
-## Tontine réelle, socle produit (migration additive `0024_tontine_core.sql`, ADR-0025/0026)
+## Tontine réelle, socle produit (migration additive `0026_tontine_core.sql`, ADR-0025/0026)
 | Table / objet | Rôle | Contraintes clés |
 |---|---|---|
-| `group` (élargi) | Nom affiché, créateur, réglages, devise. | + `name` (1–120), `created_by_identity_id` (FK identité), `settings` jsonb objet (transparence, frais Mobile Money, avaliseur…), `currency` = `XAF` |
+| `group` (élargi) | Nom affiché (`display_name` de 0024, CHECK `group_display_name_len` 1–120), créateur, réglages. | + `created_by_identity_id` (FK identité), `settings` jsonb objet (cadence, transparence, frais Mobile Money, avaliseur…) ; devise XAF portée par 0024 |
 | `membership` (élargi) | Admission tracée, avaliseur, représentant. | + `display_name`, `joined_at`, `admitted_by_identity_id` (CHECK ≠ identité admise), `invitation_id`, `sponsor_membership_id` / `proxy_membership_id` (FK composées, jamais soi-même) ; index unique partiel `membership_one_pending` (une demande en attente par identité et groupe) |
 | `role_assignment` (élargi) | Bureau complet : président, vice-président, secrétaire, trésorier, trésorier adjoint, commissaire aux comptes, censeur, conseiller. | CHECK `role` élargi ; + `proposed_by_identity_id` / `approved_by_identity_id` (CHECK distincts), `mandate_start` / `mandate_end` (fin > début), `ended_at`. L'unicité d'une fonction active est contrôlée par le serveur. |
 | `journal.actor_role` | Mêmes rôles élargis. | CHECK élargi |
@@ -204,7 +204,7 @@ structurel en base).
 | `kombe_my_memberships()` | « Mes groupes » pour l'identité de la transaction. | SECURITY DEFINER, sortie minimale (groupe, adhésion, état, nom, rôles actifs) |
 | `kombe_invitation_by_code(text)` | Recherche d'une invitation par code. | SECURITY DEFINER, session requise, format vérifié |
 
-## L'association (migration additive `0025_association.sql`, ADR-0027 à 0032)
+## L'association (migration additive `0027_association.sql`, ADR-0027 à 0032)
 | Table / objet | Rôle | Contraintes clés |
 |---|---|---|
 | `cycle_schedule` (élargi) | Cadences réelles : quotidienne, tous les N jours, hebdomadaire, quinzaine, jour du mois, « 2e samedi ». | CHECK `frequency` élargi ; + `cadence` jsonb |
@@ -222,7 +222,33 @@ structurel en base).
 | `legacy_import`, `legacy_contribution` | Reprise de l'historique d'un cahier ou d'un export. | Marqueur `imported_historical` |
 | `inbox_notification`, `kombe_notify(...)` | Boîte de notifications in-app, libellés sans montant ni nom. | RLS `self_scope` ; écriture par fonction SECURITY DEFINER bornée au groupe courant |
 
-Toutes les tables de groupe de 0025 portent RLS `tenant_isolation`, `SELECT/INSERT/UPDATE` pour `kombe_app`, jamais `DELETE`.
+Toutes les tables de groupe de 0027 portent RLS `tenant_isolation`, `SELECT/INSERT/UPDATE` pour `kombe_app`, jamais `DELETE`.
+
+## API produit (migration additive `0028_product_api.sql`)
+| Table / objet | Rôle | Contraintes clés |
+|---|---|---|
+| `membership.share_count` | Nombre de « mains » voulu avant démarrage. | CHECK 1–5 |
+| `meeting.round_seq`, `draw.sealed_seed` | Liaison séance ↔ tour ; graine du tirage gardée scellée jusqu'au démarrage. | |
+| `api_idempotency` | Réponse mémorisée par (identité, `Idempotency-Key`). | RLS `self_scope` ; même clé + autre corps ⇒ 409 |
+
+## Console d'exploitation (migration additive `0029_ops_console.sql`, ADR-0037)
+| Objet | Rôle | Contraintes clés |
+|---|---|---|
+| `identity_access.is_operator` | Opérateur de la plateforme (accordé par `scripts/grant-operator.mjs` ou SQL). | Faux par défaut |
+| `kombe_is_operator()`, `kombe_ops_overview()`, `kombe_ops_kpis(int)`, `kombe_ops_groups(int)`, `kombe_ops_engineering()`, `kombe_ops_support_requests(int)` | Agrégats transverses pour `/ops`, `/direction`, `/engineering`. | SECURITY DEFINER ; refus (42501) à tout non-opérateur ; aucune donnée individuelle financière |
+
+## Décisions votées, reprise de place, part partagée (migration additive `0030_decisions.sql`, ADR-0038)
+| Table / objet | Rôle | Contraintes clés |
+|---|---|---|
+| `group_decision` | Vote de l'assemblée : pause des séances, destitution, exclusion, suspension du droit de bouffer, reprise de place. | `kind`/`state` en CHECK ; personne visée obligatoire hors pause ; fonction obligatoire pour une destitution ; décompte obligatoire une fois clos ; index unique partiel `group_decision_one_open` (un seul scrutin ouvert par objet) ; trigger `group_decision_state_guard` (open → adopted/rejected/cancelled, adopted → lifted pour une suspension seulement ; objet, corps électoral et paramètres figés) |
+| `decision_ballot` | Bulletin d'un électeur. | PK (décision, adhésion) : un bulletin par électeur ; trigger `decision_ballot_guard` : dépôt seulement pendant le scrutin, jamais modifié ni effacé ; `kombe_app` sans UPDATE/DELETE |
+| `share_holder.from_seq` / `until_seq` | Titulaire d'une part sur une plage de tours (reprise de place, place vacante après exclusion). | CHECK `share_holder_range` |
+| `membership.share_partner_membership_id` | Part partagée (« demi-main ») entre deux membres. | FK composée ; jamais soi-même |
+| `inbox_notification.kind` | + `decision`. | CHECK élargi |
+
+Les deux nouvelles tables portent RLS `tenant_isolation` ; isolation prouvée
+par `packages/api/test/decisions.proof.mjs` (tiers ⇒ 404) et
+`tests/isolation.pg.mjs` (scénario `C30-DECISION`).
 
 ## Provisionnement (`provision/roles.sql`)
 | Rôle | Privilèges | But |
@@ -236,7 +262,8 @@ Toutes les tables de groupe de 0025 portent RLS `tenant_isolation`, `SELECT/INSE
 > `kombe.group_id` dérivé **côté serveur** de la session (jamais fourni par le client).
 
 ## Statut d'exécution
-Ce dictionnaire décrit un **contrat**, pas une base déployée. L'application du
-schéma et les preuves (RLS effective, verrous, isolation de pool, FK croisées,
-bornes d'invitation, supplantation de session) sont le **lot d'exécution** sur
-PostgreSQL 16+ réel (`tests/isolation.pg.mjs`), **BLOCKED** sur un hôte sans base.
+Le schéma 0001 → 0030 est appliqué et prouvé sur PostgreSQL 16 réel par
+`scripts/proofs-local.sh` (chaque preuve sur une base fraîche migrée :
+`tests/isolation.pg.mjs`, `tests/migrateEmptyToLatest.pg.mjs`,
+`packages/api/test/*.proof.mjs`). Sans base joignable, ces scripts sortent
+**BLOCKED** (code 2), jamais PASS.

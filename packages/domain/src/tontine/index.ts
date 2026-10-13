@@ -16,4 +16,5 @@ export * from "./statutes.js";
 export * from "./extensions.js";
 export * from "./historyImport.js";
 export * from "./copy.js";
+export * from "./decisions.js";
 export type * from "./dto.js";

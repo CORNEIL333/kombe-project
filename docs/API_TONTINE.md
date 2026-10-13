@@ -36,10 +36,10 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 | POST | `/v1/tontines` | toute session | `CreateTontineInput` → `TontineDetail` (201). Le créateur devient Président. |
 | GET | `/v1/tontines/:id` | membre | → `TontineDetail` |
 | PATCH | `/v1/tontines/:id/settings` | bureau (avant démarrage) | `{ name?, settings }` → `TontineDetail` |
-| GET | `/v1/tontines/:id/members` | membre | → `MemberView[]` |
+| GET | `/v1/tontines/:id/members` | membre | `?all=1` ajoute les anciens membres (partis, exclus) → `MemberView[]` |
 | POST | `/v1/tontines/:id/members/offline` | bureau | `{ displayName, proxyMembershipId }` → `MemberView` (membre sans smartphone) |
 | POST | `/v1/tontines/:id/members/:mid/admission` | Président / VP | `{ decision: "admit" \| "reject", shares?: number }` → `MemberView` |
-| POST | `/v1/tontines/:id/members/:mid/shares` | bureau (avant démarrage) | `{ shares: 1..5 }` → `MemberView` |
+| POST | `/v1/tontines/:id/members/:mid/shares` | bureau (avant démarrage) | `{ shares: 1..5, sharedWith?: membershipId \| null }` → `MemberView` |
 | POST | `/v1/tontines/:id/roles` | Président / VP | `{ membershipId, role, mandateEnd? }` → `MemberView` (rôle proposé, accepté par la personne) |
 | POST | `/v1/tontines/:id/roles/acceptance` | la personne nommée | `{ role }` → `MemberView` |
 | POST | `/v1/tontines/:id/invitations` | bureau | `{ maxUses?: 1..100, days?: 1..30 }` → `InvitationView` |
@@ -101,6 +101,16 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 | GET | `/v1/tontines/:id/debts` | membre (les siennes) / bureau (toutes) | → `DebtView[]` |
 | POST | `/v1/tontines/:id/debts/:did/write-off` | Président / VP (≠ débiteur) | `{ reason }` → `DebtView` |
 
+## Décisions votées et sanctions (ADR-0038)
+
+| GET | `/v1/tontines/:id/decisions` | membre | → `DecisionView[]` (vote secret : `result` publié au dépouillement) |
+| POST | `/v1/tontines/:id/decisions` | selon la décision : pause → bureau (calendrier) ; destitution → tout membre ; exclusion → Président / VP ; suspension → Censeur / Président / VP ; reprise de place → bureau | `{ kind, reason, targetMembershipId?, targetRole?, hours?, occurrences?, fromSeq?, incomingMembershipId? }` → `DecisionView` (201) |
+| POST | `/v1/tontines/:id/decisions/:did/ballots` | électeur (membre actif, ≠ personne visée) | `{ choice: "yes" \| "no" \| "abstain" }` → `DecisionView` (201 ; exécute la décision si la majorité absolue est acquise) |
+| POST | `/v1/tontines/:id/decisions/:did/close` | membre | → `DecisionView` (dépouillement : échéance passée ou issue certaine) |
+| POST | `/v1/tontines/:id/decisions/:did/cancel` | auteur du vote / Président / VP | `{ reason }` → `DecisionView` |
+| POST | `/v1/tontines/:id/decisions/:did/lift` | Président / VP (≠ personne visée) | `{ reason }` → `DecisionView` (levée d'une suspension) |
+| GET | `/v1/tontines/:id/sanctions` | bureau (tous) / membre (soi) | → `SanctionView[]` (graduation suggérée : avertissement, amende, suspension, vote d'exclusion) |
+
 ## Registre
 
 | GET | `/v1/tontines/:id/journal` | membre | → `{ valid: boolean, entries: JournalEntryView[] }` (chaîne d'empreintes vérifiée) |
@@ -114,4 +124,6 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 - **Confirmation** : la trésorerie confirme, jamais sa propre déclaration ni son propre versement ; les versements du trésorier sont confirmés par la présidence. Si un commissaire aux comptes est en fonction, la confirmation donne « confirmé » puis le commissaire valide ; sinon la confirmation valide directement.
 - **Remise** : déclarée par la trésorerie (jamais par le bénéficiaire), devant témoins présents si la séance est ouverte ; le bénéficiaire (ou son mandataire) confirme la réception ; le tour ne se clôt qu'après cette confirmation. Une avance du fonds de caisse est tracée en sortie du fonds de caisse ET en entrée de la cagnotte.
 - **Échéances** : la part d'un tour transformée en dette (remise réduite, avance, clôture) quitte les échéances et apparaît dans les dettes.
-- **Recette** : `packages/api/test/tontineApi.proof.mjs` déroule tout ce contrat sur une vraie base (44 vérifications).
+- **Décisions** : majorité ABSOLUE des électeurs (membres actifs ayant un téléphone, admis avant l'ouverture, personne visée exclue), jamais des seuls votants. Destitution et exclusion : 72 h minimum, pas d'adoption avant l'échéance sauf si tous ont voté. Bulletin unique et définitif ; le journal garde le dépôt, jamais le choix. Exécution dans la même transaction que le bulletin décisif : pause ⇒ tours et séances décalés sur la cadence ; destitution ⇒ fonction terminée ; exclusion ⇒ adhésion révoquée, dette de rattrapage si le membre a déjà bouffé (parrain avaliseur), sinon place vacante (remise bloquée jusqu'à la reprise) ; suspension ⇒ remise refusée (`PAYOUT_SUSPENDED`) jusqu'à la levée ; reprise de place ⇒ la part change de titulaire à partir du premier tour ouvert.
+- **Part partagée** : `POST members/:mid/shares` accepte `sharedWith` (membre) : deux membres tiennent UNE part, chacun cotise la moitié ; `sharedWith: null` défait le partage. Avant le démarrage seulement.
+- **Recette** : `packages/api/test/tontineApi.proof.mjs` déroule tout ce contrat sur une vraie base (44 vérifications) ; `packages/api/test/decisions.proof.mjs` les décisions votées (36 vérifications).

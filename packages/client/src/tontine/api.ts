@@ -33,6 +33,8 @@ import type {
   TontineDetail,
   TontineSettings,
   TontineSummary,
+  DecisionView,
+  SanctionView,
 } from "@kombe/domain";
 import { ApiClient, ApiError, loadRuntimeConfig } from "@kombe/dashboard-core";
 
@@ -40,6 +42,8 @@ export { ApiError };
 export type {
   AidView,
   DebtView,
+  DecisionView,
+  SanctionView,
   DueView,
   FineView,
   FundView,
@@ -151,13 +155,15 @@ export const tontines = {
   detail: (s: Session, id: string) => appel<TontineDetail>(s, "GET", t(id)),
   majReglement: (s: Session, id: string, name: string, settings: TontineSettings) =>
     appel<TontineDetail>(s, "PATCH", `${t(id)}/settings`, { name, settings }),
-  membres: (s: Session, id: string) => appel<MemberView[]>(s, "GET", `${t(id)}/members`),
+  membres: (s: Session, id: string, tous = false) => appel<MemberView[]>(s, "GET", `${t(id)}/members`, undefined, tous ? { all: "1" } : undefined),
   ajouterHorsLigne: (s: Session, id: string, displayName: string, proxyMembershipId: string) =>
     appel<MemberView>(s, "POST", `${t(id)}/members/offline`, { displayName, proxyMembershipId }),
   admission: (s: Session, id: string, mid: string, decision: "admit" | "reject", shares?: number) =>
     appel<MemberView>(s, "POST", `${t(id)}/members/${encodeURIComponent(mid)}/admission`, { decision, ...(shares ? { shares } : {}) }),
   parts: (s: Session, id: string, mid: string, shares: number) =>
     appel<MemberView>(s, "POST", `${t(id)}/members/${encodeURIComponent(mid)}/shares`, { shares }),
+  partager: (s: Session, id: string, mid: string, sharedWith: string | null) =>
+    appel<MemberView>(s, "POST", `${t(id)}/members/${encodeURIComponent(mid)}/shares`, { shares: 1, sharedWith }),
   proposerRole: (s: Session, id: string, membershipId: string, role: string, mandateEnd?: string) =>
     appel<MemberView>(s, "POST", `${t(id)}/roles`, { membershipId, role, ...(mandateEnd ? { mandateEnd } : {}) }),
   accepterRole: (s: Session, id: string, role: string) => appel<MemberView>(s, "POST", `${t(id)}/roles/acceptance`, { role }),
@@ -267,6 +273,30 @@ export const discipline = {
   abandonnerDette: (s: Session, id: string, did: string, reason: string) =>
     appel<DebtView>(s, "POST", `${t(id)}/debts/${encodeURIComponent(did)}/write-off`, { reason }),
   journal: (s: Session, id: string) => appel<{ valid: boolean; entries: JournalEntryView[] }>(s, "GET", `${t(id)}/journal`),
+};
+
+export interface OuvertureDecision {
+  readonly kind: DecisionView["kind"];
+  readonly reason: string;
+  readonly targetMembershipId?: string;
+  readonly targetRole?: string;
+  readonly hours?: number;
+  readonly occurrences?: number;
+  readonly incomingMembershipId?: string;
+}
+
+/** Décisions votées de l'assemblée (ADR-0038). */
+export const decisions = {
+  liste: (s: Session, id: string) => appel<DecisionView[]>(s, "GET", `${t(id)}/decisions`),
+  ouvrir: (s: Session, id: string, input: OuvertureDecision) => appel<DecisionView>(s, "POST", `${t(id)}/decisions`, input),
+  voter: (s: Session, id: string, did: string, choice: "yes" | "no" | "abstain") =>
+    appel<DecisionView>(s, "POST", `${t(id)}/decisions/${encodeURIComponent(did)}/ballots`, { choice }),
+  depouiller: (s: Session, id: string, did: string) => appel<DecisionView>(s, "POST", `${t(id)}/decisions/${encodeURIComponent(did)}/close`),
+  annuler: (s: Session, id: string, did: string, reason: string) =>
+    appel<DecisionView>(s, "POST", `${t(id)}/decisions/${encodeURIComponent(did)}/cancel`, { reason }),
+  lever: (s: Session, id: string, did: string, reason: string) =>
+    appel<DecisionView>(s, "POST", `${t(id)}/decisions/${encodeURIComponent(did)}/lift`, { reason }),
+  sanctions: (s: Session, id: string) => appel<SanctionView[]>(s, "GET", `${t(id)}/sanctions`),
 };
 
 /** Message d'erreur affichable : le serveur renvoie un motif métier en français. */

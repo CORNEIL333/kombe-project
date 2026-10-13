@@ -120,6 +120,9 @@ export type DomainErrorCode =
   | "SHARES_INVALID"
   | "MANDATE_INVALID"
   | "IMPORT_INVALID"
+  | "DECISION_INVALID"
+  | "DECISION_STATE_INVALID"
+  | "PAYOUT_SUSPENDED"
   /* API produit (0026). */
   | "STATE_CONFLICT"
   | "AUTH_THROTTLED"

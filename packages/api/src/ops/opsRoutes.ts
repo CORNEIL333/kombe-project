@@ -12,7 +12,7 @@ import { DomainError } from "@kombe/domain";
 import { inTx, sessionIdentity } from "../tontine/infra.js";
 
 /** Dernier jalon de schéma attendu par CE build de l'API (test : = dernier fichier de migrations/). */
-export const EXPECTED_LATEST_MIGRATION = "migrations/0029_ops_console.sql";
+export const EXPECTED_LATEST_MIGRATION = "migrations/0030_decisions.sql";
 
 export interface OpsRoutesOptions {
   readonly pool: pg.Pool;

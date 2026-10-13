@@ -49,6 +49,7 @@ Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats ac
 | [0035](./0035_deploiement_projet_unique_meme_origine.md) | Déploiement en un seul projet Vercel, à la même origine | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
 | [0036](./0036_adhesion_invitation_a_code.md) | Adhésion par invitation à code ; l'amorçage `/v1/groups` reste pour compatibilité | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
 | [0037](./0037_console_exploitation_operateurs.md) | Console d'exploitation réservée aux opérateurs | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0038](./0038_decisions_votees_reprise_de_place.md) | Décisions votées (pause, destitution, exclusion, suspension), reprise de place, part partagée | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer (seuils) |
 
 > Correction d'index : 0020 était listé ci-dessus comme « réservé » avant
 > l'adoption de l'ADR Flutter ; la ligne n'avait pas été mise à jour au moment

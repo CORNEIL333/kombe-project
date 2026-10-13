@@ -157,6 +157,8 @@ export interface MemberView {
   readonly offline: boolean;
   readonly joinedAt: IsoInstant | null;
   readonly shares: number;
+  /** Part partagée (« demi-main ») avec ce membre, sinon null. */
+  readonly sharePartnerMembershipId: string | null;
 }
 
 export interface RoundView {
@@ -395,6 +397,42 @@ export interface JournalEntryView {
   readonly actorName: string | null;
   readonly summary: string;
   readonly hash: string;
+}
+
+/** Décision votée de l'assemblée (ADR-0038). Vote secret pendant le scrutin. */
+export interface DecisionView {
+  readonly decisionId: string;
+  readonly kind: "pause" | "removal" | "exclusion" | "payout_suspension" | "replacement";
+  readonly state: "open" | "adopted" | "rejected" | "cancelled" | "lifted";
+  readonly targetMembershipId: string | null;
+  readonly targetName: string | null;
+  readonly targetRole: GroupRole | null;
+  /** Pause : `occurrences`, `fromSeq` ; reprise : `incomingMembershipId`, `incomingName`. */
+  readonly params: Readonly<Record<string, string | number | null>>;
+  readonly reason: string;
+  readonly openedByName: string | null;
+  readonly openedAt: IsoInstant;
+  readonly closesAt: IsoInstant;
+  readonly electorate: number;
+  /** Nombre de bulletins déposés (toujours visible). */
+  readonly ballots: number;
+  /** Décompte publié au dépouillement seulement. */
+  readonly result: { readonly yes: number; readonly no: number; readonly abstain: number } | null;
+  readonly myChoice: "yes" | "no" | "abstain" | null;
+  readonly outcomeNote: string | null;
+  readonly closedAt: IsoInstant | null;
+  readonly can: { readonly vote: boolean; readonly close: boolean; readonly cancel: boolean; readonly lift: boolean };
+}
+
+/** Graduation des sanctions suggérée (L-09) : le bureau décide, le vote tranche. */
+export interface SanctionView {
+  readonly membershipId: string;
+  readonly displayName: string;
+  readonly lateCount: number;
+  readonly lateAmount: Money;
+  readonly openDebt: Money;
+  readonly suggested: "warning" | "fine" | "payout_suspended" | "exclusion_vote";
+  readonly payoutSuspended: boolean;
 }
 
 export interface Page<T> {

@@ -104,6 +104,8 @@ export function planPayoutWithArrears(input: {
         debts: input.arrears.filter((a) => a.missing > 0n).map((a) => ({ membershipId: a.membershipId, amount: a.missing, creditorFundId: null })),
       };
     case "full_with_advance":
+      // Tour complet : aucune avance à faire, la caisse d'avance est inutile.
+      if (missingTotal === 0n) return { payoutAmount: input.expectedPot, advanceAmount: 0n, debts: [] };
       if (!input.advanceFundId) throw new DomainError("DEBT_INVALID", "Caisse d'avance non désignée");
       return {
         payoutAmount: input.expectedPot,
