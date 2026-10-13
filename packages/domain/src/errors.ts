@@ -119,7 +119,10 @@ export type DomainErrorCode =
   | "DRAW_INVALID"
   | "SHARES_INVALID"
   | "MANDATE_INVALID"
-  | "IMPORT_INVALID";
+  | "IMPORT_INVALID"
+  /* API produit (0026). */
+  | "STATE_CONFLICT"
+  | "AUTH_THROTTLED";
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;

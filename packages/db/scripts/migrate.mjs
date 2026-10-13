@@ -62,6 +62,7 @@ const UP_MIGRATIONS = [
   "migrations/0023_worker_discovery.sql",
   "migrations/0024_tontine_core.sql",
   "migrations/0025_association.sql",
+  "migrations/0026_product_api.sql",
   "provision/roles.sql",
 ];
 

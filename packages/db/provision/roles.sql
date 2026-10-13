@@ -83,6 +83,15 @@ REVOKE UPDATE, DELETE ON analytics_event FROM kombe_app;
 REVOKE UPDATE, DELETE ON unit_economics_snapshot FROM kombe_app;
 REVOKE INSERT, UPDATE, DELETE ON internal_notification, notification_delivery FROM kombe_app;
 REVOKE ALL ON notification_preference, notification_channel FROM kombe_app;
+-- Tontine réelle (0025/0026) : aucune suppression applicative (historique
+-- conservé, corrections par contre-écriture), statuts publiés immuables,
+-- boîte de notifications alimentée seulement par kombe_notify().
+REVOKE DELETE ON share, share_holder, fund, meeting, attendance, fund_movement, fine, aid_request,
+  member_debt, order_change, draw, auction_bid, statutes_acceptance, loan, collector_period,
+  legacy_import, legacy_contribution FROM kombe_app;
+REVOKE UPDATE, DELETE ON statutes_version FROM kombe_app;
+REVOKE INSERT, DELETE ON inbox_notification FROM kombe_app;
+REVOKE UPDATE, DELETE ON api_idempotency FROM kombe_app;
 
 -- kombe_worker : lecture/maJ de l'outbox et du registre de commandes seulement.
 GRANT USAGE ON SCHEMA public TO kombe_worker;
