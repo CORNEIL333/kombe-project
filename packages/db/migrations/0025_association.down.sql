@@ -31,10 +31,15 @@ DROP TABLE IF EXISTS fund;
 
 DROP INDEX IF EXISTS round_one_round_per_share;
 DROP INDEX IF EXISTS round_one_beneficiary_per_group;
-CREATE UNIQUE INDEX round_one_beneficiary_per_group
-  ON round (group_id, beneficiary_membership_id)
-  WHERE beneficiary_membership_id IS NOT NULL;
-ALTER TABLE round DROP CONSTRAINT IF EXISTS round_share_fk, DROP COLUMN IF EXISTS share_id;
+-- Base vierge (premier run des recettes) : round peut ne pas exister encore.
+DO $$ BEGIN
+  IF to_regclass('round') IS NOT NULL THEN
+    EXECUTE 'CREATE UNIQUE INDEX round_one_beneficiary_per_group
+      ON round (group_id, beneficiary_membership_id)
+      WHERE beneficiary_membership_id IS NOT NULL';
+    EXECUTE 'ALTER TABLE round DROP CONSTRAINT IF EXISTS round_share_fk, DROP COLUMN IF EXISTS share_id';
+  END IF;
+END $$;
 DROP TABLE IF EXISTS share_holder;
 DROP TABLE IF EXISTS share;
 
@@ -50,9 +55,9 @@ BEGIN
   RETURN COALESCE(NEW, OLD);
 END $$ LANGUAGE plpgsql;
 
-ALTER TABLE cycle_schedule DROP COLUMN IF EXISTS cadence;
-ALTER TABLE cycle_schedule DROP CONSTRAINT IF EXISTS cycle_schedule_frequency_check;
-ALTER TABLE cycle_schedule ADD CONSTRAINT cycle_schedule_frequency_check
+ALTER TABLE IF EXISTS cycle_schedule DROP COLUMN IF EXISTS cadence;
+ALTER TABLE IF EXISTS cycle_schedule DROP CONSTRAINT IF EXISTS cycle_schedule_frequency_check;
+ALTER TABLE IF EXISTS cycle_schedule ADD CONSTRAINT cycle_schedule_frequency_check
   CHECK (frequency IN ('monthly','weekly'));
 
 COMMIT;
