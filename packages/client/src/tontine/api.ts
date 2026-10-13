@@ -242,6 +242,9 @@ export const cycle = {
   echanges: (s: Session, id: string) => appel<OrderChangeView[]>(s, "GET", `${t(id)}/order-changes`),
   demanderEchange: (s: Session, id: string, seqA: number, seqB: number, reason?: string) =>
     appel<OrderChangeView>(s, "POST", `${t(id)}/order-changes`, { kind: "swap", seqA, seqB, ...(reason ? { reason } : {}) }),
+  /** Tour prioritaire (L-13) : j'avance mon tour `monTour` au tour `cible`. */
+  demanderPriorite: (s: Session, id: string, monTour: number, cible: number, reason: string) =>
+    appel<OrderChangeView>(s, "POST", `${t(id)}/order-changes`, { kind: "priority", seqA: monTour, seqB: cible, reason }),
   accepterEchange: (s: Session, id: string, cid: string) =>
     appel<OrderChangeView>(s, "POST", `${t(id)}/order-changes/${encodeURIComponent(cid)}/acceptance`),
   approuverEchange: (s: Session, id: string, cid: string) =>

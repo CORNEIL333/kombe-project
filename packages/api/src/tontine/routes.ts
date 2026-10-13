@@ -57,7 +57,7 @@ const S = {
     policy: z.enum(["full_with_advance", "reduced", "wait"]).optional(),
     meetingId: id.optional(),
   }),
-  swap: z.object({ kind: z.literal("swap").optional(), seqA: z.number().int().min(1), seqB: z.number().int().min(1), reason: z.string().max(300).optional() }),
+  swap: z.object({ kind: z.enum(["swap", "priority"]).optional(), seqA: z.number().int().min(1), seqB: z.number().int().min(1), reason: z.string().max(300).optional() }),
   attendance: z.object({
     entries: z
       .array(z.object({ membershipId: id, status: z.enum(ATTENDANCE_STATUSES), representedByMembershipId: id.nullable().optional() }))

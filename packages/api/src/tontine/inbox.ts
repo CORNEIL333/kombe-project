@@ -66,6 +66,8 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   "order.swap_requested": "Échange de tour demandé",
   "order.swap_accepted": "Échange de tour accepté",
   "order.swap_applied": "Échange de tour appliqué",
+  "order.priority_requested": "Tour prioritaire demandé",
+  "order.priority_applied": "Tour prioritaire appliqué",
   "meeting.opened": "Séance ouverte",
   "meeting.attendance": "Appel noté",
   "meeting.closed": "Séance close, PV généré",

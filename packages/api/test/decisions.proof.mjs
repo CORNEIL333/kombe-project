@@ -294,6 +294,34 @@ try {
   const abroad = await ok(F.token, "POST", `/v1/tontines/${gid}/movements`, { fundId: rot, kind: "contribution", amount: "2500", roundSeq: r3, channel: "international_transfer", reference: "WU 123-456-7890" });
   check("ABROAD-DECLARED", abroad.channel === "international_transfer" && abroad.state === "declared", abroad);
 
+  /* ── Tour prioritaire (L-13) : B avance du tour 5 au tour 4 ────────── */
+  const beforePrio = await ok(A.token, "GET", `/v1/tontines/${gid}/rounds`);
+  const noReason = await call(B.token, "POST", `/v1/tontines/${gid}/order-changes`, { kind: "priority", seqA: 5, seqB: 4 });
+  check("PRIORITY-NEEDS-REASON", noReason.status === 422, noReason.status);
+  const notMine = await call(B.token, "POST", `/v1/tontines/${gid}/order-changes`, { kind: "priority", seqA: 4, seqB: 3, reason: "Deuil" });
+  check("PRIORITY-OWN-TURN-ONLY", notMine.status === 422, notMine.status);
+  const prio = await ok(B.token, "POST", `/v1/tontines/${gid}/order-changes`, { kind: "priority", seqA: 5, seqB: 4, reason: "Deuil de son père" });
+  check("PRIORITY-REQUESTED", prio.kind === "priority" && prio.requiredNames.length === 2, prio);
+  await ok(A.token, "POST", `/v1/tontines/${gid}/order-changes/${prio.changeId}/acceptance`);
+  const selfApprove = await call(A.token, "POST", `/v1/tontines/${gid}/order-changes/${prio.changeId}/approval`);
+  check("PRIORITY-CONCERNED-CANNOT-APPROVE", selfApprove.status === 403, selfApprove.status);
+  await ok(A.token, "POST", `/v1/tontines/${gid}/roles`, { membershipId: mid(F.name), role: "secretary" });
+  await ok(F.token, "POST", `/v1/tontines/${gid}/roles/acceptance`, { role: "secretary" });
+  const applied = await ok(F.token, "POST", `/v1/tontines/${gid}/order-changes/${prio.changeId}/approval`);
+  const afterPrio = await ok(A.token, "GET", `/v1/tontines/${gid}/rounds`);
+  check(
+    "PRIORITY-APPLIED",
+    applied.state === "applied" && afterPrio[3].beneficiaryMembershipId === mid(B.name) && afterPrio[4].beneficiaryMembershipId === beforePrio[3].beneficiaryMembershipId && afterPrio[3].date === beforePrio[3].date,
+    afterPrio.map((r) => [r.seq, r.beneficiaryName, r.date]),
+  );
+
+  /* ── Échange classique 3 ↔ 5 (parts) : même circuit, même correctif ── */
+  const swap = await ok(A.token, "POST", `/v1/tontines/${gid}/order-changes`, { seqA: 5, seqB: 3, reason: "Arrangement entre nous" });
+  await ok(D.token, "POST", `/v1/tontines/${gid}/order-changes/${swap.changeId}/acceptance`);
+  const swapped = await ok(F.token, "POST", `/v1/tontines/${gid}/order-changes/${swap.changeId}/approval`);
+  const afterSwap = await ok(A.token, "GET", `/v1/tontines/${gid}/rounds`);
+  check("SWAP-APPLIED", swapped.state === "applied" && afterSwap[2].beneficiaryMembershipId === mid(A.name) && afterSwap[4].beneficiaryMembershipId === mid(D.name), afterSwap.map((r) => [r.seq, r.beneficiaryName]));
+
   /* ── Accès, idempotence, journal ─────────────────────────────────── */
   const outsider = await call(X.token, "GET", `/v1/tontines/${gid}/decisions`);
   check("OUTSIDER-404", outsider.status === 404, outsider.status);

@@ -226,8 +226,39 @@ function Echanges({ ctx, tours }: { readonly ctx: ContexteGroupe; readonly tours
   const [a, setA] = useState<number>(ouverts[0]?.seq ?? 1);
   const [b, setB] = useState<number>(ouverts[1]?.seq ?? 2);
   const action = useAction();
+  // Tour prioritaire : mon prochain tour non remis, avancé à un tour plus tôt.
+  const monTour = ouverts.find((r) => r.beneficiaryMembershipId === ctx.groupe.me.membershipId);
+  const plusTot = monTour ? ouverts.filter((r) => r.seq < monTour.seq) : [];
+  const [cible, setCible] = useState<number>(plusTot[0]?.seq ?? 0);
+  const [motif, setMotif] = useState("");
   return (
     <Carte titre={tx("to.echange")}>
+      {monTour && plusTot.length > 0 ? (
+        <div className="formulaire-encart pile">
+          <h4>{tx("to.priorite")}</h4>
+          <p className="aide-champ">{tx("to.prioriteAide")}</p>
+          <Champ id="prio-cible" libelle={tx("to.prioriteCible", { seq: monTour.seq })}>
+            <select id="prio-cible" value={cible} onChange={(e) => setCible(Number(e.target.value))}>
+              {plusTot.map((r) => (
+                <option key={r.seq} value={r.seq}>
+                  {r.seq} — {r.beneficiaryName ?? ""}
+                </option>
+              ))}
+            </select>
+          </Champ>
+          <Champ id="prio-motif" libelle={tx("dc.motif")}>
+            <input id="prio-motif" value={motif} maxLength={300} onChange={(e) => setMotif(e.target.value)} />
+          </Champ>
+          <button
+            type="button"
+            className="bouton bouton-secondaire"
+            disabled={action.enCours || !cible || motif.trim().length < 3}
+            onClick={() => void action.lancer(() => cycle.demanderPriorite(ctx.session, gid, monTour.seq, cible, motif.trim())).then(recharger)}
+          >
+            {tx("to.prioriteDemander")}
+          </button>
+        </div>
+      ) : null}
       <div className="grille-champs">
         <Champ id="ech-a" libelle={`${tx("ar.tour")} A`}>
           <select id="ech-a" value={a} onChange={(e) => setA(Number(e.target.value))}>
@@ -264,7 +295,8 @@ function Echanges({ ctx, tours }: { readonly ctx: ContexteGroupe; readonly tours
               {liste.map((c) => (
                 <li key={c.changeId} className="liste__ligne liste__ligne--haute">
                   <div>
-                    <strong>{tx("to.echangeAvec", { a: c.seqA, b: c.seqB })}</strong>
+                    <strong>{c.kind === "priority" ? tx("to.prioriteDe", { a: c.seqA, b: c.seqB }) : tx("to.echangeAvec", { a: c.seqA, b: c.seqB })}</strong>
+                    {c.reason ? <span className="aide-champ">{c.reason}</span> : null}
                     <span className="aide-champ">
                       {c.acceptedNames.join(", ")} / {c.requiredNames.join(", ")} · {dyn(`ech.${c.state}`) === `ech.${c.state}` ? c.state : dyn(`ech.${c.state}`)}
                     </span>

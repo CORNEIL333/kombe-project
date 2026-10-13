@@ -4236,7 +4236,7 @@ paths:
       - tontine
       operationId: postTontinesByIdOrderChanges
       summary: OrderChangeView
-      description: 'Rôle requis : membre. Corps → réponse : { kind: "swap", seqA, seqB, reason? } → OrderChangeView. Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      description: 'Rôle requis : membre. Corps → réponse : { kind: "swap" | "priority", seqA, seqB, reason? } → OrderChangeView (tour prioritaire : seqA = mon tour, seqB = tour visé, motif obligatoire). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
       parameters:
       - name: id
         in: path
@@ -4250,7 +4250,7 @@ paths:
           application/json:
             schema:
               type: object
-              description: '{ kind: "swap", seqA, seqB, reason? }'
+              description: '{ kind: "swap" | "priority", seqA, seqB, reason? }'
       responses:
         '200':
           description: Succès

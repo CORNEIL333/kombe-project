@@ -15,6 +15,7 @@ import {
   newcomersLast,
   planPayoutWithArrears,
   assertChannelReference,
+  priorityMove,
   swapRounds,
   type Cadence,
   type MovementView,
@@ -540,18 +541,40 @@ export class CycleService {
     return inTx(this.pool, async (db) => this.changeViews(db, await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId)));
   }
 
-  async requestSwap(headers: Record<string, unknown>, groupId: string, input: { seqA: number; seqB: number; reason?: string | undefined }): Promise<OrderChangeView> {
+  /**
+   * Échange de deux tours, ou tour PRIORITAIRE (L-13 : deuil, frais de
+   * scolarité, maladie) : le demandeur avance son tour `seqA` au tour `seqB`,
+   * les titulaires intermédiaires reculent d'un rang. Chaque personne
+   * déplacée doit accepter, puis le bureau (non concerné) approuve.
+   */
+  async requestSwap(
+    headers: Record<string, unknown>,
+    groupId: string,
+    input: { kind?: "swap" | "priority" | undefined; seqA: number; seqB: number; reason?: string | undefined },
+  ): Promise<OrderChangeView> {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => {
       const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
       requireAct(actor, "order.swap.request");
+      const kind = input.kind ?? "swap";
       const rounds = await loadRoundRows(db, groupId);
       const a = rounds.find((r) => r.seq === input.seqA);
       const b = rounds.find((r) => r.seq === input.seqB);
-      if (!a || !b || a.state !== "open" || b.state !== "open") throw new DomainError("ORDER_CHANGE_INVALID", "Seuls deux tours ouverts s'échangent");
+      if (!a || !b || a.state !== "open" || b.state !== "open") throw new DomainError("ORDER_CHANGE_INVALID", "Seuls des tours ouverts se déplacent");
       const names = await loadNames(db, groupId);
-      const required = [a.beneficiaryMembershipId, b.beneficiaryMembershipId].map((x) => names.identityOf.get(x ?? "") ?? "");
-      if (required.some((x) => !x) || required[0] === required[1]) throw new DomainError("ORDER_CHANGE_INVALID", "Même titulaire");
+      let concerned: (string | null)[];
+      if (kind === "priority") {
+        if (a.beneficiaryMembershipId !== actor.membershipId) throw new DomainError("ORDER_CHANGE_INVALID", "On demande un tour prioritaire pour son propre tour");
+        if (!(input.seqB < input.seqA)) throw new DomainError("ORDER_CHANGE_INVALID", "Un tour prioritaire avance, il ne recule pas");
+        if (!input.reason || input.reason.trim().length < 3) throw new DomainError("ORDER_CHANGE_INVALID", "Motif du tour prioritaire obligatoire");
+        const between = rounds.filter((r) => r.seq >= input.seqB && r.seq < input.seqA);
+        if (between.some((r) => r.state !== "open")) throw new DomainError("ORDER_CHANGE_INVALID", "On ne déplace pas un tour déjà clos");
+        concerned = [a.beneficiaryMembershipId, ...between.map((r) => r.beneficiaryMembershipId)];
+      } else {
+        concerned = [a.beneficiaryMembershipId, b.beneficiaryMembershipId];
+      }
+      const required = concerned.map((x) => names.identityOf.get(x ?? "") ?? "");
+      if (required.some((x) => !x) || (kind === "swap" && required[0] === required[1])) throw new DomainError("ORDER_CHANGE_INVALID", "Même titulaire");
       // Un membre sans téléphone accepte par son représentant.
       const resolved: string[] = [];
       for (const [i, id] of required.entries()) {
@@ -559,19 +582,19 @@ export class CycleService {
           resolved.push(id);
           continue;
         }
-        const mid = i === 0 ? a.beneficiaryMembershipId : b.beneficiaryMembershipId;
-        const p = await db.query(`SELECT proxy_membership_id FROM membership WHERE group_id = $1 AND membership_id = $2`, [groupId, mid]);
+        const p = await db.query(`SELECT proxy_membership_id FROM membership WHERE group_id = $1 AND membership_id = $2`, [groupId, concerned[i]]);
         resolved.push(names.identityOf.get(String(p.rows[0]?.proxy_membership_id ?? "")) ?? id);
       }
+      const unique = [...new Set(resolved)];
       const changeId = newId("chg");
-      const accepted = resolved.includes(actor.identityId) ? [actor.identityId] : [];
+      const accepted = unique.includes(actor.identityId) ? [actor.identityId] : [];
       await db.query(
         `INSERT INTO order_change (change_id, group_id, kind, seq_a, seq_b, reason, required_identity_ids, accepted_identity_ids, requested_by_identity_id)
-         VALUES ($1,$2,'swap',$3,$4,$5,$6,$7,$8)`,
-        [changeId, groupId, input.seqA, input.seqB, input.reason ?? null, resolved, accepted, actor.identityId],
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [changeId, groupId, kind, input.seqA, input.seqB, input.reason ?? null, unique, accepted, actor.identityId],
       );
-      await appendEvent(db, actor, "order.swap_requested", { changeId, seqA: input.seqA, seqB: input.seqB }, nowMs);
-      await notify(db, groupId, resolved.filter((x) => x !== actor.identityId), "order_change", `/tontines/${groupId}/calendrier`, `swap:${changeId}`);
+      await appendEvent(db, actor, kind === "priority" ? "order.priority_requested" : "order.swap_requested", { changeId, seqA: input.seqA, seqB: input.seqB }, nowMs);
+      await notify(db, groupId, unique.filter((x) => x !== actor.identityId), "order_change", `/tontines/${groupId}/calendrier`, `swap:${changeId}`);
       return (await this.changeViews(db, actor, changeId))[0] as OrderChangeView;
     });
   }
@@ -622,9 +645,21 @@ export class CycleService {
       );
       const paidSeqs = new Set(paidRes.rows.map((x) => Number(x.round_seq)));
       const slots = rounds.map((x) => ({ seq: x.seq, holder: `${x.beneficiaryMembershipId}|${x.shareId}`, paid: x.state === "closed" || paidSeqs.has(x.seq) }));
-      const next = swapRounds(slots, Number(row.seq_a), Number(row.seq_b));
+      const seqA = Number(row.seq_a);
+      const seqB = Number(row.seq_b);
+      const priority = row.kind === "priority";
+      const holderA = slots.find((x) => x.seq === seqA)?.holder ?? "";
+      const next = priority ? priorityMove(slots, holderA, seqB).slots : swapRounds(slots, seqA, seqB);
+      const touched = (seq: number) => (priority ? seq >= seqB && seq <= seqA : seq === seqA || seq === seqB);
       await db.query("SELECT set_config('kombe.order_change', 'approved', true)");
-      for (const s of next.filter((x) => x.seq === Number(row.seq_a) || x.seq === Number(row.seq_b))) {
+      // Deux temps : on libère d'abord les tours touchés (unicité « une part,
+      // un tour » et « un titulaire, un tour »), puis on pose le nouvel ordre.
+      const moved = next.filter((x) => touched(x.seq));
+      await db.query(`UPDATE round SET beneficiary_membership_id = NULL, share_id = NULL WHERE group_id = $1 AND seq = ANY($2::int[])`, [
+        groupId,
+        moved.map((x) => x.seq),
+      ]);
+      for (const s of moved) {
         const [mid, share] = s.holder.split("|");
         await db.query(`UPDATE round SET beneficiary_membership_id = $3, share_id = $4 WHERE group_id = $1 AND seq = $2`, [
           groupId,
@@ -638,7 +673,7 @@ export class CycleService {
         `UPDATE order_change SET state = 'applied', approved_by_identity_id = $3, applied_at = now(), version = version + 1 WHERE group_id = $1 AND change_id = $2`,
         [groupId, changeId, actor.identityId],
       );
-      await appendEvent(db, actor, "order.swap_applied", { changeId, seqA: Number(row.seq_a), seqB: Number(row.seq_b) }, nowMs);
+      await appendEvent(db, actor, priority ? "order.priority_applied" : "order.swap_applied", { changeId, seqA, seqB }, nowMs);
       await notify(db, groupId, await activeMemberIdentities(db, groupId), "order_change", `/tontines/${groupId}/calendrier`, `swap-applied:${changeId}`);
       return (await this.changeViews(db, actor, changeId))[0] as OrderChangeView;
     });

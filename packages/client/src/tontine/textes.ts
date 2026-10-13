@@ -472,6 +472,12 @@ export const fr = {
   "fa.refus": "refusée par le serveur : {motif}",
   "fa.retirer": "Retirer",
 
+  "to.priorite": "Tour prioritaire (deuil, maladie, frais de scolarité…)",
+  "to.prioriteAide": "Vous avancez votre tour ; les personnes entre les deux reculent d'un rang. Chacune doit accepter, puis le bureau approuve.",
+  "to.prioriteCible": "Avancer mon tour n° {seq} au tour",
+  "to.prioriteDemander": "Demander le tour prioritaire",
+  "to.prioriteDe": "Tour prioritaire : n° {a} avancé au n° {b}",
+
   "jour.0": "dimanche",
   "jour.1": "lundi",
   "jour.2": "mardi",
@@ -948,6 +954,12 @@ export const en: Record<CleTexte, string> = {
   "fa.envoyees": "{n} operation(s) kept offline sent to the group.",
   "fa.refus": "refused by the server: {motif}",
   "fa.retirer": "Remove",
+
+  "to.priorite": "Priority turn (bereavement, illness, school fees…)",
+  "to.prioriteAide": "You move your turn earlier; people in between move back one place. Each must accept, then the committee approves.",
+  "to.prioriteCible": "Move my turn no. {seq} to turn",
+  "to.prioriteDemander": "Ask for the priority turn",
+  "to.prioriteDe": "Priority turn: no. {a} moved to no. {b}",
 
   "jour.0": "Sunday",
   "jour.1": "Monday",
