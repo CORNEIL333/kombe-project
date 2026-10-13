@@ -82,6 +82,7 @@ import {
   mapLegacyRole,
   // copie
   forbiddenCopyIn,
+  reserveDistribution,
 } from "../src/index.js";
 
 const code = (fn: () => unknown): string | null => {
@@ -508,5 +509,37 @@ describe("I-01 règles de copie", () => {
     expect(forbiddenCopyIn("Vos fonds sont protégés")).not.toEqual([]);
     expect(forbiddenCopyIn("Ce qui est validé par le serveur")).not.toEqual([]);
     expect(forbiddenCopyIn("KÓMBE ne garde pas votre argent.")).toEqual([]);
+  });
+});
+
+describe("réserve de fin d'année", () => {
+  it("rend à chacun ce qu'il a versé quand le registre couvre tout", () => {
+    const out = reserveDistribution(
+      [
+        { membershipId: "a", contributed: 60000n, received: 0n },
+        { membershipId: "b", contributed: 30000n, received: 10000n },
+        { membershipId: "c", contributed: 0n, received: 0n },
+      ],
+      100000n,
+    );
+    expect(out).toEqual([
+      { membershipId: "a", amount: 60000n },
+      { membershipId: "b", amount: 20000n },
+    ]);
+  });
+  it("partage au prorata en francs entiers, sans perte ni excès", () => {
+    const out = reserveDistribution(
+      [
+        { membershipId: "a", contributed: 10000n, received: 0n },
+        { membershipId: "b", contributed: 10000n, received: 0n },
+        { membershipId: "c", contributed: 10000n, received: 0n },
+      ],
+      10000n,
+    );
+    expect(out.reduce((s, x) => s + x.amount, 0n)).toBe(10000n);
+    expect(out.map((x) => x.amount).sort()).toEqual([3333n, 3333n, 3334n]);
+  });
+  it("ne distribue rien sans écart", () => {
+    expect(reserveDistribution([{ membershipId: "a", contributed: 5n, received: 0n }], 0n)).toEqual([]);
   });
 });

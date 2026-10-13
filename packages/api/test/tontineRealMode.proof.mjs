@@ -285,6 +285,10 @@ try {
   check("L06-RECEIPT-VALIDATED", receipt.status === 200 && ctl.status === 200 && ctl.json.state === "validated", { receipt, ctl });
   const rot = (await call(P, "GET", `/v1/groups/${G}/funds`)).json.find((f) => f.kind === "rotation");
   check("L07-ROTATION-BALANCED", rot.registerBalance === "0", rot);
+  const schedAfter1 = await call(M1, "GET", `/v1/groups/${G}/tontine-schedule`);
+  check("CYCLE-ROUND-CLOSED-ON-PAYOUT", schedAfter1.json.rounds[0].state === "closed" && schedAfter1.json.rounds[1].state === "open" && schedAfter1.json.cycleNo === 1, schedAfter1.json?.rounds?.map((r) => r.state));
+  const earlyRenew = await call(P, "POST", `/v1/groups/${G}/tontine-schedule/renewals`, { cadence: { kind: "monthly_nth_weekday", nth: 2, weekday: 6 }, startDate: "2027-04-01", contributionPerShare: 15000, order: { mode: "join_order" } });
+  check("CYCLE-RENEW-NEEDS-ALL-PAYOUTS", earlyRenew.status >= 400 && earlyRenew.json.code === "CYCLE_START_NOT_READY", earlyRenew);
 
   // ── Clôture : amendes automatiques (retard), procès-verbal scellé ─────
   const close = await call(P, "POST", `/v1/groups/${G}/meetings/${m1}/close`, { decisions: ["Prochaine séance chez Tata Esther"], autoFines: true });
@@ -397,6 +401,98 @@ try {
   const notesAfter = await call(M1, "GET", "/v1/me/notifications");
   const reminders = notesAfter.json.filter((n) => n.kind === "meeting_reminder" || n.kind === "due_reminder");
   check("INNOV-REMINDERS", rem.meetings === 1 && rem2.meetings === 1 && reminders.filter((n) => n.kind === "due_reminder").length === 1, { rem, kinds: notesAfter.json?.map((n) => n.kind) });
+
+  // ── Cycle complet : séances 2 à 5 (collecte, remise, réception, contrôle) ──
+  const sessionOf = { [mid("Mama Ngono")]: P, [mid("Tata Esther")]: T, [mid("Papa Fon")]: A, [mid("Brice")]: M1, [mid("Clarisse")]: M2 };
+  const fullSched = await call(P, "GET", `/v1/groups/${G}/tontine-schedule`);
+  const loopIssues = [];
+  let substituteControl = null;
+  let treasurerOwnPayout = null;
+  for (const rnd of fullSched.json.rounds.slice(1)) {
+    const mtg = rnd.meetingId;
+    const ben = rnd.holders[0].membershipId;
+    const o = await call(P, "POST", `/v1/groups/${G}/meetings/${mtg}/open`);
+    const at = await call(M2, "PUT", `/v1/groups/${G}/meetings/${mtg}/attendance`, { entries: order.map((m) => ({ membershipId: m, status: "present" })) });
+    const col = await call(M2, "POST", `/v1/groups/${G}/meetings/${mtg}/collections`, { items: order.map((m) => ({ membershipId: m, amount: 10000, channel: "cash" })) });
+    const cf = await call(T, "POST", `/v1/groups/${G}/movements/confirmations`, { movementIds: col.json?.movementIds ?? [] });
+    for (const mvId of col.json?.movementIds ?? []) {
+      const c = await call(A, "POST", `/v1/groups/${G}/movements/${mvId}/controls`);
+      if (c.status !== 200) loopIssues.push({ seq: rnd.seq, control: c });
+    }
+    const witnesses = [mid("Papa Fon"), mid("Clarisse"), mid("Brice"), mid("Mama Ngono")].filter((m) => m !== ben).slice(0, 2);
+    let po;
+    if (ben === mid("Tata Esther")) {
+      // La trésorière reçoit sa remise : elle ne la déclare pas, la présidente si.
+      const selfPayout = await call(T, "POST", `/v1/groups/${G}/meetings/${mtg}/payouts`, { channel: "cash", witnessMembershipIds: witnesses });
+      const memberPayout = await call(M1, "POST", `/v1/groups/${G}/meetings/${mtg}/payouts`, { channel: "cash", witnessMembershipIds: witnesses });
+      po = await call(P, "POST", `/v1/groups/${G}/meetings/${mtg}/payouts`, { channel: "cash", witnessMembershipIds: [mid("Papa Fon"), mid("Brice")] });
+      treasurerOwnPayout = { self: selfPayout.status, member: memberPayout.status, president: po.status };
+    } else {
+      po = await call(T, "POST", `/v1/groups/${G}/meetings/${mtg}/payouts`, { channel: "cash", witnessMembershipIds: witnesses });
+    }
+    const pid = po.json?.movementIds?.[0];
+    const rc = await call(sessionOf[ben], "POST", `/v1/groups/${G}/movements/${pid}/confirmations`);
+    let ct;
+    if (ben === mid("Papa Fon")) {
+      // Le commissaire reçoit sa propre remise : le censeur contrôle à sa place.
+      const selfCtl = await call(A, "POST", `/v1/groups/${G}/movements/${pid}/controls`);
+      const memberCtl = await call(M2, "POST", `/v1/groups/${G}/movements/${pid}/controls`);
+      ct = await call(M1, "POST", `/v1/groups/${G}/movements/${pid}/controls`);
+      substituteControl = { self: selfCtl.status, member: memberCtl.status, censor: ct.status };
+    } else {
+      ct = await call(A, "POST", `/v1/groups/${G}/movements/${pid}/controls`);
+    }
+    const cl = await call(P, "POST", `/v1/groups/${G}/meetings/${mtg}/close`, { autoFines: false });
+    if (o.status !== 200 && !(o.status === 409 && rnd.seq === 2)) loopIssues.push({ seq: rnd.seq, open: o });
+    if (![at.status, cf.status, rc.status, ct.status, cl.status].every((x) => x === 200) || col.status !== 201 || po.status !== 201) {
+      loopIssues.push({ seq: rnd.seq, o: o.status, at: at.status, col: col.status, cf: cf.status, po, rc, ct, cl: cl.status });
+    }
+  }
+  check("CYCLE-FULL-ROTATION", loopIssues.length === 0, loopIssues);
+  check("CYCLE-TREASURER-OWN-PAYOUT", treasurerOwnPayout?.self === 403 && treasurerOwnPayout?.member === 403 && treasurerOwnPayout?.president === 201, treasurerOwnPayout);
+  check("CYCLE-AUDITOR-CONFLICT-SUBSTITUTE", substituteControl?.self >= 400 && substituteControl?.member === 403 && substituteControl?.censor === 200, substituteControl);
+  const doneSched = await call(M1, "GET", `/v1/groups/${G}/tontine-schedule`);
+  check("CYCLE-COMPLETE", doneSched.json.cycleComplete === true && doneSched.json.rounds.every((r) => r.state === "closed"), doneSched.json?.rounds?.map((r) => r.state));
+
+  // ── Renouvellement : cycle 2, nouvelle cotisation, tours à la suite ──
+  const memberRenew = await call(M1, "POST", `/v1/groups/${G}/tontine-schedule/renewals`, { cadence: { kind: "monthly_nth_weekday", nth: 2, weekday: 6 }, startDate: "2027-04-01", contributionPerShare: 15000, order: { mode: "join_order" } });
+  const renew = await call(P, "POST", `/v1/groups/${G}/tontine-schedule/renewals`, { cadence: { kind: "monthly_nth_weekday", nth: 2, weekday: 6 }, startDate: "2027-04-01", contributionPerShare: 15000, order: { mode: "join_order" } });
+  check(
+    "CYCLE-RENEWED",
+    memberRenew.status === 403 && renew.status === 201 && renew.json.cycleNo === 2 && renew.json.rounds.length === 5 && renew.json.rounds[0].seq === 6 &&
+      renew.json.rounds.every((r) => r.meetingId && r.state === "open") && renew.json.potPerRound === "75000" && renew.json.contributionPerShare === "15000",
+    { memberRenew: memberRenew.status, renew: renew.json },
+  );
+  const renewAgain = await call(P, "POST", `/v1/groups/${G}/tontine-schedule/renewals`, { cadence: { kind: "monthly_nth_weekday", nth: 2, weekday: 6 }, startDate: "2027-09-01", contributionPerShare: 15000, order: { mode: "join_order" } });
+  const c2detail = await call(M1, "GET", `/v1/groups/${G}/meetings/${renew.json?.rounds?.[0]?.meetingId}`);
+  const ov = await call(M1, "GET", `/v1/groups/${G}/overview`);
+  check("CYCLE-2-COHERENT", renewAgain.status >= 400 && c2detail.json?.pot === "75000" && c2detail.json.dues.length === 5 && c2detail.json.dues.every((d) => d.due === "15000") && ov.json.schedule.cycleNo === 2, { renewAgain: renewAgain.status, pot: c2detail.json?.pot, ov: ov.json?.schedule });
+
+  // ── Réserve de fin d'année : chacun récupère ce qu'il a versé ─────────
+  const reserve = (await call(P, "GET", `/v1/groups/${G}/funds`)).json.find((f) => f.kind === "year_end_reserve");
+  const rIn1 = await call(M1, "POST", `/v1/groups/${G}/movements`, { fundId: reserve.fundId, kind: "contribution", amount: 10000, channel: "cash" });
+  const rIn2 = await call(M2, "POST", `/v1/groups/${G}/movements`, { fundId: reserve.fundId, kind: "contribution", amount: 5000, channel: "cash" });
+  const tooEarly = await call(T, "POST", `/v1/groups/${G}/year-end-reserve/distributions`, { channel: "cash" });
+  for (const mvId of [rIn1.json?.movementId, rIn2.json?.movementId]) {
+    await call(T, "POST", `/v1/groups/${G}/movements/${mvId}/confirmations`);
+    await call(A, "POST", `/v1/groups/${G}/movements/${mvId}/controls`);
+  }
+  const notTreasury = await call(M1, "POST", `/v1/groups/${G}/year-end-reserve/distributions`, { channel: "cash" });
+  const dist = await call(T, "POST", `/v1/groups/${G}/year-end-reserve/distributions`, { channel: "cash" });
+  const distAgain = await call(T, "POST", `/v1/groups/${G}/year-end-reserve/distributions`, { channel: "cash" });
+  const byMember = Object.fromEntries((dist.json?.distributions ?? []).map((d) => [d.membershipId, d.amount]));
+  check(
+    "RESERVE-DISTRIBUTION",
+    tooEarly.status >= 400 && notTreasury.status === 403 && dist.status === 201 && byMember[mid("Brice")] === "10000" && byMember[mid("Clarisse")] === "5000" &&
+      Object.keys(byMember).length === 2 && distAgain.status >= 400,
+    { tooEarly: tooEarly.status, notTreasury: notTreasury.status, dist: dist.json, distAgain: distAgain.status },
+  );
+  for (const d of dist.json?.distributions ?? []) {
+    await call(sessionOf[d.membershipId], "POST", `/v1/groups/${G}/movements/${d.movementId}/confirmations`);
+    await call(A, "POST", `/v1/groups/${G}/movements/${d.movementId}/controls`);
+  }
+  const reserveAfter = (await call(P, "GET", `/v1/groups/${G}/funds`)).json.find((f) => f.kind === "year_end_reserve");
+  check("RESERVE-EMPTIED", reserveAfter.registerBalance === "0", reserveAfter);
 
   // ── Journal chaîné intact après tout le parcours ──────────────────────
   const verify = await call(P, "GET", `/v1/groups/${G}/journal/verify`);

@@ -30,7 +30,6 @@ import {
   deadlineUtcMs,
   memberDueForRound,
   oneSharePerMember,
-  potPerRound,
   swapApprovalsComplete,
   swapRounds,
   transitionGroupState,
@@ -309,7 +308,8 @@ export async function overview(client: pg.PoolClient, groupId: string, actor: To
     [groupId],
   );
   const s = sched.rows[0] as Record<string, unknown> | undefined;
-  const cadence = (s?.["cadence"] as Cadence | null | undefined) ?? null;
+  const cur = s ? await currentCycle(client, groupId) : null;
+  const cadence = cur?.cadence ?? (s?.["cadence"] as Cadence | null | undefined) ?? null;
   return {
     groupId,
     name: g.name,
@@ -318,7 +318,7 @@ export async function overview(client: pg.PoolClient, groupId: string, actor: To
     me: { membershipId: actor.membershipId, roles: actor.roles, displayName: actor.displayName },
     members: { active: Number(counts.rows[0]?.active ?? 0), pending: Number(counts.rows[0]?.pending ?? 0) },
     schedule: s
-      ? { state: s["state"], cadence, cadenceLabel: cadence ? describeCadence(cadence, "fr") : null }
+      ? { state: s["state"], cycleNo: cur?.cycleNo ?? 1, cadence, cadenceLabel: cadence ? describeCadence(cadence, "fr") : null }
       : null,
     nextMeeting: next.rows[0] ?? null,
     pendingValidations: Number(pendingValidations.rows[0]?.n ?? 0),
@@ -651,25 +651,14 @@ export interface ScheduleInput {
   readonly dueTime?: string | undefined;
 }
 
-export async function buildSchedule(
+/** Ordre des titulaires et parts d'un cycle (une part par membre par défaut). */
+async function resolveShares(
   client: pg.PoolClient,
   groupId: string,
-  actor: TontineActor,
   input: ScheduleInput,
-  nowMs: number,
-): Promise<unknown> {
-  assertCanAct(actor.roles, "schedule.manage");
-  assertCadence(input.cadence);
-  const meta = await client.query(`SELECT state FROM cycle_schedule WHERE group_id = $1 FOR UPDATE`, [groupId]);
-  if (meta.rows[0]?.state === "started") throw new DomainError("SCHEDULE_FROZEN", "Cycle démarré : calendrier figé");
-  const g = await loadGroup(client, groupId);
-  const mems = await activeMembers(client, groupId);
-  if (mems.length < g.settings.minMembers) {
-    throw new DomainError("CYCLE_START_NOT_READY", `Au moins ${g.settings.minMembers} membres actifs`);
-  }
-  const activeIds = mems.map((m) => m.membershipId);
-
-  // Ordre des titulaires (parts par défaut : une par membre).
+  activeIds: readonly string[],
+  sharePrefix: string,
+): Promise<Share[]> {
   let ordered: string[];
   if (input.order.mode === "manual") {
     ordered = [...input.order.membershipIds];
@@ -684,31 +673,40 @@ export async function buildSchedule(
   } else {
     ordered = [...activeIds];
   }
-
   let shares: Share[];
   if (input.shares && input.shares.length > 0) {
-    shares = input.shares.map((s, i) => ({ shareId: `${groupId}_s${i + 1}`, holders: s.holders.map((h) => ({ ...h })) }));
+    shares = input.shares.map((s, i) => ({ shareId: `${sharePrefix}${i + 1}`, holders: s.holders.map((h) => ({ ...h })) }));
   } else {
     if (new Set(ordered).size !== ordered.length || ordered.length !== activeIds.length || !ordered.every((m) => activeIds.includes(m))) {
       throw new DomainError("SCHEDULE_ROUNDS_MISMATCH", "L'ordre doit citer chaque membre actif une fois");
     }
-    shares = oneSharePerMember(ordered).map((s, i) => ({ ...s, shareId: `${groupId}_s${i + 1}` }));
+    shares = oneSharePerMember(ordered).map((s, i) => ({ ...s, shareId: `${sharePrefix}${i + 1}` }));
   }
   assertShares(shares, activeIds);
   if (input.contributionPerShare <= 0n) throw new DomainError("RULE_INVALID", "Cotisation par part invalide");
+  return shares;
+}
 
-  const dates = meetingDates(input.cadence, input.startDate, shares.length);
+/** Publie la version de règles d'un cycle (instantané scellé). */
+async function publishCycleRules(
+  client: pg.PoolClient,
+  groupId: string,
+  input: ScheduleInput,
+  memberCount: number,
+  rounds: number,
+  graceDays: number,
+): Promise<number> {
   const dueDay = Number(input.startDate.slice(8, 10));
   const legacyFrequency = input.cadence.kind === "weekly" || input.cadence.kind === "biweekly" || input.cadence.kind === "daily" || input.cadence.kind === "every_n_days" ? "weekly" : "monthly";
   const ruleSet = compileRuleSet(
     {
-      memberCount: activeIds.length,
+      memberCount,
       contribution: input.contributionPerShare,
-      rounds: shares.length,
+      rounds,
       frequency: legacyFrequency,
       dueDay: Math.min(dueDay, 31),
       quorum: { numerator: 1, denominator: 2 },
-      gracePeriodDays: Math.min(g.settings.fines.graceDays, 30),
+      gracePeriodDays: Math.min(graceDays, 30),
       penaltyEnabled: false,
     },
     { pilot: false },
@@ -721,19 +719,19 @@ export async function buildSchedule(
      VALUES ($1, $2, $3::jsonb, $4, now())`,
     [groupId, rulesVersion, JSON.stringify(snapshotJson), canonicalHash(ruleSet)],
   );
+  return rulesVersion;
+}
 
-  await client.query(
-    `INSERT INTO cycle_schedule (group_id, rules_version, frequency, state, cadence)
-     VALUES ($1, $2, $3, 'draft', $4::jsonb)
-     ON CONFLICT (group_id) DO UPDATE SET rules_version = EXCLUDED.rules_version, frequency = EXCLUDED.frequency,
-       cadence = EXCLUDED.cadence, state = 'draft'`,
-    [groupId, rulesVersion, input.cadence.kind, JSON.stringify(input.cadence)],
-  );
-  await client.query(`DELETE FROM obligation WHERE group_id = $1`, [groupId]);
-  await client.query(`DELETE FROM round WHERE group_id = $1`, [groupId]);
-  await client.query(`DELETE FROM share_holder WHERE group_id = $1`, [groupId]);
-  await client.query(`DELETE FROM share WHERE group_id = $1`, [groupId]);
-
+/** Parts, tours (numérotés en continu à partir de `firstSeq`) et obligations d'un cycle. */
+async function insertCycleRounds(
+  client: pg.PoolClient,
+  groupId: string,
+  input: ScheduleInput,
+  shares: readonly Share[],
+  activeIds: readonly string[],
+  rulesVersion: number,
+  firstSeq: number,
+): Promise<void> {
   for (const [i, s] of shares.entries()) {
     const label = s.holders.length === 1 ? `Part ${i + 1}` : `Part ${i + 1} (partagée)`;
     await client.query(`INSERT INTO share (share_id, group_id, label) VALUES ($1, $2, $3)`, [s.shareId, groupId, label]);
@@ -746,9 +744,10 @@ export async function buildSchedule(
       ]);
     }
   }
+  const dates = meetingDates(input.cadence, input.startDate, shares.length);
   const dueByMember = memberDueForRound(shares, input.contributionPerShare);
   for (const [i, s] of shares.entries()) {
-    const seq = i + 1;
+    const seq = firstSeq + i;
     const date = dates[i] as string;
     const roundId = `${groupId}_r${seq}`;
     const beneficiary = s.holders.length === 1 ? (s.holders[0]?.membershipId ?? null) : null;
@@ -767,6 +766,89 @@ export async function buildSchedule(
       );
     }
   }
+}
+
+export interface CurrentCycle {
+  readonly cycleNo: number;
+  readonly rulesVersion: number;
+  readonly cadence: Cadence | null;
+  readonly firstSeq: number;
+  readonly lastSeq: number;
+}
+
+/** Cycle en cours (le plus récent) ; repli sur la méta du calendrier. */
+export async function currentCycle(client: pg.PoolClient, groupId: string): Promise<CurrentCycle | null> {
+  const c = await client.query(
+    `SELECT cycle_no, rules_version, cadence, first_seq, last_seq FROM tontine_cycle
+      WHERE group_id = $1 ORDER BY cycle_no DESC LIMIT 1`,
+    [groupId],
+  );
+  const row = c.rows[0] as Record<string, unknown> | undefined;
+  if (row) {
+    return {
+      cycleNo: Number(row["cycle_no"]),
+      rulesVersion: Number(row["rules_version"]),
+      cadence: (row["cadence"] as Cadence | null) ?? null,
+      firstSeq: Number(row["first_seq"]),
+      lastSeq: Number(row["last_seq"]),
+    };
+  }
+  const meta = await client.query(
+    `SELECT cs.rules_version, cs.cadence, (SELECT min(seq) FROM round r WHERE r.group_id = cs.group_id) AS f,
+            (SELECT max(seq) FROM round r WHERE r.group_id = cs.group_id) AS l
+       FROM cycle_schedule cs WHERE cs.group_id = $1`,
+    [groupId],
+  );
+  const m = meta.rows[0] as Record<string, unknown> | undefined;
+  if (!m) return null;
+  return {
+    cycleNo: 1,
+    rulesVersion: Number(m["rules_version"]),
+    cadence: (m["cadence"] as Cadence | null) ?? null,
+    firstSeq: Number(m["f"] ?? 1),
+    lastSeq: Number(m["l"] ?? 0),
+  };
+}
+
+export async function buildSchedule(
+  client: pg.PoolClient,
+  groupId: string,
+  actor: TontineActor,
+  input: ScheduleInput,
+  nowMs: number,
+): Promise<unknown> {
+  assertCanAct(actor.roles, "schedule.manage");
+  assertCadence(input.cadence);
+  const meta = await client.query(`SELECT state FROM cycle_schedule WHERE group_id = $1 FOR UPDATE`, [groupId]);
+  if (meta.rows[0]?.state === "started") throw new DomainError("SCHEDULE_FROZEN", "Cycle démarré : calendrier figé");
+  const g = await loadGroup(client, groupId);
+  const mems = await activeMembers(client, groupId);
+  if (mems.length < g.settings.minMembers) {
+    throw new DomainError("CYCLE_START_NOT_READY", `Au moins ${g.settings.minMembers} membres actifs`);
+  }
+  const activeIds = mems.map((m) => m.membershipId);
+  const shares = await resolveShares(client, groupId, input, activeIds, `${groupId}_s`);
+  const rulesVersion = await publishCycleRules(client, groupId, input, activeIds.length, shares.length, g.settings.fines.graceDays);
+
+  await client.query(
+    `INSERT INTO cycle_schedule (group_id, rules_version, frequency, state, cadence)
+     VALUES ($1, $2, $3, 'draft', $4::jsonb)
+     ON CONFLICT (group_id) DO UPDATE SET rules_version = EXCLUDED.rules_version, frequency = EXCLUDED.frequency,
+       cadence = EXCLUDED.cadence, state = 'draft'`,
+    [groupId, rulesVersion, input.cadence.kind, JSON.stringify(input.cadence)],
+  );
+  await client.query(
+    `INSERT INTO tontine_cycle (group_id, cycle_no, rules_version, cadence, first_seq, last_seq)
+     VALUES ($1, 1, $2, $3::jsonb, 1, $4)
+     ON CONFLICT (group_id, cycle_no) DO UPDATE SET rules_version = EXCLUDED.rules_version, cadence = EXCLUDED.cadence,
+       first_seq = 1, last_seq = EXCLUDED.last_seq`,
+    [groupId, rulesVersion, JSON.stringify(input.cadence), shares.length],
+  );
+  await client.query(`DELETE FROM obligation WHERE group_id = $1`, [groupId]);
+  await client.query(`DELETE FROM round WHERE group_id = $1`, [groupId]);
+  await client.query(`DELETE FROM share_holder WHERE group_id = $1`, [groupId]);
+  await client.query(`DELETE FROM share WHERE group_id = $1`, [groupId]);
+  await insertCycleRounds(client, groupId, input, shares, activeIds, rulesVersion, 1);
   await appendEvent(
     client,
     groupId,
@@ -778,11 +860,79 @@ export async function buildSchedule(
   return getSchedule(client, groupId);
 }
 
+/**
+ * Renouvellement : un nouveau cycle s'enchaîne quand tous les tours du cycle
+ * en cours sont remis (validés). Nouvelle version de règles (cotisation,
+ * cadence, ordre peuvent changer), nouvelles parts, tours numérotés à la
+ * suite et séances planifiées. L'historique des cycles précédents reste
+ * intact (append-only).
+ */
+export async function renewSchedule(
+  client: pg.PoolClient,
+  groupId: string,
+  actor: TontineActor,
+  input: ScheduleInput,
+  nowMs: number,
+): Promise<unknown> {
+  assertCanAct(actor.roles, "schedule.manage");
+  assertCadence(input.cadence);
+  const meta = await client.query(`SELECT state FROM cycle_schedule WHERE group_id = $1 FOR UPDATE`, [groupId]);
+  if (meta.rows[0]?.state !== "started") throw new DomainError("CYCLE_START_NOT_READY", "Le premier cycle n'est pas démarré");
+  const cur = await currentCycle(client, groupId);
+  if (!cur) throw new DomainError("CYCLE_START_NOT_READY", "Aucun calendrier");
+  const open = await client.query(
+    `SELECT count(*)::int AS n FROM round WHERE group_id = $1 AND seq BETWEEN $2 AND $3 AND state <> 'closed'`,
+    [groupId, cur.firstSeq, cur.lastSeq],
+  );
+  if (Number(open.rows[0]?.n ?? 0) > 0) {
+    throw new DomainError("CYCLE_START_NOT_READY", "Tous les tours du cycle en cours doivent être remis avant de renouveler");
+  }
+  const g = await loadGroup(client, groupId);
+  const mems = await activeMembers(client, groupId);
+  if (mems.length < g.settings.minMembers) {
+    throw new DomainError("CYCLE_START_NOT_READY", `Au moins ${g.settings.minMembers} membres actifs`);
+  }
+  const activeIds = mems.map((m) => m.membershipId);
+  const cycleNo = cur.cycleNo + 1;
+  const shares = await resolveShares(client, groupId, input, activeIds, `${groupId}_c${cycleNo}_s`);
+  const rulesVersion = await publishCycleRules(client, groupId, input, activeIds.length, shares.length, g.settings.fines.graceDays);
+  const firstSeq = cur.lastSeq + 1;
+  await client.query(
+    `INSERT INTO tontine_cycle (group_id, cycle_no, rules_version, cadence, first_seq, last_seq)
+     VALUES ($1, $2, $3, $4::jsonb, $5, $6)`,
+    [groupId, cycleNo, rulesVersion, JSON.stringify(input.cadence), firstSeq, firstSeq + shares.length - 1],
+  );
+  await insertCycleRounds(client, groupId, input, shares, activeIds, rulesVersion, firstSeq);
+  const rounds = await client.query(`SELECT seq, due_date_business FROM round WHERE group_id = $1 AND seq >= $2 ORDER BY seq`, [groupId, firstSeq]);
+  for (const r of rounds.rows as Record<string, unknown>[]) {
+    const d = r["due_date_business"];
+    const iso = d instanceof Date ? d.toISOString().slice(0, 10) : String(d);
+    await client.query(
+      `INSERT INTO meeting (meeting_id, group_id, seq, scheduled_date, round_seq, state, location)
+       VALUES ($1, $2, $3, $4::date, $3, 'planned', $5)
+       ON CONFLICT (group_id, seq) DO NOTHING`,
+      [`${groupId}_m${String(r["seq"])}`, groupId, r["seq"], iso, g.settings.meetingPlace],
+    );
+  }
+  await appendEvent(
+    client,
+    groupId,
+    actor,
+    "schedule.renewed",
+    { cycleNo, rulesVersion, cadence: input.cadence, startDate: input.startDate, shares: shares.length, contributionPerShare: input.contributionPerShare },
+    nowMs,
+  );
+  const everyone = await client.query(`SELECT identity_id FROM membership WHERE group_id = $1 AND state = 'active'`, [groupId]);
+  await notify(client, groupId, everyone.rows.map((r: { identity_id: string }) => r.identity_id), "meeting_reminder", `group:${groupId}:schedule`, `cycle-${cycleNo}`);
+  return getSchedule(client, groupId);
+}
+
 export async function getSchedule(client: pg.PoolClient, groupId: string): Promise<unknown> {
-  const meta = await client.query(`SELECT state, cadence, rules_version, started_at FROM cycle_schedule WHERE group_id = $1`, [groupId]);
+  const meta = await client.query(`SELECT state, started_at FROM cycle_schedule WHERE group_id = $1`, [groupId]);
   const m = meta.rows[0] as Record<string, unknown> | undefined;
-  if (!m) return { state: "none", rounds: [] };
-  const rv = await client.query(`SELECT snapshot FROM rule_version WHERE group_id = $1 AND rules_version = $2`, [groupId, m["rules_version"]]);
+  const cur = m ? await currentCycle(client, groupId) : null;
+  if (!m || !cur) return { state: "none", rounds: [] };
+  const rv = await client.query(`SELECT snapshot FROM rule_version WHERE group_id = $1 AND rules_version = $2`, [groupId, cur.rulesVersion]);
   const contribution = toBig((rv.rows[0]?.snapshot as Record<string, unknown> | undefined)?.["contribution"]);
   const rounds = await client.query(
     `SELECT r.seq, r.round_id, r.state, r.due_date_business, r.share_id, r.beneficiary_membership_id,
@@ -790,16 +940,19 @@ export async function getSchedule(client: pg.PoolClient, groupId: string): Promi
                         FROM share_holder h JOIN membership mm ON mm.group_id = h.group_id AND mm.membership_id = h.membership_id
                        WHERE h.group_id = r.group_id AND h.share_id = r.share_id), ARRAY[]::json[]) AS holders,
             (SELECT meeting_id FROM meeting mt WHERE mt.group_id = r.group_id AND mt.round_seq = r.seq LIMIT 1) AS meeting_id
-       FROM round r WHERE r.group_id = $1 ORDER BY r.seq`,
-    [groupId],
+       FROM round r WHERE r.group_id = $1 AND r.seq BETWEEN $2 AND $3 ORDER BY r.seq`,
+    [groupId, cur.firstSeq, cur.lastSeq],
   );
   const shareCount = rounds.rows.length;
-  const cadence = m["cadence"] as Cadence | null;
+  const cadence = cur.cadence;
+  const closed = rounds.rows.filter((r: Record<string, unknown>) => r["state"] === "closed").length;
   return {
     state: m["state"],
+    cycleNo: cur.cycleNo,
+    cycleComplete: shareCount > 0 && closed === shareCount,
     cadence,
     cadenceLabel: cadence ? describeCadence(cadence, "fr") : null,
-    rulesVersion: Number(m["rules_version"]),
+    rulesVersion: cur.rulesVersion,
     contributionPerShare: contribution.toString(),
     potPerRound: (contribution * BigInt(shareCount)).toString(),
     startedAt: m["started_at"],
@@ -1054,17 +1207,14 @@ export async function listOrderChanges(client: pg.PoolClient, groupId: string): 
   return res.rows;
 }
 
-/** Montant de la cagnotte d'un tour (cotisation × nombre de parts). */
-export async function potForGroup(client: pg.PoolClient, groupId: string): Promise<bigint> {
-  const sched = await client.query(
-    `SELECT rv.snapshot FROM cycle_schedule cs JOIN rule_version rv ON rv.group_id = cs.group_id AND rv.rules_version = cs.rules_version
-      WHERE cs.group_id = $1`,
-    [groupId],
-  );
-  const contribution = toBig((sched.rows[0]?.snapshot as Record<string, unknown> | undefined)?.["contribution"]);
-  const n = await client.query(`SELECT count(*)::int AS n FROM share WHERE group_id = $1`, [groupId]);
-  const shares: Share[] = Array.from({ length: Number(n.rows[0]?.n ?? 0) }, (_, i) => ({ shareId: String(i), holders: [{ membershipId: String(i), weight: 1 }] }));
-  return shares.length > 0 ? potPerRound(shares, contribution) : 0n;
+/** Cagnotte d'un tour : somme des cotisations dues pour ce tour (parts
+ *  partagées comprises), donc juste quel que soit le cycle. */
+export async function potForRound(client: pg.PoolClient, groupId: string, roundId: string): Promise<bigint> {
+  const res = await client.query(`SELECT COALESCE(sum(due_amount), 0)::text AS pot FROM obligation WHERE group_id = $1 AND round_id = $2`, [
+    groupId,
+    roundId,
+  ]);
+  return toBig(res.rows[0]?.pot);
 }
 
 export type { GroupRole };

@@ -73,7 +73,7 @@ REVOKE ALL ON notification_preference, notification_channel FROM kombe_app;
 -- 0024/0025 (tontine réelle) : registres sans suppression applicative.
 REVOKE DELETE ON identity_profile, fund, meeting, attendance, fund_movement, fine, aid_request,
   member_debt, order_change, draw, auction_bid, statutes_acceptance, loan, collector_period,
-  legacy_import, legacy_contribution FROM kombe_app;
+  legacy_import, legacy_contribution, tontine_cycle FROM kombe_app;
 REVOKE UPDATE, DELETE ON statutes_version FROM kombe_app;
 REVOKE INSERT, DELETE ON inbox_notification FROM kombe_app;
 

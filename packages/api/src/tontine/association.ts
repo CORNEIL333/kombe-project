@@ -36,6 +36,7 @@ import {
   lateContributionFine,
   lateness,
   netAfterFees,
+  reserveDistribution,
   openDebt,
   planLegacyImport,
   rejectMovement,
@@ -60,7 +61,7 @@ import {
   type PaymentChannel,
 } from "@kombe/domain";
 import { appendEvent, identitiesWithRoles, newId, notify, toBig, type TontineActor } from "./context.js";
-import { loadGroup, potForGroup } from "./groups.js";
+import { loadGroup, potForRound } from "./groups.js";
 
 const TREASURY: readonly GroupRole[] = ["treasurer", "treasurer_deputy"];
 
@@ -412,6 +413,22 @@ async function onValidated(client: pg.PoolClient, groupId: string, mv: MovementR
   if (mv.kind === "payout" && mv.relatedKind === "payout" && mv.relatedId) {
     // Tour remis : il ne pourra plus être échangé (le reste est tracé au journal).
     await appendEvent(client, groupId, actor, "round.payout_validated", { roundId: mv.relatedId, movementId: mv.movementId }, nowMs);
+    // Toutes les remises du tour (parts partagées comprises) validées : tour clos.
+    const pending = await client.query(
+      `SELECT count(*)::int AS n FROM fund_movement
+        WHERE group_id = $1 AND kind = 'payout' AND related_kind = 'payout' AND related_id = $2
+          AND state IN ('declared','confirmed') AND movement_id <> $3`,
+      [groupId, mv.relatedId, mv.movementId],
+    );
+    if (Number(pending.rows[0]?.n ?? 0) === 0) {
+      const closed = await client.query(`UPDATE round SET state = 'closed' WHERE group_id = $1 AND round_id = $2 AND state = 'open' RETURNING seq`, [
+        groupId,
+        mv.relatedId,
+      ]);
+      if (closed.rows.length > 0) {
+        await appendEvent(client, groupId, actor, "round.closed", { roundId: mv.relatedId }, nowMs);
+      }
+    }
   }
 }
 
@@ -468,7 +485,10 @@ export async function confirmMovementAct(
   await appendEvent(client, groupId, actor, "movement.confirmed", { movementId, state: next.state }, nowMs);
   if (next.state === "validated") await onValidated(client, groupId, { ...mv, state: next.state, confirmer: actor.identityId }, actor, nowMs);
   else {
-    const auditors = (await identitiesWithRoles(client, groupId, ["auditor"])).filter((i) => i !== actor.identityId && i !== mv.declarant);
+    let auditors = (await identitiesWithRoles(client, groupId, ["auditor"])).filter((i) => i !== actor.identityId && i !== mv.declarant);
+    if (auditors.length === 0) {
+      auditors = (await identitiesWithRoles(client, groupId, ["censor", "animator", "vice_president"])).filter((i) => i !== actor.identityId && i !== mv.declarant);
+    }
     await notify(client, groupId, auditors, "validation_waiting", `group:${groupId}:validations`, `ctl:${movementId}`);
   }
   return next;
@@ -481,8 +501,15 @@ export async function controlMovementAct(
   movementId: string,
   nowMs: number,
 ): Promise<{ state: MovementState }> {
-  assertCanAct(actor.roles, "movement.control");
   const mv = await lockMovement(client, groupId, movementId);
+  if (!canAct(actor.roles, "movement.control")) {
+    // Conflit d'intérêts : quand aucun commissaire ne peut contrôler (il a
+    // lui-même déclaré ou confirmé, par exemple en recevant sa remise), le
+    // censeur ou, à défaut, la présidence contrôle à sa place.
+    const auditors = (await identitiesWithRoles(client, groupId, ["auditor"])).filter((i) => i !== mv.declarant && i !== mv.confirmer);
+    const substitute = actor.roles.some((r) => r === "censor" || r === "animator" || r === "vice_president");
+    if (auditors.length > 0 || !substitute) throw new DomainError("TONTINE_FORBIDDEN", "Contrôle réservé au commissaire aux comptes");
+  }
   const next = controlMovement(mv.state, { declarantIdentityId: mv.declarant, confirmerIdentityId: mv.confirmer, controllerIdentityId: mv.controller }, actor.identityId);
   await client.query(
     `UPDATE fund_movement SET state = $3, controlled_by_identity_id = $4, controlled_at = now(), version = version + 1
@@ -648,7 +675,7 @@ export async function meetingDetail(client: pg.PoolClient, groupId: string, meet
     minutesApprovedAt: row["minutes_approved_at"],
     attendance: att.rows,
     round: round?.rows[0] ?? null,
-    pot: (await potForGroup(client, groupId)).toString(),
+    pot: round?.rows[0] ? (await potForRound(client, groupId, String((round.rows[0] as Record<string, unknown>)["round_id"]))).toString() : "0",
     dues: (dues?.rows ?? []).map((d: Record<string, unknown>) => ({
       obligationId: d["obligation_id"],
       membershipId: d["member_membership_id"],
@@ -806,7 +833,6 @@ export async function recordPayout(
   },
   nowMs: number,
 ): Promise<{ movementIds: string[] }> {
-  if (!actor.roles.some((r) => TREASURY.includes(r))) throw new DomainError("TONTINE_FORBIDDEN", "La remise est déclarée par la trésorerie");
   const m = await lockMeeting(client, groupId, meetingId);
   if (m["state"] !== "open") throw new DomainError("MEETING_STATE_INVALID", "La remise se fait en séance ouverte");
   if (!m["round_seq"]) throw new DomainError("OBJET_INTROUVABLE", "Séance sans tour");
@@ -819,6 +845,22 @@ export async function recordPayout(
   );
   if (already.rows.length > 0) throw new DomainError("DISBURSEMENT_STATE_INVALID", "Ce tour a déjà sa remise");
   const holders = await client.query(`SELECT membership_id, weight FROM share_holder WHERE group_id = $1 AND share_id = $2`, [groupId, r.share_id]);
+  // Personne ne déclare sa propre remise. Quand toute la trésorerie est
+  // titulaire du tour (la trésorière « bouffe »), la présidence déclare.
+  const holderIds = (holders.rows as { membership_id: string }[]).map((h) => h.membership_id);
+  if (holderIds.includes(actor.membershipId)) {
+    throw new DomainError("TONTINE_FORBIDDEN", "Votre propre remise est déclarée par un autre membre du bureau");
+  }
+  if (!actor.roles.some((x) => TREASURY.includes(x))) {
+    const treasury = await client.query(
+      `SELECT DISTINCT membership_id FROM role_assignment
+        WHERE group_id = $1 AND role = ANY($2::text[]) AND accepted_at IS NOT NULL AND ended_at IS NULL`,
+      [groupId, TREASURY as unknown as string[]],
+    );
+    const available = treasury.rows.filter((t: { membership_id: string }) => !holderIds.includes(t.membership_id));
+    const presidency = actor.roles.some((x) => x === "animator" || x === "vice_president");
+    if (available.length > 0 || !presidency) throw new DomainError("TONTINE_FORBIDDEN", "La remise est déclarée par la trésorerie");
+  }
   const present = await client.query(
     `SELECT membership_id FROM attendance WHERE group_id = $1 AND meeting_id = $2 AND status IN ('present','late','represented')`,
     [groupId, meetingId],
@@ -834,7 +876,7 @@ export async function recordPayout(
       minimumWitnesses: g.settings.minimumWitnesses,
     });
   }
-  const gross = input.amount ?? (await potForGroup(client, groupId));
+  const gross = input.amount ?? (await potForRound(client, groupId, r.round_id));
   const { net, fundFee } = netAfterFees(gross, input.fee ?? 0n, g.settings.feeBearer);
   const rotation = await fundOfKind(client, groupId, "rotation");
   const parts = splitByWeight(
@@ -1308,6 +1350,73 @@ export async function myObligations(client: pg.PoolClient, groupId: string, acto
       meetingId: r["meeting_id"],
     };
   });
+}
+
+/* ── Réserve de fin d'année : redistribution ─────────────────────────── */
+
+/**
+ * Redistribue la réserve de fin d'année : chaque membre récupère ce qu'il y a
+ * versé (moins ce qu'il a déjà reçu), au prorata si la caisse ne couvre pas
+ * tout. Une remise déclarée par membre ; chaque bénéficiaire confirme la
+ * réception (règle des remises). Aucun mouvement de la réserve ne doit être
+ * en attente, ce qui empêche une double redistribution.
+ */
+export async function distributeYearEndReserve(
+  client: pg.PoolClient,
+  groupId: string,
+  actor: TontineActor,
+  input: { readonly channel: PaymentChannel; readonly reference?: string | null | undefined; readonly justification?: string | null | undefined },
+  nowMs: number,
+): Promise<{ distributions: { membershipId: string; amount: string; movementId: string }[] }> {
+  if (!actor.roles.some((r) => TREASURY.includes(r))) throw new DomainError("TONTINE_FORBIDDEN", "La redistribution est déclarée par la trésorerie");
+  const fund = await fundOfKind(client, groupId, "year_end_reserve");
+  await client.query(`SELECT 1 FROM fund WHERE group_id = $1 AND fund_id = $2 FOR UPDATE`, [groupId, fund.fundId]);
+  const l = await ledgerOf(client, groupId, fund.fundId);
+  if (l.inProgressOut > 0n || l.inProgressIn > 0n) {
+    throw new DomainError("DISBURSEMENT_STATE_INVALID", "Des mouvements de la réserve attendent encore leur validation");
+  }
+  if (l.registerBalance <= 0n) throw new DomainError("FUND_INVALID", "La réserve est vide");
+  const per = await client.query(
+    `SELECT membership_id,
+            COALESCE(sum(amount) FILTER (WHERE kind = 'contribution'), 0)::text AS contributed,
+            COALESCE(sum(amount) FILTER (WHERE kind = 'payout'), 0)::text AS received
+       FROM fund_movement
+      WHERE group_id = $1 AND fund_id = $2 AND state = 'validated' AND membership_id IS NOT NULL
+      GROUP BY membership_id`,
+    [groupId, fund.fundId],
+  );
+  const shares = reserveDistribution(
+    per.rows.map((r: Record<string, unknown>) => ({
+      membershipId: String(r["membership_id"]),
+      contributed: toBig(r["contributed"]),
+      received: toBig(r["received"]),
+    })),
+    l.registerBalance,
+  );
+  if (shares.length === 0) throw new DomainError("FUND_INVALID", "Aucun versement à redistribuer");
+  const out: { membershipId: string; amount: string; movementId: string }[] = [];
+  for (const sh of shares) {
+    const mv = await declareMovement(
+      client,
+      groupId,
+      actor,
+      {
+        fundId: fund.fundId,
+        kind: "payout",
+        amount: sh.amount,
+        channel: input.channel,
+        reference: input.reference ?? null,
+        justification: input.justification ?? "Redistribution de la réserve de fin d'année",
+        membershipId: sh.membershipId,
+      },
+      nowMs,
+    );
+    out.push({ membershipId: sh.membershipId, amount: sh.amount.toString(), movementId: mv.movementId });
+    const ben = await membershipIdentity(client, groupId, sh.membershipId);
+    await notify(client, groupId, [ben.identityId], "payout_recorded", `group:${groupId}:validations`, `reserve:${mv.movementId}`);
+  }
+  await appendEvent(client, groupId, actor, "reserve.distributed", { fundId: fund.fundId, members: out.length, total: l.registerBalance }, nowMs);
+  return { distributions: out };
 }
 
 /* ── Statuts générés (L-12) ──────────────────────────────────────────── */

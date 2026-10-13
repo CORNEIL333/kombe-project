@@ -1,4 +1,4 @@
--- KÓMBE — Rappels automatiques (lot L-15, innovation « rappels sans effort »).
+-- KÓMBE — Rappels automatiques (lot L-15) et cycles successifs d'un groupe.
 -- La tâche planifiée doit trouver les séances proches de TOUS les groupes sans
 -- lever la RLS : fonction SECURITY DEFINER à sortie minimale (identifiants et
 -- date seulement, aucun nom ni montant), même idiome que 0020/0023.
@@ -25,5 +25,25 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION kombe_upcoming_meetings(date, integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION kombe_upcoming_meetings(date, integer) TO kombe_app;
+
+-- Cycles successifs : un groupe enchaîne les cycles (njangi renouvelé chaque
+-- année). Les tours restent numérotés en continu ; chaque cycle borne sa
+-- plage de tours, sa version de règles et sa cadence.
+CREATE TABLE tontine_cycle (
+  group_id      text NOT NULL REFERENCES "group"(group_id),
+  cycle_no      integer NOT NULL CHECK (cycle_no >= 1),
+  rules_version integer NOT NULL,
+  cadence       jsonb NOT NULL CHECK (jsonb_typeof(cadence) = 'object'),
+  first_seq     integer NOT NULL CHECK (first_seq >= 1),
+  last_seq      integer NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (group_id, cycle_no),
+  CHECK (last_seq >= first_seq),
+  FOREIGN KEY (group_id, rules_version) REFERENCES rule_version(group_id, rules_version)
+);
+ALTER TABLE tontine_cycle ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON tontine_cycle USING (group_id = current_setting('kombe.group_id', true));
+GRANT SELECT, INSERT, UPDATE ON tontine_cycle TO kombe_app;
+REVOKE DELETE ON tontine_cycle FROM kombe_app;
 
 COMMIT;

@@ -195,22 +195,27 @@ export function registerTontineRoutes(app: FastifyInstance, deps: TontineDeps): 
 
   /* Calendrier, parts, tirage, échanges */
   app.get("/v1/groups/:groupId/tontine-schedule", async (request) => act(request, (c) => G.getSchedule(c, gid(request.params))));
+  const scheduleBody = z
+    .object({
+      cadence,
+      startDate: isoDate,
+      contributionPerShare: money,
+      dueTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+      order: z.discriminatedUnion("mode", [
+        z.object({ mode: z.literal("join_order") }),
+        z.object({ mode: z.literal("manual"), membershipIds: z.array(id).max(200) }),
+        z.object({ mode: z.literal("draw"), drawId: id }),
+      ]),
+      shares: z.array(z.object({ holders: z.array(z.object({ membershipId: id, weight: z.number().int() })).min(1).max(4) })).max(400).optional(),
+    });
   app.put("/v1/groups/:groupId/tontine-schedule", async (request) => {
-    const body = z
-      .object({
-        cadence,
-        startDate: isoDate,
-        contributionPerShare: money,
-        dueTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-        order: z.discriminatedUnion("mode", [
-          z.object({ mode: z.literal("join_order") }),
-          z.object({ mode: z.literal("manual"), membershipIds: z.array(id).max(200) }),
-          z.object({ mode: z.literal("draw"), drawId: id }),
-        ]),
-        shares: z.array(z.object({ holders: z.array(z.object({ membershipId: id, weight: z.number().int() })).min(1).max(4) })).max(400).optional(),
-      })
-      .parse(request.body);
+    const body = scheduleBody.parse(request.body);
     return act(request, (c, a) => G.buildSchedule(c, gid(request.params), a, body, now()));
+  });
+  app.post("/v1/groups/:groupId/tontine-schedule/renewals", async (request, reply) => {
+    const body = scheduleBody.parse(request.body);
+    const out = await act(request, (c, a) => G.renewSchedule(c, gid(request.params), a, body, now()));
+    return reply.code(201).send(out);
   });
   app.post("/v1/groups/:groupId/tontine-schedule/start", async (request) => act(request, (c, a) => G.startSchedule(c, gid(request.params), a, now())));
   app.post("/v1/groups/:groupId/draws", async (request, reply) => {
@@ -336,6 +341,11 @@ export function registerTontineRoutes(app: FastifyInstance, deps: TontineDeps): 
       .object({ channel, reference: optText(64), justification: optText(500), witnessMembershipIds: z.array(id).max(10), amount: money.optional(), fee: moneyOrZero.optional() })
       .parse(request.body);
     const out = await act(request, (c, a) => A.recordPayout(c, gid(request.params), a, pid(request.params, "meetingId"), body, now()));
+    return reply.code(201).send(out);
+  });
+  app.post("/v1/groups/:groupId/year-end-reserve/distributions", async (request, reply) => {
+    const body = z.object({ channel, reference: optText(64), justification: optText(500) }).parse(request.body);
+    const out = await act(request, (c, a) => A.distributeYearEndReserve(c, gid(request.params), a, body, now()));
     return reply.code(201).send(out);
   });
   app.post("/v1/groups/:groupId/meetings/:meetingId/close", async (request) => {

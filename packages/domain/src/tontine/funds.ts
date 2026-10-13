@@ -274,3 +274,31 @@ export function netAfterFees(gross: bigint, fee: bigint, bearer: WithdrawalFeeBe
       return { net: gross, fundFee: 0n };
   }
 }
+
+/**
+ * Partage de la réserve de fin d'année (ADR caisses) : chaque membre récupère
+ * ce qu'il y a versé et pas encore reçu. Si l'écart du registre ne couvre pas
+ * tout (frais, dépense votée), le partage se fait au prorata, en francs
+ * entiers ; le reste d'arrondi va aux plus gros montants (ordre stable).
+ */
+export function reserveDistribution(
+  entries: readonly { readonly membershipId: string; readonly contributed: bigint; readonly received: bigint }[],
+  balance: bigint,
+): readonly { readonly membershipId: string; readonly amount: bigint }[] {
+  perAmount(balance);
+  const owed = entries
+    .map((e) => ({ membershipId: e.membershipId, owed: e.contributed > e.received ? e.contributed - e.received : 0n }))
+    .filter((e) => e.owed > 0n);
+  const total = owed.reduce((a, e) => a + e.owed, 0n);
+  if (total === 0n || balance === 0n) return [];
+  if (total <= balance) return owed.map((e) => ({ membershipId: e.membershipId, amount: e.owed }));
+  const shares = owed.map((e) => ({ membershipId: e.membershipId, owed: e.owed, amount: (e.owed * balance) / total }));
+  let rest = balance - shares.reduce((a, s) => a + s.amount, 0n);
+  const order = [...shares].sort((a, b) => (a.owed === b.owed ? (a.membershipId < b.membershipId ? -1 : 1) : a.owed > b.owed ? -1 : 1));
+  for (const s of order) {
+    if (rest === 0n) break;
+    s.amount += 1n;
+    rest -= 1n;
+  }
+  return shares.filter((s) => s.amount > 0n).map((s) => ({ membershipId: s.membershipId, amount: s.amount }));
+}
