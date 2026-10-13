@@ -1,8 +1,8 @@
 -- KÓMBE — Tontine réelle, socle produit (lots L-01, L-02, L-11, I-05, I-06, I-14).
 -- Additive : n'altère aucune donnée existante, élargit seulement des CHECK.
 --
---  * groupe : nom affiché, créateur, réglages (transparence, frais Mobile
---    Money, avaliseur…), devise XAF ;
+--  * groupe : créateur, réglages (transparence, frais Mobile Money,
+--    avaliseur…) ; nom affiché et devise : colonnes de 0024 ;
 --  * adhésion : nom affiché dans le groupe, admission tracée (qui, par quelle
 --    invitation), avaliseur (L-10), représentant pour un membre sans
 --    smartphone (L-17) ;
@@ -18,13 +18,14 @@ SET LOCAL statement_timeout = '30s';
 SET LOCAL lock_timeout = '5s';
 
 -- ── Groupe ──────────────────────────────────────────────────────────────────
+-- Le nom affiché (display_name) et la devise (currency, XAF) viennent de 0024
+-- (amorçage, déjà en production) : on borne seulement la longueur du nom.
 ALTER TABLE "group"
-  ADD COLUMN name text
-    CHECK (name IS NULL OR length(btrim(name)) BETWEEN 1 AND 120),
+  ADD CONSTRAINT group_display_name_len
+    CHECK (display_name IS NULL OR length(btrim(display_name)) BETWEEN 1 AND 120),
   ADD COLUMN created_by_identity_id text REFERENCES identity(identity_id),
   ADD COLUMN settings jsonb NOT NULL DEFAULT '{}'::jsonb
-    CHECK (jsonb_typeof(settings) = 'object'),
-  ADD COLUMN currency text NOT NULL DEFAULT 'XAF' CHECK (currency = 'XAF');
+    CHECK (jsonb_typeof(settings) = 'object');
 
 -- ── Adhésion ────────────────────────────────────────────────────────────────
 ALTER TABLE membership
@@ -113,7 +114,7 @@ STABLE
 SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
-  SELECT m.group_id, m.membership_id, m.state, g.name, g.state,
+  SELECT m.group_id, m.membership_id, m.state, g.display_name, g.state,
          COALESCE(
            (SELECT array_agg(r.role ORDER BY r.role)
               FROM public.role_assignment r
@@ -142,7 +143,7 @@ STABLE
 SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
-  SELECT i.invitation_id, i.group_id, g.name,
+  SELECT i.invitation_id, i.group_id, g.display_name,
          (i.revoked_at IS NULL AND i.expires_at > now() AND i.used_count < i.max_uses)
   FROM public.invitation i
   JOIN public."group" g ON g.group_id = i.group_id

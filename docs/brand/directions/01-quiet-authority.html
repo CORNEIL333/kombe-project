@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Direction 01 — Quiet Authority</title>
+<link rel="stylesheet" href="base.css">
+<style>
+:root{--deep:#082C26;--forest:#103C32;--green:#176B52;--gold:#C7922E;--sand:#FBF8F1;--sand2:#F3ECDD;--ink:#13211C;--muted:#66746E;--line:rgba(243,236,221,.12)}
+body{background:var(--sand);color:var(--ink)}
+.hero{position:relative;min-height:900px;background:var(--deep);color:var(--sand2);overflow:hidden;padding:36px 64px}
+.grid-lines{position:absolute;inset:0;display:grid;grid-template-columns:repeat(12,1fr);gap:24px;padding:0 64px;pointer-events:none}
+.grid-lines span{border-left:1px solid var(--line)}
+nav{position:relative;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:22px}
+.wordmark{font:800 18px Manrope;letter-spacing:.28em}
+nav ul{display:flex;gap:40px;list-style:none;margin:0;padding:0;font:600 12px Manrope;letter-spacing:.18em;text-transform:uppercase;opacity:.75}
+.hero-body{position:relative;display:grid;grid-template-columns:7fr 1fr 4fr;margin-top:120px}
+h1{font-family:Fraunces;font-variation-settings:"opsz" 144,"SOFT" 0;font-weight:400;font-size:112px;line-height:.98;letter-spacing:-.035em;margin:0}
+h1 em{font-style:normal;color:var(--gold)}
+.principles{grid-column:3;align-self:end;border-top:1px solid var(--line)}
+.principles div{display:grid;grid-template-columns:40px 1fr;padding:18px 0;border-bottom:1px solid var(--line);font-size:15px;line-height:1.5}
+.principles b{font:700 11px Manrope;letter-spacing:.2em;color:var(--gold);padding-top:4px}
+.cta{position:relative;margin-top:72px;display:flex;gap:28px;align-items:center}
+.btn{font:700 15px Manrope;background:var(--sand);color:var(--deep);padding:18px 28px;border-radius:2px}
+.link{font:600 14px Manrope;border-bottom:1px solid currentColor;padding-bottom:4px;opacity:.8}
+.orbit-corner{position:absolute;right:-180px;bottom:-260px;width:720px;opacity:.9}
+.foot-meta{position:absolute;left:64px;bottom:36px;font:600 11px Manrope;letter-spacing:.2em;text-transform:uppercase;opacity:.5}
+
+.product{display:grid;grid-template-columns:5fr 4fr;gap:96px;padding:120px 64px;align-items:center}
+.annot{border-top:1px solid #D9D0BC}
+.annot div{display:grid;grid-template-columns:56px 1fr;gap:12px;padding:26px 0;border-bottom:1px solid #D9D0BC}
+.annot b{font:700 12px Manrope;letter-spacing:.2em;color:var(--green)}
+.annot h3{font:700 19px Manrope;margin:0 0 6px;letter-spacing:-.01em}
+.annot p{margin:0;color:var(--muted);line-height:1.55}
+.section-label{font:700 11px Manrope;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);margin-bottom:28px}
+h2{font-family:Fraunces;font-variation-settings:"opsz" 96;font-weight:400;font-size:56px;line-height:1.02;letter-spacing:-.03em;margin:0 0 48px}
+
+/* écran mobile */
+.screen{background:#fff;color:var(--ink)}
+.m-pad{padding:18px 22px}
+.m-eyebrow{font:700 10px Manrope;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.m-group{font:700 20px Manrope;letter-spacing:-.01em;margin-top:6px}
+.m-turn{display:flex;align-items:baseline;gap:10px;margin-top:26px}
+.m-turn strong{font:300 64px/1 Manrope;letter-spacing:-.04em}
+.m-turn span{font:600 15px Manrope;color:var(--muted)}
+.m-bar{height:2px;background:#E8E2D4;margin:16px 0 6px;position:relative}
+.m-bar i{position:absolute;left:0;top:0;bottom:0;width:25%;background:var(--forest)}
+.m-ticks{display:grid;grid-template-columns:repeat(12,1fr);font:600 9px Manrope;color:var(--muted)}
+.m-task{margin:26px 22px 0;border:1px solid var(--ink);padding:18px}
+.m-task .amt{font:700 26px Manrope;letter-spacing:-.02em;margin:6px 0 2px}
+.m-task p{margin:0 0 16px;color:var(--muted);font-size:13px}
+.m-btn{background:var(--forest);color:#fff;font:700 14px Manrope;text-align:center;padding:14px;border-radius:2px}
+.m-list{margin:22px 22px 0}
+.m-row{display:grid;grid-template-columns:1fr auto;padding:12px 0;border-bottom:1px solid #EEE8DB;font-size:13px}
+.m-row small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.m-row .st{font:700 10px Manrope;letter-spacing:.14em;text-transform:uppercase;color:var(--green)}
+.m-nav{position:absolute;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #EEE8DB;padding:12px 0 22px;font:600 10px Manrope;letter-spacing:.1em;text-transform:uppercase;text-align:center;color:var(--muted)}
+.m-nav b{color:var(--ink)}
+
+.closure{background:var(--sand2);padding:120px 64px;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.closure .ring{width:360px;justify-self:center}
+.closure h2{margin-bottom:16px}
+.closure p{color:var(--muted);font-size:18px;line-height:1.6;max-width:44ch}
+.verdict{font:700 11px Manrope;letter-spacing:.24em;text-transform:uppercase;color:var(--green);margin-top:28px}
+.hero > *{animation:fade 700ms ease both}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<span class="fixture">Direction 01 · fixtures de design</span>
+
+<section class="hero">
+  <div class="grid-lines" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <nav><span class="wordmark">KÓMBE</span><ul><li>Principes</li><li>Le cycle</li><li>Gouvernance</li><li>Sécurité</li></ul><span class="board-label" style="opacity:.75">Accès membre</span></nav>
+  <div class="hero-body">
+    <h1>Le registre<br>de votre<br><em>tontine.</em></h1>
+    <div class="principles">
+      <div><b>01</b><span>Chaque cotisation déclarée, validée, datée.</span></div>
+      <div><b>02</b><span>Chaque tour attribué selon des règles votées.</span></div>
+      <div><b>03</b><span>Chaque décision consignée, consultable par tous.</span></div>
+    </div>
+  </div>
+  <div class="cta"><span class="btn">Ouvrir le registre</span><span class="link">Comment fonctionne un cycle</span></div>
+  <div class="orbit-corner" id="o1"></div>
+  <div class="foot-meta">Douala · Yaoundé · Bafoussam — tontines fermées</div>
+</section>
+
+<section class="product">
+  <div>
+    <div class="section-label">Couche C · Application</div>
+    <h2>Quatre questions.<br>Une réponse par bloc.</h2>
+    <div class="annot">
+      <div><b>01</b><div><h3>Dans quelle tontine suis-je ?</h3><p>Nom du groupe en tête, sans décor.</p></div></div>
+      <div><b>02</b><div><h3>Où en est le cycle ?</h3><p>Le tour en chiffre maigre, la progression en filet.</p></div></div>
+      <div><b>03</b><div><h3>Qu’attend-on de moi ?</h3><p>Un cadre encre, un montant, une action.</p></div></div>
+      <div><b>04</b><div><h3>Que s’est-il passé ?</h3><p>Un registre, ligne à ligne.</p></div></div>
+    </div>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status num"><span>9:41</span><span>●●●</span></div>
+    <div class="m-pad">
+      <div class="m-eyebrow">Groupe</div>
+      <div class="m-group">Les Étoiles de Yaoundé</div>
+      <div class="m-turn num"><strong>04</strong><span>/ 12 tours</span></div>
+      <div class="m-bar"><i></i></div>
+      <div class="m-ticks num"><span>T1</span><span></span><span></span><span>T4</span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span>T12</span></div>
+    </div>
+    <div class="m-task">
+      <div class="m-eyebrow">À faire · avant le 15 nov.</div>
+      <div class="amt num">25 000 XAF</div>
+      <p>Votre cotisation du tour 4.</p>
+      <div class="m-btn">Déclarer ma cotisation</div>
+    </div>
+    <div class="m-list">
+      <div class="m-eyebrow">Registre</div>
+      <div class="m-row"><span>Paul A. — cotisation<small>il y a 2 h</small></span><span class="st">Validée</span></div>
+      <div class="m-row"><span>Marie A. — cotisation<small>hier</small></span><span class="st" style="color:#A15C00">En attente</span></div>
+      <div class="m-row"><span>Règles v3 acceptées<small>lun. 4 nov.</small></span><span class="st">Consigné</span></div>
+    </div>
+    <div class="m-nav"><b>Accueil</b><span>Groupe</span><span>Registre</span><span>Profil</span></div>
+  </div></div>
+</section>
+
+<section class="closure">
+  <div class="ring" id="o2"></div>
+  <div>
+    <div class="section-label">Signature</div>
+    <h2>Un anneau fermé<br>vaut une signature.</h2>
+    <p>La validation n’est pas célébrée : elle est consignée. L’anneau se ferme, le statut s’écrit en toutes lettres, l’entrée rejoint le registre.</p>
+    <div class="verdict">Mouvement : fondus seuls · 0 animation spatiale</div>
+  </div>
+</section>
+
+<script src="orbit.js"></script>
+<script>
+KombeOrbit(document.getElementById('o1'),{n:12,current:4,size:720,stroke:1.5,nodeR:9,ring:'rgba(243,236,221,.22)',arc:'#C7922E',node:'#082C26',nodeDone:'#F3ECDD',beneficiary:'#C7922E',halo:false});
+KombeOrbit(document.getElementById('o2'),{n:12,current:13,size:360,stroke:2,nodeR:8,ring:'#D9D0BC',arc:'#103C32',nodeDone:'#103C32',halo:false});
+</script>
+</body>
+</html>

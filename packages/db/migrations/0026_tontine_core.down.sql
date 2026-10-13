@@ -44,9 +44,8 @@ ALTER TABLE IF EXISTS membership
   DROP COLUMN IF EXISTS display_name;
 
 ALTER TABLE IF EXISTS "group"
-  DROP COLUMN IF EXISTS currency,
+  DROP CONSTRAINT IF EXISTS group_display_name_len,
   DROP COLUMN IF EXISTS settings,
-  DROP COLUMN IF EXISTS created_by_identity_id,
-  DROP COLUMN IF EXISTS name;
+  DROP COLUMN IF EXISTS created_by_identity_id;
 
 COMMIT;

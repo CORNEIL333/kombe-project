@@ -1,7 +1,7 @@
 // KÓMBE @kombe/db — test RÉEL vide → dernière migration (§17).
 //
 // Méthode : ramener la base de vérification partagée à vide (DOWN canoniques
-// 0023 → 0001), puis invoquer le VRAI runner de déploiement
+// 0028 → 0001), puis invoquer le VRAI runner de déploiement
 // (`node scripts/migrate.mjs migrate`, child_process — jamais une copie de sa
 // liste) et vérifier : exit 0, les 27 jalons consignés, des objets
 // représentatifs de la dernière migration présents, et l'idempotence
@@ -51,7 +51,7 @@ function check(name, cond, detail) {
 
 // Même liste canonique que migrate.mjs / isolation.pg.mjs ( Down : inversé ).
 const DOWN = [
-  "migrations/0026_product_api.down.sql", "migrations/0025_association.down.sql", "migrations/0024_tontine_core.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql",
+  "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql",
   "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql",
   "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql",
   "migrations/0017_pilot_metrics.down.sql", "migrations/0016_privacy_law.down.sql",
@@ -65,10 +65,11 @@ const DOWN = [
   "migrations/0001_init.down.sql",
 ];
 
-const EXPECTED_JALONS = 28; // roles_create.sql + 26 migrations + roles.sql
+const EXPECTED_JALONS = 30; // roles_create.sql + 28 migrations (0001..0028) + roles.sql
 
 try {
   await client.connect();
+  await (await import("../scripts/guard.mjs")).assertNonProdTeardown(client, "kombe.db.migrateEmptyToLatest");
 
   // Pré-nettoyage identique aux preuves (états non-DROPpable → valeur fermée).
   await client.query(`

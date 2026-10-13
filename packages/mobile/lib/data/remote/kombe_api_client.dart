@@ -92,10 +92,19 @@ final class KombeApiClient {
         return ApiResponse(statusCode: res.statusCode, body: const {});
       }
       final dynamic decoded = _tryJson(res.body);
-      if (decoded is! Map<String, dynamic>) {
-        throw ApiFailure(statusCode: res.statusCode, code: 'RESPONSE_NOT_JSON');
+      if (decoded is Map<String, dynamic>) {
+        return ApiResponse(statusCode: res.statusCode, body: decoded);
       }
-      return ApiResponse(statusCode: res.statusCode, body: decoded);
+      // Certaines routes (ex. découverte de groupes) renvoient un tableau
+      // JSON de premier niveau : on l'enveloppe sous 'items' plutôt que de
+      // le perdre en RESPONSE_NOT_JSON. Le transport reste non métier.
+      if (decoded is List<dynamic>) {
+        return ApiResponse(
+          statusCode: res.statusCode,
+          body: <String, dynamic>{'items': decoded},
+        );
+      }
+      throw ApiFailure(statusCode: res.statusCode, code: 'RESPONSE_NOT_JSON');
     }
     throw _toFailure(res);
   }

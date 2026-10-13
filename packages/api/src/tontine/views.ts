@@ -34,7 +34,7 @@ export interface GroupRow {
 
 export async function loadGroup(db: Db, groupId: string, forUpdate = false): Promise<GroupRow> {
   const r = await db.query(
-    `SELECT group_id, name, state, settings, created_by_identity_id, created_at FROM "group" WHERE group_id = $1${forUpdate ? " FOR UPDATE" : ""}`,
+    `SELECT group_id, display_name AS name, state, settings, created_by_identity_id, created_at FROM "group" WHERE group_id = $1${forUpdate ? " FOR UPDATE" : ""}`,
     [groupId],
   );
   const row = r.rows[0];

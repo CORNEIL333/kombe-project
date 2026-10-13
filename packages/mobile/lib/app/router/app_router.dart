@@ -16,7 +16,9 @@ import '../../features/disputes/dispute_screens.dart';
 import '../../features/documents/document_screens.dart';
 import '../../features/governance/vote_screens.dart';
 import '../../features/groups/beneficiaries_screen.dart';
+import '../../features/groups/create_group_screen.dart';
 import '../../features/groups/cycle_screen.dart';
+import '../../features/groups/discover_groups_screen.dart';
 import '../../features/groups/group_detail_screen.dart';
 import '../../features/groups/group_settings_screen.dart';
 import '../../features/groups/groups_screen.dart';
@@ -24,6 +26,7 @@ import '../../features/groups/invite_member_screen.dart';
 import '../../features/groups/join_group_screen.dart';
 import '../../features/groups/member_detail_screen.dart';
 import '../../features/groups/members_screen.dart';
+import '../../features/groups/my_groups_screen.dart';
 import '../../features/groups/rules_screen.dart';
 import '../../features/home/dashboard_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
@@ -116,6 +119,18 @@ final class AppRouter {
         GoRoute(
           path: '/app/groups/join',
           builder: (_, __) => const JoinGroupScreen(),
+        ),
+        GoRoute(
+          path: '/app/groups/create',
+          builder: (_, __) => const CreateGroupScreen(),
+        ),
+        GoRoute(
+          path: '/app/groups/discover',
+          builder: (_, __) => const DiscoverGroupsScreen(),
+        ),
+        GoRoute(
+          path: '/app/groups/mine',
+          builder: (_, __) => const MyGroupsScreen(),
         ),
         GoRoute(
           path: '/app/groups/:groupId',

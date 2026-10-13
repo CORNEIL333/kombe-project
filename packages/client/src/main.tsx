@@ -5,6 +5,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { FournisseurLangue } from "./i18n/ContexteLangue.js";
 import { App } from "./App.js";
+import "@kombe/brand/kombe.css";
 import "./styles.css";
 
 const conteneur = document.getElementById("root");

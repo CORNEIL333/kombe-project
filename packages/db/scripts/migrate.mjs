@@ -60,9 +60,11 @@ const UP_MIGRATIONS = [
   "migrations/0021_privacy_restore_points.sql",
   "migrations/0022_cycle_schedule.sql",
   "migrations/0023_worker_discovery.sql",
-  "migrations/0024_tontine_core.sql",
-  "migrations/0025_association.sql",
-  "migrations/0026_product_api.sql",
+  "migrations/0024_group_onboarding.sql",
+  "migrations/0025_member_groups.sql",
+  "migrations/0026_tontine_core.sql",
+  "migrations/0027_association.sql",
+  "migrations/0028_product_api.sql",
   "provision/roles.sql",
 ];
 

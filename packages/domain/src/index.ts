@@ -19,6 +19,7 @@ export * from "./identity.js";
 export * from "./role_change.js";
 export * from "./access.js";
 export * from "./group.js";
+export * from "./onboarding.js";
 export * from "./governance.js";
 export * from "./rules.js";
 export * from "./schedule.js";

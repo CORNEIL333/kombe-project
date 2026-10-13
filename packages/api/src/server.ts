@@ -111,6 +111,8 @@ import {
   loginRequest,
   loginCompletion,
   createGroupBody,
+  sponsorshipRequestBody,
+  sponsorshipDecisionBody,
   groupTransitionBody,
   membershipTerminationBody,
   inviteMemberBody,
@@ -263,6 +265,22 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   MANDATE_INVALID: 422,
   IMPORT_INVALID: 422,
   RECONCILIATION_INCOHERENTE: 409,
+  /* Amorçage tontine (C03 §2.1-2.3, C05 §5.3, C21, parrainage) */
+  TONTINE_MODEL_UNKNOWN: 422,
+  ROTATION_TYPE_UNKNOWN: 422,
+  ROTATION_TYPE_NOT_READY: 409,
+  GROUP_CURRENCY_UNSUPPORTED: 422,
+  GROUP_TIMEZONE_UNSUPPORTED: 422,
+  GROUP_PARENT_UNKNOWN: 422,
+  GROUP_PARENT_SELF_FORBIDDEN: 422,
+  GROUP_PARENT_CYCLE: 422,
+  GROUP_PARENT_DEPTH_EXCEEDED: 422,
+  SUPERVISOR_NOT_MEMBER: 403,
+  SUPERVISOR_FINANCIAL_FORBIDDEN: 403,
+  SPONSOR_NOT_ACTIVE_MEMBER: 403,
+  SPONSOR_SELF_FORBIDDEN: 422,
+  SPONSORSHIP_ALREADY_OPEN: 409,
+  SPONSORSHIP_STATE_INVALID: 409,
 };
 
 export interface BuildAppOptions {
@@ -1335,6 +1353,67 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       return reply.code(200).send(await realGovernance.redeemInvitation(groupId, invitationId));
     }
     return reply.code(200).send(governance.redeemInvitation(invitationId));
+  });
+
+  // Parrainage / cooptation : un candidat demande à rejoindre sous la caution
+  // d'un membre actif. Mode réel : le CANDIDAT est l'acteur de session (le
+  // corps est ignoré, §14) ; le parrain (CIBLE) doit être membre actif réel.
+  app.post("/v1/groups/:groupId/sponsorships", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = sponsorshipRequestBody.parse(request.body);
+    if (pool && realGovernance) {
+      const candidateId = await realIdentityFrom(pool, request, now);
+      return reply
+        .code(201)
+        .send(await realGovernance.requestSponsorship({
+          sponsorshipId: body.sponsorshipId,
+          groupId,
+          candidateId,
+          sponsorId: body.sponsorId,
+        }));
+    }
+    return reply.code(201).send(governance.requestSponsorship({
+      sponsorshipId: body.sponsorshipId,
+      groupId,
+      candidateId: body.candidateId,
+      sponsorId: body.sponsorId,
+    }));
+  });
+
+  // Décision d'un parrainage ouvert (endorsed/rejected). Mode réel : le
+  // décideur doit être membre actif du groupe (anti-IVOR). En fictif, la
+  // décision est appliquée telle quelle.
+  app.post("/v1/groups/:groupId/sponsorships/:sponsorshipId/decision", async (request, reply) => {
+    const { sponsorshipId } = request.params as { groupId: string; sponsorshipId: string };
+    const body = sponsorshipDecisionBody.parse(request.body);
+    if (pool && realGovernance) {
+      const { groupId } = request.params as { groupId: string };
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realGovernance.decideSponsorship(groupId, sponsorshipId, body.decision));
+    }
+    return reply.code(200).send(governance.decideSponsorship(sponsorshipId, body.decision));
+  });
+
+  // Découvrabilité : vue publique minimale des groupes (nom + modèle +
+  // typologie), sans registre réel (4.1).
+  app.get("/v1/discoverable-groups", async (_request, reply) => {
+    if (pool && realGovernance) return reply.code(200).send(await realGovernance.listDiscoverable());
+    return reply.code(200).send(governance.listDiscoverable());
+  });
+
+  // Vue MULTI-ADHÉSION d'un membre (C21 §2.5) : la liste des tontines dont il
+  // fait partie, avec modèle/typologie/hiérarchie (parent) et état d'adhésion.
+  // Mode RÉEL : l'identité listée est celle de la SESSION Bearer, résolue
+  // SERVEUR (§14) — le client ne choisit jamais de quelle identité il liste.
+  // Mode fictif : identité du squelette via query (C01 la résoudra depuis
+  // session + RLS). Aucune donnée financière n'est exposée.
+  app.get("/v1/me/groups", async (request, reply) => {
+    if (pool && realGovernance) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      return reply.code(200).send(await realGovernance.listGroupsForMember(identityId));
+    }
+    const { identityId } = request.query as { identityId?: string };
+    return reply.code(200).send(governance.listGroupsForMember(identityId ?? ""));
   });
 
   /* --- C04 : moteur de règles versionnées et acceptations (3.1 → 3.7, 6.7) --- */

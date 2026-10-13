@@ -21,6 +21,7 @@ abstract final class KombeColors {
   static const Color ink = Color(0xFF13211C);
   static const Color slate = Color(0xFF56645E);
   static const Color line = Color(0xFFE7DCC6);
+  static const Color lineStrong = Color(0xFFD9D0BC);
   static const Color danger = Color(0xFFB42318);
   static const Color warning = Color(0xFF8A5F14);
   static const Color success = Color(0xFF176B52);

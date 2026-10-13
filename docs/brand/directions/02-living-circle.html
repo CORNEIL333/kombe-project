@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Direction 02 — Living Circle</title>
+<link rel="stylesheet" href="base.css">
+<style>
+:root{--deep:#082C26;--forest:#103C32;--green:#176B52;--living:#2A8A68;--gold:#C7922E;--sand:#FBF8F1;--sand2:#F3ECDD;--ink:#13211C;--muted:#66746E}
+body{background:var(--sand);color:var(--ink)}
+.hero{position:relative;height:940px;overflow:hidden;background:
+  radial-gradient(900px 700px at 62% 46%, #FFFDF8 0%, rgba(255,253,248,0) 70%),
+  radial-gradient(600px 500px at 12% 100%, rgba(199,146,46,.10), transparent 70%), var(--sand)}
+nav{position:relative;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:30px 56px}
+.lock{display:flex;align-items:center;gap:10px;font:800 20px Manrope;letter-spacing:.04em;color:var(--forest)}
+.lock svg{width:30px}
+nav ul{display:flex;gap:34px;list-style:none;margin:0;padding:0;font:600 14px Manrope;color:var(--muted)}
+.pill{font:700 14px Manrope;background:var(--forest);color:#fff;padding:12px 20px;border-radius:999px}
+.stage{position:absolute;left:50%;top:50%;width:860px;height:860px;transform:translate(-36%,-46%)}
+.stage .k-orbit{width:100%;height:100%;overflow:visible}
+.copy{position:absolute;z-index:2;left:56px;top:250px;max-width:620px}
+.eyebrow{font:700 12px Manrope;letter-spacing:.24em;text-transform:uppercase;color:var(--green)}
+h1{font-family:Fraunces;font-variation-settings:"opsz" 144,"SOFT" 50;font-weight:500;font-size:104px;line-height:.95;letter-spacing:-.04em;margin:18px 0 26px;color:var(--forest)}
+h1 span{display:block;font-family:Manrope;font-weight:800;font-size:.62em;letter-spacing:.02em;text-transform:uppercase;color:var(--ink);margin-top:10px}
+.lead{font-size:20px;line-height:1.55;color:#3D4A44;max-width:30ch;margin:0 0 34px}
+.ctas{display:flex;gap:14px;align-items:center}
+.btn{font:700 16px Manrope;background:var(--forest);color:#fff;padding:18px 26px;border-radius:999px;display:inline-flex;gap:12px;align-items:center}
+.btn i{width:26px;height:26px;border-radius:50%;background:var(--gold);display:grid;place-items:center;font-style:normal;color:var(--deep)}
+.ghost{font:700 16px Manrope;color:var(--forest);padding:18px 10px}
+.photo-node{position:absolute;z-index:1;width:250px;height:250px;border-radius:50%;overflow:hidden;right:250px;top:150px;box-shadow:0 0 0 10px var(--sand),0 30px 60px -20px rgba(8,44,38,.4);
+  background:url("../../../packages/client/public/brand/hero-communaute.jpg") 30% 20%/cover;opacity:0;animation:pop 900ms cubic-bezier(.2,.8,.2,1) 1300ms forwards}
+.ui-chip{position:absolute;z-index:2;background:#fff;border-radius:18px;padding:14px 18px;box-shadow:0 20px 40px -18px rgba(8,44,38,.35);font-size:14px;display:flex;gap:12px;align-items:center;opacity:0;animation:rise 700ms cubic-bezier(.2,.8,.2,1) forwards}
+.ui-chip small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.ui-chip .mk{width:34px;height:34px;flex:none}
+.c1{right:120px;top:520px;animation-delay:1900ms}
+.c2{right:520px;top:690px;animation-delay:2150ms}
+@keyframes pop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+.act{display:grid;grid-template-columns:420px 1fr;gap:96px;padding:110px 56px;align-items:center;background:#fff}
+.act h2{font-family:Fraunces;font-variation-settings:"opsz" 96,"SOFT" 50;font-weight:500;font-size:60px;line-height:1;letter-spacing:-.03em;margin:14px 0 22px;color:var(--forest)}
+.act p{font-size:18px;line-height:1.6;color:var(--muted);max-width:40ch}
+.trio{display:flex;gap:40px;align-items:flex-end}
+.trio figure{margin:0;text-align:center}
+.trio figcaption{font:700 13px Manrope;margin-top:14px}
+.trio figcaption small{display:block;font-weight:500;color:var(--muted);margin-top:4px}
+
+/* écran mobile */
+.screen{background:var(--sand);color:var(--ink)}
+.m-head{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 0}
+.m-head .g{font:700 13px Manrope;display:flex;align-items:center;gap:8px;background:#fff;padding:8px 12px;border-radius:999px;box-shadow:0 1px 0 rgba(0,0,0,.04)}
+.m-orbit{position:relative;width:260px;height:260px;margin:12px auto 0}
+.m-orbit .center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.m-orbit .center strong{font:800 40px/1 Manrope;letter-spacing:-.03em;color:var(--forest)}
+.m-orbit .center small{display:block;font:600 12px Manrope;color:var(--muted);margin-top:6px}
+.m-ben{text-align:center;font-size:13px;color:var(--muted);margin-top:4px}
+.m-ben b{color:var(--ink)}
+.m-next{margin:16px 16px 0;background:var(--forest);color:#fff;border-radius:24px;padding:18px;position:relative;overflow:hidden}
+.m-next::after{content:"";position:absolute;right:-40px;top:-40px;width:140px;height:140px;border-radius:50%;border:14px solid rgba(199,146,46,.25)}
+.m-next small{font:700 10px Manrope;letter-spacing:.18em;text-transform:uppercase;opacity:.7}
+.m-next .amt{font:800 26px Manrope;margin:6px 0 2px;letter-spacing:-.02em}
+.m-next p{margin:0 0 14px;font-size:13px;opacity:.8}
+.m-next .b{background:var(--sand);color:var(--forest);border-radius:999px;padding:12px;text-align:center;font:800 14px Manrope}
+.m-tl{margin:16px 20px 0;position:relative}
+.m-tl::before{content:"";position:absolute;left:11px;top:8px;bottom:8px;width:2px;background:linear-gradient(var(--living),#E7DFCC)}
+.ev{display:grid;grid-template-columns:24px 1fr auto;gap:12px;padding:8px 0;font-size:13px;align-items:center;position:relative}
+.ev .d{width:24px;height:24px}
+.ev small{display:block;color:var(--muted);font-size:11px}
+.ev .s{font:700 11px Manrope;color:var(--green)}
+.m-nav{position:absolute;bottom:12px;left:12px;right:12px;display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-radius:24px;padding:12px 0;font:700 10px Manrope;text-align:center;color:var(--muted);box-shadow:0 10px 30px -12px rgba(8,44,38,.3)}
+.m-nav b{color:var(--forest)}
+.m-nav b::before{content:"";display:block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin:0 auto 6px}
+@media (prefers-reduced-motion:reduce){*{animation-duration:1ms!important;animation-delay:0ms!important}}
+</style>
+</head>
+<body>
+<span class="fixture">Direction 02 · fixtures de design</span>
+
+<section class="hero">
+  <nav>
+    <span class="lock"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="13" fill="none" stroke="#176B52" stroke-width="5"/><path d="M20 7 A13 13 0 0 0 7 20" fill="none" stroke="#C7922E" stroke-width="5"/><circle cx="20" cy="7" r="5" fill="#F3ECDD" stroke="#FBF8F1" stroke-width="2"/><circle cx="7" cy="20" r="5" fill="#C7922E" stroke="#FBF8F1" stroke-width="2"/><circle cx="33" cy="20" r="5" fill="#176B52" stroke="#FBF8F1" stroke-width="2"/><circle cx="20" cy="33" r="5" fill="#F3ECDD" stroke="#FBF8F1" stroke-width="2"/></svg>KÓMBE</span>
+    <ul><li>Le cycle</li><li>Les preuves</li><li>Les décisions</li><li>Questions</li></ul>
+    <span class="pill">Rejoindre une tontine</span>
+  </nav>
+  <div class="stage" id="hero-orbit"></div>
+  <div class="photo-node" role="img" aria-label="Membres d’une tontine réunis"></div>
+  <div class="copy">
+    <div class="eyebrow">Tontines fermées · Cameroun</div>
+    <h1>Votre tontine,<span>plus claire.</span></h1>
+    <p class="lead">Les tours, les cotisations et les décisions du groupe, visibles par chaque membre.</p>
+    <div class="ctas"><span class="btn">Créer ou rejoindre <i>→</i></span><span class="ghost">Voir un cycle tourner</span></div>
+  </div>
+  <div class="ui-chip c1"><svg class="mk" viewBox="0 0 34 34"><circle cx="17" cy="17" r="13" fill="none" stroke="#E7DFCC" stroke-width="4"/><path d="M17 4 A13 13 0 1 1 5.7 23.5" fill="none" stroke="#A15C00" stroke-width="4" stroke-linecap="round"/></svg><span><b>Cotisation déclarée</b><small>En attente de validation · tour 4</small></span></div>
+  <div class="ui-chip c2"><svg class="mk" viewBox="0 0 34 34"><circle cx="17" cy="17" r="13" fill="none" stroke="#147A54" stroke-width="4"/><path d="M11 17.5l4 4 8-8" fill="none" stroke="#147A54" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Validation enregistrée</b><small>Par le trésorier · 14:32</small></span></div>
+</section>
+
+<section class="act">
+  <div>
+    <div class="eyebrow">Acte 05 · La preuve</div>
+    <h2>Un statut se lit<br>à la forme.</h2>
+    <p>Arc ouvert : en attente. Anneau fermé : confirmé. Chemin rompu : contesté. La couleur aide, la forme et le texte décident.</p>
+  </div>
+  <div class="trio">
+    <figure><svg width="150" height="150" viewBox="0 0 150 150"><circle cx="75" cy="75" r="58" fill="none" stroke="#EFE7D6" stroke-width="12"/><path d="M75 17 A58 58 0 1 1 24 103" fill="none" stroke="#A15C00" stroke-width="12" stroke-linecap="round"/></svg><figcaption>En attente<small>arc ouvert</small></figcaption></figure>
+    <figure><svg width="190" height="190" viewBox="0 0 190 190"><circle cx="95" cy="95" r="74" fill="none" stroke="#147A54" stroke-width="14"/><path d="M68 97l18 18 36-38" fill="none" stroke="#147A54" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg><figcaption>Validée<small>anneau fermé</small></figcaption></figure>
+    <figure><svg width="150" height="150" viewBox="0 0 150 150"><path d="M75 17 A58 58 0 0 1 128 52" fill="none" stroke="#B42318" stroke-width="12" stroke-linecap="round"/><path d="M131 82 A58 58 0 0 1 30 113" fill="none" stroke="#B42318" stroke-width="12" stroke-linecap="round"/><path d="M22 92 A58 58 0 0 1 52 22" fill="none" stroke="#B42318" stroke-width="12" stroke-linecap="round" stroke-dasharray="2 18"/></svg><figcaption>Contestée<small>chemin rompu</small></figcaption></figure>
+    <div class="phone" style="margin-left:40px"><div class="screen">
+      <div class="status num"><span>9:41</span><span>●●●</span></div>
+      <div class="m-head"><span class="g">● Les Étoiles de Yaoundé ▾</span><svg width="22" height="22" viewBox="0 0 24 24" aria-label="Notifications"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" fill="none" stroke="#13211C" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 20.5a2 2 0 0 0 4 0" fill="none" stroke="#13211C" stroke-width="1.8"/></svg></div>
+      <div class="m-orbit" id="m-orbit"><div class="center"><div><strong class="num">4/12</strong><small>tour en cours</small></div></div></div>
+      <div class="m-ben">Bénéficiaire du tour : <b>Marie A.</b></div>
+      <div class="m-next"><small>Prochaine action · avant le 15 nov.</small><div class="amt num">25 000 XAF</div><p>Déclarez votre cotisation du tour 4.</p><div class="b">Déclarer ma cotisation</div></div>
+      <div class="m-tl">
+        <div class="ev"><svg class="d" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#fff" stroke="#147A54" stroke-width="3"/></svg><span>Paul A. a cotisé<small>il y a 2 h</small></span><span class="s">Validée</span></div>
+        <div class="ev"><svg class="d" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#fff" stroke="#E7DFCC" stroke-width="3"/><path d="M12 3 A9 9 0 1 1 4.2 16.5" fill="none" stroke="#A15C00" stroke-width="3"/></svg><span>Marie A. a déclaré<small>hier</small></span><span class="s" style="color:#A15C00">En attente</span></div>
+      </div>
+      <div class="m-nav"><b>Accueil</b><span>Groupes</span><span>Activité</span><span>Profil</span></div>
+    </div></div>
+  </div>
+</section>
+
+<script src="orbit.js"></script>
+<script>
+KombeOrbit(document.getElementById('hero-orbit'),{n:12,current:4,size:860,stroke:26,nodeR:30,converge:true,ring:'#EFE7D6',arc:'#176B52',node:'#FBF8F1',nodeDone:'#103C32',beneficiary:'#C7922E'});
+KombeOrbit(document.getElementById('m-orbit'),{n:12,current:4,size:260,stroke:10,nodeR:12,converge:true,ring:'#EAE2CF',arc:'#176B52',nodeDone:'#103C32',beneficiary:'#C7922E',delay:200});
+</script>
+</body>
+</html>

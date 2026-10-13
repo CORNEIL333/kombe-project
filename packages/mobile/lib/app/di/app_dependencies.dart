@@ -7,6 +7,7 @@ import '../../core/security/secure_session_store.dart';
 import '../../data/local/contribution_draft_database.dart';
 import '../../data/local/preferences_repository_impl.dart';
 import '../../data/remote/http_auth_repository.dart';
+import '../../data/remote/http_group_repository.dart';
 import '../../data/remote/kombe_api_client.dart';
 import '../../data/remote/stored_session_codec.dart';
 import '../../data/repositories/unavailable_repositories.dart';
@@ -61,8 +62,13 @@ final class AppDependencies {
   }
 
   /// Mode RÉEL (Piste A3 suite) — SEUL le périmètre déjà prouvé base réelle
-  /// est branché (connexion par code email, ADR-0024) : les 13 autres
-  /// dépôts restent `Unavailable*` (honnête, pas encore câblé), même ici.
+  /// est branché : la connexion par code email (ADR-0024) et l'amorçage de
+  /// tontine (créer / rejoindre / parrainage / découverte, contrat 0024 prouvé
+  /// par `pgOnboardingStore.proof.mjs`). Les autres dépôts (profil,
+  /// contributions, gouvernance, litiges, notifications, documents, tableau de
+  /// bord) restent `Unavailable*` (honnête, pas encore câblé), même ici.
+  /// Les lectures de groupe (liste/détail/cycle) n'ont pas d'endpoint GET réel
+  /// : `HttpGroupRepository` les déclare `Unavailable` plutôt que de les inventer.
   /// `apiBaseUrl` est lue par l'appelant (`main.dart`) depuis
   /// `--dart-define=KOMBE_API_BASE_URL` — absente par défaut (voir
   /// `AppDependencies.unconfigured`), jamais devinée.
@@ -87,7 +93,7 @@ final class AppDependencies {
         sessionStore: secureSessionStore,
       ),
       profileRepository: const UnavailableProfileRepository(),
-      groupRepository: const UnavailableGroupRepository(),
+      groupRepository: HttpGroupRepository(api: api),
       contributionRepository: const UnavailableContributionRepository(),
       governanceRepository: const UnavailableGovernanceRepository(),
       disputeRepository: const UnavailableDisputeRepository(),

@@ -15,7 +15,7 @@ import { ZoneEtat } from "../composants/Etats.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
 import { LogoKombe } from "../composants/Marque.js";
 import { Orbite } from "../composants/Orbite.js";
-import { ApiError, confirmerConnexion, demanderConnexion } from "../api/kombeApi.js";
+import { ApiError, creerCompte, verifierInscription, confirmerConnexion, demanderConnexion } from "../api/kombeApi.js";
 
 export interface SessionOuverte {
   readonly sessionId: string;
@@ -92,22 +92,35 @@ function PointsEtape({ etape }: { readonly etape: 0 | 1 }) {
 
 export function Connexion({ onConnecte }: ConnexionProps) {
   const { t } = useLangue();
+  const [modele, setModele] = useState<"connexion" | "inscription">("connexion");
   const [etape, setEtape] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [touche, setTouche] = useState(false);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [succes, setSucces] = useState<string | null>(null);
 
   const emailValide = email.trim() !== "";
   const codeValide = /^\d{6}$/.test(code);
+
+  const changerModele = (prochain: "connexion" | "inscription") => {
+    setModele(prochain);
+    setEtape("email");
+    setCode("");
+    setTouche(false);
+    setErreur(null);
+    setSucces(null);
+  };
 
   const envoyerCode = () => {
     setTouche(true);
     if (!emailValide) return;
     setEnCours(true);
     setErreur(null);
-    void demanderConnexion(email.trim())
+    setSucces(null);
+    const demande = modele === "inscription" ? creerCompte(email.trim()) : demanderConnexion(email.trim());
+    void demande
       .then(() => {
         setEtape("code");
         setTouche(false);
@@ -121,11 +134,39 @@ export function Connexion({ onConnecte }: ConnexionProps) {
     if (!codeValide) return;
     setEnCours(true);
     setErreur(null);
+    if (modele === "inscription") {
+      // Vérifie le code d'inscription (active le compte SERVEUR), puis enchaîne
+      // sans détour sur une vraie connexion : le serveur délivre un second code
+      // et, à sa validation, le `sessionId` (jamais choisi par la PWA).
+      void verifierInscription(email.trim(), code)
+        .then(() => demanderConnexion(email.trim()))
+        .then(() => {
+          setModele("connexion");
+          setEtape("code");
+          setCode("");
+          setTouche(false);
+          setSucces(t("connexion.compteVerifie"));
+        })
+        .catch((err: unknown) => setErreur(messageErreur(err)))
+        .finally(() => setEnCours(false));
+      return;
+    }
     void confirmerConnexion(email.trim(), code)
       .then(({ sessionId }) => onConnecte({ sessionId, identityId: email.trim() }))
       .catch((err: unknown) => setErreur(messageErreur(err)))
       .finally(() => setEnCours(false));
   };
+
+  const enInscription = modele === "inscription";
+  const titre = etape === "email" ? (enInscription ? t("connexion.titreInscription") : t("connexion.bonRetour")) : enInscription ? t("connexion.titreInscription") : t("connexion.titre");
+  const consigne =
+    etape === "email"
+      ? enInscription
+        ? t("connexion.consigneInscription")
+        : t("connexion.consigne")
+      : enInscription
+        ? t("connexion.codeInscriptionEnvoye")
+        : t("connexion.codeEnvoye");
 
   return (
     <div className="ecran-connexion">
@@ -133,9 +174,31 @@ export function Connexion({ onConnecte }: ConnexionProps) {
       <section className="panneau-formulaire" aria-labelledby="connexion-titre">
         <div className="panneau-formulaire__interieur">
           <header className="panneau-formulaire__entete">
+            <div role="tablist" aria-label={t("connexion.titre")}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={modele === "connexion"}
+                className={modele === "connexion" ? "bouton bouton-actif" : "bouton bouton-secondaire"}
+                onClick={() => changerModele("connexion")}
+                disabled={enCours}
+              >
+                {t("connexion.ongletConnexion")}
+              </button>{" "}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={modele === "inscription"}
+                className={modele === "inscription" ? "bouton bouton-actif" : "bouton bouton-secondaire"}
+                onClick={() => changerModele("inscription")}
+                disabled={enCours}
+              >
+                {t("connexion.ongletInscription")}
+              </button>
+            </div>
             <PointsEtape etape={etape === "email" ? 0 : 1} />
-            <h2 id="connexion-titre">{etape === "email" ? t("connexion.bonRetour") : t("connexion.titre")}</h2>
-            <p className="aide-champ">{etape === "email" ? t("connexion.consigne") : t("connexion.codeEnvoye")}</p>
+            <h2 id="connexion-titre">{titre}</h2>
+            <p className="aide-champ">{consigne}</p>
           </header>
 
           {etape === "email" ? (
@@ -149,7 +212,7 @@ export function Connexion({ onConnecte }: ConnexionProps) {
                 onChange={setEmail}
               />
               <button type="button" className="bouton bouton-avec-icone" onClick={envoyerCode} disabled={enCours}>
-                {t("bouton.envoyerCode")}
+                {enInscription ? t("bouton.creerCompte") : t("bouton.envoyerCode")}
                 <span className="pastille-fleche" aria-hidden="true">
                   <Icone nom="fleche" taille={16} />
                 </span>
@@ -164,7 +227,7 @@ export function Connexion({ onConnecte }: ConnexionProps) {
                 erreur={touche && !codeValide ? t("erreur.code") : undefined}
               />
               <button type="button" className="bouton bouton-avec-icone" onClick={confirmer} disabled={enCours}>
-                {t("bouton.confirmerCode")}
+                {enInscription ? t("bouton.verifierCompte") : t("bouton.confirmerCode")}
                 <span className="pastille-fleche" aria-hidden="true">
                   <Icone nom="fleche" taille={16} />
                 </span>
@@ -178,6 +241,11 @@ export function Connexion({ onConnecte }: ConnexionProps) {
           )}
 
           {enCours ? <ZoneEtat etat="chargement" /> : null}
+          {succes ? (
+            <p role="status">
+              {succes}
+            </p>
+          ) : null}
           {erreur ? (
             <p className="erreur-champ" role="alert">
               {erreur}

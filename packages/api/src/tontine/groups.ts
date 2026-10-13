@@ -225,7 +225,7 @@ export class GroupService {
       const groupId = newId("grp");
       await scopeGroup(db, groupId);
       await db.query(
-        `INSERT INTO "group" (group_id, state, name, created_by_identity_id, settings) VALUES ($1,'configuration',$2,$3,$4::jsonb)`,
+        `INSERT INTO "group" (group_id, state, display_name, created_by_identity_id, settings) VALUES ($1,'configuration',$2,$3,$4::jsonb)`,
         [groupId, name, identityId, JSON.stringify(settings)],
       );
       const membershipId = newId("mbr");
@@ -273,7 +273,7 @@ export class GroupService {
         throw new DomainError("STATE_CONFLICT", "Plus de membres actifs que le maximum demandé");
       }
       const name = input.name !== undefined ? cleanName(input.name, 120) : group.name;
-      await db.query(`UPDATE "group" SET name = $2, settings = $3::jsonb, version = version + 1 WHERE group_id = $1`, [
+      await db.query(`UPDATE "group" SET display_name = $2, settings = $3::jsonb, version = version + 1 WHERE group_id = $1`, [
         groupId,
         name,
         JSON.stringify(settings),

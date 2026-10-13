@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/formatters/labels.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
@@ -54,7 +55,7 @@ class _MembersScreenState extends State<MembersScreen> {
                     child: Icon(Icons.person_outline),
                   ),
                   title: Text(member.displayName),
-                  subtitle: Text(member.role.name),
+                  subtitle: Text(KombeLabels.role(member.role)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => context.push(
                     '/app/groups/${widget.groupId}/members/${member.identityId}',

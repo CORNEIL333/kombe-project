@@ -149,8 +149,29 @@ export type RecoveryCompletionInput = z.infer<typeof recoveryCompletion>;
 
 export const createGroupBody = z.object({
   groupId: z.string().min(1).max(120),
+  displayName: z.string().min(1).max(120).optional(),
+  tontineModel: z
+    .enum(["famille", "collegues", "fetes", "construction", "etudiant", "personnalise"])
+    .optional(),
+  rotationType: z.enum(["rotative_fermee", "tirage", "negocie"]).optional(),
+  currency: z.string().length(3).optional(),
+  timezone: z.string().min(1).max(64).optional(),
+  parentGroupId: z.string().min(1).max(120).optional(),
   minimumMembers: z.number().int().min(2).max(1000).optional(),
   requiredIndependentRoles: z.number().int().min(0).max(10).optional(),
+});
+
+/* --- Parrainage / cooptation (rejoindre sous caution d'un membre actif) --- */
+export const sponsorshipRequestBody = z.object({
+  sponsorshipId: z.string().min(1).max(120),
+  // CIBLE (fictif) : candidat. En mode réel, le candidat est l'ACTEUR résolu
+  // par session (le client ne choisit jamais son identité métier).
+  candidateId: identityId,
+  // CIBLE : identité du parrain demandé (membre actif à confirmer serveur).
+  sponsorId: identityId,
+});
+export const sponsorshipDecisionBody = z.object({
+  decision: z.enum(["endorsed", "rejected"]),
 });
 export const groupTransitionBody = z.object({
   to: z.enum(["active", "paused", "closed", "stopped_with_discrepancies", "archived"]),

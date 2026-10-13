@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/formatters/labels.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/screen_states.dart';
@@ -27,15 +28,16 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
   }
 
   Future<void> _load() async {
+    final ContributionDraftRepository draftsRepo = context.read<ContributionDraftRepository>();
     final Resource<List<Contribution>> remote =
         await context.read<ContributionRepository>().listHistory();
-    final List<ContributionDraft> drafts =
-        await context.read<ContributionDraftRepository>().listDrafts();
-    if (mounted) {
-      setState(() {
-        _remote = remote;
-        _drafts = drafts;
-      });
+    // L'historique serveur s'affiche même si la lecture des brouillons locaux échoue.
+    if (mounted) setState(() => _remote = remote);
+    try {
+      final List<ContributionDraft> drafts = await draftsRepo.listDrafts();
+      if (mounted) setState(() => _drafts = drafts);
+    } on Object {
+      if (mounted) setState(() => _drafts = const <ContributionDraft>[]);
     }
   }
 
@@ -74,7 +76,7 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(Xaf.format(contribution.amountXaf)),
-                        subtitle: Text(contribution.status.name),
+                        subtitle: Text(KombeLabels.contributionStatus(contribution.status)),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => context.push(
                           '/app/contributions/${contribution.id}',
