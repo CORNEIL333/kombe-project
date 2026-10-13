@@ -1,6 +1,7 @@
 # Mettre KÓMBE en ligne — en quelques clics
 
 Dernière mise à jour : 13 octobre 2026 (branche `claude/continue-previous-a102rx`).
+Parcours des utilisateurs : `docs/PARCOURS_UTILISATEURS.md` · rapport : `docs/RAPPORT_FINAL_TONTINE_REELLE.md`.
 
 **Tout le produit tient dans UN seul projet Vercel** : l'API (`/v1/…`), la PWA
 des membres (`/`), l'Espace bureau (`/bureau/`) et les tableaux de bord
@@ -62,7 +63,7 @@ Sur GitHub, ouvrir la pull request de `claude/continue-previous-a102rx` vers
 4. **Deploy**.
 
 Le build fait, dans l'ordre : compilation de l'API → assemblage du site →
-**migrations** (0026 à 0029 manquent aujourd'hui sur `kombe_prod`, qui est à
+**migrations** (0026 à 0030 manquent aujourd'hui sur `kombe_prod`, qui est à
 27 jalons ; elles s'appliquent ici, une seule fois). Si une étape échoue, rien
 n'est mis en ligne.
 
@@ -89,7 +90,7 @@ KOMBE_SMOKE_BASE_URL=https://<votre-projet>.vercel.app node scripts/release-smok
      ```
    - ou depuis un poste : `KOMBE_DATABASE_URL=<chaîne neondb_owner> node packages/db/scripts/grant-operator.mjs votre@email.cm`
 3. Ouvrir `/ops/`, `/direction/`, `/engineering/` : l'Engineering doit
-   afficher **Schéma : À jour** (29 migrations + rôles).
+   afficher **Schéma : À jour** (30 migrations + rôles).
 
 Le bureau d'un groupe (président, secrétaire, trésorier, commissaire) n'a
 besoin de rien : il ouvre `/bureau/` avec son propre compte.
@@ -107,9 +108,12 @@ besoin de rien : il ouvre `/bureau/` avec son propre compte.
 
 ## Ce qui reste hors de ce guide (non bloquant)
 
-- **Application mobile Flutter** (Android/iOS) : le code est dans
-  `packages/mobile` ; son build et ses tests n'ont pas pu être exécutés ici
-  (outils Flutter absents). Le web (PWA) couvre tous les parcours. Voir
+- **Application mobile Flutter** (Android/iOS) : branchée sur la même API
+  (`flutter analyze` propre, `flutter test` 51 PASS). La publication sur le
+  Play Store demande l'Android SDK et une clé de signature :
+  `cd packages/mobile && flutter build appbundle --release --dart-define=KOMBE_API_BASE_URL=https://<votre-projet>.vercel.app/v1`.
+  En attendant, la PWA s'installe sur Android depuis Chrome (« Ajouter à
+  l'écran d'accueil ») et couvre tous les parcours. Voir
   `docs/BLOCAGES_TONTINE_REELLE.md`.
 - **Sauvegarde / restauration testées** (`pg_dump`/`pg_restore`, DEPLOY.md §6) :
   Neon fournit la restauration à un instant donné ; l'exercice complet reste à

@@ -3,80 +3,90 @@
 Source : prompt maître du 13 octobre 2026 (sections 4, 5 et 6). Branche d'intégration :
 `claude/continue-previous-a102rx` (harnais `claude-code`). Un lot n'est `done` que si
 ses vérifications ont été **exécutées** ; ce qui ne peut pas l'être ici est `BLOCKED`
-avec la commande exacte.
+avec la commande exacte (voir `docs/BLOCAGES_TONTINE_REELLE.md`).
 
-Légende des colonnes : **Dom/DB/API** = domaine pur + migration + route ;
-**PWA** = client React ; **Mob** = Flutter ; **Statut** = `todo` / `in_progress` /
-`partial` (serveur livré, client manquant) / `done` / `BLOCKED`.
+Légende : **Dom/DB/API** = domaine pur + migration + route ; **PWA** = client React ;
+**Mob** = Flutter ; **Bur.** = Espace bureau ; **Statut** = `done` / `partial` /
+`BLOCKED` / `flag fermé` (implémenté au domaine, désactivé, ADR proposée).
 
-Point de départ (13/10, après intégration, SHA `08e0dce`) : domaine + migrations
-0026-0028 + 62 routes `/v1/tontines/*` livrés par la session précédente et prouvés
-sur PostgreSQL 16 (`tontineApi.proof.mjs`, 44 vérifications). Aucun client ne les
-appelle encore ; aucune ADR 0025+ n'existe ; l'OpenAPI ne les décrit pas.
+Point de départ (13/10, SHA `08e0dce`) : domaine + migrations 0026-0028 + 62 routes
+`/v1/tontines/*` prouvées sur PostgreSQL 16 ; aucun client ne les appelait.
+Point d'arrivée : voir `docs/RAPPORT_FINAL_TONTINE_REELLE.md`.
 
-Vérification commune (racine) :
-`pnpm -r run typecheck && pnpm -r run build && pnpm -r run test` puis
-`scripts/proofs-local.sh` (pour chaque preuve : base fraîche, `migrate.mjs migrate`, preuve).
+Vérification commune (racine), **exécutée** :
+`pnpm -r run typecheck && pnpm -r run build && pnpm -r run test`,
+`scripts/proofs-local.sh` (19 preuves PostgreSQL sur bases fraîches),
+`cd packages/client && KOMBE_CHROMIUM_PATH=… npx playwright test` (5 E2E),
+`cd packages/mobile && flutter analyze && flutter test`.
 
 ## Incohérences (I-xx)
 
-| ID | Sujet | Dom/DB/API | PWA | Mob | Statut | Preuve / vérification |
-|---|---|---|---|---|---|---|
-| I-01 | Mots interdits (épargne, solde, retrait, débité, fonds protégés…) + test bloquant | `tontineCopy.test.ts` (API) | à purger + test dictionnaires | `.arb` à purger | todo | `pnpm --filter @kombe/client test` |
-| I-02 | « Caisse commune » inexistante dans le moteur | n/a | à remplacer par les caisses réelles | — | todo | test parcours création |
-| I-03 | Bornes membres (3–1000 / 2 / 8–12) | `maxMembers` règles serveur | à lire du serveur (2–60) | — | todo | X-05 |
-| I-04 | Étape « Njangi » | n/a | étapes Groupe → Récapitulatif | — | todo | test parcours |
-| I-05 | Création qui n'envoie rien | `POST /v1/tontines` | à brancher | — | todo | E2E L-02 |
-| I-06 | Saisie manuelle des identifiants | `/v1/me/tontines`, `/v1/me/dues` | listes cliquables | — | todo | E2E L-02 |
-| I-07 | 13 dépôts mobiles `Unavailable*` | API prête | — | `Http*Repository` | todo (vérif. BLOCKED : pas de Flutter) | `cd packages/mobile && flutter analyze && flutter test` |
-| I-08 | Vocabulaire déclaré / confirmé / validé | API conforme | à aligner | à aligner | todo | test copie |
-| I-09 | Vote sur un objet non exécutable | — | — | — | todo | test domaine |
-| I-10 | `animator` vs Président | rôles L-11 en base | libellés camerounais | libellés | partial | |
-| I-11 | Hebdo calculé depuis un quantième | `cadence.ts` | — | — | partial (L-03) | `tontine.test.ts` |
-| I-12 | Un impayé bloque la clôture | dettes + avance | — | — | partial (L-10) | `tontineApi.proof.mjs` |
-| I-13 | Grâce sans effet | `lateness` + amende | — | — | partial (L-09) | idem |
-| I-14 | Pas de création d'invitation | `POST …/invitations` | partage WhatsApp | — | partial (L-15) | idem |
-| I-15 | Pas de notifications | `GET /v1/me/notifications` | centre de notifications | — | partial | idem |
-| I-16 | Deux clients web, trois logos | — | — | — | todo (ADR) | ADR-0026 |
-| I-17 | Phrase de positionnement unique | README | app | app | todo | grep |
-| I-18 | Fonctions de l'ancienne app Firebase | via L-10/11/12 | — | — | partial (L-20) | |
-| I-19 | README « pas encore de logiciel » | à vérifier | — | — | todo | |
-| I-20 | Connexion e-mail seulement | SMS + WhatsApp + e-mail | à brancher | — | partial (L-01) | |
+| ID | Sujet | Correction | Statut | Preuve | SHA |
+|---|---|---|---|---|---|
+| I-01 | Mots interdits | `FORBIDDEN_COPY` (épargne, solde, retrait, débité, sécurisé, garanti, chiffré…) appliqué à la PWA, au mobile (.arb + Dart), aux 4 tableaux de bord, au site | done | `packages/domain/test/copieProduit.test.ts` | `ae3e707` |
+| I-02 | « Caisse commune » | caisses réelles (cagnotte, secours, fonctionnement, réserve de fin d'année, amendes) | done | E2E `tontine.spec.ts` | `259d5fa` |
+| I-03 | Bornes membres | règle serveur unique 2–60, formulaire aligné | done | ADR-0036 | `259d5fa` |
+| I-04 | Étape « Njangi » | création en 7 étapes (groupe → récapitulatif) | done | E2E | `259d5fa` |
+| I-05 | Création qui n'envoie rien | `POST /v1/tontines` | done | E2E | `259d5fa` |
+| I-06 | Saisie d'identifiants | listes cliquables (`/v1/me/tontines`, `/v1/me/dues`) | done | E2E | `259d5fa` |
+| I-07 | 13 dépôts mobiles « Unavailable » | adaptateurs `Tontine*Repository` vers `/v1` | done | `flutter test` 51 PASS, `flutter analyze` 0 erreur | `4f238ca` |
+| I-08 | Vocabulaire déclaré / confirmé / validé | `VALIDATION_VOCABULARY`, PWA, bureau, mobile | done | test de copie | `259d5fa` |
+| I-09 | Vote sans objet exécutable | décisions votées exécutées par le serveur | done | `decisions.proof.mjs` | `79dd98d`, `1c52863` |
+| I-10 | `animator` vs Président | libellés camerounais partout | done | `droits.test.ts` | `259d5fa` |
+| I-11 | Hebdo calculé depuis un quantième | `cadence.ts` (6 cadences) + pause votée | done | `tontine.test.ts`, `decisions.test.ts` | `79dd98d` |
+| I-12 | Un impayé bloque la clôture | dettes, avance, remise réduite ; remise complète sans caisse d'avance (correctif) | done | `tontineApi.proof.mjs`, `decisions.proof.mjs` | `79dd98d` |
+| I-13 | Grâce sans effet | `lateness`, amende, graduation des sanctions | done | `decisions.proof.mjs` | `79dd98d` |
+| I-14 | Pas de création d'invitation | code + lien + partage WhatsApp | done | E2E | `259d5fa` |
+| I-15 | Pas de notifications | boîte de l'app + rappels + notification « decision » | done | preuves | `259d5fa` |
+| I-16 | Deux clients web, trois logos | un client web, un logo (ADR-0033) | done | ADR-0033 | `aa0db96` |
+| I-17 | Phrase de positionnement | `POSITIONING` FR/EN/pidgin, README | done | grep + test de copie | `7bea60e` |
+| I-18 | Fonctions de l'ancienne app | via L-10/11/12/20 | done | `decisions.proof.mjs` | `4f85e2f` |
+| I-19 | README « pas encore de logiciel » | README réécrit | done | — | `7bea60e` |
+| I-20 | Connexion e-mail seulement | téléphone d'abord (SMS / WhatsApp / e-mail selon la configuration) | done (SMS réel : BLOCKED compte fournisseur) | E2E, `smsProvider.test.ts` | `259d5fa` |
 
 ## Fonctionnalités (L-xx)
 
-| ID | Sujet | Dom/DB/API | PWA | Mob | Statut |
-|---|---|---|---|---|---|
-| L-01 | Identité par téléphone (+237, code 6 chiffres, simulateur) | livré | todo | todo | partial |
-| L-02 | Tour complet de bout en bout + E2E Playwright 3 identités | livré | todo | todo | todo |
-| L-03 | Calendrier réel (6 cadences, heure limite, Douala) ; pause votée | cadences livrées ; pause : domaine seul | — | — | partial |
-| L-04 | Séance (présence, statut, liaison tour) | livré | todo | todo | partial |
-| L-05 | Collecte en lot ; mode séance hors connexion | lot livré ; hors connexion : todo | todo | todo | partial |
-| L-06 | Remise devant témoins, PV, approbation ; export PDF | livré sauf PDF | todo | todo | partial |
-| L-07 | Caisses multiples | livré | todo | todo | partial |
-| L-08 | Caisse de secours | livré | todo | todo | partial |
-| L-09 | Amendes et discipline (graduation) | amendes livrées ; graduation : todo | todo | todo | partial |
-| L-10 | Dette, avance, remise réduite, avaliseur, reprise de place, ordre de confiance | sauf reprise de place | todo | todo | partial |
-| L-11 | Bureau, mandats, destitution par vote, suppléance | rôles + mandats ; destitution : domaine seul | todo | todo | partial |
-| L-12 | Statuts + règlement, acceptation, PDF, dépôt légalisé | sauf PDF / dépôt | todo | todo | partial |
-| L-13 | Tirage vérifiable, échange, priorité, enchères (drapeau) | tirage + échange ; priorité/enchères : domaine | todo | todo | partial |
-| L-14 | Parts multiples / partagées | parts multiples livrées ; parts partagées : todo | todo | todo | partial |
-| L-15 | Invitations, notifications, WhatsApp, rappels | livré (boîte interne + lien WhatsApp) | todo | todo | partial |
-| L-16 | Canaux, frais de retrait, paiement pour autrui, diaspora | sauf diaspora | todo | todo | partial |
-| L-17 | FR/EN/pidgin, membre sans smartphone, vocal, accessibilité | membre hors ligne livré ; vocal todo | todo | todo | partial |
-| L-18 | Transparence configurable | livré | todo | todo | partial |
-| L-19 | Prêts internes (drapeau fermé, ADR proposée) | domaine | — | — | todo |
-| L-20 | Import historique Firebase lecture seule | domaine | — | — | todo |
-| L-21 | Collecte par tontinier (drapeau fermé) | domaine | — | — | todo |
+| ID | Sujet | Dom/DB/API | PWA | Mob | Bur. | Statut | SHA |
+|---|---|---|---|---|---|---|---|
+| L-01 | Identité par téléphone (+237, code 6 chiffres, simulateur) | ✓ | ✓ | ✓ | ✓ | done (fournisseur SMS : BLOCKED) | `259d5fa`, `4f238ca` |
+| L-02 | Tour complet de bout en bout + E2E 3 identités | ✓ | ✓ | ✓ | ✓ | done | `259d5fa` |
+| L-03 | Calendrier réel (6 cadences, heure limite, Douala) ; pause votée | ✓ | ✓ | — | ✓ | done | `79dd98d` |
+| L-04 | Séance (présence, statut, liaison tour) | ✓ | ✓ | — | ✓ | done | `259d5fa` |
+| L-05 | Collecte en lot ; mode séance hors connexion | ✓ | ✓ | (brouillons locaux) | — | done (PWA) | `afc6b47` |
+| L-06 | Remise devant témoins, PV, approbation ; PDF | ✓ | ✓ | — | ✓ (impression → PDF) | done | `44106fd` |
+| L-07 | Caisses multiples | ✓ | ✓ | ✓ | ✓ | done | `259d5fa` |
+| L-08 | Caisse de secours | ✓ | ✓ | — | ✓ | done | `259d5fa` |
+| L-09 | Amendes et graduation des sanctions | ✓ | ✓ | — | ✓ | done | `79dd98d` |
+| L-10 | Dette, avance, remise réduite, avaliseur, reprise de place | ✓ | ✓ | — | ✓ | done | `79dd98d` |
+| L-11 | Bureau, mandats, destitution par vote, suppléance | ✓ | ✓ | ✓ (vote) | ✓ | done | `79dd98d` |
+| L-12 | Statuts + règlement, acceptation, impression ; dépôt légalisé | ✓ | ✓ | ✓ (lecture) | ✓ | done (dépôt en préfecture : hors application) | `259d5fa` |
+| L-13 | Tirage vérifiable, échange, tour prioritaire ; enchères | ✓ | ✓ | — | — | done ; enchères : flag fermé | `30adf99` |
+| L-14 | Parts multiples / partagées (« demi-main ») | ✓ | ✓ | — | — | done | `79dd98d` |
+| L-15 | Invitations, notifications, WhatsApp, rappels | ✓ | ✓ | ✓ | ✓ | done | `259d5fa` |
+| L-16 | Canaux, frais, paiement pour autrui, diaspora | ✓ | ✓ | ✓ | ✓ | done | `4f85e2f` |
+| L-17 | FR/EN/pidgin, membre sans smartphone, accessibilité ; vocal | ✓ | ✓ (pidgin bêta) | FR/EN | FR | done ; notes vocales : BLOCKED (stockage audio) | `76f7dee` |
+| L-18 | Transparence configurable | ✓ | ✓ | — | ✓ | done | `259d5fa` |
+| L-19 | Prêts internes | domaine | — | — | — | flag fermé (ADR-0032) | — |
+| L-20 | Import historique (cahier, ancienne application) | ✓ | ✓ | — | — | done | `4f85e2f` |
+| L-21 | Collecte par tontinier | domaine | — | — | — | flag fermé (ADR-0032) | — |
 
 ## Manques trouvés (X-xx, section 6)
 
-| ID | Constat | Correction | Statut |
-|---|---|---|---|
-| X-01 | 62 routes `/v1/tontines/*` absentes de `docs/openapi.yaml` ; le test contrat ne compare pas toutes les routes du runtime | décrire les routes + test « toute route du serveur est au contrat » | todo |
-| X-02 | Le code cite ADR-0025 à 0032, aucune n'existe | rédiger les ADR (téléphone, client web unique, caisses/amendes, défaut et dette, bureau, calendrier, choix par défaut, extensions) | todo |
-| X-03 | Deux mécanismes d'adhésion : `group.join_code` + parrainage (0024, en prod) et invitations à code (0026) | ADR : l'invitation à code est la voie produit ; l'amorçage reste pour la compatibilité | todo |
-| X-04 | Deux créations de groupe : `POST /v1/groups` (amorçage) et `POST /v1/tontines` | idem : la PWA n'utilise que `/v1/tontines` | todo |
-| X-05 | `minimum_members` = 3 (0024) contre ≥ 2 dans le domaine tontine | aligner la borne (règle serveur, défaut 2–60) | todo |
-| X-06 | `kombe_prod` est à 27 jalons ; 0026-0028 restent à appliquer au déploiement | runbook : `migrate` avant la mise en ligne de l'API | todo |
-| X-07 | Downs 0001-0023 non tolérants sur base vierge (les preuves exigent une base migrée) | documenté ; pas de régression | done (`08e0dce`) |
+| ID | Constat | Correction | Statut | SHA |
+|---|---|---|---|---|
+| X-01 | Routes absentes de l'OpenAPI ; test contrat partiel | OpenAPI complet + test runtime ↔ contrat dans les deux sens | done | `151a2a9` |
+| X-02 | ADR citées inexistantes | ADR-0025 à 0038 | done | `aa0db96`, `79dd98d` |
+| X-03 | Deux mécanismes d'adhésion | ADR-0036 | done | `aa0db96` |
+| X-04 | Deux créations de groupe | la PWA n'utilise que `/v1/tontines` | done | `259d5fa` |
+| X-05 | `minimum_members` = 3 vs 2 | règle serveur 2–60 | done | `259d5fa` |
+| X-06 | `kombe_prod` à 27 jalons | migrations au build Vercel (0026 → 0030) | done | `00333cd` |
+| X-07 | Downs non tolérants sur base vierge | documenté, preuves sur base migrée | done | `08e0dce` |
+| X-08 | Métriques et support ouverts à tout membre | console réservée aux opérateurs (0029) | done | `93fceee` |
+| X-09 | Tableaux de bord sur données fictives | 4 tableaux de bord sur données réelles | done | `44106fd` |
+| X-10 | CORS sans `allow-credentials` (navigateur bloqué) | corrigé + même origine | done | `259d5fa` |
+| X-11..13 | Déploiement en 3 hébergeurs | un seul projet Vercel, migrations au build | done | `00333cd` |
+| X-14 | Remise d'un tour complet refusée sans caisse de fonctionnement | `planPayoutWithArrears` | done | `79dd98d` |
+| X-15 | Échange de tours d'un cycle par parts : 409 à l'approbation | mise à jour en deux temps | done | `30adf99` |
+| X-16 | Écran effacé quand le réseau tombe après une action | dernières données gardées | done | `afc6b47` |
+| X-17 | Langue non gardée d'une ouverture à l'autre | langue mémorisée | done | `76f7dee` |
+| X-18 | Mobile : chaîne de requête encodée dans le chemin | `_uri` corrigé + test | done | `4f238ca` |
