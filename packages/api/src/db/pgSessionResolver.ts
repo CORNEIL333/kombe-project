@@ -112,7 +112,7 @@ export async function resolveGroupActor(
      FROM membership m
      JOIN role_assignment r USING (group_id, membership_id)
      WHERE m.group_id = $1 AND m.identity_id = $2 AND m.state = 'active'
-       AND r.accepted_at IS NOT NULL
+       AND r.accepted_at IS NOT NULL AND r.ended_at IS NULL
      ORDER BY r.accepted_at DESC
      LIMIT 1`,
     [groupId, identityId],
@@ -126,6 +126,22 @@ export async function resolveGroupActor(
   return {
     identityId,
     membershipId: String(res.rows[0].membership_id),
-    role: res.rows[0].role as Role,
+    role: legacyRole(String(res.rows[0].role)),
   };
+}
+
+/** Bureau élargi (0024) → rôle des routes du socle : chaque nouvelle
+ *  fonction se rattache à sa famille, jamais à un droit supérieur. */
+function legacyRole(role: string): Role {
+  switch (role) {
+    case "vice_president":
+      return "animator";
+    case "treasurer_deputy":
+      return "treasurer";
+    case "censor":
+    case "advisor":
+      return "member";
+    default:
+      return role as Role;
+  }
 }

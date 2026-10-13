@@ -12,7 +12,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import type pg from "pg";
 import { registerHttpGuards } from "./httpGuards.js";
-import { DISPLAY_TZ, DomainError, type DomainErrorCode } from "@kombe/domain";
+import { DISPLAY_TZ, DomainError, parseFeatureFlags, type DomainErrorCode, type FeatureFlag } from "@kombe/domain";
 import type { CycleSchedule, ContributionDeclaration } from "@kombe/domain";
 import { PgContributionStore } from "./db/pgContributionStore.js";
 import { PgAccessStore } from "./db/pgAccessStore.js";
@@ -41,6 +41,8 @@ import {
 } from "./db/pgGroupResolvers.js";
 import { resolveSession, resolveGroupActor, type GroupActor } from "./db/pgSessionResolver.js";
 import { ResendEmailSender, type EmailSender } from "./email/emailSender.js";
+import { smsSenderFromEnv, type SmsSender } from "./tontine/sms.js";
+import { registerTontineRoutes } from "./tontine/routes.js";
 import {
   FictitiousCommandStore,
   type Actor,
@@ -235,6 +237,29 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   METRICS_SEVERITE_INCONNUE: 422,
   METRICS_VALEUR_INVALIDE: 422,
   METRICS_RISQUE_CRITIQUE_SANS_CONTROLE: 409,
+  // Tontine réelle (lots L-01 à L-21).
+  TONTINE_FORBIDDEN: 403,
+  OBJET_INTROUVABLE: 404,
+  PHONE_INVALID: 422,
+  SMS_DELIVERY_FAILED: 502,
+  GROUP_NAME_INVALID: 422,
+  CADENCE_INVALID: 422,
+  MEETING_STATE_INVALID: 409,
+  ATTENDANCE_INVALID: 422,
+  WITNESS_REQUIRED: 422,
+  FUND_INVALID: 422,
+  FUND_KIND_DISABLED: 403,
+  MOVEMENT_STATE_INVALID: 409,
+  MOVEMENT_NOT_INDEPENDENT: 403,
+  FINE_INVALID: 422,
+  AID_INVALID: 422,
+  AID_CAP_EXCEEDED: 409,
+  DEBT_INVALID: 422,
+  ORDER_CHANGE_INVALID: 422,
+  DRAW_INVALID: 422,
+  SHARES_INVALID: 422,
+  MANDATE_INVALID: 422,
+  IMPORT_INVALID: 422,
 };
 
 export interface BuildAppOptions {
@@ -277,6 +302,12 @@ export interface BuildAppOptions {
    *  hors RLS applicative. Absent : `journal.checkpoint` reste indisponible
    *  en mode réel (RESERVATION_INCOHERENTE côté store). */
   readonly journalVerifierPool?: pg.Pool;
+  /** Expéditeur SMS (connexion par téléphone, L-01) ; par défaut lu depuis
+   *  `KOMBE_SMS_WEBHOOK_URL`/`KOMBE_SMS_WEBHOOK_TOKEN`, sinon refus explicite. */
+  readonly smsSender?: SmsSender;
+  /** Drapeaux des fonctions sensibles (prêts, enchères, collecte) ; par
+   *  défaut lus depuis `KOMBE_FEATURE_FLAGS`, tous fermés. */
+  readonly featureFlags?: readonly FeatureFlag[];
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -980,7 +1011,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const now = options.now ?? (() => Date.now());
   const realContribution = pool ? new PgContributionStore(pool) : undefined;
   const realAccess = pool
-    ? new PgAccessStore(pool, options.emailSender ?? requireResendSender())
+    ? new PgAccessStore(pool, options.emailSender ?? requireResendSender(), Date.now, options.smsSender ?? smsSenderFromEnv())
     : undefined;
   const realGovernance = pool ? new PgGovernanceStore(pool) : undefined;
   const realValidation = pool ? new PgValidationStore(pool) : undefined;
@@ -1143,6 +1174,15 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // --- Connexion RÉELLE (ADR-0024, Piste A3) : additive, active SEULEMENT
   // quand `pool` est fourni — n'existe pas du tout en mode fictif (jamais un
   // 404 masqué derrière un faux succès). `sessionId` toujours généré serveur.
+  // Tontine réelle (L-01 à L-21) : routes du mode réel uniquement.
+  if (pool) {
+    registerTontineRoutes(app, {
+      pool,
+      now,
+      featureFlags: options.featureFlags ?? parseFeatureFlags(process.env.KOMBE_FEATURE_FLAGS),
+    });
+  }
+
   if (realAccess) {
     const realAccessStore = realAccess;
 

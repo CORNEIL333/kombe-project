@@ -7,7 +7,7 @@
  * entier), jamais un flottant. Il est converti en bigint pour le domaine.
  */
 import { z } from "zod";
-import { DomainError, parseAmount } from "@kombe/domain";
+import { DomainError, normalizePhone, parseAmount } from "@kombe/domain";
 
 /** Montant XAF : chaîne de chiffres ou entier JSON. Refuse tout flottant. */
 export const moneyInput = z
@@ -117,7 +117,14 @@ export type RoleNominationInput = z.infer<typeof roleNominationBody>;
 
 /* --- C02 : inscription, sessions, récupération (1.1 → 1.5) --- */
 
-const identityId = z.string().min(1).max(120);
+// Un numéro de téléphone (chiffres, espaces, +, tirets) est normalisé en
+// E.164 (+237…) côté serveur : « 6 99 12 34 56 » et « +237699123456 »
+// désignent la même identité (L-01). Un e-mail reste inchangé.
+const identityId = z
+  .string()
+  .min(1)
+  .max(120)
+  .transform((v) => (/^[+0-9\s().-]+$/.test(v.trim()) ? normalizePhone(v) : v.trim()));
 // Le CODE reçu hors bande (email), jamais un identifiant interne de jeton
 // (décision humaine 2026-10-07 : le client ne connaît ni ne soumet de
 // tokenId — le serveur résout le jeton en attente par identityId+purpose).

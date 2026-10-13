@@ -39,10 +39,17 @@ import {
   type Channel,
   type TokenPurpose,
   type VerificationToken,
+  isPhoneIdentity,
 } from "@kombe/domain";
 import { withIdentityTx } from "./txContext.js";
 import type { EmailSender } from "../email/emailSender.js";
 import type { AccessReceipt } from "../accessStore.js";
+import { UnconfiguredSmsSender, type SmsSender } from "../tontine/sms.js";
+
+/** Canal d'un identifiant : téléphone E.164 → SMS, sinon e-mail (L-01). */
+function channelOf(identityId: string): Channel {
+  return isPhoneIdentity(identityId) ? "phone" : "email";
+}
 
 // `this.now` est `Date.now()` par défaut (MILLISECONDES) — contrairement au
 // modèle fictif (`accessStore.ts`) dont l'horloge injectée est en SECONDES.
@@ -82,6 +89,7 @@ export class PgAccessStore {
     private readonly pool: pg.Pool,
     private readonly emailSender: EmailSender,
     private readonly now: () => number = Date.now,
+    private readonly smsSender: SmsSender = new UnconfiguredSmsSender(),
   ) {}
 
   private async issueAndStore(
@@ -192,6 +200,11 @@ export class PgAccessStore {
   }
 
   private async sendCode(to: string, code: string, subject: string): Promise<void> {
+    if (isPhoneIdentity(to)) {
+      // SMS court, sans nom de groupe ni montant (écran verrouillé).
+      await this.smsSender.send({ to, text: `KÓMBE : votre code est ${code}. Ne le partagez avec personne.` });
+      return;
+    }
     try {
       await this.emailSender.send({ to, subject, text: `Votre code KÓMBE : ${code}` });
     } catch {
@@ -211,7 +224,7 @@ export class PgAccessStore {
       );
       await this.issueAndStore(client, identityId, "registration", channel, code);
     });
-    if (channel === "email") await this.sendCode(identityId, code, "Vérifiez votre compte KÓMBE");
+    if (channel === channelOf(identityId)) await this.sendCode(identityId, code, "Vérifiez votre compte KÓMBE");
     return { accepted: true };
   }
 
@@ -246,7 +259,7 @@ export class PgAccessStore {
     const exists = await withIdentityTx(this.pool, identityId, async (client) => {
       const res = await client.query(`SELECT 1 FROM identity_access WHERE identity_id=$1`, [identityId]);
       if (res.rows.length === 0) return false;
-      await this.issueAndStore(client, identityId, "recovery", "email", code);
+      await this.issueAndStore(client, identityId, "recovery", channelOf(identityId), code);
       return true;
     });
     if (exists) await this.sendCode(identityId, code, "Récupération de compte KÓMBE");
@@ -295,7 +308,7 @@ export class PgAccessStore {
         [identityId],
       );
       if (res.rows.length === 0) return false;
-      await this.issueAndStore(client, identityId, "login", "email", code);
+      await this.issueAndStore(client, identityId, "login", channelOf(identityId), code);
       return true;
     });
     if (exists) await this.sendCode(identityId, code, "Votre lien de connexion KÓMBE");

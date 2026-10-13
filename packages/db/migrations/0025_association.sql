@@ -470,6 +470,10 @@ BEGIN
     EXECUTE format('REVOKE DELETE ON %I FROM kombe_app', t);
   END LOOP;
 END $$;
+-- Parts : recomposables tant que le calendrier est en brouillon (un tour qui
+-- référence la part bloque la suppression par FK ; après démarrage, le gel
+-- des tours empêche de détacher une part).
+GRANT DELETE ON share, share_holder TO kombe_app;
 GRANT SELECT, UPDATE ON inbox_notification TO kombe_app;
 REVOKE INSERT, DELETE ON inbox_notification FROM kombe_app;
 
