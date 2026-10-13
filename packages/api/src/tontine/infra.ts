@@ -300,6 +300,28 @@ export async function identitiesWithRoles(db: Db, groupId: string, roles: readon
   return r.rows.map((x) => String(x.identity_id));
 }
 
+/** Adhésions actives qui tiennent l'une de ces fonctions (acceptée, en cours). */
+export async function membershipsWithRoles(db: Db, groupId: string, roles: readonly GroupRole[]): Promise<string[]> {
+  const r = await db.query(
+    `SELECT DISTINCT ra.membership_id FROM role_assignment ra
+       JOIN membership m ON m.group_id = ra.group_id AND m.membership_id = ra.membership_id
+      WHERE ra.group_id = $1 AND ra.role = ANY($2) AND ra.accepted_at IS NOT NULL AND ra.ended_at IS NULL
+        AND m.state = 'active'`,
+    [groupId, roles as string[]],
+  );
+  return r.rows.map((x) => String(x.membership_id));
+}
+
+/**
+ * Conflit d'intérêts : quand TOUS les titulaires d'une fonction sont la
+ * personne concernée par l'opération, une autre fonction agit à leur place,
+ * sinon l'opération resterait bloquée (trésorier unique qui bouffe,
+ * commissaire unique qui reçoit sa remise). Vrai si la suppléance s'applique.
+ */
+export function onlyHolderIsSubject(holders: readonly string[], subjectMembershipId: string | null): boolean {
+  return subjectMembershipId !== null && holders.length > 0 && holders.every((h) => h === subjectMembershipId);
+}
+
 export async function activeMemberIdentities(db: Db, groupId: string): Promise<string[]> {
   const r = await db.query(`SELECT identity_id FROM membership WHERE group_id = $1 AND state = 'active'`, [groupId]);
   return r.rows.map((x) => String(x.identity_id));

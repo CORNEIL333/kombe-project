@@ -21,7 +21,7 @@ import {
   type TontineSettings,
   type TontineState,
 } from "@kombe/domain";
-import { type Actor, type Db, isoDate, isoInstant, m, maskLogin, may } from "./infra.js";
+import { type Actor, type Db, isoDate, isoInstant, m, maskLogin, may, membershipsWithRoles, onlyHolderIsSubject } from "./infra.js";
 
 export interface GroupRow {
   readonly groupId: string;
@@ -80,6 +80,21 @@ export async function cycleStarted(db: Db, groupId: string): Promise<boolean> {
   return r.rows[0]?.state === "started";
 }
 
+/** Cycle en cours : démarré et au moins un tour encore ouvert (entre deux cycles : faux). */
+export async function cycleInProgress(db: Db, groupId: string): Promise<boolean> {
+  if (!(await cycleStarted(db, groupId))) return false;
+  const r = await db.query(`SELECT 1 FROM round WHERE group_id = $1 AND state = 'open' LIMIT 1`, [groupId]);
+  return r.rows.length > 0;
+}
+
+/** Cycle courant (le dernier démarré) ; null avant le premier démarrage. */
+export async function currentCycle(db: Db, groupId: string): Promise<{ number: number; firstSeq: number; lastSeq: number; finished: boolean } | null> {
+  const r = await db.query(`SELECT cycle_no, first_seq, last_seq FROM tontine_cycle WHERE group_id = $1 ORDER BY cycle_no DESC LIMIT 1`, [groupId]);
+  const row = r.rows[0];
+  if (!row) return null;
+  return { number: Number(row.cycle_no), firstSeq: Number(row.first_seq), lastSeq: Number(row.last_seq), finished: !(await cycleInProgress(db, groupId)) };
+}
+
 /** Titulaire d'une part sur une plage de tours (reprise de place, 0030). */
 export interface ShareHolding {
   readonly shareId: string;
@@ -128,7 +143,8 @@ export async function loadShares(db: Db, groupId: string, seq?: number): Promise
 }
 
 export async function loadMembers(db: Db, actor: Actor, opts: { readonly includeInactive?: boolean } = {}): Promise<MemberView[]> {
-  const started = await cycleStarted(db, actor.groupId);
+  // Entre deux cycles, on affiche les parts voulues pour le prochain.
+  const started = await cycleInProgress(db, actor.groupId);
   const shares = started ? await loadShares(db, actor.groupId) : [];
   const shareCount = new Map<string, number>();
   for (const s of shares) for (const h of s.holders) shareCount.set(h.membershipId, (shareCount.get(h.membershipId) ?? 0) + 1);
@@ -452,6 +468,9 @@ export async function movementViews(
   const presidency = actor.membershipState === "active" && (actor.roles.includes("animator") || actor.roles.includes("vice_president"));
   const canConfirm = may(actor, "movement.confirm");
   const canControl = may(actor, "movement.control");
+  // Suppléance : quand tous les commissaires sont la personne concernée, le censeur ou la présidence contrôle.
+  const auditors = await membershipsWithRoles(db, actor.groupId, ["auditor"]);
+  const controlSubstitute = actor.membershipState === "active" && actor.roles.some((r) => r === "censor" || r === "animator" || r === "vice_president");
   return r.rows.map((row) => {
     const declaredBy = String(row.declared_by_identity_id);
     const confirmedBy = row.confirmed_by_identity_id ? String(row.confirmed_by_identity_id) : null;
@@ -489,7 +508,7 @@ export async function movementViews(
           (canConfirm || (presidency && memberId !== null && treasury.has(memberId))) &&
           state === "declared" && !isPayout && row.related_kind !== "advance" && declaredBy !== actor.identityId && !mine,
         control:
-          canControl && state === "confirmed" && declaredBy !== actor.identityId && confirmedBy !== actor.identityId && !mine,
+          (canControl || (controlSubstitute && onlyHolderIsSubject(auditors, memberId))) && state === "confirmed" && declaredBy !== actor.identityId && confirmedBy !== actor.identityId && !mine,
         reject: canConfirm && (state === "declared" || state === "confirmed") && declaredBy !== actor.identityId && !mine,
         acknowledge:
           kind === "payout" && state === "declared" && !row.beneficiary_confirmed_at && declaredBy !== actor.identityId &&

@@ -281,3 +281,42 @@ export function netAfterFees(gross: bigint, fee: bigint, bearer: WithdrawalFeeBe
       return { net: gross, fundFee: 0n };
   }
 }
+
+/* ── Réserve de fin d'année : chacun reprend ce qu'il a mis ─────────────── */
+
+export interface ReserveEntitlement {
+  readonly membershipId: string;
+  /** Total confirmé versé par le membre dans la réserve. */
+  readonly contributed: bigint;
+  /** Déjà rendu (remises de réserve non rejetées). */
+  readonly returned: bigint;
+}
+
+/**
+ * Plan de redistribution de la réserve : chacun reprend ce qu'il a versé et
+ * qui ne lui a pas encore été rendu. Si la caisse ne couvre pas tout (dépense
+ * votée, par exemple), le disponible est partagé au prorata, au franc près
+ * (plus forts restes, puis ordre des identifiants) : la somme rendue n'excède
+ * jamais le disponible.
+ */
+export function planReserveDistribution(
+  available: bigint,
+  entitlements: readonly ReserveEntitlement[],
+): { readonly membershipId: string; readonly owed: bigint; readonly amount: bigint }[] {
+  const owed = entitlements
+    .map((e) => ({ membershipId: e.membershipId, owed: e.contributed - e.returned }))
+    .filter((e) => e.owed > 0n)
+    .sort((a, b) => (a.membershipId < b.membershipId ? -1 : a.membershipId > b.membershipId ? 1 : 0));
+  const total = owed.reduce((s, e) => s + e.owed, 0n);
+  if (total === 0n || available <= 0n) return [];
+  if (available >= total) return owed.map((e) => ({ ...e, amount: e.owed }));
+  const base = owed.map((e) => ({ ...e, amount: (e.owed * available) / total, rest: (e.owed * available) % total }));
+  let left = available - base.reduce((s, e) => s + e.amount, 0n);
+  const byRest = [...base].sort((a, b) => (b.rest > a.rest ? 1 : b.rest < a.rest ? -1 : a.membershipId < b.membershipId ? -1 : 1));
+  for (const e of byRest) {
+    if (left === 0n) break;
+    e.amount += 1n;
+    left -= 1n;
+  }
+  return base.filter((e) => e.amount > 0n).map(({ membershipId, owed: o, amount }) => ({ membershipId, owed: o, amount }));
+}

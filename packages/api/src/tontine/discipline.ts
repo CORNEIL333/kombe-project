@@ -43,6 +43,7 @@ import {
   sessionIdentity,
   todayDouala,
 } from "./infra.js";
+import { assertMayDeclarePayout } from "./money.js";
 import { aidScaleOf, fineScheduleOf } from "./settings.js";
 import { fundConfirmedBalance, fundOfKind, loadGroup, loadNames, movementViews } from "./views.js";
 
@@ -362,14 +363,11 @@ export class DisciplineService {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => {
       const actor = await this.actor(db, headers, groupId, nowMs);
-      requireAct(actor, "movement.confirm");
       const r = await db.query(`SELECT * FROM aid_request WHERE group_id = $1 AND aid_id = $2 FOR UPDATE`, [groupId, aidId]);
       const row = r.rows[0];
       if (!row) throw new DomainError("OBJET_INTROUVABLE", "Demande introuvable");
+      await assertMayDeclarePayout(db, actor, groupId, String(row.beneficiary_membership_id));
       transitionAid(row.state as AidState, "paid");
-      if (String(row.beneficiary_membership_id) === actor.membershipId) {
-        throw new DomainError("APPROVER_NOT_DISTINCT", "On ne se remet pas sa propre aide");
-      }
       assertChannelReference({ channel: input.channel, reference: input.reference ?? null, justification: input.justification ?? null });
       const amount = BigInt(String(row.amount));
       const bal = await fundConfirmedBalance(db, groupId, String(row.fund_id));

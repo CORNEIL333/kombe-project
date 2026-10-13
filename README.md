@@ -31,7 +31,7 @@ dans un registre vérifiable.
 | Dossier | Contenu |
 |---|---|
 | `packages/domain` | Règles métier pures (TypeScript), testées |
-| `packages/db` | Schéma PostgreSQL 16, migrations 0001 à 0030, rôles et cloisonnement |
+| `packages/db` | Schéma PostgreSQL 16, migrations 0001 à 0031, rôles et cloisonnement |
 | `packages/api` | API Fastify ; l'API produit est dans `src/tontine/` ([contrat](docs/API_TONTINE.md)) |
 | `packages/client` | Application web installable (PWA, React) |
 | `packages/mobile` | Application mobile Flutter (Android, iOS) |

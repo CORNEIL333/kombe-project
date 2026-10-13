@@ -11,7 +11,7 @@ Date : 13 octobre 2026 · branche `claude/continue-previous-a102rx`.
 | # | Blocage | Pourquoi bloqué ici | Commande / action exacte | Vérification |
 |---|---|---|---|---|
 | A1 | Projet Vercel + variables de production | créer un compte / toucher des secrets est interdit à l'agent | `docs/deployment/MORNING_SETUP.md` §1–2 (`KOMBE_API_DATABASE_URL`, `KOMBE_MIGRATION_DATABASE_URL`, `RESEND_API_KEY`, `KOMBE_EMAIL_FROM`) | `KOMBE_SMOKE_BASE_URL=https://<projet>.vercel.app node scripts/release-smoke.mjs` → `SMOKE_PASS` |
-| A2 | Migrations 0026 → 0030 sur `kombe_prod` (27 jalons aujourd'hui) | pas d'accès à la production | automatique au build Vercel de production ; à la main : `KOMBE_DATABASE_URL=<neondb_owner> node packages/db/scripts/migrate.mjs migrate` | `/engineering/` → « Schéma : À jour » (30 migrations + rôles) |
+| A2 | Migrations 0026 → 0031 sur `kombe_prod` (27 jalons aujourd'hui) | pas d'accès à la production | automatique au build Vercel de production ; à la main : `KOMBE_DATABASE_URL=<neondb_owner> node packages/db/scripts/migrate.mjs migrate` | `/engineering/` → « Schéma : À jour » (31 migrations + rôles) |
 | A3 | Opérateur de la plateforme | dépend d'A1 | `KOMBE_DATABASE_URL=<neondb_owner> node packages/db/scripts/grant-operator.mjs <votre-identifiant>` | `/ops/` s'ouvre |
 
 ## B. Fournisseurs (comptes à créer par le porteur)

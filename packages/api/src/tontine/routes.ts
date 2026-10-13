@@ -16,9 +16,10 @@ import { DisciplineService } from "./discipline.js";
 import { GroupService } from "./groups.js";
 import { HistoryService, type HistoryImportInput } from "./history.js";
 import { InboxService } from "./inbox.js";
+import { InsightService, type CycleSimulationInput } from "./insights.js";
 import { MeetingService } from "./meetings.js";
 import { MoneyService } from "./money.js";
-import { settingsSchema } from "./settings.js";
+import { cadenceSchema, settingsSchema } from "./settings.js";
 import { EmailCodeSender, codeSenderFromEnv, type CodeSender } from "./sms.js";
 
 const id = z.string().min(3).max(200);
@@ -105,6 +106,20 @@ const S = {
     incomingMembershipId: id.optional(),
   }),
   ballot: z.object({ choice: z.enum(BALLOT_CHOICES) }),
+  renewal: z.object({
+    order: z.enum(["draw", "manual", "join_order"]),
+    drawId: id.optional(),
+    membershipOrder: z.array(id).max(300).optional(),
+    firstMeetingDate: isoDate.optional(),
+  }),
+  reserve: z.object(channelFields),
+  simulation: z.object({
+    cadence: cadenceSchema,
+    firstMeetingDate: isoDate,
+    shares: z.number().int().min(2).max(60),
+    contributionPerShare: moneyStr,
+    sidePerMeeting: moneyStr.optional(),
+  }),
   historyImport: z.object({
     source: z.enum(["kombe_v1", "cahier"]),
     label: z.string().trim().max(80).optional(),
@@ -147,6 +162,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   const inbox = new InboxService(pool, now);
   const decisions = new DecisionService(pool, now);
   const history = new HistoryService(pool, now);
+  const insights = new InsightService(pool, now);
 
   const H = (r: FastifyRequest): Record<string, unknown> => r.headers as Record<string, unknown>;
   const seqOf = (raw: string | undefined): number => z.coerce.number().int().min(1).max(10_000).parse(raw);
@@ -228,6 +244,9 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     return cycle.getDraw(H(req), p.id as string, p.drawId as string);
   });
   app.post("/v1/tontines/:id/cycle", async (req) => cycle.start(H(req), (req.params as P).id as string, S.start.parse(req.body)));
+  app.post("/v1/tontines/:id/cycle-renewals", async (req, reply) =>
+    write(req, reply, 201, () => cycle.renew(H(req), (req.params as P).id as string, S.renewal.parse(req.body))),
+  );
   app.get("/v1/tontines/:id/rounds", async (req) => cycle.rounds(H(req), (req.params as P).id as string));
   app.get("/v1/tontines/:id/rounds/:seq/grid", async (req) => {
     const p = req.params as P;
@@ -254,8 +273,20 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     return cycle.approveSwap(H(req), p.id as string, p.cid as string);
   });
 
+  /* ── Repères : simulateur, mon tour, régularité, réserve ─────────────── */
+  app.post("/v1/cycle-simulations", async (req) => insights.simulate(H(req), S.simulation.parse(req.body) as CycleSimulationInput));
+  app.get("/v1/tontines/:id/my-forecast", async (req) => insights.myForecast(H(req), (req.params as P).id as string));
+  app.get("/v1/tontines/:id/regularity", async (req) => insights.regularity(H(req), (req.params as P).id as string));
+  app.post("/v1/tontines/:id/reserve-distributions", async (req, reply) =>
+    write(req, reply, 201, () => money.distributeReserve(H(req), (req.params as P).id as string, S.reserve.parse(req.body))),
+  );
+
   /* ── Séances ───────────────────────────────────────────────────────── */
   app.get("/v1/tontines/:id/meetings", async (req) => meetings.list(H(req), (req.params as P).id as string));
+  app.get("/v1/tontines/:id/meetings/:mid/share-text", async (req) => {
+    const p = req.params as P;
+    return insights.meetingShareText(H(req), p.id as string, p.mid as string);
+  });
   app.get("/v1/tontines/:id/meetings/:mid", async (req) => {
     const p = req.params as P;
     return meetings.detail(H(req), p.id as string, p.mid as string);

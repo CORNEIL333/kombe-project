@@ -187,6 +187,7 @@ function DetailSeance({ ctx, meetingId, onChange }: { readonly ctx: ContexteGrou
             >
               <pre className="pv">{s.minutes.text}</pre>
               <p className="aide-champ">{tx("se.empreinte", { hash: s.minutes.hash })}</p>
+              <PartageWhatsapp ctx={ctx} meetingId={meetingId} />
               {s.minutes.approvedAt ? (
                 <Pastille ton="ok">{tx("se.approuve")}</Pastille>
               ) : peut(ctx.roles, "meeting.manage") ? (
@@ -285,6 +286,52 @@ function Appel({ ctx, seance, onFini }: { readonly ctx: ContexteGroupe; readonly
 }
 
 /** Ouvre une fenêtre imprimable (Imprimer → « Enregistrer en PDF » sur le téléphone). */
+/** Résumé de séance à coller dans le groupe WhatsApp : préparé par le serveur
+   (présents, remise, prochaine séance, empreinte du PV), sans numéro. */
+function PartageWhatsapp({ ctx, meetingId }: { readonly ctx: ContexteGroupe; readonly meetingId: string }) {
+  const { tx } = useTextes();
+  const [texte, setTexte] = useState<string | null>(null);
+  const [copie, setCopie] = useState(false);
+  const action = useAction();
+  const preparer = async () => {
+    const r = await action.lancer(() => seances.resume(ctx.session, ctx.groupe.groupId, meetingId));
+    if (r) setTexte(r.text);
+  };
+  const copier = async () => {
+    if (!texte) return;
+    try {
+      await navigator.clipboard.writeText(texte);
+      setCopie(true);
+    } catch {
+      setCopie(false);
+    }
+  };
+  if (!texte) {
+    return (
+      <>
+        <Retour erreur={action.erreur} />
+        <button type="button" className="bouton bouton-secondaire bouton-compact" disabled={action.enCours} onClick={() => void preparer()}>
+          {tx("se.whatsapp")}
+        </button>
+      </>
+    );
+  }
+  return (
+    <div className="formulaire-encart pile">
+      <h4>{tx("se.whatsappTitre")}</h4>
+      <pre className="pv">{texte}</pre>
+      <div className="actions-formulaire">
+        <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => void copier()}>
+          {copie ? tx("se.copie") : tx("se.copier")}
+        </button>
+        <a className="bouton bouton-compact" href={`https://wa.me/?text=${encodeURIComponent(texte)}`} target="_blank" rel="noopener noreferrer">
+          {tx("se.whatsappOuvrir")}
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function imprimerPv(s: MeetingDetail): void {
   if (!s.minutes) return;
   const w = window.open("", "_blank", "noopener=no");

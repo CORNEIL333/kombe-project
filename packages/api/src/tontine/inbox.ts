@@ -60,6 +60,8 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   "statutes.accepted": "Statuts acceptés",
   "draw.committed": "Tirage scellé",
   "cycle.started": "Cycle démarré",
+  "cycle.renewed": "Nouveau cycle démarré",
+  "reserve.distributed": "Réserve de fin d'année rendue aux membres",
   "payout.declared": "Remise déclarée",
   "payout.received": "Remise reçue par le bénéficiaire",
   "round.closed": "Tour clos",

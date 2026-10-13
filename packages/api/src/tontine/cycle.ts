@@ -45,6 +45,7 @@ import {
 } from "./infra.js";
 import {
   computeDues,
+  cycleInProgress,
   cycleStarted,
   fundConfirmedBalance,
   fundOfKind,
@@ -52,10 +53,32 @@ import {
   loadNames,
   loadRoundRows,
   loadRounds,
+  loadShareHoldings,
   loadShares,
   movementViews,
+  type GroupRow,
 } from "./views.js";
 import { tontineDetail } from "./groups.js";
+import { assertMayDeclarePayout } from "./money.js";
+
+/** Statuts acceptés par chaque membre qui a un téléphone (L-12), sur la dernière version. */
+async function assertStatutesAccepted(db: Db, groupId: string): Promise<void> {
+  const st = await db.query(`SELECT version FROM statutes_version WHERE group_id = $1 ORDER BY version DESC LIMIT 1`, [groupId]);
+  if (!st.rows[0]) throw new DomainError("CYCLE_START_NOT_READY", "Générez les statuts et faites-les accepter");
+  const missing = await db.query(
+    `SELECT count(*) AS c FROM membership m
+      WHERE m.group_id = $1 AND m.state = 'active' AND m.identity_id NOT LIKE 'offline\\_%'
+        AND NOT EXISTS (SELECT 1 FROM statutes_acceptance a WHERE a.group_id = m.group_id AND a.version = $2 AND a.identity_id = m.identity_id)`,
+    [groupId, st.rows[0].version],
+  );
+  if (Number(missing.rows[0]?.c ?? 0) > 0) {
+    throw new DomainError("RULES_NOT_ACCEPTED", "Tous les membres doivent accepter la dernière version des statuts");
+  }
+}
+
+function dayAfter(iso: string): string {
+  return new Date(Date.parse(`${iso}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+}
 
 export class CycleService {
   constructor(
@@ -70,7 +93,9 @@ export class CycleService {
     return inTx(this.pool, async (db) => {
       const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
       requireAct(actor, "schedule.manage");
-      if (await cycleStarted(db, groupId)) throw new DomainError("SCHEDULE_FROZEN", "Cycle déjà démarré");
+      if (await cycleInProgress(db, groupId)) {
+        throw new DomainError("SCHEDULE_FROZEN", "Cycle en cours : le tirage du prochain cycle se fait après le dernier tour");
+      }
       const seed = randomBytes(24).toString("hex");
       const commitment = drawCommitment(seed);
       const drawId = newId("drw");
@@ -91,8 +116,8 @@ export class CycleService {
       const r = await db.query(`SELECT commitment, seed, result FROM draw WHERE group_id = $1 AND draw_id = $2`, [groupId, drawId]);
       if (!r.rows[0]) throw new DomainError("OBJET_INTROUVABLE", "Tirage introuvable");
       const names = await loadNames(db, groupId);
-      const shares = await loadShares(db, groupId, 1);
-      const holderOf = new Map(shares.map((s) => [s.shareId, s.holders[0]?.membershipId ?? ""]));
+      const holderOf = new Map<string, string>();
+      for (const h of await loadShareHoldings(db, groupId)) if (!holderOf.has(h.shareId)) holderOf.set(h.shareId, h.membershipId);
       const result = (r.rows[0].result as string[] | null) ?? null;
       return {
         drawId,
@@ -126,117 +151,23 @@ export class CycleService {
       if (members.rows.length < 2) throw new DomainError("CYCLE_START_NOT_READY", "Au moins deux membres actifs");
       const treasurer = await identitiesWithRoles(db, groupId, ["treasurer", "treasurer_deputy"]);
       if (treasurer.length === 0) throw new DomainError("CYCLE_START_NOT_READY", "Désignez un trésorier avant de démarrer");
-      // Statuts acceptés par chaque membre qui a un téléphone (L-12).
-      const st = await db.query(`SELECT version FROM statutes_version WHERE group_id = $1 ORDER BY version DESC LIMIT 1`, [groupId]);
-      if (!st.rows[0]) throw new DomainError("CYCLE_START_NOT_READY", "Générez les statuts et faites-les accepter");
-      const missing = await db.query(
-        `SELECT count(*) AS c FROM membership m
-          WHERE m.group_id = $1 AND m.state = 'active' AND m.identity_id NOT LIKE 'offline\\_%'
-            AND NOT EXISTS (SELECT 1 FROM statutes_acceptance a WHERE a.group_id = m.group_id AND a.version = $2 AND a.identity_id = m.identity_id)`,
-        [groupId, st.rows[0].version],
-      );
-      if (Number(missing.rows[0]?.c ?? 0) > 0) {
-        throw new DomainError("RULES_NOT_ACCEPTED", "Tous les membres doivent accepter la dernière version des statuts");
-      }
+      await assertStatutesAccepted(db, groupId);
 
-      // Parts : une ligne par « main » voulue par chaque membre (L-14) ; deux
-      // membres qui partagent une part (« demi-main ») la tiennent ensemble,
-      // chacun pour moitié.
-      const holders: { shareId: string; membershipId: string; joinedAt: string; partnerId: string | null }[] = [];
-      const activeIds = new Set(members.rows.map((x) => String(x.membership_id)));
-      const paired = new Set<string>();
-      for (const row of members.rows) {
-        const id = String(row.membership_id);
-        const partner = row.share_partner_membership_id ? String(row.share_partner_membership_id) : null;
-        const joinedAt = new Date(row.joined_at as string).toISOString().slice(0, 10);
-        if (partner) {
-          if (!activeIds.has(partner)) throw new DomainError("SHARES_INVALID", "Part partagée avec un membre inactif");
-          if (paired.has(id)) continue;
-          paired.add(id).add(partner);
-          holders.push({ shareId: newId("shr"), membershipId: id, joinedAt, partnerId: partner });
-          continue;
-        }
-        const n = Number(row.share_count ?? 1);
-        for (let i = 1; i <= n; i++) holders.push({ shareId: newId("shr"), membershipId: id, joinedAt, partnerId: null });
-      }
-      if (holders.length < 2) throw new DomainError("CYCLE_START_NOT_READY", "Au moins deux parts");
-      if (holders.length > 60) throw new DomainError("SHARES_INVALID", "Au plus 60 parts par cycle");
-      for (const [i, h] of holders.entries()) {
-        await db.query(`INSERT INTO share (share_id, group_id, label) VALUES ($1,$2,$3)`, [h.shareId, groupId, h.partnerId ? `Part ${i + 1} (partagée)` : `Part ${i + 1}`]);
-        await db.query(`INSERT INTO share_holder (group_id, share_id, membership_id, weight) VALUES ($1,$2,$3,1)`, [groupId, h.shareId, h.membershipId]);
-        if (h.partnerId) {
-          await db.query(`INSERT INTO share_holder (group_id, share_id, membership_id, weight) VALUES ($1,$2,$3,1)`, [groupId, h.shareId, h.partnerId]);
-        }
-      }
-
-      // Ordre de passage.
-      let order: string[];
-      let drawBody: Record<string, unknown> = {};
-      const ids = holders.map((h) => h.shareId);
-      if (input.order === "manual") {
-        const wanted = input.membershipOrder ?? [];
-        if (wanted.length !== holders.length) throw new DomainError("SCHEDULE_ROUNDS_MISMATCH", "Un tour par part : liste incomplète");
-        const pool = new Map<string, string[]>();
-        for (const h of holders) pool.set(h.membershipId, [...(pool.get(h.membershipId) ?? []), h.shareId]);
-        order = wanted.map((mid) => {
-          const list = pool.get(mid);
-          const s = list?.shift();
-          if (!s) throw new DomainError("SCHEDULE_MEMBER_UNKNOWN", "Membre ou nombre de parts incohérent");
-          return s;
-        });
-      } else if (input.order === "draw") {
-        if (!input.drawId) throw new DomainError("DRAW_INVALID", "Tirage manquant");
-        const d = await db.query(`SELECT commitment, sealed_seed, revealed_at FROM draw WHERE group_id = $1 AND draw_id = $2 FOR UPDATE`, [groupId, input.drawId]);
-        const draw = d.rows[0];
-        if (!draw || draw.revealed_at || !draw.sealed_seed) throw new DomainError("DRAW_INVALID", "Tirage déjà utilisé ou inconnu");
-        const seed = String(draw.sealed_seed);
-        order = ids.length >= 2 ? drawOrder(seed, String(draw.commitment), ids) : ids;
-        await db.query(`UPDATE draw SET seed = $3, sealed_seed = NULL, revealed_at = now(), result = $4 WHERE group_id = $1 AND draw_id = $2`, [
-          groupId,
-          input.drawId,
-          seed,
-          order,
-        ]);
-        drawBody = { drawId: input.drawId, seed, commitment: String(draw.commitment) };
-      } else {
-        order = ids;
-      }
-      if (group.settings.newcomersLast && input.order !== "manual") {
-        // Ordre de confiance : membres admis après la première version des statuts en dernier.
-        const first = await db.query(`SELECT published_at::date::text AS d FROM statutes_version WHERE group_id = $1 ORDER BY version LIMIT 1`, [groupId]);
-        const cutoff = String(first.rows[0]?.d ?? "9999-12-31");
-        const joinedAt = Object.fromEntries(holders.map((h) => [h.shareId, h.joinedAt]));
-        order = newcomersLast(order, joinedAt, cutoff);
-      }
-
-      // Calendrier réel (L-03) : une séance par tour, heure limite à Douala.
-      const dates = meetingDates(group.settings.cadence as Cadence, group.settings.firstMeetingDate, order.length);
-      const rv = await db.query(`SELECT max(rules_version) AS v FROM rule_version WHERE group_id = $1`, [groupId]);
-      const rulesVersion = Number(rv.rows[0]?.v ?? 1);
-      const holderOf = new Map(holders.map((h) => [h.shareId, h.membershipId]));
-      for (const [i, shareId] of order.entries()) {
-        const seq = i + 1;
-        const date = dates[i] as string;
-        await db.query(
-          `INSERT INTO round (round_id, group_id, seq, state, beneficiary_membership_id, due_date_business, due_at_utc, rules_version, share_id)
-           VALUES ($1,$2,$3,'open',$4,$5,$6,$7,$8)`,
-          [newId("rnd"), groupId, seq, holderOf.get(shareId), date, new Date(deadlineUtcMs(date, group.settings.deadlineTime)), rulesVersion, shareId],
-        );
-        await db.query(
-          `INSERT INTO meeting (meeting_id, group_id, seq, scheduled_date, location, host_membership_id, round_seq) VALUES ($1,$2,$3,$4,$5,$6,$3)`,
-          [newId("mtg"), groupId, seq, date, group.settings.meetingPlace, holderOf.get(shareId)],
-        );
-      }
+      const planted = await this.plant(db, group, members.rows, input, 1, group.settings.firstMeetingDate);
       await db.query(
         `INSERT INTO cycle_schedule (group_id, rules_version, frequency, state, started_at, cadence) VALUES ($1,$2,$3,'started',now(),$4::jsonb)`,
-        [groupId, rulesVersion, (group.settings.cadence as Cadence).kind, JSON.stringify(group.settings.cadence)],
+        [groupId, planted.rulesVersion, (group.settings.cadence as Cadence).kind, JSON.stringify(group.settings.cadence)],
+      );
+      await db.query(
+        `INSERT INTO tontine_cycle (group_id, cycle_no, first_seq, last_seq, order_kind, started_by_identity_id) VALUES ($1,1,1,$2,$3,$4)`,
+        [groupId, planted.rounds, input.order, actor.identityId],
       );
       await db.query(`UPDATE "group" SET state = 'active', version = version + 1 WHERE group_id = $1`, [groupId]);
       await appendEvent(
         db,
         actor,
         "cycle.started",
-        { order: input.order, rounds: order.length, firstDate: dates[0], lastDate: dates[dates.length - 1], ...drawBody },
+        { order: input.order, rounds: planted.rounds, firstDate: planted.firstDate, lastDate: planted.lastDate, ...planted.drawBody },
         nowMs,
       );
       await notify(db, groupId, await activeMemberIdentities(db, groupId), "general", `/tontines/${groupId}/calendrier`, `cycle:${groupId}`);
@@ -310,13 +241,172 @@ export class CycleService {
     });
   }
 
+  /* ── Nouveau cycle : les tours continuent (N+1, N+2…) ─────────────── */
+
+  async renew(
+    headers: Record<string, unknown>,
+    groupId: string,
+    input: {
+      order: "draw" | "manual" | "join_order";
+      drawId?: string | undefined;
+      membershipOrder?: readonly string[] | undefined;
+      firstMeetingDate?: string | undefined;
+    },
+  ): Promise<TontineDetail> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
+      requireAct(actor, "schedule.manage");
+      const group = await loadGroup(db, groupId, true);
+      if (!(await cycleStarted(db, groupId))) throw new DomainError("CYCLE_START_NOT_READY", "Démarrez d'abord le premier cycle");
+      const rounds = await loadRoundRows(db, groupId);
+      if (rounds.length === 0 || rounds.some((r) => r.state === "open")) {
+        throw new DomainError("STATE_CONFLICT", "Le cycle en cours n'est pas terminé : chaque tour doit être clos");
+      }
+      const members = await db.query(
+        `SELECT membership_id, identity_id, share_count, joined_at, share_partner_membership_id FROM membership WHERE group_id = $1 AND state = 'active' ORDER BY joined_at, membership_id`,
+        [groupId],
+      );
+      if (members.rows.length < 2) throw new DomainError("CYCLE_START_NOT_READY", "Au moins deux membres actifs");
+      const treasurer = await identitiesWithRoles(db, groupId, ["treasurer", "treasurer_deputy"]);
+      if (treasurer.length === 0) throw new DomainError("CYCLE_START_NOT_READY", "Désignez un trésorier avant de démarrer");
+      await assertStatutesAccepted(db, groupId);
+      const last = rounds[rounds.length - 1] as (typeof rounds)[number];
+      const startDate = input.firstMeetingDate ?? dayAfter(last.date);
+      if (startDate <= last.date) throw new DomainError("CADENCE_INVALID", "Le nouveau cycle commence après la dernière séance");
+      const c = await db.query(`SELECT COALESCE(max(cycle_no), 1) AS n FROM tontine_cycle WHERE group_id = $1`, [groupId]);
+      const cycleNo = Number(c.rows[0]?.n ?? 1) + 1;
+      // Les parts du cycle précédent s'arrêtent à son dernier tour.
+      await db.query(`UPDATE share_holder SET until_seq = $2 WHERE group_id = $1 AND until_seq IS NULL`, [groupId, last.seq]);
+      const planted = await this.plant(db, group, members.rows, input, last.seq + 1, startDate);
+      await db.query(
+        `INSERT INTO tontine_cycle (group_id, cycle_no, first_seq, last_seq, order_kind, started_by_identity_id) VALUES ($1,$2,$3,$4,$5,$6)`,
+        [groupId, cycleNo, last.seq + 1, last.seq + planted.rounds, input.order, actor.identityId],
+      );
+      await db.query(`UPDATE "group" SET state = 'active', version = version + 1 WHERE group_id = $1`, [groupId]);
+      await appendEvent(
+        db,
+        actor,
+        "cycle.renewed",
+        { cycle: cycleNo, order: input.order, rounds: planted.rounds, firstSeq: last.seq + 1, firstDate: planted.firstDate, lastDate: planted.lastDate, ...planted.drawBody },
+        nowMs,
+      );
+      await notify(db, groupId, await activeMemberIdentities(db, groupId), "general", `/tontines/${groupId}/calendrier`, `cycle:${groupId}:${cycleNo}`);
+      return tontineDetail(db, actor, nowMs);
+    });
+  }
+
+  /**
+   * Plante un cycle : parts (une par « main », demi-mains partagées), ordre
+   * de passage, tours et séances à partir de `firstSeq` (1 au démarrage,
+   * N+1 au renouvellement).
+   */
+  private async plant(
+    db: Db,
+    group: GroupRow,
+    memberRows: readonly Record<string, unknown>[],
+    input: { order: "draw" | "manual" | "join_order"; drawId?: string | undefined; membershipOrder?: readonly string[] | undefined },
+    firstSeq: number,
+    startDate: string,
+  ): Promise<{ rounds: number; firstDate: string; lastDate: string; rulesVersion: number; drawBody: Record<string, unknown> }> {
+    const groupId = group.groupId;
+    // Parts : une ligne par « main » voulue par chaque membre (L-14) ; deux
+    // membres qui partagent une part (« demi-main ») la tiennent ensemble,
+    // chacun pour moitié.
+    const holders: { shareId: string; membershipId: string; joinedAt: string; partnerId: string | null }[] = [];
+    const activeIds = new Set(memberRows.map((x) => String(x.membership_id)));
+    const paired = new Set<string>();
+    for (const row of memberRows) {
+      const id = String(row.membership_id);
+      const partner = row.share_partner_membership_id ? String(row.share_partner_membership_id) : null;
+      const joinedAt = new Date(row.joined_at as string).toISOString().slice(0, 10);
+      if (partner) {
+        if (!activeIds.has(partner)) throw new DomainError("SHARES_INVALID", "Part partagée avec un membre inactif");
+        if (paired.has(id)) continue;
+        paired.add(id).add(partner);
+        holders.push({ shareId: newId("shr"), membershipId: id, joinedAt, partnerId: partner });
+        continue;
+      }
+      const n = Number(row.share_count ?? 1);
+      for (let i = 1; i <= n; i++) holders.push({ shareId: newId("shr"), membershipId: id, joinedAt, partnerId: null });
+    }
+    if (holders.length < 2) throw new DomainError("CYCLE_START_NOT_READY", "Au moins deux parts");
+    if (holders.length > 60) throw new DomainError("SHARES_INVALID", "Au plus 60 parts par cycle");
+    for (const [i, h] of holders.entries()) {
+      await db.query(`INSERT INTO share (share_id, group_id, label) VALUES ($1,$2,$3)`, [h.shareId, groupId, h.partnerId ? `Part ${i + 1} (partagée)` : `Part ${i + 1}`]);
+      await db.query(`INSERT INTO share_holder (group_id, share_id, membership_id, weight, from_seq) VALUES ($1,$2,$3,1,$4)`, [groupId, h.shareId, h.membershipId, firstSeq]);
+      if (h.partnerId) {
+        await db.query(`INSERT INTO share_holder (group_id, share_id, membership_id, weight, from_seq) VALUES ($1,$2,$3,1,$4)`, [groupId, h.shareId, h.partnerId, firstSeq]);
+      }
+    }
+
+    // Ordre de passage.
+    let order: string[];
+    let drawBody: Record<string, unknown> = {};
+    const ids = holders.map((h) => h.shareId);
+    if (input.order === "manual") {
+      const wanted = input.membershipOrder ?? [];
+      if (wanted.length !== holders.length) throw new DomainError("SCHEDULE_ROUNDS_MISMATCH", "Un tour par part : liste incomplète");
+      const pool = new Map<string, string[]>();
+      for (const h of holders) pool.set(h.membershipId, [...(pool.get(h.membershipId) ?? []), h.shareId]);
+      order = wanted.map((mid) => {
+        const list = pool.get(mid);
+        const s = list?.shift();
+        if (!s) throw new DomainError("SCHEDULE_MEMBER_UNKNOWN", "Membre ou nombre de parts incohérent");
+        return s;
+      });
+    } else if (input.order === "draw") {
+      if (!input.drawId) throw new DomainError("DRAW_INVALID", "Tirage manquant");
+      const d = await db.query(`SELECT commitment, sealed_seed, revealed_at FROM draw WHERE group_id = $1 AND draw_id = $2 FOR UPDATE`, [groupId, input.drawId]);
+      const draw = d.rows[0];
+      if (!draw || draw.revealed_at || !draw.sealed_seed) throw new DomainError("DRAW_INVALID", "Tirage déjà utilisé ou inconnu");
+      const seed = String(draw.sealed_seed);
+      order = ids.length >= 2 ? drawOrder(seed, String(draw.commitment), ids) : ids;
+      await db.query(`UPDATE draw SET seed = $3, sealed_seed = NULL, revealed_at = now(), result = $4 WHERE group_id = $1 AND draw_id = $2`, [
+        groupId,
+        input.drawId,
+        seed,
+        order,
+      ]);
+      drawBody = { drawId: input.drawId, seed, commitment: String(draw.commitment) };
+    } else {
+      order = ids;
+    }
+    if (group.settings.newcomersLast && input.order !== "manual") {
+      // Ordre de confiance : membres admis après la première version des statuts en dernier.
+      const first = await db.query(`SELECT published_at::date::text AS d FROM statutes_version WHERE group_id = $1 ORDER BY version LIMIT 1`, [groupId]);
+      const cutoff = String(first.rows[0]?.d ?? "9999-12-31");
+      const joinedAt = Object.fromEntries(holders.map((h) => [h.shareId, h.joinedAt]));
+      order = newcomersLast(order, joinedAt, cutoff);
+    }
+
+    // Calendrier réel (L-03) : une séance par tour, heure limite à Douala.
+    const dates = meetingDates(group.settings.cadence as Cadence, startDate, order.length);
+    const rv = await db.query(`SELECT max(rules_version) AS v FROM rule_version WHERE group_id = $1`, [groupId]);
+    const rulesVersion = Number(rv.rows[0]?.v ?? 1);
+    const holderOf = new Map(holders.map((h) => [h.shareId, h.membershipId]));
+    for (const [i, shareId] of order.entries()) {
+      const seq = firstSeq + i;
+      const date = dates[i] as string;
+      await db.query(
+        `INSERT INTO round (round_id, group_id, seq, state, beneficiary_membership_id, due_date_business, due_at_utc, rules_version, share_id)
+         VALUES ($1,$2,$3,'open',$4,$5,$6,$7,$8)`,
+        [newId("rnd"), groupId, seq, holderOf.get(shareId), date, new Date(deadlineUtcMs(date, group.settings.deadlineTime)), rulesVersion, shareId],
+      );
+      await db.query(
+        `INSERT INTO meeting (meeting_id, group_id, seq, scheduled_date, location, host_membership_id, round_seq) VALUES ($1,$2,$3,$4,$5,$6,$3)`,
+        [newId("mtg"), groupId, seq, date, group.settings.meetingPlace, holderOf.get(shareId)],
+      );
+    }
+    return { rounds: order.length, firstDate: dates[0] as string, lastDate: dates[dates.length - 1] as string, rulesVersion, drawBody };
+  }
+
   /* ── Remise du tour devant témoins (L-06, I-12) ───────────────────── */
 
   async payout(headers: Record<string, unknown>, groupId: string, seq: number, input: PayoutInput): Promise<MovementView> {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => {
       const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
-      requireAct(actor, "movement.confirm");
       const group = await loadGroup(db, groupId);
       await db.query("SELECT pg_advisory_xact_lock(hashtext($1 || ':payout'))", [groupId]);
       const r = await db.query(`SELECT seq, state, beneficiary_membership_id FROM round WHERE group_id = $1 AND seq = $2`, [groupId, seq]);
@@ -324,9 +414,8 @@ export class CycleService {
       if (!round) throw new DomainError("OBJET_INTROUVABLE", "Tour introuvable");
       if (round.state !== "open") throw new DomainError("STATE_CONFLICT", "Tour déjà clos");
       const beneficiary = String(round.beneficiary_membership_id);
-      if (beneficiary === actor.membershipId) {
-        throw new DomainError("APPROVER_NOT_DISTINCT", "Le bénéficiaire ne déclare pas sa propre remise : le trésorier adjoint s'en charge");
-      }
+      // Le bénéficiaire ne déclare jamais sa remise ; trésorier unique bénéficiaire → la présidence.
+      await assertMayDeclarePayout(db, actor, groupId, beneficiary);
       // Place vacante (membre exclu ou parti) : une reprise de place doit d'abord être votée.
       const bstate = await db.query(`SELECT state FROM membership WHERE group_id = $1 AND membership_id = $2`, [groupId, beneficiary]);
       if (bstate.rows[0]?.state !== "active") {

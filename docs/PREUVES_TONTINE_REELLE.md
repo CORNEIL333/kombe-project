@@ -24,11 +24,12 @@ le code s'affiche en développement, aucun SMS réel.
 | Preuve | Statut |
 |---|---|
 | `packages/db/tests/isolation.pg.mjs` (dont `C30_DECISION` : 0 ligne inter-groupe, bulletin étranger refusé, bulletin non modifiable) | PASS |
-| `packages/db/tests/migrateEmptyToLatest.pg.mjs` (32 jalons : rôles + 0001 → 0030 + rôles) | PASS |
+| `packages/db/tests/migrateEmptyToLatest.pg.mjs` (33 jalons : rôles + 0001 → 0031 + rôles) | PASS |
 | `packages/api/test/tontineApi.proof.mjs` (44 vérifications : parcours complet) | PASS |
 | `packages/api/test/decisions.proof.mjs` (55 vérifications : part partagée, pause, suspension, destitution, exclusion avec dette / place vacante, reprise de place, vote secret, cahier, diaspora, tour prioritaire, échange, idempotence, tiers 404, journal) | PASS |
 | `packages/api/test/opsConsole.proof.mjs` et 15 preuves des stores (accès, cotisations, décaissements, litiges, journal, métriques, amorçage, propositions, règles, calendrier, sessions, validations, worker, mode réel) | PASS |
-| **Total** | **19 / 19 PASS** |
+| `packages/api/test/tontineCycles.proof.mjs` (45 vérifications, ADR-0039 : cycle complet avec trésorier et commissaire uniques, simulateur, « mon tour », régularité, résumé WhatsApp, réserve rendue, cycle 2) | PASS |
+| **Total** | **20 / 20 PASS** |
 
 ## Navigateur — Playwright / Chromium contre l'API réelle
 
@@ -40,6 +41,7 @@ le code s'affiche en développement, aucun SMS réel.
 | `decisions.spec.ts` — pause votée puis reprise du cahier | PASS |
 | `seanceHorsLigne.spec.ts` — déclarations sans réseau, envoyées une seule fois au retour | PASS |
 | `horsLigne.spec.ts` (2) — bandeau hors connexion, accessibilité clavier | PASS |
+| `cycles.spec.ts` — « Mon tour », régularité, cycle complet avec trésorier unique bénéficiaire, cycle 2 démarré depuis la PWA | PASS |
 
 Espace bureau « Votes & sanctions » piloté dans Chromium, servi en même
 origine par l'API (`/bureau/`) : scrutins, bulletins secrets, dépouillement.
