@@ -170,6 +170,9 @@ try {
   const rounds = await ok(D.token, "GET", `/v1/tontines/${gid}/rounds`);
   check("ROUNDS", rounds.length === 4 && rounds[0].beneficiaryMembershipId === mid(C.name) && rounds[0].expectedPot === "20000", rounds.map((r) => [r.seq, r.date, r.beneficiaryName]));
 
+  const remind = await ok(D.token, "GET", "/v1/me/notifications");
+  check("MEETING-REMINDER", remind.some((n) => n.kind === "meeting_reminder" && n.groupId === gid), remind.map((n) => n.kind));
+
   /* ── Séance 1 ────────────────────────────────────────────────────── */
   const meetings = await ok(A.token, "GET", `/v1/tontines/${gid}/meetings`);
   const m1 = meetings[0].meetingId;

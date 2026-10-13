@@ -5,8 +5,44 @@
 import type pg from "pg";
 import { DomainError, verifyJournal, type JournalEntryView, type JournalEvent, type NotificationView } from "@kombe/domain";
 import { canonicalHash } from "@kombe/domain";
-import { groupActor, inTx, isoInstant, sessionIdentity } from "./infra.js";
-import { loadNames } from "./views.js";
+import { type Db, groupActor, inTx, isoInstant, notify, scopeGroup, sessionIdentity, todayDouala } from "./infra.js";
+import { type GroupRow, computeDues, loadGroup, loadNames } from "./views.js";
+
+function addDays(iso: string, days: number): string {
+  return new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * Rappels de l'application, produits à la lecture de la boîte (dédupliqués) :
+ * séance dans les deux jours, cotisation en retard ou en délai de grâce.
+ * Le libellé ne porte ni montant ni nom (écran verrouillé).
+ */
+async function produceReminders(db: Db, identityId: string, nowMs: number): Promise<void> {
+  const today = todayDouala(nowMs);
+  const mine = await db.query(`SELECT group_id, membership_id FROM kombe_my_memberships() WHERE membership_state = 'active' AND group_state = 'active'`);
+  for (const row of mine.rows) {
+    const gid = String(row.group_id);
+    await scopeGroup(db, gid);
+    let group: GroupRow;
+    try {
+      group = await loadGroup(db, gid);
+    } catch {
+      continue;
+    }
+    const mt = await db.query(
+      `SELECT meeting_id FROM meeting WHERE group_id = $1 AND state = 'planned' AND scheduled_date BETWEEN $2::date AND $3::date ORDER BY seq LIMIT 1`,
+      [gid, today, addDays(today, 2)],
+    );
+    if (mt.rows[0]) {
+      await notify(db, gid, [identityId], "meeting_reminder", `/tontines/${gid}/seances/${mt.rows[0].meeting_id}`, `meetingSoon:${mt.rows[0].meeting_id}`);
+    }
+    const dues = await computeDues(db, group, String(row.membership_id), today, { onlyOpen: true });
+    for (const d of dues.filter((x) => x.lateness === "late" || x.lateness === "grace")) {
+      await notify(db, gid, [identityId], "due_reminder", `/tontines/${gid}`, `due:${d.roundSeq}:${d.lateness}`);
+      break;
+    }
+  }
+}
 
 const EVENT_LABELS: Readonly<Record<string, string>> = {
   "tontine.created": "Association créée",
@@ -59,6 +95,7 @@ export class InboxService {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => {
       const id = await sessionIdentity(db, headers, nowMs);
+      await produceReminders(db, id, nowMs);
       const groups = await db.query(`SELECT group_id, group_name FROM kombe_my_memberships()`);
       const nameOf = new Map(groups.rows.map((x) => [String(x.group_id), String(x.group_name ?? "")]));
       const r = await db.query(
