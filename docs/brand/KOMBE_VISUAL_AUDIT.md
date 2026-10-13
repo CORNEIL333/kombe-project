@@ -1,7 +1,7 @@
 # KÓMBE — Audit visuel (v1, 8 octobre 2026)
 
 Périmètre : les 10 images et la recherche approfondie fournies dans le projet.
-Le dépôt de code n'est pas encore accessible : l'audit du code (étape 1 du mandat) reste à faire dès que GitHub est connecté.
+Audit du code (étape 1 du mandat), 13 octobre 2026 : recherche dans `apps/` et `packages/` des formulations ci-dessous (« débité », « solde/épargne/retrait » côté interface, « chiffrement de bout en bout », +221, « moderne et sécurisée », « Ma tontine, simplement. »). Seule la signature obsolète subsistait, dans l'app Flutter (`app_fr.arb`, `app_en.arb`, `kombe_logo.dart`) : alignée sur « Votre tontine, plus claire. » / « Your tontine, made clear. ». Les autres occurrences sont des commentaires de code ou du vocabulaire interne, pas de la copie affichée.
 
 ## Ce qu'on garde
 

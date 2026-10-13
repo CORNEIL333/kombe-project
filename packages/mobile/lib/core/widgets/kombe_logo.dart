@@ -18,7 +18,7 @@ class KombeLogo extends StatelessWidget {
     );
     if (compact) return Semantics(label: 'KÓMBE', image: true, child: emblem);
     return Semantics(
-      label: 'KÓMBE — Ma tontine, simplement.',
+      label: 'KÓMBE — Votre tontine, plus claire.',
       header: true,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -38,7 +38,7 @@ class KombeLogo extends StatelessWidget {
                     ),
               ),
               Text(
-                'Ma tontine, simplement.',
+                'Votre tontine, plus claire.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: KombeColors.forest,
                     ),
