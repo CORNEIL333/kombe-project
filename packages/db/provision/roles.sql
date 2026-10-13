@@ -77,6 +77,30 @@ REVOKE DELETE ON identity_profile, fund, meeting, attendance, fund_movement, fin
 REVOKE UPDATE, DELETE ON statutes_version FROM kombe_app;
 REVOKE INSERT, DELETE ON inbox_notification FROM kombe_app;
 
+-- Miroir des REVOKE de 0024/0025 (socle tontine + association). Sans ce bloc,
+-- le GRANT blanket ci-dessus rendait DELETE à kombe_app sur ces tables et
+-- INSERT/DELETE sur inbox_notification lors d'une installation à neuf
+-- (constaté sur PostgreSQL 16 réel, audit 2026-10-13), alors que les
+-- migrations les retirent. Gardé par to_regclass : sans effet si la migration
+-- n'est pas (encore) appliquée.
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'identity_profile',
+    'share','share_holder','fund','meeting','attendance','fund_movement','fine','aid_request',
+    'member_debt','order_change','draw','auction_bid','statutes_version','statutes_acceptance',
+    'loan','collector_period','legacy_import','legacy_contribution','inbox_notification'
+  ] LOOP
+    IF to_regclass('public.' || t) IS NOT NULL THEN
+      EXECUTE format('REVOKE DELETE ON %I FROM kombe_app', t);
+    END IF;
+  END LOOP;
+  IF to_regclass('public.inbox_notification') IS NOT NULL THEN
+    REVOKE INSERT ON inbox_notification FROM kombe_app;
+  END IF;
+END $$;
+
 -- kombe_worker : lecture/maJ de l'outbox et du registre de commandes seulement.
 GRANT USAGE ON SCHEMA public TO kombe_worker;
 GRANT SELECT, UPDATE ON outbox TO kombe_worker;
