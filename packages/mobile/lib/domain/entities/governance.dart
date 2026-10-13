@@ -42,16 +42,26 @@ final class VoteSummary {
   final bool hasCurrentUserVoted;
 }
 
+/// Scrutin de l'assemblée (ADR-0038) : adopté à la majorité ABSOLUE des
+/// électeurs, pas des seuls votants ; vote secret jusqu'au dépouillement.
 final class VoteDetails {
   const VoteDetails({
     required this.summary,
     required this.description,
-    required this.rulesVersion,
-    required this.quorum,
+    required this.electorate,
+    required this.requiredYes,
+    required this.ballots,
   });
 
   final VoteSummary summary;
   final String description;
-  final int rulesVersion;
-  final int quorum;
+
+  /// Membres appelés à voter (la personne concernée ne vote pas).
+  final int electorate;
+
+  /// Nombre de « oui » nécessaires : plus de la moitié des électeurs.
+  final int requiredYes;
+
+  /// Bulletins déjà déposés (le décompte reste secret).
+  final int ballots;
 }

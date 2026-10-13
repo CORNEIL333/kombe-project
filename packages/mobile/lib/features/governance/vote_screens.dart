@@ -9,6 +9,7 @@ import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/server_action_guard.dart';
 import '../../core/widgets/section_card.dart';
 import '../../domain/entities/governance.dart';
+import '../../l10n/app_localizations.dart';
 import '../../domain/repositories/governance_repository.dart';
 
 class VotesScreen extends StatefulWidget {
@@ -131,14 +132,20 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
                   children: <Widget>[
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Version des règles'),
-                      trailing: Text('${vote.rulesVersion}'),
+                      title: Text(AppLocalizations.of(context).voteElectorate),
+                      trailing: Text('${vote.electorate}'),
                     ),
                     const Divider(),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Quorum'),
-                      trailing: Text('${vote.quorum}'),
+                      title: Text(AppLocalizations.of(context).voteMajority),
+                      trailing: Text('${vote.requiredYes}'),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(AppLocalizations.of(context).voteBallots),
+                      trailing: Text('${vote.ballots}'),
                     ),
                   ],
                 ),

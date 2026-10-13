@@ -176,7 +176,34 @@ void main() {
     expect(await repo.decideValidation(contributionId: 'mv_1', expectedVersion: 1, decision: ValidationDecision.validate), isA<OperationSuccess<void>>());
     expect(calls.last.url.path, '/v1/tontines/grp_1/movements/confirmations');
     expect(jsonDecode(calls.last.body), <String, dynamic>{'movementIds': <String>['mv_1']});
-    expect(await repo.listVotes(), isA<ResourceReady<List<VoteSummary>>>());
+  });
+
+  test('votes de l’assemblée : scrutins ouverts listés, bulletin secret déposé', () async {
+    final TontineGovernanceRepository repo = TontineGovernanceRepository(
+      api: apiFor((http.Request r) {
+        if (r.url.path == '/v1/me/tontines') return <dynamic>[tontine];
+        if (r.url.path == '/v1/tontines/grp_1/decisions') {
+          return <dynamic>[
+            <String, dynamic>{
+              'decisionId': 'dec_1', 'kind': 'pause', 'state': 'open', 'params': <String, dynamic>{'occurrences': 2},
+              'reason': 'Fêtes de fin d’année', 'openedAt': '2026-10-13T09:00:00Z', 'closesAt': '2026-10-14T09:00:00Z',
+              'electorate': 9, 'ballots': 3, 'myChoice': null, 'can': <String, dynamic>{'vote': true},
+            },
+            <String, dynamic>{'decisionId': 'dec_0', 'kind': 'exclusion', 'state': 'adopted', 'openedAt': '2026-10-01T09:00:00Z', 'closesAt': '2026-10-04T09:00:00Z'},
+          ];
+        }
+        return <String, dynamic>{'decisionId': 'dec_1', 'state': 'open'};
+      }),
+    );
+    final List<VoteSummary> votes = ((await repo.listVotes()) as ResourceReady<List<VoteSummary>>).data;
+    expect(votes.map((VoteSummary v) => v.id), <String>['dec_1']);
+    expect(votes.single.title, contains('Pause'));
+    final VoteDetails d = ((await repo.getVote('dec_1')) as ResourceReady<VoteDetails>).data;
+    expect((d.electorate, d.requiredYes, d.ballots), (9, 5, 3));
+    expect(await repo.castVote(voteId: 'dec_1', choice: VoteChoice.forChoice), isA<OperationSuccess<void>>());
+    expect(calls.last.url.path, '/v1/tontines/grp_1/decisions/dec_1/ballots');
+    expect(jsonDecode(calls.last.body), <String, dynamic>{'choice': 'yes'});
+    expect(calls.last.headers.containsKey('idempotency-key'), isTrue);
   });
 
   test('la chaîne de requête reste une requête (jamais encodée dans le chemin)', () async {

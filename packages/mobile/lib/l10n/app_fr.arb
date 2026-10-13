@@ -95,5 +95,8 @@
   "emptyVotes": "Aucun vote ouvert.",
   "emptyDisputes": "Aucun litige.",
   "screenUnavailable": "Cet écran attend les données du serveur.",
-  "serverValidatedOnly": "Aucune validation n'est créée localement."
+  "serverValidatedOnly": "Aucune validation n'est créée localement.",
+  "voteElectorate": "Électeurs",
+  "voteMajority": "Oui nécessaires (majorité absolue)",
+  "voteBallots": "Bulletins déposés (vote secret)"
 }

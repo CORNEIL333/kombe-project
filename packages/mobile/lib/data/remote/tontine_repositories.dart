@@ -621,17 +621,88 @@ final class TontineGovernanceRepository implements GovernanceRepository {
     });
   }
 
-  /// L'API tontine n'organise pas de votes en ligne : les décisions se prennent
-  /// en séance et figurent au procès-verbal. Liste vide, jamais inventée.
-  @override
-  Future<Resource<List<VoteSummary>>> listVotes() async => const ResourceReady<List<VoteSummary>>(<VoteSummary>[]);
+  // ── Votes de l'assemblée (ADR-0038) ────────────────────────────────────
+  // Pause des séances, destitution, exclusion, suspension du droit de bouffer,
+  // reprise de place : majorité absolue des électeurs, vote secret.
+
+  final Map<String, String> _voteGroup = <String, String>{};
+
+  static const Map<String, String> _kindTitles = <String, String>{
+    'pause': 'Pause des séances',
+    'removal': 'Destitution',
+    'exclusion': 'Exclusion',
+    'payout_suspension': 'Suspension du droit de bouffer',
+    'replacement': 'Reprise de place',
+  };
+
+  VoteSummary _vote(String gid, Map<String, dynamic> d) {
+    final String kind = '${d['kind']}';
+    final String? target = d['targetName'] as String?;
+    final Map<String, dynamic> params = (d['params'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
+    final String what = switch (kind) {
+      'pause' => '${params['occurrences'] ?? 1} séance(s)',
+      'replacement' => '${params['incomingName'] ?? ''} ← ${target ?? ''}',
+      _ => target ?? '',
+    };
+    _voteGroup['${d['decisionId']}'] = gid;
+    return VoteSummary(
+      id: '${d['decisionId']}',
+      groupId: gid,
+      title: '${_kindTitles[kind] ?? kind} · $what',
+      opensAtUtc: _date(d['openedAt']),
+      closesAtUtc: _date(d['closesAt']),
+      hasCurrentUserVoted: d['myChoice'] != null,
+    );
+  }
+
+  Future<List<(String, Map<String, dynamic>)>> _openDecisions() async {
+    final List<(String, Map<String, dynamic>)> out = <(String, Map<String, dynamic>)>[];
+    for (final Map<String, dynamic> g in _items(await _api.get('/me/tontines'))) {
+      if (g['membershipState'] != 'active') continue;
+      final String gid = '${g['groupId']}';
+      for (final Map<String, dynamic> d in _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/decisions'))) {
+        if (d['state'] == 'open') out.add((gid, d));
+      }
+    }
+    return out;
+  }
 
   @override
-  Future<Resource<VoteDetails>> getVote(String voteId) async => const ResourceUnavailable<VoteDetails>();
+  Future<Resource<List<VoteSummary>>> listVotes() => _read(() async => <VoteSummary>[
+        for (final (String gid, Map<String, dynamic> d) in await _openDecisions()) _vote(gid, d),
+      ]);
 
   @override
-  Future<OperationResult<void>> castVote({required String voteId, required VoteChoice choice}) async =>
-      const OperationBlocked<void>('Les décisions se prennent en séance et figurent au procès-verbal.');
+  Future<Resource<VoteDetails>> getVote(String voteId) => _read(() async {
+        for (final (String gid, Map<String, dynamic> d) in await _openDecisions()) {
+          if ('${d['decisionId']}' != voteId) continue;
+          final int electorate = (d['electorate'] as num?)?.toInt() ?? 0;
+          final String outcome = (d['can'] as Map<String, dynamic>?)?['vote'] == true ? '' : '\nVous ne votez pas sur ce scrutin.';
+          return VoteDetails(
+            summary: _vote(gid, d),
+            description: '${d['reason'] ?? ''}$outcome',
+            electorate: electorate,
+            requiredYes: electorate ~/ 2 + 1,
+            ballots: (d['ballots'] as num?)?.toInt() ?? 0,
+          );
+        }
+        throw const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE');
+      });
+
+  @override
+  Future<OperationResult<void>> castVote({required String voteId, required VoteChoice choice}) async {
+    if (!_voteGroup.containsKey(voteId)) await listVotes();
+    final String? gid = _voteGroup[voteId];
+    if (gid == null) return OperationFailure<void>(const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE'));
+    final String c = switch (choice) {
+      VoteChoice.forChoice => 'yes',
+      VoteChoice.against => 'no',
+      VoteChoice.abstain => 'abstain',
+    };
+    return _write<void>(() async {
+      await _api.postOnce('/tontines/${Uri.encodeComponent(gid)}/decisions/${Uri.encodeComponent(voteId)}/ballots', <String, dynamic>{'choice': c});
+    });
+  }
 }
 
 // ── Notifications ────────────────────────────────────────────────────────
@@ -650,6 +721,7 @@ final class TontineNotificationRepository implements NotificationRepository {
         'order_change' => (kind: NotificationKind.vote, title: 'Demande d’échange de tour'),
         'membership' => (kind: NotificationKind.system, title: 'Nouvelle demande d’adhésion'),
         'minutes_ready' => (kind: NotificationKind.meeting, title: 'Procès-verbal disponible'),
+        'decision' => (kind: NotificationKind.vote, title: 'Un vote de l’association vous concerne'),
         _ => (kind: NotificationKind.system, title: 'Information du groupe'),
       };
 

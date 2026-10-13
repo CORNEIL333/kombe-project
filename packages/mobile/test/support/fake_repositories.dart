@@ -434,8 +434,9 @@ final class FakeGovernanceRepository implements GovernanceRepository {
         return ResourceReady<VoteDetails>(VoteDetails(
           summary: VoteSummary(id: v.id, groupId: v.groupId, title: v.title, opensAtUtc: v.opensAtUtc, closesAtUtc: v.closesAtUtc, hasCurrentUserVoted: v.hasCurrentUserVoted || _voted.contains(v.id)),
           description: 'Proposition soumise par le bureau du groupe. Elle s’appliquera au prochain cycle seulement, jamais en arrière.',
-          rulesVersion: 3,
-          quorum: 8,
+          electorate: 15,
+          requiredYes: 8,
+          ballots: 3,
         ));
       }
     }

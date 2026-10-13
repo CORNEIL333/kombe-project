@@ -95,5 +95,8 @@
   "emptyVotes": "No open vote.",
   "emptyDisputes": "No dispute.",
   "screenUnavailable": "This screen is waiting for server data.",
-  "serverValidatedOnly": "No validation is created locally."
+  "serverValidatedOnly": "No validation is created locally.",
+  "voteElectorate": "Voters",
+  "voteMajority": "Yes votes needed (absolute majority)",
+  "voteBallots": "Ballots cast (secret ballot)"
 }
