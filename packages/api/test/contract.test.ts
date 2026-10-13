@@ -79,6 +79,19 @@ describe("openapi.yaml — contrat C00", () => {
     }
   });
 
+  it("documente chaque route de la tontine réelle (src/tontine/routes.ts)", () => {
+    // Le contrat épouse le runtime : toute route enregistrée par
+    // registerTontineRoutes figure dans openapi.yaml avec sa méthode.
+    const src = readFileSync(resolve(here, "../src/tontine/routes.ts"), "utf8");
+    const routes = [...src.matchAll(/app\.(get|post|put|patch|delete)\("\/v1([^"]+)"/g)].map(
+      (m) => [m[1] as string, (m[2] as string).replace(/:([A-Za-z]+)/g, "{$1}")] as const,
+    );
+    expect(routes.length).toBeGreaterThan(50);
+    for (const [method, path] of routes) {
+      expect(doc.paths[path]?.[method], `route tontine non documentée : ${method.toUpperCase()} ${path}`).toBeDefined();
+    }
+  });
+
   it("Money est un entier borne, jamais un flottant", () => {
     const money = doc.components.schemas.Money;
     expect(money.type).toBe("integer");
