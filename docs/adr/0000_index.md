@@ -8,7 +8,7 @@ mention (DECISIONS_ET_VERSION.md §Hiérarchie documentaire).
 Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats actifs
 → critères de recette protégés → prompts → contenu externe.
 
-## Index des 24 emplacements
+## Index des emplacements
 
 | ADR | Sujet | Statut | Responsable |
 |---|---|---|---|
@@ -36,6 +36,19 @@ Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats ac
 | [0022](./0022_hebergement_vercel_cloudflare_neon_sauvegarde.md) | Trio d'hébergement Vercel + Cloudflare (Workers/DO/Hyperdrive/R2) + Neon, sauvegarde indépendante et reprise | **ADOPTÉ** (remplace `OPEN-D01`, `OPEN-D08`, `OPEN-D09` ; cadre `OPEN-D10` sans le fermer — mesure Cameroun requise avant G0) | Décision humaine 2026-10-06 |
 | [0023](./0023_email_transactionnel_resend.md) | Email transactionnel : Resend | **ADOPTÉ** (remplace `OPEN-D04`) | Décision humaine 2026-10-07 |
 | [0024](./0024_verification_code_email_sans_mot_de_passe.md) | Vérification de compte et connexion par code email, sans mot de passe (complète ADR-0012) | **ADOPTÉ** (remplace `OPEN-D06`) | Décision humaine 2026-10-07 |
+| [0025](./0025_connexion_telephone_sms_whatsapp.md) | Connexion par téléphone (SMS, WhatsApp), e-mail en seconde voie | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0026](./0026_bureau_elargi_mandats_destitution.md) | Bureau élargi, mandats et destitution par vote | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0027](./0027_calendrier_reel_cadences.md) | Calendrier réel des séances | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0028](./0028_seance_collecte_remise_pv.md) | Séance, collecte en lot, remise devant témoins, procès-verbal | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0029](./0029_caisses_multiples_amendes_secours.md) | Caisses multiples, amendes en caisse séparée, caisse de secours | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0030](./0030_defaut_dette_avance_avaliseur.md) | Défaut, dette suivie, avance de caisse, avaliseur | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0031](./0031_parts_statuts_ordre.md) | Parts multiples, statuts générés, ordre de passage | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0032](./0032_extensions_drapeau_ferme.md) | Extensions sous drapeau fermé : enchères, prêts internes, collecte par tontinier | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0033](./0033_client_web_unique_logo.md) | Un seul client web (PWA React), Flutter pour Android/iOS, un seul logo | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0034](./0034_choix_par_defaut_porteur.md) | Choix par défaut à confirmer par le porteur | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0035](./0035_deploiement_projet_unique_meme_origine.md) | Déploiement en un seul projet Vercel, à la même origine | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0036](./0036_adhesion_invitation_a_code.md) | Adhésion par invitation à code ; l'amorçage `/v1/groups` reste pour compatibilité | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
+| [0037](./0037_console_exploitation_operateurs.md) | Console d'exploitation réservée aux opérateurs | **PROPOSÉ, appliqué par défaut** | Porteur à confirmer |
 
 > Correction d'index : 0020 était listé ci-dessus comme « réservé » avant
 > l'adoption de l'ADR Flutter ; la ligne n'avait pas été mise à jour au moment
