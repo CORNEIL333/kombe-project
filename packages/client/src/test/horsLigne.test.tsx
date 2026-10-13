@@ -196,7 +196,7 @@ describe("BandeauHorsLigne — UX d'état accessible, sans fausse validation", (
     monter(true, 2);
     const statut = screen.getByRole("status");
     expect(statut.textContent).toMatch(/Hors ligne/i);
-    expect(statut.textContent).toMatch(/2 brouillon\(s\) en attente/i);
+    expect(statut.textContent).toMatch(/2 brouillon\(s\) sur cet appareil — pas encore envoyés au groupe/i);
     expect(statut.textContent).toMatch(/jamais considéré validé/i);
     // Ne revendique JAMAIS une validation serveur positive (brouillon ≠ accepté).
     expect(statut.textContent).not.toMatch(/validé par le serveur/i);

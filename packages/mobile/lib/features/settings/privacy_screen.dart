@@ -31,7 +31,7 @@ class PrivacyScreen extends StatelessWidget {
                     leading: Icon(Icons.lock_outline),
                     title: Text('Secrets'),
                     subtitle: Text(
-                      'Les secrets de session sont destinés au stockage sécurisé natif, jamais à SQLite ni aux logs.',
+                      'Les secrets de session restent dans le coffre de l’appareil (Keychain, Keystore), jamais dans SQLite ni dans les journaux.',
                     ),
                   ),
                   Divider(),

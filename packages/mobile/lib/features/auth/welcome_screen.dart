@@ -65,7 +65,7 @@ class WelcomeScreen extends StatelessWidget {
                           style: t.bodyLarge?.copyWith(color: KombeColors.ink),
                         ),
                         const SizedBox(height: 22),
-                        const _Benefit(icon: Icons.groups_rounded, title: 'Épargnez\nen groupe'),
+                        const _Benefit(icon: Icons.groups_rounded, title: 'Cotisez\nen groupe'),
                         const _Benefit(icon: Icons.verified_user_rounded, title: 'Suivez chaque\ncotisation'),
                         const _Benefit(icon: Icons.bar_chart_rounded, title: 'Construisez\nvos projets ensemble'),
                       ],

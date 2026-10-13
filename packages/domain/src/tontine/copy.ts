@@ -27,6 +27,14 @@ export const FORBIDDEN_COPY: readonly RegExp[] = [
   /end[-\s]to[-\s]end/i,
   /\bwallet\b/i,
   /portefeuille/i,
+  // Promesses que KÓMBE ne peut pas tenir (section 6.4) : « chiffres » (digits)
+  // reste permis, seuls « chiffré » / « chiffrement » sont visés.
+  /\bs[ée]curis[ée]e?s?\b/i,
+  /\bsecured?\b/i,
+  /\bgaranti(e|es|s)?\b/i,
+  /\bguarantee[ds]?\b/i,
+  /chiffr(é|ée|és|ées|ement)/i,
+  /\bencrypt/i,
 ];
 
 /** Retourne les motifs interdits trouvés dans un texte. */

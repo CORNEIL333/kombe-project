@@ -116,7 +116,7 @@ class _ValidationDetailScreenState extends State<ValidationDetailScreen> {
     if (!mounted) return;
     switch (result) {
       case OperationSuccess<void>():
-        // Confirmé par le serveur uniquement : retour haptique et message proportionnés.
+        // Réponse du serveur reçue : retour haptique et message proportionnés.
         unawaited(HapticFeedback.mediumImpact());
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Décision enregistrée dans l’historique du groupe.')),

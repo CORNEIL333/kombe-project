@@ -59,7 +59,7 @@ export const fr = {
 
   "obligation.titre": "Aperçu d'une contribution",
   "obligation.consigne":
-    "Ce que vous déclarez est distingué de ce qui est validé par le serveur.",
+    "Ce que vous déclarez reste distinct de ce que le trésorier a confirmé.",
   "statut.enCours": "Déclaré — en cours de validation",
   "statut.valide": "Validé",
   "statut.conteste": "Contesté",
@@ -74,7 +74,7 @@ export const fr = {
   "horsLigne.badge": "Hors ligne",
   "horsLigne.derniereSync": "Dernière synchronisation : {date}",
   "horsLigne.brouillonsEnAttente":
-    "{nombre} brouillon(s) en attente — non validés par le serveur",
+    "{nombre} brouillon(s) sur cet appareil — pas encore envoyés au groupe",
   "horsLigne.jamaisValide":
     "Brouillon local — jamais considéré validé tant que vous êtes hors ligne",
 
@@ -183,7 +183,7 @@ export const fr = {
 
   "cotisation.titre": "Déclarer une cotisation",
   "cotisation.consigne":
-    "Ce que vous déclarez est distingué de ce qui est validé par le serveur.",
+    "Ce que vous déclarez reste distinct de ce que le trésorier a confirmé.",
   "champ.groupe": "Identifiant du groupe",
   "champ.obligation": "Identifiant de l'obligation",
   "bouton.charger": "Charger l'obligation",
@@ -260,7 +260,7 @@ export const en: Record<CleI18n, string> = {
 
   "obligation.titre": "Contribution preview",
   "obligation.consigne":
-    "What you declare is kept apart from what the server validates.",
+    "What you declare stays separate from what the treasurer has confirmed.",
   "statut.enCours": "Declared — awaiting validation",
   "statut.valide": "Validated",
   "statut.conteste": "Disputed",
@@ -274,7 +274,7 @@ export const en: Record<CleI18n, string> = {
   "horsLigne.badge": "Offline",
   "horsLigne.derniereSync": "Last sync: {date}",
   "horsLigne.brouillonsEnAttente":
-    "{nombre} draft(s) pending — not validated by the server",
+    "{nombre} draft(s) on this device — not yet sent to the group",
   "horsLigne.jamaisValide":
     "Local draft — never treated as validated while you are offline",
 
@@ -383,7 +383,7 @@ export const en: Record<CleI18n, string> = {
 
   "cotisation.titre": "Declare a contribution",
   "cotisation.consigne":
-    "What you declare is kept apart from what the server validates.",
+    "What you declare stays separate from what the treasurer has confirmed.",
   "champ.groupe": "Group identifier",
   "champ.obligation": "Obligation identifier",
   "bouton.charger": "Load the obligation",
