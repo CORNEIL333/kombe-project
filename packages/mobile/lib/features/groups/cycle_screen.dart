@@ -183,10 +183,10 @@ class _CurrentBeneficiary extends StatelessWidget {
           Row(children: <Widget>[
             const Icon(Icons.workspace_premium_rounded, color: KombeColors.gold, size: 22),
             const SizedBox(width: 8),
-            Text.rich(TextSpan(children: <InlineSpan>[
+            Expanded(child: Text.rich(TextSpan(children: <InlineSpan>[
               TextSpan(text: 'Bénéficiaire actuel ', style: t.titleSmall?.copyWith(fontSize: 16)),
               TextSpan(text: '(Tour ${turn.turnNumber})', style: t.bodyMedium?.copyWith(color: KombeColors.ink)),
-            ])),
+            ]))),
           ]),
           const SizedBox(height: 14),
           Row(

@@ -31,13 +31,20 @@ class KombeStatusRing extends StatelessWidget {
     return Semantics(
       label: label,
       child: ExcludeSemantics(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ring,
-            const SizedBox(width: 6),
-            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
-          ],
+        // Largeur bornée (cas courant sur téléphone) : le libellé passe à la
+        // ligne au lieu de déborder ; largeur libre : il garde sa taille.
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints c) {
+            final Widget text = Text(label, softWrap: true, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13));
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ring,
+                const SizedBox(width: 6),
+                if (c.hasBoundedWidth) Flexible(child: text) else text,
+              ],
+            );
+          },
         ),
       ),
     );

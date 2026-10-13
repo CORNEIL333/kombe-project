@@ -25,12 +25,17 @@ class KombeLogo extends StatelessWidget {
         children: <Widget>[
           emblem,
           const SizedBox(width: 10),
-          Column(
+          // Flexible : sur un écran étroit, la signature passe à la ligne au
+          // lieu de déborder.
+          Flexible(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Text(
                 'KÓMBE',
+                maxLines: 1,
+                overflow: TextOverflow.fade,
+                softWrap: false,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       color: KombeColors.forest,
                       fontWeight: FontWeight.w900,
@@ -39,12 +44,13 @@ class KombeLogo extends StatelessWidget {
               ),
               Text(
                 'Votre tontine, plus claire.',
+                softWrap: true,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: KombeColors.forest,
                     ),
               ),
             ],
-          ),
+          )),
         ],
       ),
     );

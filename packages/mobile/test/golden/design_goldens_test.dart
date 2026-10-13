@@ -173,7 +173,7 @@ void main() {
           children: <Widget>[
             KombeCycleOrbit(total: 8, current: 3, size: 200, animate: false, semanticLabel: 'Cycle de 8 tours'),
             SizedBox(width: 24),
-            Column(
+            Expanded(child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -187,7 +187,7 @@ void main() {
                 SizedBox(height: 14),
                 KombeStatusRing(status: KombeStatus.offline, label: 'Hors connexion'),
               ],
-            ),
+            )),
           ],
         ),
       ),

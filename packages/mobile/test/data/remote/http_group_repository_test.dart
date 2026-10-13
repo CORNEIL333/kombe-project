@@ -9,6 +9,7 @@ import 'package:kombe_mobile/core/state/resource.dart';
 import 'package:kombe_mobile/data/remote/http_group_repository.dart';
 import 'package:kombe_mobile/data/remote/kombe_api_client.dart';
 import 'package:kombe_mobile/domain/entities/group.dart';
+import 'package:kombe_mobile/domain/entities/cycle.dart';
 
 /// Recettes CONTRACTUELLES de l'adaptateur HTTP d'amorçage des tontines :
 /// seules les routes RÉELLEMENT prouvées base réelle (0024,
@@ -232,7 +233,7 @@ void main() {
       expect(await repo.listGroups(), isA<ResourceUnavailable<List<GroupSummary>>>());
       expect(await repo.getGroup('g'), isA<ResourceUnavailable<GroupDetails>>());
       expect(await repo.listMembers('g'), isA<ResourceUnavailable<List<GroupMember>>>());
-      expect(await repo.getCycle('g'), isA<ResourceUnavailable>());
+      expect(await repo.getCycle('g'), isA<ResourceUnavailable<CycleDetails>>());
     });
   });
 }
