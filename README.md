@@ -31,11 +31,11 @@ dans un registre vérifiable.
 | Dossier | Contenu |
 |---|---|
 | `packages/domain` | Règles métier pures (TypeScript), testées |
-| `packages/db` | Schéma PostgreSQL 16, migrations 0001 à 0026, rôles et cloisonnement |
+| `packages/db` | Schéma PostgreSQL 16, migrations 0001 à 0029, rôles et cloisonnement |
 | `packages/api` | API Fastify ; l'API produit est dans `src/tontine/` ([contrat](docs/API_TONTINE.md)) |
 | `packages/client` | Application web installable (PWA, React) |
 | `packages/mobile` | Application mobile Flutter (Android, iOS) |
-| `apps/dashboard-*` | Tableaux de bord (bureau, opérations, direction, technique) |
+| `apps/dashboard-*` | Espace bureau (`/bureau/`), Opérations (`/ops/`), Direction (`/direction/`), Engineering (`/engineering/`) — les trois derniers réservés aux opérateurs de la plateforme |
 | `packages/worker` | Envoi différé des messages (outbox) |
 
 ## Démarrer en local
@@ -46,23 +46,34 @@ pnpm -r --if-present run build
 docker compose up -d postgres                         # ou un PostgreSQL 16 local
 export KOMBE_DATABASE_URL=postgresql://kombe:kombe_dev_only@localhost:5432/kombe
 node packages/db/scripts/migrate.mjs migrate
-KOMBE_API_DATABASE_URL=$KOMBE_DATABASE_URL KOMBE_CORS_ORIGINS=http://localhost:5173 \
-  pnpm --filter @kombe/api run start                  # API sur :3000
-VITE_KOMBE_API_BASE_URL=http://localhost:3000 pnpm --filter @kombe/client run dev   # PWA sur :5173
+node scripts/build-web.mjs                            # PWA + tableaux de bord → dist-web/
+KOMBE_API_DATABASE_URL=$KOMBE_DATABASE_URL KOMBE_WEB_ROOT=$PWD/dist-web \
+  pnpm --filter @kombe/api run start                  # tout sur http://localhost:3000
 ```
 
+Puis : `http://localhost:3000/` (membres), `/bureau/` (bureau d'un groupe),
+`/ops/`, `/direction/`, `/engineering/` (opérateurs : `node
+packages/db/scripts/grant-operator.mjs <téléphone ou e-mail>`).
+
 En développement, aucun SMS ne part : le code de connexion est renvoyé par
-l'API (`devCode`) et affiché par l'application. Le déploiement est décrit dans
-[`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md).
+l'API (`devCode`) et affiché par l'application. **Mise en ligne en quelques
+clics : [`docs/deployment/MORNING_SETUP.md`](docs/deployment/MORNING_SETUP.md)**
+(un seul projet Vercel, migrations au build).
 
 ## Tests
 
 ```bash
 pnpm -r --if-present run test                       # tests unitaires de tous les paquets
-export KOMBE_TEST_DATABASE_URL=...                  # base PostgreSQL jetable
-node packages/db/tests/isolation.pg.mjs             # cloisonnement et règles de la base
-KOMBE_API_DATABASE_URL=$KOMBE_TEST_DATABASE_URL node packages/api/test/tontineApi.proof.mjs   # parcours réel complet
+scripts/proofs-local.sh                             # 18 preuves sur une vraie PostgreSQL 16 (base jetable)
+KOMBE_E2E_BASE_URL=http://localhost:3000 pnpm --filter @kombe/client exec playwright test
+                                                    # tour complet à trois personnes dans Chromium
 ```
+
+Le contrat HTTP (`docs/openapi.yaml`) est vérifié contre les routes réellement
+déclarées (`packages/api/test/contractRuntime.test.ts`) ; aucun texte affiché
+ne contient de mot interdit (épargne, solde, retrait, « validé par le
+serveur »…) : `packages/domain/test/copieProduit.test.ts`. Avancement :
+[`docs/PLAN_TONTINE_REELLE.md`](docs/PLAN_TONTINE_REELLE.md).
 
 Le dossier `KOMBE_Audit_Construction/` reste la base documentaire d'origine ;
 il n'est pas modifié.
