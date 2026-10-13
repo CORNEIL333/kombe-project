@@ -24,7 +24,12 @@ jobs:
     name: Build / typecheck / tests (sans base)
     runs-on: ubuntu-latest
     steps:
+      # Historique complet : le vérificateur de coordination contrôle que les
+      # SHA cités par les messages handoff existent (un clone de profondeur 1
+      # les dit « introuvables »).
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # pnpm épinglé via la clause "packageManager" du package.json (corepack).
       - uses: pnpm/action-setup@v4
