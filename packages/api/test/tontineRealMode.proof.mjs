@@ -33,19 +33,20 @@ try {
 } catch {
   blocked("Pilote 'pg' non installé.");
 }
-let buildApp, createApiPool, NullEmailSender, NullSmsSender;
+let buildApp, createApiPool, NullEmailSender, NullSmsSender, runReminders;
 try {
   ({ buildApp } = await import(pathToFileURL(resolve(distRoot, "server.js")).href));
   ({ createApiPool } = await import(pathToFileURL(resolve(distRoot, "db/pgPool.js")).href));
   ({ NullEmailSender } = await import(pathToFileURL(resolve(distRoot, "email/emailSender.js")).href));
   ({ NullSmsSender } = await import(pathToFileURL(resolve(distRoot, "tontine/sms.js")).href));
+  ({ runReminders } = await import(pathToFileURL(resolve(distRoot, "tontine/insights.js")).href));
 } catch (err) {
   blocked(`Build manquant (pnpm --filter @kombe/api build requis) : ${String(err?.message ?? err)}`);
 }
 
 const UP = [
   "provision/roles_create.sql",
-  ...Array.from({ length: 25 }, (_, i) => i + 1).map((n) => {
+  ...Array.from({ length: 26 }, (_, i) => i + 1).map((n) => {
     const prefix = String(n).padStart(4, "0");
     return `migrations/${readMigrationName(prefix)}`;
   }),
@@ -60,7 +61,7 @@ function readMigrationName(prefix) {
     "0015": "0015_export_manifest.sql", "0016": "0016_privacy_law.sql", "0017": "0017_pilot_metrics.sql",
     "0018": "0018_session_resolver.sql", "0019": "0019_token_security.sql", "0020": "0020_group_resolvers.sql",
     "0021": "0021_privacy_restore_points.sql", "0022": "0022_cycle_schedule.sql", "0023": "0023_worker_discovery.sql",
-    "0024": "0024_tontine_core.sql", "0025": "0025_association.sql",
+    "0024": "0024_tontine_core.sql", "0025": "0025_association.sql", "0026": "0026_reminders.sql",
   };
   return names[prefix];
 }
@@ -225,6 +226,17 @@ try {
   const rebuild = await call(P, "PUT", `/v1/groups/${G}/tontine-schedule`, { cadence: { kind: "weekly", weekday: 6 }, startDate: "2026-11-01", contributionPerShare: 10000, order: { mode: "join_order" } });
   check("L03-FROZEN", rebuild.status === 409, rebuild);
 
+  // ── Innovation : simulateur et « mon tour » ───────────────────────────
+  const sim = await call(P, "POST", "/v1/tontine/simulations", { cadence: { kind: "monthly_nth_weekday", nth: 2, weekday: 6 }, startDate: "2026-11-01", shares: 5, contributionPerShare: 10000 });
+  check("INNOV-SIMULATE", sim.status === 200 && sim.json.lastMeeting === "2027-03-13" && sim.json.potPerMeeting === "50000", sim.json?.summary);
+  const fc = await call(M1, "GET", `/v1/groups/${G}/my-forecast`);
+  const fcLast = await call(T, "GET", `/v1/groups/${G}/my-forecast`);
+  check(
+    "INNOV-MY-TURN",
+    fc.status === 200 && fc.json.turns[0].position === "group_advances_you" && fc.json.turns[0].advance === "40000" && fcLast.json.turns[0].position === "even",
+    { m1: fc.json?.turns?.[0], t: fcLast.json?.turns?.[0] },
+  );
+
   // ── L-05 : séance 1, appel ─────────────────────────────────────────────
   const meetings = await call(P, "GET", `/v1/groups/${G}/meetings`);
   const m1 = meetings.json[0].meeting_id;
@@ -279,6 +291,11 @@ try {
   check("L06-CLOSE-MINUTES", close.status === 200 && /^[0-9a-f]{64}$/.test(close.json.minutesHash) && close.json.finesIssued === 1, close);
   const detail = await call(M1, "GET", `/v1/groups/${G}/meetings/${m1}`);
   check("L06-MINUTES-TEXT", detail.status === 200 && detail.json.minutesText.includes("Brice") && detail.json.minutesText.includes("Prochaine séance"), detail.json?.minutesText?.slice(0, 200));
+
+  const share = await call(M1, "GET", `/v1/groups/${G}/meetings/${m1}/share-text`);
+  check("INNOV-WHATSAPP-SUMMARY", share.status === 200 && share.json.text.includes("Remise : 50 000 FCFA à Brice") && share.json.text.includes("ne garde pas notre argent"), share.json?.text);
+  const reg = await call(M1, "GET", `/v1/groups/${G}/regularity`);
+  check("INNOV-REGULARITY", reg.status === 200 && reg.json.length === 5 && reg.json.every((r) => r.onTime === 1), reg.json);
 
   // ── L-09 : amende d'indiscipline, contestation, maintien, paiement ────
   const fine = await call(M1, "POST", `/v1/groups/${G}/fines`, { membershipId: mid("Clarisse"), kind: "indiscipline", amount: 500, reason: "Téléphone en pleine séance" });
@@ -373,6 +390,13 @@ try {
   check("L15-NOTIFICATIONS", notes.status === 200 && notes.json.length > 0 && notes.json.every((n) => !/\d{3,}/.test(n.target ?? "") || n.target.startsWith("group:")), notes.json?.map((n) => n.kind));
   const read = await call(M1, "POST", `/v1/me/notifications/${notes.json[0].notification_id}/read`);
   check("L15-MARK-READ", read.status === 204, read);
+
+  // ── Rappels automatiques J-1 de la séance 3 (tâche planifiée) ─────────
+  const rem = await runReminders(pool, Date.parse("2027-01-08T08:00:00Z"));
+  const rem2 = await runReminders(pool, Date.parse("2027-01-08T08:00:00Z"));
+  const notesAfter = await call(M1, "GET", "/v1/me/notifications");
+  const reminders = notesAfter.json.filter((n) => n.kind === "meeting_reminder" || n.kind === "due_reminder");
+  check("INNOV-REMINDERS", rem.meetings === 1 && rem2.meetings === 1 && reminders.filter((n) => n.kind === "due_reminder").length === 1, { rem, kinds: notesAfter.json?.map((n) => n.kind) });
 
   // ── Journal chaîné intact après tout le parcours ──────────────────────
   const verify = await call(P, "GET", `/v1/groups/${G}/journal/verify`);

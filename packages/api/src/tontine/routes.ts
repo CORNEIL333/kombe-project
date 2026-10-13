@@ -24,6 +24,7 @@ import { withGroupTx } from "../db/txContext.js";
 import { sessionIdentity, withActor, withSessionIdentity, newId } from "./context.js";
 import * as G from "./groups.js";
 import * as A from "./association.js";
+import * as I from "./insights.js";
 
 const id = z.string().min(1).max(200);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -128,6 +129,13 @@ export function registerTontineRoutes(app: FastifyInstance, deps: TontineDeps): 
     return reply.code(201).send(out);
   });
 
+  /* Simulateur de cycle (avant création) */
+  app.post("/v1/tontine/simulations", async (request) => {
+    const body = z.object({ cadence, startDate: isoDate, shares: z.number().int(), contributionPerShare: money }).parse(request.body);
+    await sessionIdentity(pool, request, now);
+    return I.simulateCycle(body);
+  });
+
   /* Rejoindre avec un code */
   app.get("/v1/invitations/by-code/:code", async (request) => {
     const code = z.string().regex(/^[A-Za-z0-9]{8}$/).parse((request.params as { code?: unknown }).code);
@@ -228,6 +236,13 @@ export function registerTontineRoutes(app: FastifyInstance, deps: TontineDeps): 
   /* Mes échéances, file à valider */
   app.get("/v1/groups/:groupId/my-obligations", async (request) => act(request, (c, a) => A.myObligations(c, gid(request.params), a, now())));
   app.get("/v1/groups/:groupId/pending-validations", async (request) => act(request, (c, a) => A.pendingForActor(c, gid(request.params), a)));
+
+  /* Mon tour, régularité, résumé partageable */
+  app.get("/v1/groups/:groupId/my-forecast", async (request) => act(request, (c, a) => I.myForecast(c, gid(request.params), a)));
+  app.get("/v1/groups/:groupId/regularity", async (request) => act(request, (c, a) => I.regularity(c, gid(request.params), a, now())));
+  app.get("/v1/groups/:groupId/meetings/:meetingId/share-text", async (request) =>
+    act(request, (c, a) => I.meetingShareText(c, gid(request.params), a, pid(request.params, "meetingId"))),
+  );
 
   /* Caisses et mouvements */
   app.get("/v1/groups/:groupId/funds", async (request) => act(request, (c) => A.listFunds(c, gid(request.params))));
