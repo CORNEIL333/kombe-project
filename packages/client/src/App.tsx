@@ -9,8 +9,8 @@ import { ParcoursGuide } from "./parcours/ParcoursGuide.js";
 import { BandeauHorsLigne } from "./horsLigne/BandeauHorsLigne.js";
 import { Connexion, type SessionOuverte } from "./connexion/Connexion.js";
 import { DeclarerCotisation } from "./cotisation/DeclarerCotisation.js";
-import { ImmersiveBackdrop } from "./composants/ImmersiveBackdrop.js";
-import { MotifAfricain } from "./composants/MotifAfricain.js";
+import { Scene } from "./composants/Scene.js";
+import { LogoKombe } from "./composants/Marque.js";
 
 type Onglet = "groupe" | "cotisation";
 
@@ -47,11 +47,10 @@ export function App() {
 
       <header className="entete">
         <div className="entete-marque">
-          <img className="marque-symbole" src="/brand/logo-emblem.png" alt="" aria-hidden="true" />
-          <div>
-            <h1>{t("app.titre")}</h1>
-            <p className="aide-champ">{t("app.sousTitre")}</p>
-          </div>
+          <h1>
+            <LogoKombe hauteur={24} />
+          </h1>
+          <p className="entete-sous-titre">{t("app.sousTitre")}</p>
         </div>
         <BasculeLangue />
       </header>
@@ -83,22 +82,26 @@ export function App() {
         </nav>
 
         {onglet === "groupe" ? (
-          <section className="scene-immersive" aria-label={t("nav.creerGroupe")}>
-            <ImmersiveBackdrop variante="groupe" />
-            <div className="carte-etape" style={{ maxWidth: "40rem" }}>
-              <ParcoursGuide />
-            </div>
-            <MotifAfricain />
-          </section>
+          <Scene
+            variante="groupe"
+            etiquette={t("nav.creerGroupe")}
+            surtitre={t("scene.groupe.surtitre")}
+            titre={t("scene.groupe.titre")}
+            accent={t("scene.groupe.accent")}
+            texte={t("scene.groupe.texte")}
+          >
+            <ParcoursGuide />
+          </Scene>
         ) : null}
         {onglet === "cotisation" ? (
           session ? (
             <>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, margin: "0 0 12px" }}>
-                <p role="status" className="aide-champ" style={{ margin: 0 }}>
+              <div className="barre-session">
+                <p role="status">
+                  <span className="pastille-connecte" aria-hidden="true" />
                   {t("connexion.connecte")}
                 </p>
-                <button type="button" className="bouton-secondaire bouton" onClick={() => setSession(null)} style={{ minHeight: "auto", padding: "4px 12px" }}>
+                <button type="button" className="bouton-secondaire bouton bouton-compact" onClick={() => setSession(null)}>
                   {t("bouton.deconnexion")}
                 </button>
               </div>
@@ -110,7 +113,12 @@ export function App() {
         ) : null}
       </main>
 
-      <footer className="pied-page">{t("app.sousTitre")}</footer>
+      <footer className="pied-page">
+        <p className="pied-page__promesse">{t("marque.promesse")}</p>
+        <p>
+          {t("app.titre")} · {t("app.sousTitre")}
+        </p>
+      </footer>
     </div>
   );
 }

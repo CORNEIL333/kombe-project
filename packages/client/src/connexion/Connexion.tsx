@@ -12,6 +12,9 @@ import type { CleI18n } from "../i18n/dictionnaires.js";
 import { ChampTexte } from "../composants/Champs.js";
 import { ChampCode } from "../composants/ChampCode.js";
 import { ZoneEtat } from "../composants/Etats.js";
+import { Icone, type NomIcone } from "../composants/Icones.js";
+import { LogoKombe } from "../composants/Marque.js";
+import { Orbite } from "../composants/Orbite.js";
 import { ApiError, confirmerConnexion, demanderConnexion } from "../api/kombeApi.js";
 
 export interface SessionOuverte {
@@ -28,11 +31,11 @@ function messageErreur(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-const ATOUTS: ReadonlyArray<{ readonly icone: string; readonly titre: CleI18n; readonly texte: CleI18n }> = [
-  { icone: "🛡", titre: "atout.securise.titre", texte: "atout.securise.texte" },
-  { icone: "🤝", titre: "atout.solidaire.titre", texte: "atout.solidaire.texte" },
-  { icone: "📱", titre: "atout.simple.titre", texte: "atout.simple.texte" },
-  { icone: "📈", titre: "atout.durable.titre", texte: "atout.durable.texte" },
+const ATOUTS: ReadonlyArray<{ readonly icone: NomIcone; readonly titre: CleI18n; readonly texte: CleI18n }> = [
+  { icone: "validation", titre: "atout.verifie.titre", texte: "atout.verifie.texte" },
+  { icone: "registre", titre: "atout.registre.titre", texte: "atout.registre.texte" },
+  { icone: "horsLigne", titre: "atout.horsLigne.titre", texte: "atout.horsLigne.texte" },
+  { icone: "trace", titre: "atout.trace.titre", texte: "atout.trace.texte" },
 ];
 
 function PanneauMarque() {
@@ -40,25 +43,29 @@ function PanneauMarque() {
   return (
     <aside className="panneau-marque">
       <div className="panneau-marque__marque">
-        <img src="/brand/logo-emblem.png" alt="" aria-hidden="true" />
-        <span>
-          <strong>{t("app.titre")}</strong>
-          <small>{t("marque.tagline")}</small>
-        </span>
+        <LogoKombe hauteur={22} />
+        <small>{t("marque.tagline")}</small>
       </div>
+
+      <Orbite
+        className="panneau-marque__orbite"
+        total={8}
+        courant={3}
+        variante="marque"
+        photo="/brand/hero-communaute.jpg"
+        taille={340}
+      />
 
       <div className="panneau-marque__corps">
         <h1>
           {t("connexion.headlinePlain")} <em>{t("connexion.headlineAccent")}</em>
-          <br />
-          {t("connexion.headlineSuite")}
         </h1>
         <p>{t("connexion.sousAccroche")}</p>
         <ul className="panneau-marque__atouts">
           {ATOUTS.map((a) => (
             <li key={a.titre}>
               <span className="icone" aria-hidden="true">
-                {a.icone}
+                <Icone nom={a.icone} />
               </span>
               <span>
                 <strong>{t(a.titre)}</strong>
@@ -126,7 +133,6 @@ export function Connexion({ onConnecte }: ConnexionProps) {
       <section className="panneau-formulaire" aria-labelledby="connexion-titre">
         <div className="panneau-formulaire__interieur">
           <header className="panneau-formulaire__entete">
-            <img src="/brand/logo-emblem.png" alt="" aria-hidden="true" />
             <PointsEtape etape={etape === "email" ? 0 : 1} />
             <h2 id="connexion-titre">{etape === "email" ? t("connexion.bonRetour") : t("connexion.titre")}</h2>
             <p className="aide-champ">{etape === "email" ? t("connexion.consigne") : t("connexion.codeEnvoye")}</p>
@@ -145,7 +151,7 @@ export function Connexion({ onConnecte }: ConnexionProps) {
               <button type="button" className="bouton bouton-avec-icone" onClick={envoyerCode} disabled={enCours}>
                 {t("bouton.envoyerCode")}
                 <span className="pastille-fleche" aria-hidden="true">
-                  →
+                  <Icone nom="fleche" taille={16} />
                 </span>
               </button>
             </>
@@ -160,7 +166,7 @@ export function Connexion({ onConnecte }: ConnexionProps) {
               <button type="button" className="bouton bouton-avec-icone" onClick={confirmer} disabled={enCours}>
                 {t("bouton.confirmerCode")}
                 <span className="pastille-fleche" aria-hidden="true">
-                  →
+                  <Icone nom="fleche" taille={16} />
                 </span>
               </button>
               <p className="carte-etape__pied">
@@ -178,9 +184,7 @@ export function Connexion({ onConnecte }: ConnexionProps) {
             </p>
           ) : null}
 
-          <p className="panneau-formulaire__pied">
-            {t("app.titre")} — {t("marque.tagline")}
-          </p>
+          <p className="panneau-formulaire__pied">{t("marque.promesse")}</p>
         </div>
       </section>
     </div>
