@@ -206,4 +206,44 @@ $$;
 REVOKE ALL ON FUNCTION kombe_ops_engineering() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION kombe_ops_engineering() TO kombe_app;
 
+-- File de la console support (JIT) : demandes récentes, sans contenu de groupe.
+CREATE FUNCTION kombe_ops_support_requests(limit_in integer)
+RETURNS TABLE(
+  request_id text,
+  applicant_identity_id text,
+  target_group_id text,
+  target_group_name text,
+  motif text,
+  permissions text[],
+  approver_count bigint,
+  required_approvals integer,
+  requested_at timestamptz,
+  expires_at timestamptz,
+  status text,
+  version integer
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $$
+BEGIN
+  IF NOT kombe_is_operator() THEN
+    RAISE EXCEPTION 'operator required' USING ERRCODE = '42501';
+  END IF;
+  RETURN QUERY
+  SELECT r.request_id, r.applicant_identity_id, r.target_group_id, g.display_name, r.motif, r.permissions,
+         (SELECT count(*) FROM public.support_access_approver a WHERE a.request_id = r.request_id),
+         r.required_approvals, r.requested_at, r.expires_at,
+         CASE WHEN r.status = 'granted' AND r.expires_at IS NOT NULL AND r.expires_at <= now() THEN 'expired' ELSE r.status END,
+         r.version
+    FROM public.support_access_request r
+    JOIN public."group" g ON g.group_id = r.target_group_id
+   ORDER BY r.requested_at DESC
+   LIMIT LEAST(GREATEST(COALESCE(limit_in, 100), 1), 500);
+END
+$$;
+REVOKE ALL ON FUNCTION kombe_ops_support_requests(integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION kombe_ops_support_requests(integer) TO kombe_app;
+
 COMMIT;

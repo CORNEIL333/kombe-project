@@ -43,3 +43,20 @@ describe("OperationsApi — toutes les routes passent par /v1", () => {
     ]);
   });
 });
+
+describe("OperationsApi — console opérateur", () => {
+  it("lit /v1/ops/* (réservé aux opérateurs côté serveur)", async () => {
+    const calls = stubFetch();
+    const api = new OperationsApi(new ApiClient({ baseUrl: "https://api.example.invalid" }));
+    await api.me();
+    await api.overview();
+    await api.groups();
+    await api.supportQueue();
+    expect(calls.map((c) => c.url)).toEqual([
+      "https://api.example.invalid/v1/ops/me",
+      "https://api.example.invalid/v1/ops/overview",
+      "https://api.example.invalid/v1/ops/groups?limit=300",
+      "https://api.example.invalid/v1/ops/support-requests?limit=200",
+    ]);
+  });
+});

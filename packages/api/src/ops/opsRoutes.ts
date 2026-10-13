@@ -92,6 +92,27 @@ export function registerOpsRoutes(app: FastifyInstance, opts: OpsRoutesOptions):
     });
   });
 
+  app.get("/v1/ops/support-requests", async (req) => {
+    const limit = z.coerce.number().int().min(1).max(500).default(100).parse((req.query as { limit?: string }).limit);
+    return asOperator(req, async (db) => {
+      const r = await db.query("SELECT * FROM kombe_ops_support_requests($1)", [limit]);
+      return r.rows.map((x) => ({
+        requestId: String(x.request_id),
+        applicantIdentityId: String(x.applicant_identity_id),
+        targetGroupId: String(x.target_group_id),
+        targetGroupName: x.target_group_name ? String(x.target_group_name) : null,
+        motif: String(x.motif),
+        permissions: x.permissions as string[],
+        approverCount: Number(x.approver_count),
+        requiredApprovals: Number(x.required_approvals),
+        requestedAt: new Date(x.requested_at).toISOString(),
+        expiresAt: x.expires_at ? new Date(x.expires_at).toISOString() : null,
+        status: String(x.status),
+        version: Number(x.version),
+      }));
+    });
+  });
+
   app.get("/v1/ops/engineering", async (req) =>
     asOperator(req, async (db) => {
       const r = await db.query("SELECT kombe_ops_engineering() AS e");

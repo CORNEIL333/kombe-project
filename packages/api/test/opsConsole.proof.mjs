@@ -89,7 +89,7 @@ try {
 
   const me1 = await ok(O.token, "GET", "/v1/ops/me");
   check("OPS-ME-NOT-OPERATOR", me1.operator === false && me1.identityId === O.login, me1);
-  const refused = await Promise.all(["/v1/ops/overview", "/v1/ops/kpis", "/v1/ops/groups", "/v1/ops/engineering"].map((p) => call(O.token, "GET", p)));
+  const refused = await Promise.all(["/v1/ops/overview", "/v1/ops/kpis", "/v1/ops/groups", "/v1/ops/engineering", "/v1/ops/support-requests"].map((p) => call(O.token, "GET", p)));
   check("OPS-403-FOR-MEMBER", refused.every((r) => r.status === 403), refused.map((r) => r.status));
   const anon = await call(null, "GET", "/v1/ops/overview");
   check("OPS-401-ANON", anon.status === 401, anon.status);
@@ -117,6 +117,8 @@ try {
   const mine = groups.find((g) => g.name === `Groupe console ${run}`);
   check("OPS-GROUPS", mine && mine.membersActive === 1 && mine.state === "configuration", mine ?? groups.slice(0, 3));
   check("OPS-GROUPS-NO-PERSONAL-DATA", groups.every((g) => !JSON.stringify(g).includes("+237")), "téléphone exposé");
+  const sup = await ok(O.token, "GET", "/v1/ops/support-requests");
+  check("OPS-SUPPORT-QUEUE", Array.isArray(sup), sup);
   const eng = await ok(O.token, "GET", "/v1/ops/engineering");
   check("OPS-ENGINEERING", eng.schemaUpToDate === true && eng.migrations.length >= 29 && typeof eng.postgresVersion === "string", {
     upToDate: eng.schemaUpToDate,
