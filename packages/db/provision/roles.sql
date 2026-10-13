@@ -96,6 +96,8 @@ REVOKE DELETE ON share, share_holder, fund, meeting, attendance, fund_movement, 
 REVOKE UPDATE, DELETE ON statutes_version FROM kombe_app;
 REVOKE INSERT, DELETE ON inbox_notification FROM kombe_app;
 REVOKE UPDATE, DELETE ON api_idempotency FROM kombe_app;
+-- Cycles successifs (0031) : un cycle démarré ne se réécrit pas.
+REVOKE UPDATE, DELETE ON tontine_cycle FROM kombe_app;
 
 -- kombe_worker : lecture/maJ de l'outbox et du registre de commandes seulement.
 GRANT USAGE ON SCHEMA public TO kombe_worker;

@@ -22,8 +22,9 @@ vraie PostgreSQL. **KÓMBE ne garde jamais l'argent.**
 | Tableaux de bord | Espace bureau (9 pages, CSV, PV, votes & sanctions), Opérations, Direction, Engineering — tous sur données réelles, consoles plateforme réservées aux opérateurs | `/bureau/`, `/ops/`, `/direction/`, `/engineering/` |
 | Mobile Flutter | branché sur l'API (connexion téléphone, tontines, déclarations Orange/MTN/diaspora, confirmations, votes, notifications, statuts) | `packages/mobile` |
 | Déploiement | un seul projet Vercel (API + PWA + 4 tableaux de bord), migrations au build, smoke de mise en ligne | `docs/deployment/MORNING_SETUP.md` |
-| Contrat | OpenAPI vérifié contre le runtime dans les deux sens (78 routes produit) | `contractRuntime.test.ts` |
-| Schéma | migrations 0026 → **0030** (up/down, RLS, dictionnaire, scénarios d'isolation) | `packages/db/DICTIONNAIRE.md` |
+| Cycles et repères (ADR-0039) | cycles successifs (tours N+1…), réserve de fin d'année rendue à chacun, suppléance quand le trésorier ou le commissaire unique est concerné, simulateur avant création, « mon tour », régularité, résumé de séance pour WhatsApp | PWA (Aperçu, Séances, Création), `tontineCycles.proof.mjs`, E2E `cycles.spec.ts` |
+| Contrat | OpenAPI vérifié contre le runtime dans les deux sens (84 routes produit) | `contractRuntime.test.ts` |
+| Schéma | migrations 0026 → **0031** (up/down, RLS, dictionnaire, scénarios d'isolation) | `packages/db/DICTIONNAIRE.md` |
 
 ## Vérifications exécutées (aucun PASS simulé)
 
@@ -31,9 +32,9 @@ vraie PostgreSQL. **KÓMBE ne garde jamais l'argent.**
 |---|---|
 | `pnpm -r run typecheck` | vert |
 | `pnpm -r run build` | vert |
-| `pnpm -r run test` | domaine 425 · API 243 · dashboard-core 33 · client 23 · Espace bureau 3 · Opérations 4 · Direction 3 · Engineering 1 — tous PASS |
-| `scripts/proofs-local.sh` (PostgreSQL 16 réel, base fraîche par preuve) | 19 / 19 PASS, dont `tontineApi.proof.mjs` (44) et `decisions.proof.mjs` (55 vérifications) ; isolation `C30_DECISION` PASS |
-| Playwright / Chromium contre l'API réelle | 5 / 5 PASS : tour complet à 3, votes + cahier, séance sans réseau, bandeau hors connexion, accessibilité clavier |
+| `pnpm -r run test` | domaine 428 · API 244 · dashboard-core 33 · client 23 · Espace bureau 3 · Opérations 4 · Direction 3 · Engineering 1 — tous PASS |
+| `scripts/proofs-local.sh` (PostgreSQL 16 réel, base fraîche par preuve) | 20 / 20 PASS, dont `tontineApi.proof.mjs` (44), `decisions.proof.mjs` (55) et `tontineCycles.proof.mjs` (45 vérifications) ; isolation `C30_DECISION` PASS |
+| Playwright / Chromium contre l'API réelle | 6 / 6 PASS : tour complet à 3, votes + cahier, séance sans réseau, bandeau hors connexion, accessibilité clavier, cycle complet puis cycle 2 |
 | Espace bureau piloté dans Chromium (même origine) | toutes les pages, dont « Votes & sanctions » |
 | `flutter analyze` / `flutter test` | 0 erreur, 0 avertissement / 51 PASS (goldens compris) |
 | Garde de copie (épargne, solde, retrait, débité, sécurisé, garanti, chiffré, « validé par le serveur »…) | PASS sur PWA (FR/EN/pidgin), mobile, tableaux de bord, site |

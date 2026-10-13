@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from "react";
 import type { AidEvent, Cadence, TontineSettings, Weekday } from "@kombe/domain";
-import { tontines, type Session } from "./api.js";
+import { cycle, tontines, type Session, type Simulation } from "./api.js";
 import { Carte, Champ, ChampMontant, Retour, aujourdhui, useAction } from "./ui.js";
 import { useTextes, type CleTexte } from "./textes.js";
 
@@ -482,6 +482,7 @@ export function Creation({
               <dd>{r.yearEndReserve.enabled ? xaf(r.yearEndReserve.perMeeting) : "—"}</dd>
             </dl>
             <p className="msg msg--info">{tx("cr.cagnotte", { montant: xaf(cagnotte), n: parts })}</p>
+            {edition?.verrouille ? null : <Simulateur session={session} reglement={r} />}
           </>
         ) : null}
 
@@ -535,5 +536,48 @@ function CaisseAnnexe({
       </label>
       {actif ? <ChampMontant id={id} libelle={tx("cr.parSeance")} valeur={montant} onChange={(v) => onChange(true, v || "0")} /> : null}
     </div>
+  );
+}
+
+/** Simulateur (ADR-0039) : les vraies dates de chaque séance avant de créer. */
+function Simulateur({ session, reglement: r }: { readonly session: Session; readonly reglement: TontineSettings }) {
+  const { tx, date } = useTextes();
+  const [sim, setSim] = useState<Simulation | null>(null);
+  const action = useAction();
+  const annexes = [r.solidarity, r.operating, r.yearEndReserve].reduce((t, f) => (f.enabled ? t + BigInt(f.perMeeting || "0") : t), 0n);
+  const simuler = async () => {
+    const out = await action.lancer(() =>
+      cycle.simuler(session, {
+        cadence: r.cadence,
+        firstMeetingDate: r.firstMeetingDate,
+        shares: Math.max(2, Math.min(60, r.maxMembers)),
+        contributionPerShare: r.contributionPerShare,
+        ...(annexes > 0n ? { sidePerMeeting: annexes.toString() } : {}),
+      }),
+    );
+    if (out) setSim(out);
+  };
+  return (
+    <Carte titre={tx("cr.simulation")}>
+      <Retour erreur={action.erreur} />
+      {sim ? (
+        <>
+          <p>{sim.summary}</p>
+          <ol className="liste liste--ordre">
+            {sim.dates.map((d, i) => (
+              <li key={d} className="liste__ligne">
+                <span>
+                  {i + 1}. {date(d)}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : (
+        <button type="button" className="bouton bouton-secondaire" disabled={action.enCours} onClick={() => void simuler()}>
+          {tx("cr.simuler")}
+        </button>
+      )}
+    </Carte>
   );
 }

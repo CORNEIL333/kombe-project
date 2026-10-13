@@ -60,8 +60,9 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 | POST | `/v1/tontines/:id/cycle` | bureau | `{ order: "draw" \| "manual" \| "join_order", drawId?, membershipOrder?: string[] }` → `TontineDetail` (démarre : tours + séances) |
 | GET | `/v1/tontines/:id/rounds` | membre | → `RoundView[]` |
 | GET | `/v1/tontines/:id/rounds/:seq/grid` | membre | → `RoundGridView` (transparence appliquée) |
-| POST | `/v1/tontines/:id/rounds/:seq/payout` | Trésorier / adjoint | `PayoutInput` → `MovementView` (remise déclarée devant témoins) |
+| POST | `/v1/tontines/:id/rounds/:seq/payout` | Trésorier / adjoint ; Président / VP si toute la trésorerie est le bénéficiaire | `PayoutInput` → `MovementView` (remise déclarée devant témoins ; jamais par le bénéficiaire) |
 | POST | `/v1/tontines/:id/rounds/:seq/close` | Président / VP / Secrétaire | → `RoundView` (impayés → dettes suivies) |
+| POST | `/v1/tontines/:id/cycle-renewals` | bureau | `{ order, drawId?, membershipOrder?, firstMeetingDate? }` → `TontineDetail` (201 ; quand tous les tours sont clos : nouveau cycle, tours N+1…, ADR-0039) |
 | GET | `/v1/tontines/:id/draws/:drawId` | membre | → `{ commitment, seed, result }` (rejouable) |
 | POST | `/v1/tontines/:id/order-changes` | membre | `{ kind: "swap" \| "priority", seqA, seqB, reason? }` → `OrderChangeView` (tour prioritaire : `seqA` = mon tour, `seqB` = tour visé, motif obligatoire ; chaque personne déplacée accepte, puis le bureau non concerné approuve) |
 | GET | `/v1/tontines/:id/order-changes` | membre | → `OrderChangeView[]` |
@@ -83,7 +84,8 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 | GET | `/v1/tontines/:id/movements` | membre | `?fundId=&roundSeq=&state=&meetingId=&mine=1` → `MovementView[]` |
 | POST | `/v1/tontines/:id/movements` | membre | `DeclareMovementInput` → `MovementView` (déclaré) |
 | POST | `/v1/tontines/:id/movements/confirmations` | Trésorier / adjoint | `{ movementIds: string[] }` → `MovementView[]` (collecte en lot ; jamais sa propre déclaration) |
-| POST | `/v1/tontines/:id/movements/:mvid/control` | Commissaire aux comptes | → `MovementView` (validé) |
+| POST | `/v1/tontines/:id/movements/:mvid/control` | Commissaire aux comptes ; Censeur / Président / VP si tous les commissaires sont la personne concernée | → `MovementView` (validé ; jamais son propre mouvement) |
+| POST | `/v1/tontines/:id/reserve-distributions` | Trésorier / adjoint (Président / VP pour la remise d'un trésorier unique) | `{ channel, reference?, justification? }` → `{ year, available, shortfall, movements, waiting }` (201 ; réserve de fin d'année rendue, une remise par membre et par exercice, ADR-0039) |
 | POST | `/v1/tontines/:id/movements/:mvid/rejection` | Trésorier / adjoint | `{ reason }` → `MovementView` |
 | POST | `/v1/tontines/:id/movements/:mvid/acknowledgement` | bénéficiaire de la remise | → `MovementView` (« j'ai bien reçu ») |
 
@@ -115,6 +117,13 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 
 | GET | `/v1/tontines/:id/history` | membre (sa ligne) / bureau (tout) | → `HistorySummary` (lignes importées, hors de tout total courant) |
 | POST | `/v1/tontines/:id/history-imports` | Président / VP | `{ source: "cahier" \| "kombe_v1", label?, rows?: [{ memberName, date, amount }], njangi? }` → `HistoryImportResult` (201 ; réimport sans doublon) |
+
+## Repères des membres (ADR-0039)
+
+| POST | `/v1/cycle-simulations` | session | `{ cadence, firstMeetingDate, shares, contributionPerShare, sidePerMeeting? }` → `{ meetings, firstMeeting, lastMeeting, spanDays, pot, totalPerShare, dates, summary }` |
+| GET | `/v1/tontines/:id/my-forecast` | membre | → `{ cycle, totalDue, totalToReceive, confirmedSoFar, turns[] }` (« mon tour » : qui avance à qui) |
+| GET | `/v1/tontines/:id/regularity` | membre (selon la transparence) / bureau (tous) | → lignes `{ name, dueSoFar, onTime, late, unpaidLate, openFines, onTimeRate, badge }` |
+| GET | `/v1/tontines/:id/meetings/:mid/share-text` | membre | → `{ text }` (résumé à coller dans WhatsApp, sans numéro) |
 
 ## Registre
 

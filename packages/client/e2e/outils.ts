@@ -58,9 +58,9 @@ export async function pageDe(browser: Browser, p: Personne): Promise<Page> {
 export async function associationDemarree(
   nomGroupe: string,
   [president, tresorier, membre]: readonly [Personne, Personne, Personne],
-  options: { readonly secoursParSeance?: string } = {},
+  options: { readonly secoursParSeance?: string; readonly premiereSeance?: string } = {},
 ): Promise<{ gid: string; ids: Record<string, string> }> {
-  const jour = new Date(Date.now() + 3_600_000).toISOString().slice(0, 10);
+  const jour = options.premiereSeance ?? new Date(Date.now() + 3_600_000).toISOString().slice(0, 10);
   const t = await appel<{ groupId: string }>(president, "POST", "/v1/tontines", {
     name: nomGroupe,
     founderDisplayName: president.nom,

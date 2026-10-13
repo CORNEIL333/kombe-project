@@ -37,6 +37,8 @@ import type {
   SanctionView,
   HistoryImportResult,
   HistorySummary,
+  Cadence,
+  PaymentChannel,
 } from "@kombe/domain";
 import { ApiClient, ApiError, loadRuntimeConfig } from "@kombe/dashboard-core";
 import { EnFileAttente, envoyerFile, estErreurReseau, mettreEnFile } from "./fileAttente.js";
@@ -235,6 +237,13 @@ export const cycle = {
     appel<{ commitment: string; seed: string | null; result: string[] | null }>(s, "GET", `${t(id)}/draws/${encodeURIComponent(drawId)}`),
   demarrer: (s: Session, id: string, order: "draw" | "manual" | "join_order", drawId?: string, membershipOrder?: string[]) =>
     appel<TontineDetail>(s, "POST", `${t(id)}/cycle`, { order, ...(drawId ? { drawId } : {}), ...(membershipOrder ? { membershipOrder } : {}) }),
+  /** Nouveau cycle quand tous les tours sont clos : les tours continuent (N+1…). */
+  renouveler: (s: Session, id: string, order: "draw" | "manual" | "join_order", drawId?: string, membershipOrder?: string[]) =>
+    appel<TontineDetail>(s, "POST", `${t(id)}/cycle-renewals`, { order, ...(drawId ? { drawId } : {}), ...(membershipOrder ? { membershipOrder } : {}) }),
+  monTour: (s: Session, id: string) => appel<Prevision>(s, "GET", `${t(id)}/my-forecast`),
+  regularite: (s: Session, id: string) => appel<LigneRegularite[]>(s, "GET", `${t(id)}/regularity`),
+  simuler: (s: Session, input: { cadence: Cadence; firstMeetingDate: string; shares: number; contributionPerShare: string; sidePerMeeting?: string }) =>
+    appel<Simulation>(s, "POST", "/v1/cycle-simulations", input),
   tours: (s: Session, id: string) => appel<RoundView[]>(s, "GET", `${t(id)}/rounds`),
   grille: (s: Session, id: string, seq: number) => appel<RoundGridView>(s, "GET", `${t(id)}/rounds/${seq}/grid`),
   remise: (s: Session, id: string, seq: number, input: PayoutInput) => appel<MovementView>(s, "POST", `${t(id)}/rounds/${seq}/payout`, input),
@@ -274,6 +283,8 @@ export const seances = {
     }),
   approuverPv: (s: Session, id: string, mid: string, hash: string) =>
     appel<MeetingDetail>(s, "POST", `${t(id)}/meetings/${encodeURIComponent(mid)}/minutes-approval`, { hash }),
+  /** Résumé prêt à coller dans le groupe WhatsApp (sans numéro de téléphone). */
+  resume: (s: Session, id: string, mid: string) => appel<{ text: string }>(s, "GET", `${t(id)}/meetings/${encodeURIComponent(mid)}/share-text`),
 };
 
 /* ── Caisses et mouvements ─────────────────────────────────────────────── */
@@ -300,7 +311,63 @@ export const argent = {
     appel<MovementView>(s, "POST", `${t(id)}/movements/${encodeURIComponent(mvid)}/rejection`, { reason }),
   accuserReception: (s: Session, id: string, mvid: string) =>
     appel<MovementView>(s, "POST", `${t(id)}/movements/${encodeURIComponent(mvid)}/acknowledgement`),
+  /** Réserve de fin d'année rendue à chacun (une remise par membre et par exercice). */
+  rendreReserve: (s: Session, id: string, input: { channel: PaymentChannel; reference?: string }) =>
+    appel<RedistributionReserve>(s, "POST", `${t(id)}/reserve-distributions`, input),
 };
+
+/* ── Repères (ADR-0039) ─────────────────────────────────────────────────── */
+
+export interface Simulation {
+  readonly cadenceLabel: string;
+  readonly meetings: number;
+  readonly firstMeeting: string;
+  readonly lastMeeting: string;
+  readonly spanDays: number;
+  readonly pot: string;
+  readonly perMeetingPerShare: string;
+  readonly totalPerShare: string;
+  readonly dates: readonly string[];
+  readonly summary: string;
+}
+
+export interface Prevision {
+  readonly cycle: number | null;
+  readonly totalDue: string;
+  readonly totalToReceive: string;
+  readonly confirmedSoFar: string;
+  readonly turns: readonly {
+    readonly seq: number;
+    readonly date: string;
+    readonly amount: string;
+    readonly paidBeforeReceiving: string;
+    readonly position: "group_advances_you" | "you_advance_group" | "even";
+    readonly gap: string;
+    readonly explanation: string;
+    readonly received: boolean;
+  }[];
+}
+
+export interface LigneRegularite {
+  readonly membershipId: string;
+  readonly name: string;
+  readonly isMe: boolean;
+  readonly dueSoFar: number;
+  readonly onTime: number;
+  readonly late: number;
+  readonly unpaidLate: number;
+  readonly openFines: number;
+  readonly onTimeRate: number;
+  readonly badge: "nouveau" | "exemplaire" | "régulier" | "à suivre" | "en retard";
+}
+
+export interface RedistributionReserve {
+  readonly year: number;
+  readonly available: string;
+  readonly shortfall: boolean;
+  readonly movements: readonly MovementView[];
+  readonly waiting: readonly { readonly membershipId: string; readonly name: string | null; readonly amount: string; readonly reason: string }[];
+}
 
 /* ── Discipline, secours, dettes, registre ─────────────────────────────── */
 

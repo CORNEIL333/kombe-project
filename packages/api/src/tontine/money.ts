@@ -11,6 +11,8 @@
 import type pg from "pg";
 import {
   DomainError,
+  planReserveDistribution,
+  type PaymentChannel,
   assertChannelReference,
   confirmMovement,
   controlMovement,
@@ -30,9 +32,11 @@ import {
   inTx,
   m,
   may,
+  membershipsWithRoles,
   money,
   newId,
   notify,
+  onlyHolderIsSubject,
   requireAct,
   scopeGroup,
   sessionIdentity,
@@ -42,6 +46,7 @@ import {
   PAYOUT_REJECTED_REASON,
   computeDues,
   fundConfirmedBalance,
+  fundOfKind,
   loadFundRows,
   loadFunds,
   loadGroup,
@@ -49,6 +54,17 @@ import {
   movementViews,
   type GroupRow,
 } from "./views.js";
+
+export interface ReserveDistributionView {
+  readonly year: number;
+  /** Disponible dans la réserve avant cette redistribution (confirmé, moins les sorties déclarées). */
+  readonly available: string;
+  /** Vrai si la réserve ne couvrait pas tout : partage au prorata. */
+  readonly shortfall: boolean;
+  readonly movements: readonly MovementView[];
+  /** Remises que cette personne ne peut pas déclarer (la sienne, ou déjà faite cette année). */
+  readonly waiting: readonly { readonly membershipId: string; readonly name: string | null; readonly amount: string; readonly reason: string }[];
+}
 
 const SIDE_FUND_KINDS = ["rotation", "solidarity", "operating", "year_end_reserve"];
 
@@ -142,6 +158,44 @@ export async function treasuryMemberships(db: Db, groupId: string): Promise<Set<
     [groupId],
   );
   return new Set(r.rows.map((x) => String(x.membership_id)));
+}
+
+const PRESIDENCY_ROLES = ["animator", "vice_president"] as const;
+const CONTROL_SUBSTITUTE_ROLES = ["censor", "animator", "vice_president"] as const;
+
+function holds(actor: Actor, roles: readonly string[]): boolean {
+  return actor.membershipState === "active" && actor.roles.some((r) => roles.includes(r));
+}
+
+/**
+ * Qui déclare une remise (tour ou secours) : la trésorerie, jamais le
+ * bénéficiaire lui-même. Quand toute la trésorerie est le bénéficiaire
+ * (trésorier unique qui bouffe), la présidence déclare à sa place.
+ */
+export async function mayDeclarePayout(db: Db, actor: Actor, groupId: string, beneficiaryMembershipId: string): Promise<boolean> {
+  if (beneficiaryMembershipId === actor.membershipId) return false;
+  if (may(actor, "movement.confirm")) return true;
+  const treasury = await membershipsWithRoles(db, groupId, ["treasurer", "treasurer_deputy"]);
+  return holds(actor, PRESIDENCY_ROLES) && onlyHolderIsSubject(treasury, beneficiaryMembershipId);
+}
+
+export async function assertMayDeclarePayout(db: Db, actor: Actor, groupId: string, beneficiaryMembershipId: string): Promise<void> {
+  if (beneficiaryMembershipId === actor.membershipId) {
+    throw new DomainError("APPROVER_NOT_DISTINCT", "Le bénéficiaire ne déclare pas sa propre remise");
+  }
+  if (!(await mayDeclarePayout(db, actor, groupId, beneficiaryMembershipId))) requireAct(actor, "movement.confirm");
+}
+
+/**
+ * Qui contrôle un mouvement : le commissaire, jamais sur son propre
+ * mouvement. Quand tous les commissaires sont la personne concernée, le
+ * censeur ou la présidence contrôle à leur place.
+ */
+export async function mayControl(db: Db, actor: Actor, groupId: string, subjectMembershipId: string | null): Promise<boolean> {
+  if (subjectMembershipId !== null && subjectMembershipId === actor.membershipId) return false;
+  if (may(actor, "movement.control")) return true;
+  if (!holds(actor, CONTROL_SUBSTITUTE_ROLES)) return false;
+  return onlyHolderIsSubject(await membershipsWithRoles(db, groupId, ["auditor"]), subjectMembershipId);
 }
 
 async function isProxyOf(db: Db, groupId: string, proxyMembershipId: string, membershipId: string): Promise<boolean> {
@@ -375,9 +429,9 @@ export class MoneyService {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => {
       const actor = await this.actor(db, headers, groupId, nowMs);
-      requireAct(actor, "movement.control");
       const mv = await lockMovement(db, groupId, movementId);
       if (mv.membershipId === actor.membershipId) throw new DomainError("MOVEMENT_NOT_INDEPENDENT", "On ne contrôle pas son propre mouvement");
+      if (!(await mayControl(db, actor, groupId, mv.membershipId))) requireAct(actor, "movement.control");
       const next = controlMovement(mv.state, { declarantIdentityId: mv.declaredBy, confirmerIdentityId: mv.confirmedBy, controllerIdentityId: null }, actor.identityId);
       await db.query(
         `UPDATE fund_movement SET state = $3, controlled_by_identity_id = $4, controlled_at = $5, version = version + 1 WHERE group_id = $1 AND movement_id = $2`,
@@ -439,6 +493,94 @@ export class MoneyService {
       const member = mv.membershipId ? names.identityOf.get(mv.membershipId) : undefined;
       await notify(db, groupId, [declarant, member].filter((x): x is string => !!x && x !== actor.identityId), "general", `/tontines/${groupId}/argent`, `rejected:${movementId}`);
       return (await movementViews(db, actor, { movementIds: [movementId] }))[0] as MovementView;
+    });
+  }
+
+  /**
+   * Redistribution de la réserve de fin d'année (ADR-0039) : chacun reprend ce
+   * qu'il a versé et qui ne lui a pas encore été rendu, au prorata si la caisse
+   * est courte. Une remise par membre et par exercice, déclarée par la
+   * trésorerie et accusée par le membre, comme toute remise. La remise d'un
+   * membre de la trésorerie est déclarée par un autre (adjoint ou présidence) :
+   * elle reste « à déclarer » dans la réponse.
+   */
+  async distributeReserve(
+    headers: Record<string, unknown>,
+    groupId: string,
+    input: { channel: PaymentChannel; reference?: string | undefined; justification?: string | undefined },
+  ): Promise<ReserveDistributionView> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await this.actor(db, headers, groupId, nowMs);
+      const presidency = holds(actor, PRESIDENCY_ROLES);
+      if (!may(actor, "movement.confirm") && !presidency) requireAct(actor, "movement.confirm");
+      assertChannelReference({ channel: input.channel, reference: input.reference ?? null, justification: input.justification ?? null });
+      const fund = await fundOfKind(db, groupId, "year_end_reserve");
+      if (!fund || fund.state !== "active") throw new DomainError("FUND_INVALID", "Cette association n'a pas de réserve de fin d'année");
+      await db.query("SELECT pg_advisory_xact_lock(hashtext($1 || ':reserve'))", [groupId]);
+      const year = Number(todayDouala(nowMs).slice(0, 4));
+      const sums = await db.query(
+        `SELECT mv.membership_id,
+                COALESCE(SUM(mv.amount) FILTER (WHERE mv.kind = 'contribution' AND mv.state IN ('confirmed','validated')), 0)::text AS put,
+                COALESCE(SUM(mv.amount) FILTER (WHERE mv.kind = 'payout' AND mv.related_kind = 'reserve' AND mv.state NOT IN ('rejected','compensated')), 0)::text AS back,
+                bool_or(mv.kind = 'payout' AND mv.related_kind = 'reserve' AND mv.related_id = $3 AND mv.state NOT IN ('rejected','compensated')) AS this_year
+           FROM fund_movement mv JOIN membership m ON m.group_id = mv.group_id AND m.membership_id = mv.membership_id AND m.state = 'active'
+          WHERE mv.group_id = $1 AND mv.fund_id = $2 AND mv.membership_id IS NOT NULL
+          GROUP BY mv.membership_id`,
+        [groupId, fund.fundId, String(year)],
+      );
+      const pendingOut = await db.query(
+        `SELECT COALESCE(SUM(amount), 0)::text AS s FROM fund_movement WHERE group_id = $1 AND fund_id = $2 AND state = 'declared' AND kind IN ('payout','advance','transfer_out','fee','expense')`,
+        [groupId, fund.fundId],
+      );
+      const available = (await fundConfirmedBalance(db, groupId, fund.fundId)) - BigInt(String(pendingOut.rows[0]?.s ?? "0"));
+      const doneThisYear = new Set(sums.rows.filter((r) => r.this_year === true).map((r) => String(r.membership_id)));
+      const plan = planReserveDistribution(
+        available,
+        sums.rows.map((r) => ({ membershipId: String(r.membership_id), contributed: BigInt(String(r.put)), returned: BigInt(String(r.back)) })),
+      );
+      const names = await loadNames(db, groupId);
+      const mt = await db.query(`SELECT meeting_id FROM meeting WHERE group_id = $1 AND state = 'open' LIMIT 1`, [groupId]);
+      const created: string[] = [];
+      const waiting: { membershipId: string; name: string | null; amount: string; reason: string }[] = [];
+      let total = 0n;
+      for (const line of plan) {
+        const name = names.byMembership.get(line.membershipId) ?? null;
+        if (doneThisYear.has(line.membershipId)) {
+          waiting.push({ membershipId: line.membershipId, name, amount: m(line.amount), reason: "Déjà une remise de réserve cette année : attendez qu'elle soit reçue ou rejetée" });
+          continue;
+        }
+        if (!(await mayDeclarePayout(db, actor, groupId, line.membershipId))) {
+          waiting.push({
+            membershipId: line.membershipId,
+            name,
+            amount: m(line.amount),
+            reason: line.membershipId === actor.membershipId ? "Votre propre remise est déclarée par un autre membre de la trésorerie ou la présidence" : "Remise déclarée par la trésorerie",
+          });
+          continue;
+        }
+        const movementId = newId("mvt");
+        await db.query(
+          `INSERT INTO fund_movement (movement_id, group_id, fund_id, kind, amount, membership_id, meeting_id, channel, reference, justification,
+                                      declared_by_identity_id, related_kind, related_id)
+           VALUES ($1,$2,$3,'payout',$4,$5,$6,$7,$8,$9,$10,'reserve',$11)`,
+          [movementId, groupId, fund.fundId, m(line.amount), line.membershipId, mt.rows[0]?.meeting_id ?? null, input.channel, input.reference ?? null, input.justification ?? null, actor.identityId, String(year)],
+        );
+        created.push(movementId);
+        total += line.amount;
+      }
+      if (created.length > 0) {
+        await appendEvent(db, actor, "reserve.distributed", { year, movements: created.length, total: m(total), shortfall: plan.some((l) => l.amount < l.owed) }, nowMs);
+        const ids = plan.filter((l) => !waiting.some((w) => w.membershipId === l.membershipId)).map((l) => names.identityOf.get(l.membershipId)).filter((x): x is string => !!x);
+        await notify(db, groupId, ids, "payout_recorded", `/tontines/${groupId}/argent`, `reserve:${year}`);
+      }
+      return {
+        year,
+        available: m(available > 0n ? available : 0n),
+        shortfall: plan.some((l) => l.amount < l.owed),
+        movements: created.length > 0 ? await movementViews(db, actor, { movementIds: created }) : [],
+        waiting,
+      };
     });
   }
 

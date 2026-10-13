@@ -3949,6 +3949,299 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/cycle-renewals:
+    post:
+      tags:
+      - tontine
+      operationId: postTontinesByIdCycleRenewals
+      summary: 'TontineDetail (nouveau cycle : tours N+1…)'
+      description: 'Rôle requis : bureau (schedule.manage). Quand tous les tours du cycle sont clos, plante un nouveau cycle : nouvelles parts (nombre de parts de chaque membre actif), tours numérotés à la suite, séances à partir de firstMeetingDate (par défaut le lendemain de la dernière séance). Statuts acceptés exigés. Corps : order ("draw" | "manual" | "join_order"), drawId?, membershipOrder?, firstMeetingDate?.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ order, drawId?, membershipOrder?: string[], firstMeetingDate? }'
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineDetail'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/reserve-distributions:
+    post:
+      tags:
+      - tontine
+      operationId: postTontinesByIdReserveDistributions
+      summary: 'Redistribution de la réserve de fin d’année'
+      description: 'Rôle requis : trésorerie (ou présidence pour la remise d’un trésorier unique). Une remise par membre et par exercice : chacun reprend ce qu’il a versé, au prorata si la réserve ne couvre pas tout. Réponse : { year, available, shortfall, movements: MovementView[], waiting: [{ membershipId, name, amount, reason }] }.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ channel, reference?, justification? }'
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/my-forecast:
+    get:
+      tags:
+      - tontine
+      operationId: getTontinesByIdMyForecast
+      summary: '« Mon tour » sur le cycle courant'
+      description: 'Tout membre. Pour chaque tour où je reçois : montant, ce que j’aurai versé avant, et si le groupe m’avance ou si j’avance au groupe. Réponse : { cycle, totalDue, totalToReceive, confirmedSoFar, turns[] }.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/regularity:
+    get:
+      tags:
+      - tontine
+      operationId: getTontinesByIdRegularity
+      summary: 'Régularité des membres'
+      description: 'Tours échus : versements à temps, en retard, impayés, amendes en cours. Le bureau voit tout le monde ; un membre selon la transparence du règlement.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/meetings/{mid}/share-text:
+    get:
+      tags:
+      - tontine
+      operationId: getTontinesByIdMeetingsByMidShareText
+      summary: 'Résumé de séance pour WhatsApp'
+      description: 'Tout membre. Texte prêt à coller : présents, remise du tour, prochaine séance, empreinte du procès-verbal. Aucun numéro de téléphone. Réponse : { text }.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: mid
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /cycle-simulations:
+    post:
+      tags:
+      - tontine
+      operationId: postCycleSimulations
+      summary: 'Simulateur de cycle'
+      description: 'Session requise. Avant de créer : dates réelles de chaque séance, cagnotte, fin du cycle. Corps : cadence, firstMeetingDate, shares (2 à 60), contributionPerShare, sidePerMeeting?. Réponse : { cadenceLabel, meetings, firstMeeting, lastMeeting, spanDays, pot, perMeetingPerShare, totalPerShare, dates[], summary }.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ cadence, firstMeetingDate, shares, contributionPerShare, sidePerMeeting? }'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
   /tontines/{id}/rounds:
     get:
       tags:

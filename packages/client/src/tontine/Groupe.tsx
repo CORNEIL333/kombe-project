@@ -4,7 +4,20 @@
 
 import { useState } from "react";
 import type { GroupRole } from "@kombe/domain";
-import { ApiError, acces, argent, cycle, reglement, tontines, type DueView, type MemberView, type Session, type TontineDetail } from "./api.js";
+import {
+  ApiError,
+  acces,
+  argent,
+  cycle,
+  reglement,
+  tontines,
+  type DueView,
+  type LigneRegularite,
+  type MemberView,
+  type RedistributionReserve,
+  type Session,
+  type TontineDetail,
+} from "./api.js";
 import { peut } from "./droits.js";
 import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
 import type { PaymentChannel } from "@kombe/domain";
@@ -58,7 +71,8 @@ export function Groupe({ session, groupId, onRetour }: { readonly session: Sessi
               <header className="entete-groupe">
                 <h2>{g.name}</h2>
                 <p className="aide-champ">
-                  {tx("td.etat", { etat: dyn(`etat.${g.state}`) })} · {g.me.roles.map((r) => dyn(`role.${r}`)).join(" · ")}
+                  {tx("td.etat", { etat: dyn(`etat.${g.state}`) })}
+                  {g.cycle ? ` · ${tx("td.cycleN", { n: g.cycle.number })}` : ""} · {g.me.roles.map((r) => dyn(`role.${r}`)).join(" · ")}
                 </p>
               </header>
               <nav className="onglets-groupe" aria-label={g.name}>
@@ -118,6 +132,7 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
       ) : null}
 
       {!g.cycleStarted && peut(ctx.roles, "schedule.manage") ? <Demarrage ctx={ctx} /> : null}
+      {g.cycle?.finished && peut(ctx.roles, "schedule.manage") ? <Demarrage ctx={ctx} cycleTermine={g.cycle.number} /> : null}
 
       {g.currentRound ? (
         <Carte titre={tx("td.tourCourant", { seq: g.currentRound.seq, date: date(g.currentRound.date) })}>
@@ -128,6 +143,8 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
           </Pastille>
         </Carte>
       ) : null}
+
+      {g.cycleStarted && g.me.state === "active" ? <MonTour ctx={ctx} /> : null}
 
       {g.nextMeeting ? (
         <Carte titre={tx("se.seance", { seq: g.nextMeeting.seq, date: date(g.nextMeeting.date) })}>
@@ -207,12 +224,144 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
             </li>
           ))}
         </ul>
+        {g.funds.some((f) => f.kind === "year_end_reserve" && BigInt(f.confirmedBalance) > 0n) &&
+        (peut(ctx.roles, "movement.confirm") || ctx.roles.includes("animator") || ctx.roles.includes("vice_president")) ? (
+          <RendreReserve ctx={ctx} />
+        ) : null}
       </Carte>
+
+      {g.cycleStarted ? <Regularite ctx={ctx} /> : null}
     </div>
   );
 }
 
-function Demarrage({ ctx }: { readonly ctx: ContexteGroupe }) {
+/** « Mon tour » : quand je reçois, combien, et qui avance à qui (ADR-0039). */
+function MonTour({ ctx }: { readonly ctx: ContexteGroupe }) {
+  const { tx, xaf, date } = useTextes();
+  const prevision = useDonnees(() => cycle.monTour(ctx.session, ctx.groupe.groupId), [ctx.groupe.groupId, ctx.groupe.cycle?.number]);
+  return (
+    <Carte titre={tx("mt.titre")}>
+      <Charge etat={prevision.etat} recharger={prevision.recharger}>
+        {(p) => (
+          <>
+            {p.turns.length === 0 ? <p>{tx("mt.aucun")}</p> : null}
+            <ul className="liste">
+              {p.turns.map((tour) => (
+                <li key={tour.seq} className="liste__ligne">
+                  <div>
+                    <strong>{tx("mt.tour", { seq: tour.seq, date: date(tour.date), montant: xaf(tour.amount) })}</strong>
+                    <span className="aide-champ">{tour.explanation}</span>
+                    <Pastille ton={tour.received ? "ok" : tour.position === "group_advances_you" ? "attente" : "neutre"}>
+                      {tour.received
+                        ? tx("mt.recu")
+                        : tour.position === "group_advances_you"
+                          ? tx("mt.avance", { montant: xaf(tour.gap) })
+                          : tour.position === "you_advance_group"
+                            ? tx("mt.vousAvancez", { montant: xaf(tour.gap) })
+                            : tx("mt.egal")}
+                    </Pastille>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="aide-champ">{tx("mt.total", { verse: xaf(p.totalDue), recu: xaf(p.totalToReceive), confirme: xaf(p.confirmedSoFar) })}</p>
+          </>
+        )}
+      </Charge>
+    </Carte>
+  );
+}
+
+const BADGES: Readonly<Record<LigneRegularite["badge"], { cle: CleTexte; ton: "ok" | "neutre" | "attente" | "alerte" }>> = {
+  nouveau: { cle: "rg.nouveau", ton: "neutre" },
+  exemplaire: { cle: "rg.exemplaire", ton: "ok" },
+  régulier: { cle: "rg.regulier", ton: "ok" },
+  "à suivre": { cle: "rg.aSuivre", ton: "attente" },
+  "en retard": { cle: "rg.enRetard", ton: "alerte" },
+};
+
+/** Régularité de chacun sur les tours échus ; la transparence du règlement décide qui voit qui. */
+function Regularite({ ctx }: { readonly ctx: ContexteGroupe }) {
+  const { tx } = useTextes();
+  const lignes = useDonnees(() => cycle.regularite(ctx.session, ctx.groupe.groupId), [ctx.groupe.groupId]);
+  return (
+    <Carte titre={tx("rg.titre")}>
+      <p className="aide-champ">{tx("rg.aide")}</p>
+      <Charge etat={lignes.etat} recharger={lignes.recharger}>
+        {(liste) => (
+          <ul className="liste">
+            {liste.map((l) => (
+              <li key={l.membershipId} className="liste__ligne">
+                <div>
+                  <strong>
+                    {l.name}
+                    {l.dueSoFar > 0 ? ` · ${l.onTimeRate} %` : ""}
+                  </strong>
+                  <span className="aide-champ">{tx("rg.ligne", { aTemps: l.onTime, retard: l.late, impaye: l.unpaidLate, amendes: l.openFines })}</span>
+                </div>
+                <Pastille ton={BADGES[l.badge].ton}>{tx(BADGES[l.badge].cle)}</Pastille>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Charge>
+    </Carte>
+  );
+}
+
+/** Réserve de fin d'année rendue à chacun : une remise par membre, accusée par lui. */
+function RendreReserve({ ctx }: { readonly ctx: ContexteGroupe }) {
+  const { tx, dyn, xaf } = useTextes();
+  const [canal, setCanal] = useState<PaymentChannel>("cash");
+  const [reference, setReference] = useState("");
+  const [resultat, setResultat] = useState<RedistributionReserve | null>(null);
+  const action = useAction();
+  const mobile = canal !== "cash";
+  const rendre = async () => {
+    const r = await action.lancer(() =>
+      argent.rendreReserve(ctx.session, ctx.groupe.groupId, { channel: canal, ...(reference.trim() ? { reference: reference.trim() } : {}) }),
+    );
+    if (r) {
+      setResultat(r);
+      ctx.rafraichir();
+    }
+  };
+  return (
+    <div className="formulaire-encart pile">
+      <h4>{tx("rs.titre")}</h4>
+      <p className="aide-champ">{tx("rs.aide")}</p>
+      <Champ id="reserve-canal" libelle={tx("ar.canal")}>
+        <select id="reserve-canal" value={canal} onChange={(e) => setCanal(e.target.value as PaymentChannel)}>
+          {CANAUX.map((c) => (
+            <option key={c} value={c}>
+              {dyn(`ar.canal.${c}`)}
+            </option>
+          ))}
+        </select>
+      </Champ>
+      {mobile ? (
+        <Champ id="reserve-ref" libelle={tx("ar.reference")} aide={tx("ar.referenceAide")}>
+          <input id="reserve-ref" value={reference} maxLength={64} onChange={(e) => setReference(e.target.value)} />
+        </Champ>
+      ) : null}
+      <Retour erreur={action.erreur} />
+      {resultat ? (
+        <div className="msg msg--info" role="status">
+          <p>{tx("rs.fait", { n: resultat.movements.length, disponible: xaf(resultat.available) })}</p>
+          {resultat.shortfall ? <p>{tx("rs.prorata")}</p> : null}
+          {resultat.waiting.map((w) => (
+            <p key={w.membershipId}>{tx("rs.attente", { nom: w.name ?? "—", montant: xaf(w.amount), motif: w.reason })}</p>
+          ))}
+        </div>
+      ) : null}
+      <button type="button" className="bouton bouton-secondaire" disabled={action.enCours || (mobile && !reference.trim())} onClick={() => void rendre()}>
+        {action.enCours ? tx("app.envoi") : tx("rs.rendre")}
+      </button>
+    </div>
+  );
+}
+
+function Demarrage({ ctx, cycleTermine }: { readonly ctx: ContexteGroupe; readonly cycleTermine?: number }) {
   const { tx } = useTextes();
   const [ordre, setOrdre] = useState<"draw" | "join_order" | "manual">("draw");
   const [tirage, setTirage] = useState<{ drawId: string; commitment: string } | null>(null);
@@ -250,20 +399,21 @@ function Demarrage({ ctx }: { readonly ctx: ContexteGroupe }) {
 
   const demarrer = async () => {
     await action.lancer(async () => {
+      const planter = cycleTermine ? cycle.renouveler : cycle.demarrer;
       if (ordre === "draw") {
         const t = tirage ?? (await cycle.engagerTirage(ctx.session, ctx.groupe.groupId));
         setTirage(t);
-        return cycle.demarrer(ctx.session, ctx.groupe.groupId, "draw", t.drawId);
+        return planter(ctx.session, ctx.groupe.groupId, "draw", t.drawId);
       }
-      if (ordre === "manual") return cycle.demarrer(ctx.session, ctx.groupe.groupId, "manual", undefined, ordreManuel.map((m) => m.membershipId));
-      return cycle.demarrer(ctx.session, ctx.groupe.groupId, "join_order");
+      if (ordre === "manual") return planter(ctx.session, ctx.groupe.groupId, "manual", undefined, ordreManuel.map((m) => m.membershipId));
+      return planter(ctx.session, ctx.groupe.groupId, "join_order");
     });
     ctx.rafraichir();
   };
 
   return (
-    <Carte titre={tx("td.demarrer")}>
-      <p className="aide-champ">{tx("td.demarrerAide")}</p>
+    <Carte titre={cycleTermine ? tx("td.nouveauCycle", { n: cycleTermine + 1 }) : tx("td.demarrer")}>
+      <p className="aide-champ">{cycleTermine ? tx("td.nouveauCycleAide", { n: cycleTermine }) : tx("td.demarrerAide")}</p>
       <ul className="liste">
         {conditions.map((c) => (
           <li key={c.texte} className="liste__ligne">
@@ -325,7 +475,7 @@ function Demarrage({ ctx }: { readonly ctx: ContexteGroupe }) {
       ) : null}
       <Retour erreur={action.erreur} succes={action.succes} />
       <button type="button" className="bouton" disabled={action.enCours || !pret} onClick={() => void demarrer()}>
-        {action.enCours ? tx("app.envoi") : tx("td.demarrer")}
+        {action.enCours ? tx("app.envoi") : cycleTermine ? tx("td.nouveauCycle", { n: cycleTermine + 1 }) : tx("td.demarrer")}
       </button>
     </Carte>
   );

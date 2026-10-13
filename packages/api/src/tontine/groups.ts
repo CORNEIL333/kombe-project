@@ -46,7 +46,9 @@ import {
   type GroupRow,
   computeDues,
   currentRound,
+  cycleInProgress,
   cycleStarted,
+  currentCycle,
   loadFundRows,
   loadFunds,
   loadGroup,
@@ -178,6 +180,7 @@ export async function tontineDetail(db: Db, actor: Actor, nowMs: number): Promis
     nextMeeting: nextMeeting(meetings, todayDouala(nowMs)),
     statutes,
     cycleStarted: await cycleStarted(db, actor.groupId),
+    cycle: await currentCycle(db, actor.groupId),
     flags: flags(),
   };
 }
@@ -418,7 +421,7 @@ export class GroupService {
     return inTx(this.pool, async (db) => {
       const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
       requireAct(actor, "group.manage");
-      if (await cycleStarted(db, groupId)) throw new DomainError("SCHEDULE_FROZEN", "Parts figées après le démarrage");
+      if (await cycleInProgress(db, groupId)) throw new DomainError("SCHEDULE_FROZEN", "Parts figées pendant le cycle : elles changent au prochain cycle");
       const shares = input.shares;
       if (!Number.isInteger(shares) || shares < 1 || shares > 5) throw new DomainError("SHARES_INVALID", "De 1 à 5 parts");
       const cur = await db.query(

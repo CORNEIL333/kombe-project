@@ -250,6 +250,12 @@ Les deux nouvelles tables portent RLS `tenant_isolation` ; isolation prouvée
 par `packages/api/test/decisions.proof.mjs` (tiers ⇒ 404) et
 `tests/isolation.pg.mjs` (scénario `C30-DECISION`).
 
+## Cycles successifs et réserve rendue (migration additive `0031_cycles_reserve.sql`, ADR-0039)
+| Table / objet | Rôle | Contraintes clés |
+|---|---|---|
+| `tontine_cycle` | Un cycle de l'association : numéro, premier et dernier tour, mode d'ordre. Les tours continuent leur numérotation d'un cycle à l'autre. | PK (groupe, numéro) ; `last_seq ≥ first_seq` ; RLS `tenant_isolation` ; `kombe_app` sans UPDATE/DELETE ; les cycles déjà démarrés deviennent le cycle 1 (`legacy`) |
+| `fund_movement.related_kind` | + `reserve` : remise de la réserve de fin d'année (`related_id` = année). | CHECK élargi ; index unique partiel `fund_movement_one_reserve_share` (une remise non rejetée par membre et par exercice) |
+
 ## Provisionnement (`provision/roles.sql`)
 | Rôle | Privilèges | But |
 |---|---|---|
@@ -262,7 +268,7 @@ par `packages/api/test/decisions.proof.mjs` (tiers ⇒ 404) et
 > `kombe.group_id` dérivé **côté serveur** de la session (jamais fourni par le client).
 
 ## Statut d'exécution
-Le schéma 0001 → 0030 est appliqué et prouvé sur PostgreSQL 16 réel par
+Le schéma 0001 → 0031 est appliqué et prouvé sur PostgreSQL 16 réel par
 `scripts/proofs-local.sh` (chaque preuve sur une base fraîche migrée :
 `tests/isolation.pg.mjs`, `tests/migrateEmptyToLatest.pg.mjs`,
 `packages/api/test/*.proof.mjs`). Sans base joignable, ces scripts sortent

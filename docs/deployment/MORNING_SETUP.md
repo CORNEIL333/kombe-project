@@ -63,7 +63,7 @@ Sur GitHub, ouvrir la pull request de `claude/continue-previous-a102rx` vers
 4. **Deploy**.
 
 Le build fait, dans l'ordre : compilation de l'API → assemblage du site →
-**migrations** (0026 à 0030 manquent aujourd'hui sur `kombe_prod`, qui est à
+**migrations** (0026 à 0031 manquent aujourd'hui sur `kombe_prod`, qui est à
 27 jalons ; elles s'appliquent ici, une seule fois). Si une étape échoue, rien
 n'est mis en ligne.
 

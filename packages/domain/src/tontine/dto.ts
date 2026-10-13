@@ -188,6 +188,8 @@ export interface TontineDetail {
   readonly nextMeeting: MeetingSummary | null;
   readonly statutes: { readonly version: number; readonly hash: string; readonly acceptedByMe: boolean } | null;
   readonly cycleStarted: boolean;
+  /** Cycle courant (numéro, tours couverts) ; `finished` : tous ses tours sont clos, un nouveau cycle peut démarrer. */
+  readonly cycle: { readonly number: number; readonly firstSeq: number; readonly lastSeq: number; readonly finished: boolean } | null;
   readonly flags: readonly ("loan_register" | "auction" | "daily_collector")[];
 }
 
