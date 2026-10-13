@@ -2,7 +2,7 @@ import {useEffect,useMemo,useRef,useState,type FormEvent,type ReactNode} from 'r
 import {AccessApi,ActionBar,ActivityList,ApiClient,CapabilityNotice,DashboardShell,DataTable,Field,JsonDisclosure,LocaleProvider,MetricCard,PageHeader,Panel,ProgressTrack,QuickActions,RemoteState,SessionBar,StatCard,StatusChip,SubmitButton,TextAreaField,TopSearch,UserBadge,formatXaf,loadRuntimeConfig,safeText,useHashRoute,useMutation,useRemote,useSession,type SessionController} from '@kombe/dashboard-core';
 import {GroupAdminApi} from './api';
 const messages={app:{fr:'Administration Groupe',en:'Group Administration'}} as const;
-const NAV=[{path:'/',label:'Vue d’ensemble',icon:'◫'},{path:'/members',label:'Membres',icon:'👥'},{path:'/cycle',label:'Cycle & tours',icon:'◌'},{path:'/contributions',label:'Cotisations',icon:'↥'},{path:'/disbursements',label:'Décaissements',icon:'↧'},{path:'/rules',label:'Règles',icon:'⚙'},{path:'/votes',label:'Votes & décisions',icon:'✓'},{path:'/disputes',label:'Litiges',icon:'!'},{path:'/exports',label:'Exports',icon:'⇩'},{path:'/audit',label:'Journal & audit',icon:'⌁'}] as const;
+const NAV=[{path:'/',label:'Vue d’ensemble',icon:'◫'},{path:'/members',label:'Membres',icon:'◎'},{path:'/cycle',label:'Cycle & tours',icon:'◌'},{path:'/contributions',label:'Cotisations',icon:'↥'},{path:'/disbursements',label:'Décaissements',icon:'↧'},{path:'/rules',label:'Règles',icon:'⚙'},{path:'/votes',label:'Votes & décisions',icon:'✓'},{path:'/disputes',label:'Litiges',icon:'!'},{path:'/exports',label:'Exports',icon:'⇩'},{path:'/audit',label:'Journal & audit',icon:'⌁'}] as const;
 function ScopeBar(p:{groupId:string;onChange:(v:string)=>void}){const[value,setValue]=useState(p.groupId);return <Panel><form onSubmit={e=>{e.preventDefault();p.onChange(value.trim())}} className="k-grid"><div className="k-span-8"><Field label="Identifiant du groupe" hint="Aucun groupe n’est préchargé." inputProps={{value,onChange:e=>setValue(e.target.value),autoComplete:'off'}}/></div><div className="k-span-4" style={{alignSelf:'end',paddingBottom:14}}><button className="k-button k-button-primary" type="submit">Ouvrir ce groupe</button></div></form></Panel>}
 function RequireGroup(p:{groupId:string;children:ReactNode}){return p.groupId?<>{p.children}</>:<CapabilityNotice title="Aucun groupe sélectionné">Saisissez un identifiant de groupe réellement autorisé. Aucune donnée locale n’est injectée.</CapabilityNotice>}
 function Overview({api,groupId,onNavigate}:{api:GroupAdminApi;groupId:string;onNavigate:(path:string)=>void}){
@@ -18,9 +18,9 @@ function Overview({api,groupId,onNavigate}:{api:GroupAdminApi;groupId:string;onN
         return <div className="k-grid">
           <div className="k-span-12">
             <div className="k-stats">
-              <StatCard icon="👥" label="Membres" value={String(d.memberCount??'—')}/>
+              <StatCard icon="◎" label="Membres" value={String(d.memberCount??'—')}/>
               <StatCard icon="◌" label="Tours du cycle" value={roundsTotal?`${roundsPast}/${roundsTotal}`:'—'} hint={d.state==='started'?'Cycle démarré':'Cycle en configuration'}/>
-              <StatCard icon="💰" label="Cotisation par membre" value={typeof d.contribution==='string'?formatXaf(d.contribution):'—'}/>
+              <StatCard icon="¤" label="Cotisation par membre" value={typeof d.contribution==='string'?formatXaf(d.contribution):'—'}/>
               <RemoteState state={readiness.state} onRetry={readiness.reload}>{r=>
                 <StatCard icon="✓" label="Fonctions indépendantes" value={`${String((r as {acceptedIndependentRoles?:unknown}).acceptedIndependentRoles??'—')}/${String((r as {requiredIndependentRoles?:unknown}).requiredIndependentRoles??'—')}`} hint={(r as {rulesAcceptedByAllMembers?:boolean}).rulesAcceptedByAllMembers?'Règles acceptées par tous':'Acceptation des règles incomplète'}/>
               }</RemoteState>
@@ -40,7 +40,7 @@ function Overview({api,groupId,onNavigate}:{api:GroupAdminApi;groupId:string;onN
               <QuickActions title="Actions rapides" actions={[
                 {key:'contrib',label:'Valider des cotisations',icon:'✓',tone:'primary',onClick:()=>onNavigate('/contributions')},
                 {key:'disb',label:'Déclarer un décaissement',icon:'↧',onClick:()=>onNavigate('/disbursements')},
-                {key:'votes',label:'Voir les votes & décisions',icon:'🗳',onClick:()=>onNavigate('/votes')},
+                {key:'votes',label:'Voir les votes & décisions',icon:'✓',onClick:()=>onNavigate('/votes')},
                 {key:'audit',label:'Consulter le journal',icon:'⌁',onClick:()=>onNavigate('/audit')},
               ]}/>
             </Panel>
