@@ -137,6 +137,8 @@ export interface Round {
 }
 export interface Schedule {
   readonly state: string;
+  readonly cycleNo?: number;
+  readonly cycleComplete?: boolean;
   readonly cadence?: unknown;
   readonly cadenceLabel?: string | null;
   readonly rulesVersion?: number;

@@ -1,4 +1,5 @@
-import { DataTable, PageHeader, Panel, RemoteState, useRemote } from '@kombe/dashboard-core';
+import { useState } from 'react';
+import { ActionBar, DataTable, Field, PageHeader, Panel, RemoteState, useRemote } from '@kombe/dashboard-core';
 import { Chip, FeedbackLine, Note, Spacer, useAction, useBureau } from './common';
 import { formatDateTime, formatDay, formatFcfa, label, ORDER_CHANGE_STATE_LABELS, SCHEDULE_STATE_LABELS } from '../tontine/format';
 
@@ -10,6 +11,14 @@ export function Calendar() {
   const myIdentity = profile.state.kind === 'ready' ? profile.state.data.identityId : null;
   const act = useAction();
   const nextMeetingId = overview.nextMeeting?.meeting_id ?? null;
+  const [renewal, setRenewal] = useState({ startDate: '', contribution: '' });
+  const renew = (cadence: unknown) =>
+    void act.run(
+      'renew',
+      () => api.renewSchedule(groupId, { cadence, startDate: renewal.startDate, contributionPerShare: renewal.contribution, order: { mode: 'join_order' } }),
+      (r) => `Cycle n° ${r.cycleNo ?? ''} ouvert : ${r.rounds.length} tours planifiés.`,
+      () => sched.reload(),
+    );
   const decide = (changeId: string, verb: 'accept' | 'approve' | 'reject') =>
     void act.run(
       changeId,
@@ -32,6 +41,7 @@ export function Calendar() {
             ) : (
               <>
                 <div className="b-kv-row">
+                  <div><span>Cycle</span><strong>{`n° ${d.cycleNo ?? 1}`}</strong></div>
                   <div><span>État</span><strong>{label(SCHEDULE_STATE_LABELS, d.state)}</strong></div>
                   <div><span>Rythme</span><strong>{d.cadenceLabel ?? '—'}</strong></div>
                   <div><span>Cotisation par part</span><strong>{formatFcfa(d.contributionPerShare)}</strong></div>
@@ -52,9 +62,31 @@ export function Calendar() {
                         </>
                       ),
                     },
-                    { header: 'État', render: (r) => r.state },
+                    { header: 'État', render: (r) => (r.state === 'closed' ? <Chip tone="ok">Remis</Chip> : 'À venir') },
                   ]}
                 />
+                {d.cycleComplete && ab.can('schedule.manage') && (
+                  <form
+                    className="b-renewal"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      renew(d.cadence);
+                    }}
+                  >
+                    <Note>Tous les tours de ce cycle sont remis. Vous pouvez enchaîner un nouveau cycle avec le même rythme ; l’ordre suit l’adhésion des membres actifs.</Note>
+                    <div className="k-grid">
+                      <div className="k-span-6">
+                        <Field label="Début du nouveau cycle" inputProps={{ type: 'date', required: true, value: renewal.startDate, onChange: (e) => setRenewal({ ...renewal, startDate: e.target.value }) }} />
+                      </div>
+                      <div className="k-span-6">
+                        <Field label="Cotisation par part (FCFA)" inputProps={{ inputMode: 'numeric', pattern: '[0-9]+', required: true, value: renewal.contribution, onChange: (e) => setRenewal({ ...renewal, contribution: e.target.value.replace(/\D/g, '') }) }} />
+                      </div>
+                    </div>
+                    <ActionBar>
+                      <button type="submit" className="k-button k-button-primary" disabled={act.busy !== null}>Renouveler le cycle</button>
+                    </ActionBar>
+                  </form>
+                )}
               </>
             )
           }

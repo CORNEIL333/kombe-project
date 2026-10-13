@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { DataTable, PageHeader, Panel, RemoteState, SelectField, useRemote } from '@kombe/dashboard-core';
 import { FeedbackLine, Note, Spacer, ValidationRing, useAction, useBureau } from './common';
 import { CHANNEL_LABELS, FUND_KIND_LABELS, MOVEMENT_KIND_LABELS, formatDay, formatFcfa, label } from '../tontine/format';
-import type { Movement, MovementState } from '../tontine/types';
+import type { Movement, MovementState, PaymentChannel } from '../tontine/types';
 
 /** Ce que l'acteur peut faire sur une ligne de SA file (le serveur reste juge). */
 export function rowActions(m: Movement, me: { membershipId: string; canConfirm: boolean; canControl: boolean }) {
@@ -117,7 +117,9 @@ export function Validations() {
 }
 
 export function Funds() {
-  const { api, groupId } = useBureau();
+  const { api, groupId, abilities: ab } = useBureau();
+  const act = useAction();
+  const [reserveChannel, setReserveChannel] = useState<PaymentChannel>('cash');
   const funds = useRemote((s) => api.funds(groupId, s), [api, groupId]);
   const [fundId, setFundId] = useState('');
   const [state, setState] = useState<'' | MovementState>('');
@@ -150,6 +152,44 @@ export function Funds() {
         </RemoteState>
         <Note>« En cours » : déclarées ou confirmées, pas encore validées. Elles ne comptent pas au registre.</Note>
       </Panel>
+      {ab.can('movement.confirm') && (
+        <>
+          <Spacer />
+          <Panel title="Réserve de fin d’année">
+            <Note>Chaque membre récupère ce qu’il a versé dans la réserve, au prorata si la caisse ne couvre pas tout. Une remise est déclarée par membre ; chacun confirme la réception.</Note>
+            <FeedbackLine feedback={act.feedback} />
+            <div className="k-grid">
+              <div className="k-span-6">
+                <SelectField label="Moyen de remise" selectProps={{ value: reserveChannel, onChange: (e) => setReserveChannel(e.target.value as PaymentChannel) }}>
+                  {(Object.keys(CHANNEL_LABELS) as PaymentChannel[]).map((c) => (
+                    <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
+                  ))}
+                </SelectField>
+              </div>
+            </div>
+            <div className="k-actionbar">
+              <button
+                type="button"
+                className="k-button k-button-primary"
+                disabled={act.busy !== null}
+                onClick={() =>
+                  void act.run(
+                    'reserve',
+                    () => api.distributeYearEndReserve(groupId, { channel: reserveChannel }),
+                    (r) => `${r.distributions.length} remise(s) déclarée(s). Chaque membre confirme la réception.`,
+                    () => {
+                      funds.reload();
+                      movements.reload();
+                    },
+                  )
+                }
+              >
+                Redistribuer la réserve
+              </button>
+            </div>
+          </Panel>
+        </>
+      )}
       <Spacer />
       <Panel title="Opérations">
         <div className="k-grid">

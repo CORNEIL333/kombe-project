@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TontineApi } from '../tontine/client';
 import type { GroupOverview, GroupRole, MeetingDetail, MeetingRow, Movement } from '../tontine/types';
 import { BureauProvider } from './common';
-import { Validations, rowActions } from './money';
+import { Funds, Validations, rowActions } from './money';
 import { Seance } from './seance';
 import { Invitations } from './people';
 import { Calendar } from './calendar';
@@ -285,6 +285,60 @@ describe('Calendrier — échanges de tours', () => {
   it('trésorier non concerné : aucune action', async () => {
     const el = await render(withBureau({ ...base, profile: async () => ({ identityId: '+237699999999', displayName: null, language: 'fr' as const }) }, ['treasurer'], <Calendar />));
     expect(buttons(el).filter((t) => ['Approuver', 'Refuser', 'Donner mon accord'].includes(t))).toEqual([]);
+  });
+});
+
+function typeInto(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+  setter?.call(input, value);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+describe('Calendrier — renouvellement du cycle', () => {
+  const round = (seq: number) => ({ seq, roundId: `r${seq}`, state: 'closed', date: '2026-11-14', shareId: `s${seq}`, holders: [{ membershipId: `mb${seq}`, name: `M${seq}`, weight: 1 }], meetingId: `m${seq}` });
+  const done = {
+    schedule: async () => ({ state: 'started', cycleNo: 1, cycleComplete: true, cadence: { kind: 'monthly_nth_weekday', nth: 2, weekday: 6 }, cadenceLabel: 'Le 2e samedi du mois', rounds: [round(1), round(2)] }),
+    orderChanges: async () => [],
+    profile: async () => ({ identityId: '+237690000001', displayName: null, language: 'fr' as const }),
+  } satisfies Partial<TontineApi>;
+  it('présidence : cycle remis, renouvelle avec le même rythme', async () => {
+    const renewSchedule = vi.fn(async () => ({ state: 'started', cycleNo: 2, rounds: [round(3), round(4)] }));
+    const el = await render(withBureau({ ...done, renewSchedule }, ['animator'], <Calendar />));
+    expect(el.textContent).toContain('n° 1');
+    const [date, amount] = [...el.querySelectorAll('form.b-renewal input')] as HTMLInputElement[];
+    await act(async () => {
+      typeInto(date as HTMLInputElement, '2027-04-01');
+      typeInto(amount as HTMLInputElement, '15000');
+    });
+    const form = el.querySelector('form.b-renewal') as HTMLFormElement;
+    await act(async () => form.requestSubmit());
+    await flush();
+    expect(renewSchedule).toHaveBeenCalledWith('g1', { cadence: { kind: 'monthly_nth_weekday', nth: 2, weekday: 6 }, startDate: '2027-04-01', contributionPerShare: '15000', order: { mode: 'join_order' } });
+    expect(el.textContent).toContain('Cycle n° 2 ouvert');
+  });
+  it('trésorier ou cycle en cours : pas de renouvellement', async () => {
+    const el = await render(withBureau(done, ['treasurer'], <Calendar />));
+    expect(el.querySelector('form.b-renewal')).toBeNull();
+  });
+});
+
+describe('Caisses — réserve de fin d’année', () => {
+  const base = {
+    funds: async () => [{ fundId: 'f_res', kind: 'year_end_reserve', name: 'Réserve de fin d’année', registerBalance: '15000', inProgressIn: '0', inProgressOut: '0' }],
+    movements: async () => [],
+  } as unknown as Partial<TontineApi>;
+  it('trésorière : redistribue et annonce le nombre de remises', async () => {
+    const distributeYearEndReserve = vi.fn(async () => ({ distributions: [{ membershipId: 'a', amount: '10000', movementId: 'mv1' }, { membershipId: 'b', amount: '5000', movementId: 'mv2' }] }));
+    const el = await render(withBureau({ ...base, distributeYearEndReserve }, ['treasurer'], <Funds />));
+    const btn = [...el.querySelectorAll('button')].find((x) => x.textContent === 'Redistribuer la réserve');
+    await act(async () => btn?.click());
+    await flush();
+    expect(distributeYearEndReserve).toHaveBeenCalledWith('g1', { channel: 'cash' });
+    expect(el.textContent).toContain('2 remise(s) déclarée(s)');
+  });
+  it('simple membre : pas de redistribution', async () => {
+    const el = await render(withBureau(base, ['member'], <Funds />));
+    expect(buttons(el)).not.toContain('Redistribuer la réserve');
   });
 });
 

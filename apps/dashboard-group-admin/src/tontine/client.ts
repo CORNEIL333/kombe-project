@@ -100,6 +100,9 @@ export class TontineApi {
   schedule(groupId: string, signal?: AbortSignal) {
     return this.api.get<Schedule>(this.g(groupId, '/tontine-schedule'), undefined, signal);
   }
+  renewSchedule(groupId: string, input: { cadence: unknown; startDate: string; contributionPerShare: string; order: { mode: 'join_order' } }) {
+    return this.api.post<Schedule>(this.g(groupId, '/tontine-schedule/renewals'), input);
+  }
   orderChanges(groupId: string, signal?: AbortSignal) {
     return this.api.get<readonly OrderChange[]>(this.g(groupId, '/order-changes'), undefined, signal);
   }
@@ -134,6 +137,10 @@ export class TontineApi {
   }
   confirmMovements(groupId: string, movementIds: readonly string[]) {
     return this.api.post<Readonly<Record<string, MovementState>>>(this.g(groupId, '/movements/confirmations'), { movementIds });
+  }
+
+  distributeYearEndReserve(groupId: string, input: { channel: PaymentChannel; reference?: string | null }) {
+    return this.api.post<{ distributions: { membershipId: string; amount: string; movementId: string }[] }>(this.g(groupId, '/year-end-reserve/distributions'), input);
   }
 
   /* Séances */
