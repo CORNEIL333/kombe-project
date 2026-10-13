@@ -44,6 +44,9 @@ export function ProgressTrack(p: ProgressTrackProps) {
   const pct = p.total > 0 ? Math.round((p.completed / p.total) * 100) : 0;
   return (
     <div className="k-progress-track">
+      <div className="k-progress-layout">
+      {p.total > 0 && p.total <= 60 && <ProgressOrbit total={p.total} completed={p.completed} />}
+      <div>
       <div className="k-progress-steps" role="list" aria-label={p.label}>
         {steps.map((n) => {
           const done = n <= p.completed;
@@ -66,7 +69,28 @@ export function ProgressTrack(p: ProgressTrackProps) {
         <span>{pct}%</span>
       </div>
       {p.caption && <p className="k-progress-caption">{p.caption}</p>}
+      </div>
+      </div>
     </div>
+  );
+}
+
+/** Orbite décorative (aria-hidden) : un nœud par tour, arc = tours terminés,
+ *  nœud or = prochain tour. Le texte et la liste d'étapes portent l'information. */
+function ProgressOrbit(p: { readonly total: number; readonly completed: number }) {
+  const r = 84;
+  const done = Math.min(Math.max(0, p.completed), p.total);
+  const nodeR = p.total > 24 ? 4 : p.total > 12 ? 7 : 10;
+  return (
+    <svg className="k-progress-orbit" width="112" height="112" viewBox="-12 -12 224 224" aria-hidden="true" focusable="false">
+      <circle className="track" cx="100" cy="100" r={r} />
+      <circle className="arc" cx="100" cy="100" r={r} pathLength={100} strokeDasharray={`${(done / p.total) * 100} 100`} transform="rotate(-90 100 100)" />
+      {Array.from({ length: p.total }, (_, i) => {
+        const a = (i / p.total) * 2 * Math.PI - Math.PI / 2;
+        const cls = i < done ? 'done' : i === done ? 'next' : 'todo';
+        return <circle key={i} className={`node ${cls}`} cx={100 + r * Math.cos(a)} cy={100 + r * Math.sin(a)} r={cls === 'next' ? nodeR + 3 : nodeR} />;
+      })}
+    </svg>
   );
 }
 

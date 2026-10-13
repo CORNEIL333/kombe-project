@@ -97,10 +97,8 @@ abstract final class KombeTheme {
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(KombeSpacing.minTouch),
           backgroundColor: KombeColors.forest,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          foregroundColor: KombeColors.cream,
+          shape: const StadiumBorder(),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
         ),
       ),
@@ -109,9 +107,7 @@ abstract final class KombeTheme {
           minimumSize: const Size.fromHeight(KombeSpacing.minTouch),
           foregroundColor: KombeColors.forest,
           side: const BorderSide(color: KombeColors.forest),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+          shape: const StadiumBorder(),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),

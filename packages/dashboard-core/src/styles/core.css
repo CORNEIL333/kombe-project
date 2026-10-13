@@ -13,3 +13,58 @@
 .k-topbar{gap:18px}.k-topbar-right{display:flex;align-items:center;gap:16px}
 @media(max-width:760px){.k-top-search{min-width:0;flex:1}.k-user-badge-text{display:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
+
+/* ── Direction « L'Orbite » v2 (oct. 2026) : surcharge visuelle seulement ──
+   Barre latérale forêt de nuit, logotype à orbite, navigation active en or,
+   panneaux sable clair, boutons en pilule, chiffres tabulaires. Contrastes
+   texte/fond ≥ 4,5:1 (voir docs/design-system/tokens.md). */
+body{font-feature-settings:"tnum" 1;-webkit-font-smoothing:antialiased}
+.k-sidebar{background:radial-gradient(120% 50% at 0% 0%,rgba(42,138,104,.32),transparent 60%),radial-gradient(120% 40% at 100% 100%,rgba(199,146,46,.16),transparent 60%),var(--k-night);border-right:1px solid rgba(243,236,221,.08)}
+.k-brand{color:var(--k-sand-50)}
+.k-brand strong.k-brand-logo{display:inline-flex;align-items:center;font-weight:800;font-size:24px;letter-spacing:.06em;line-height:1}
+.k-brand-logo svg{margin:0 .04em;transform:translateY(-.04em)}
+.k-brand small{color:rgba(243,236,221,.74);opacity:1;margin-top:6px}
+.k-product{color:var(--k-gold-300);opacity:1;font-weight:800;letter-spacing:.16em;font-size:11px}
+.k-sidebar nav button{color:rgba(243,236,221,.8);border-radius:999px;font-weight:600;transition:background-color var(--k-dur-fast) var(--k-ease),color var(--k-dur-fast) var(--k-ease)}
+.k-sidebar nav button:hover,.k-sidebar nav button:focus-visible{background:rgba(243,236,221,.08);color:var(--k-sand-50)}
+.k-sidebar nav button:focus-visible{outline:3px solid var(--k-gold-300);outline-offset:1px}
+.k-sidebar nav button.active{background:var(--k-gold-300);color:var(--k-ink);font-weight:800}
+.k-sidebar nav button>span[aria-hidden]{width:20px;text-align:center;opacity:.85}
+.k-environment{color:rgba(243,236,221,.74)}
+.k-locale{background:rgba(243,236,221,.07);border:1px solid rgba(243,236,221,.14);border-radius:999px;padding:3px;width:fit-content}
+.k-locale button{border:0;border-radius:999px;color:rgba(243,236,221,.8);padding:6px 12px;font-weight:700}
+.k-locale button[aria-pressed=true]{background:var(--k-sand-100);color:var(--k-ink)}
+.k-topbar{background:rgba(251,248,241,.88);border-bottom-color:var(--k-border)}
+.k-page-head h1{font-weight:800;letter-spacing:-.035em;color:var(--k-green-950)}
+.k-panel,.k-metric,.k-stat{background:var(--k-surface);border-color:var(--k-border);border-radius:var(--k-radius);box-shadow:var(--k-shadow)}
+.k-panel-head h2{font-weight:800;color:var(--k-green-950)}
+.k-metric strong,.k-stat-value{font-weight:800;color:var(--k-green-950)}
+.k-stat-icon{background:var(--k-green-100);color:var(--k-green-800)}
+.k-button{border-radius:999px;padding:9px 18px;min-height:44px;transition:background-color var(--k-dur-fast) var(--k-ease),transform 100ms var(--k-ease)}
+.k-button:active:not(:disabled){transform:scale(.98)}
+.k-button-primary{background:var(--k-green-900)}
+.k-button-primary:hover:not(:disabled){background:var(--k-green-800)}
+.k-button-secondary{background:transparent;color:var(--k-ink);border-color:#b9c2be}
+.k-button-secondary:hover:not(:disabled){background:var(--k-sand-100)}
+.k-field input,.k-field select,.k-field textarea{border-color:var(--k-sand-200);border-width:1.5px;border-radius:12px;min-height:48px}
+.k-field input:focus,.k-field select:focus,.k-field textarea:focus{outline:4px solid rgba(23,107,82,.16);border-color:var(--k-green-800)}
+.k-chip{background:var(--k-sand-100);color:var(--k-ink)}
+.k-quick-action{border-radius:999px;background:var(--k-surface);border-color:var(--k-border)}
+.k-quick-action-primary{background:var(--k-green-900);color:var(--k-sand-50)}
+.k-top-search{border-radius:999px;background:var(--k-surface);border-color:var(--k-border)}
+.k-avatar{background:var(--k-green-900);color:var(--k-sand-50);box-shadow:0 0 0 2px var(--k-surface),0 0 0 3.5px var(--k-gold-500)}
+.k-json pre{background:var(--k-night);color:var(--k-sand-100)}
+.k-skeleton{background:linear-gradient(90deg,#efe6d4,#f8f3e9,#efe6d4);background-size:220% 100%}
+/* Orbite de progression (grammaire : arc = tours échus / tours du cycle). */
+.k-progress-layout{display:flex;gap:20px;align-items:center}
+.k-progress-orbit{flex:none}
+.k-progress-orbit .track{fill:none;stroke:var(--k-sand-200);stroke-width:2}
+.k-progress-orbit .arc{fill:none;stroke:var(--k-green-800);stroke-width:6;stroke-linecap:round}
+.k-progress-orbit .node{stroke-width:2.5}
+.k-progress-orbit .done{fill:var(--k-green-800);stroke:var(--k-green-800)}
+.k-progress-orbit .next{fill:var(--k-gold-500);stroke:var(--k-surface);stroke-width:3}
+.k-progress-orbit .todo{fill:var(--k-surface);stroke:#b9c2be}
+.k-progress-layout>div{flex:1;min-width:0}
+.k-progress-step{background:var(--k-sand-100);border-color:var(--k-border)}
+.k-progress-step-done{background:var(--k-ok-bg);color:var(--k-ok);border-color:var(--k-ok)}
+@media(max-width:760px){.k-sidebar{background:var(--k-night)}.k-progress-orbit{display:none}}

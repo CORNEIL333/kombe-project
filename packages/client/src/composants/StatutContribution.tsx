@@ -7,6 +7,7 @@
 
 import type { CleI18n } from "../i18n/dictionnaires.js";
 import { useLangue } from "../i18n/ContexteLangue.js";
+import { AnneauValidation } from "./AnneauValidation.js";
 
 export type StatutContribution = "en_cours" | "valide" | "conteste";
 
@@ -29,6 +30,7 @@ export function BadgeStatut({ statut }: { readonly statut: StatutContribution })
     statut === "valide" ? "valide" : statut === "conteste" ? "erreur" : "en-cours";
   return (
     <span className="badge" data-état={etatVisuel}>
+      <AnneauValidation etat={etatVisuel} />
       {/* Le texte porte l'information (jamais la couleur seule) : un lecteur
           d'écran lit « Déclaré — en cours de validation », pas un pastille. */}
       {t(CLE_POUR_STATUT[statut])}

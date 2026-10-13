@@ -6,6 +6,7 @@
 
 import type { CleI18n } from "../i18n/dictionnaires.js";
 import { useLangue } from "../i18n/ContexteLangue.js";
+import { Orbite } from "./Orbite.js";
 
 export interface EtapeInfo {
   readonly cle: CleI18n;
@@ -20,8 +21,9 @@ export function IndicateurEtapes({
 }) {
   const { t } = useLangue();
   return (
-    <>
-      <p className="aide-champ" role="status">
+    <div className="indicateur-etapes">
+      <Orbite className="indicateur-etapes__orbite" total={etapes.length} courant={indexCourant} taille={76} />
+      <p className="indicateur-etapes__compteur" role="status">
         {t("parcours.etapeSur", { etape: indexCourant + 1, total: etapes.length })}
       </p>
       <ol className="etapes">
@@ -40,7 +42,7 @@ export function IndicateurEtapes({
           );
         })}
       </ol>
-    </>
+    </div>
   );
 }
 

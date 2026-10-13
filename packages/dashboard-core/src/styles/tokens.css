@@ -1,1 +1,15 @@
-:root{--k-green-950:#043c2b;--k-green-900:#07583d;--k-green-800:#0b7550;--k-green-700:#3d8c63;--k-green-100:#e8f3eb;--k-gold-600:#b78417;--k-gold-500:#d4a83e;--k-gold-100:#fff4d8;--k-ink:#172026;--k-muted:#667085;--k-border:#d7ddd9;--k-bg:#f5f7f5;--k-surface:#fff;--k-danger:#b42318;--k-danger-bg:#fef3f2;--k-warn:#8a5a00;--k-warn-bg:#fff8e7;--k-ok:#067647;--k-ok-bg:#ecfdf3;--k-radius:16px;--k-shadow:0 12px 30px rgba(16,24,40,.08);--k-font:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+/* KÓMBE — tokens des tableaux de bord, direction « L'Orbite » v2.
+   Mêmes ancres que la PWA (packages/client/src/styles.css) et que
+   docs/design-system/tokens.md. Les noms --k-green-* sont conservés pour la
+   compatibilité ; ils pointent désormais vers la gamme forêt de la marque. */
+:root{
+--k-night:#061f1b;--k-night-900:#0b302a;
+--k-green-950:#082c26;--k-green-900:#103c32;--k-green-800:#176b52;--k-green-700:#2a8a68;--k-green-100:#dcefe6;
+--k-gold-700:#8a5f14;--k-gold-600:#8a5f14;--k-gold-500:#c7922e;--k-gold-300:#e2b868;--k-gold-100:#f6e7c6;
+--k-sand-50:#fbf8f1;--k-sand-100:#f3ecdd;--k-sand-200:#e7dcc6;
+--k-ink:#13211c;--k-muted:#56645e;--k-border:#e7dcc6;--k-bg:#f3ecdd;--k-surface:#fffdf8;
+--k-danger:#b42318;--k-danger-bg:#fdece4;--k-warn:#8a5f14;--k-warn-bg:#fbf1dc;--k-ok:#176b52;--k-ok-bg:#e6f3ec;
+--k-radius:20px;--k-shadow:0 18px 40px -28px rgba(8,44,38,.45);
+--k-font:Manrope,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+--k-font-expressive:Newsreader,ui-serif,Georgia,serif;
+--k-ease:cubic-bezier(.2,0,0,1);--k-dur-fast:150ms;--k-dur-ui:220ms}

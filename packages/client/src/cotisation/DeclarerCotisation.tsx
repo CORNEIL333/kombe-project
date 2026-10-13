@@ -10,8 +10,8 @@ import { useState } from "react";
 import { useLangue } from "../i18n/ContexteLangue.js";
 import { ChampTexte, ChampSelect } from "../composants/Champs.js";
 import { ZoneEtat } from "../composants/Etats.js";
-import { ImmersiveBackdrop } from "../composants/ImmersiveBackdrop.js";
-import { MotifAfricain } from "../composants/MotifAfricain.js";
+import { Scene } from "../composants/Scene.js";
+import { BadgeStatut } from "../composants/StatutContribution.js";
 import { montantValide } from "../parcours/ParcoursGuide.js";
 import {
   ApiError,
@@ -89,16 +89,20 @@ export function DeclarerCotisation({ session }: DeclarerCotisationProps) {
   };
 
   return (
-    <section className="scene-immersive" aria-labelledby="cotisation-titre">
-      <ImmersiveBackdrop variante="cotisation" />
-      <div className="carte-etape" style={{ maxWidth: "36rem" }}>
+    <Scene
+      variante="cotisation"
+      etiquetteId="cotisation-titre"
+      surtitre={t("scene.cotisation.surtitre")}
+      titre={t("scene.cotisation.titre")}
+      accent={t("scene.cotisation.accent")}
+      texte={t("scene.cotisation.texte")}
+    >
       <header className="carte-etape__entete">
-        <img className="carte-etape__symbole" src="/brand/logo-emblem.png" alt="" aria-hidden="true" />
         <h2 id="cotisation-titre">{t("cotisation.titre")}</h2>
         <p className="aide-champ">{t("cotisation.consigne")}</p>
       </header>
 
-      <div>
+      <div className="carte-bloc">
         <ChampTexte libelle={t("champ.groupe")} valeur={groupId} requis onChange={setGroupId} />
         <ChampTexte libelle={t("champ.obligation")} valeur={obligationId} requis onChange={setObligationId} />
         <button type="button" className="bouton bouton-secondaire" onClick={charger} disabled={enCours}>
@@ -107,7 +111,7 @@ export function DeclarerCotisation({ session }: DeclarerCotisationProps) {
       </div>
 
       {obligation ? (
-        <dl className="recapitulatif">
+        <dl className="recapitulatif recapitulatif--chiffres">
           <dt>{t("obligation.du")}</dt>
           <dd>{t("recap.montantValeur", { montant: obligation.due })}</dd>
           <dt>{t("obligation.restant")}</dt>
@@ -120,7 +124,7 @@ export function DeclarerCotisation({ session }: DeclarerCotisationProps) {
       ) : null}
 
       {obligation ? (
-        <div>
+        <div className="carte-bloc">
           <ChampTexte
             libelle={t("champ.montantCotisation")}
             erreur={touche && !montantSaisiValide ? t("erreur.montant") : undefined}
@@ -162,12 +166,13 @@ export function DeclarerCotisation({ session }: DeclarerCotisationProps) {
         </p>
       ) : null}
       {resultat ? (
-        <p role="status">
-          {resultat.status === "applied" ? t("cotisation.declaree") : t("cotisation.rejouee")}
-        </p>
+        <div className="confirmation-serveur">
+          <BadgeStatut statut="en_cours" />
+          <p role="status">
+            {resultat.status === "applied" ? t("cotisation.declaree") : t("cotisation.rejouee")}
+          </p>
+        </div>
       ) : null}
-      </div>
-      <MotifAfricain />
-    </section>
+    </Scene>
   );
 }
