@@ -40,7 +40,10 @@ import {
   privacySubjectGroup,
 } from "./db/pgGroupResolvers.js";
 import { resolveSession, resolveGroupActor, type GroupActor } from "./db/pgSessionResolver.js";
-import { ResendEmailSender, type EmailSender } from "./email/emailSender.js";
+import { NullEmailSender, ResendEmailSender, type EmailSender } from "./email/emailSender.js";
+import { registerTontineRoutes } from "./tontine/routes.js";
+import { registerOpsRoutes } from "./ops/opsRoutes.js";
+import type { CodeSender } from "./tontine/sms.js";
 import {
   FictitiousCommandStore,
   type Actor,
@@ -109,6 +112,8 @@ import {
   loginRequest,
   loginCompletion,
   createGroupBody,
+  sponsorshipRequestBody,
+  sponsorshipDecisionBody,
   groupTransitionBody,
   membershipTerminationBody,
   inviteMemberBody,
@@ -235,6 +240,51 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   METRICS_SEVERITE_INCONNUE: 422,
   METRICS_VALEUR_INVALIDE: 422,
   METRICS_RISQUE_CRITIQUE_SANS_CONTROLE: 409,
+  // Tontine réelle (API produit, docs/API_TONTINE.md).
+  TONTINE_FORBIDDEN: 403,
+  OBJET_INTROUVABLE: 404,
+  STATE_CONFLICT: 409,
+  AUTH_THROTTLED: 429,
+  SMS_DELIVERY_FAILED: 502,
+  PHONE_INVALID: 422,
+  GROUP_NAME_INVALID: 422,
+  CADENCE_INVALID: 422,
+  MEETING_STATE_INVALID: 409,
+  ATTENDANCE_INVALID: 422,
+  WITNESS_REQUIRED: 422,
+  FUND_INVALID: 422,
+  FUND_KIND_DISABLED: 403,
+  MOVEMENT_STATE_INVALID: 409,
+  MOVEMENT_NOT_INDEPENDENT: 403,
+  FINE_INVALID: 422,
+  AID_INVALID: 422,
+  AID_CAP_EXCEEDED: 422,
+  DEBT_INVALID: 422,
+  ORDER_CHANGE_INVALID: 422,
+  DRAW_INVALID: 422,
+  SHARES_INVALID: 422,
+  MANDATE_INVALID: 422,
+  IMPORT_INVALID: 422,
+  DECISION_INVALID: 422,
+  DECISION_STATE_INVALID: 409,
+  PAYOUT_SUSPENDED: 409,
+  RECONCILIATION_INCOHERENTE: 409,
+  /* Amorçage tontine (C03 §2.1-2.3, C05 §5.3, C21, parrainage) */
+  TONTINE_MODEL_UNKNOWN: 422,
+  ROTATION_TYPE_UNKNOWN: 422,
+  ROTATION_TYPE_NOT_READY: 409,
+  GROUP_CURRENCY_UNSUPPORTED: 422,
+  GROUP_TIMEZONE_UNSUPPORTED: 422,
+  GROUP_PARENT_UNKNOWN: 422,
+  GROUP_PARENT_SELF_FORBIDDEN: 422,
+  GROUP_PARENT_CYCLE: 422,
+  GROUP_PARENT_DEPTH_EXCEEDED: 422,
+  SUPERVISOR_NOT_MEMBER: 403,
+  SUPERVISOR_FINANCIAL_FORBIDDEN: 403,
+  SPONSOR_NOT_ACTIVE_MEMBER: 403,
+  SPONSOR_SELF_FORBIDDEN: 422,
+  SPONSORSHIP_ALREADY_OPEN: 409,
+  SPONSORSHIP_STATE_INVALID: 409,
 };
 
 export interface BuildAppOptions {
@@ -277,6 +327,9 @@ export interface BuildAppOptions {
    *  hors RLS applicative. Absent : `journal.checkpoint` reste indisponible
    *  en mode réel (RESERVATION_INCOHERENTE côté store). */
   readonly journalVerifierPool?: pg.Pool;
+  /** Envoi des codes de connexion (SMS) de l'API tontine ; par défaut lu
+   *  depuis `KOMBE_SMS_PROVIDER` (simulateur interdit en production). */
+  readonly codeSender?: CodeSender;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -611,15 +664,25 @@ function metricsCtxFrom(
   };
 }
 
+/** Voie e-mail fermée (production sans RESEND_API_KEY) : échec explicite à l'usage. */
+class DisabledEmailSender implements EmailSender {
+  async send(): Promise<void> {
+    throw new DomainError("EMAIL_DELIVERY_FAILED", "Voie e-mail non configurée");
+  }
+}
+
 /** Construit l'expéditeur Resend réel depuis l'environnement. Échec explicite
  *  (jamais un repli silencieux) si `RESEND_API_KEY` est absente : un pool réel
  *  sans expéditeur réel serait un mode réel partiellement simulé, exclu. */
 function requireResendSender(): EmailSender {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    throw new Error(
-      "RESEND_API_KEY absente : mode réel (pool fourni) exige un expéditeur email réel (ADR-0023/0024).",
-    );
+    // Connexion par téléphone d'abord (ADR-0025) : l'e-mail est une seconde
+    // voie. Hors production, un expéditeur SIMULÉ (rien ne part, le code est
+    // rendu au développeur) ; en production, la voie e-mail est fermée et
+    // répond EMAIL_DELIVERY_FAILED — jamais un faux envoi silencieux.
+    if (process.env.NODE_ENV !== "production") return new NullEmailSender();
+    return new DisabledEmailSender();
   }
   const from = process.env.KOMBE_EMAIL_FROM && process.env.KOMBE_EMAIL_FROM.length > 0
     ? process.env.KOMBE_EMAIL_FROM
@@ -924,6 +987,30 @@ function realExportCtxFrom(identityId: string, nowMs: number): PgExportContext {
 /** Contexte C18 réel (mesure pilote) : session seule (§14 — jamais `x-actor`),
  *  horloge SERVEUR en secondes d'époque (§27 — jamais `x-server-date`) ;
  *  `actorRole` ne participe à aucune décision du store mesure (inerte). */
+/**
+ * X-08 : en mode réel, la console support et les indicateurs globaux de la
+ * plateforme sont réservés aux OPÉRATEURS (identity_access.is_operator, état
+ * actif — 0029_ops_console). Un membre ordinaire reçoit 403, quelle que soit
+ * l'interface utilisée.
+ */
+async function assertRealOperator(dbPool: pg.Pool, identityId: string): Promise<void> {
+  const client = await dbPool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT set_config('kombe.identity_id', $1, true)", [identityId]);
+    const r = await client.query("SELECT kombe_is_operator() AS ok");
+    await client.query("COMMIT");
+    if (r.rows[0]?.ok !== true) {
+      throw new DomainError("PRIVILEGE_NOT_GRANTED", "Réservé aux opérateurs de la plateforme");
+    }
+  } catch (e) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 function realMetricsCtxFrom(identityId: string, nowMs: number): MetricsContext {
   return {
     actorIdentityId: identityId,
@@ -932,8 +1019,21 @@ function realMetricsCtxFrom(identityId: string, nowMs: number): MetricsContext {
   };
 }
 
+/** Routes réellement déclarées par chaque instance (contrat OpenAPI ↔ runtime). */
+const ROUTE_REGISTRY = new WeakMap<FastifyInstance, { method: string; url: string }[]>();
+export function registeredRoutes(app: FastifyInstance): readonly { method: string; url: string }[] {
+  return ROUTE_REGISTRY.get(app) ?? [];
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
+  const declared: { method: string; url: string }[] = [];
+  ROUTE_REGISTRY.set(app, declared);
+  app.addHook("onRoute", (r) => {
+    for (const m of Array.isArray(r.method) ? r.method : [r.method]) {
+      if (m !== "HEAD" && m !== "OPTIONS") declared.push({ method: m, url: r.url });
+    }
+  });
 
   // CORS multi-origines + limitation de débit (§20/§25) : enregistrées avant
   // tout autre hook pour que le pré-flight OPTIONS soit répondu sans toucher
@@ -948,7 +1048,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     reply.header("x-content-type-options", "nosniff");
     reply.header("x-frame-options", "DENY");
     reply.header("referrer-policy", "no-referrer");
-    reply.header("content-security-policy", "default-src 'none'; frame-ancestors 'none'");
+    // Les pages du site servi à la même origine (webStatic) posent leur propre CSP.
+    if (!reply.getHeader("content-security-policy")) {
+      reply.header("content-security-policy", "default-src 'none'; frame-ancestors 'none'");
+    }
     reply.header("cache-control", "no-store");
   });
 
@@ -979,9 +1082,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const pool = options.pool;
   const now = options.now ?? (() => Date.now());
   const realContribution = pool ? new PgContributionStore(pool) : undefined;
-  const realAccess = pool
-    ? new PgAccessStore(pool, options.emailSender ?? requireResendSender())
-    : undefined;
+  const emailSender = pool ? (options.emailSender ?? requireResendSender()) : undefined;
+  const realAccess = pool && emailSender ? new PgAccessStore(pool, emailSender) : undefined;
   const realGovernance = pool ? new PgGovernanceStore(pool) : undefined;
   const realValidation = pool ? new PgValidationStore(pool) : undefined;
   const realDisputes = pool ? new PgDisputeStore(pool) : undefined;
@@ -1000,7 +1102,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     }
     if (error instanceof DomainError) {
       const status = STATUS_BY_CODE[error.code] ?? 400;
-      return reply.code(status).send({ code: error.code, message: "Requête refusée" });
+      // API produit (tontine réelle) : le motif métier, en français, est
+      // affiché tel quel à la personne (jamais un détail technique : les
+      // erreurs Postgres sont traduites en amont, cf. tontine/infra.ts).
+      const productRoute = /^\/v1\/(auth|me|tontines|invitations)(\/|\?|$)/.test(_request.url);
+      return reply.code(status).send({ code: error.code, message: productRoute ? error.message : "Requête refusée" });
     }
     // Erreurs de PROTOCOLE Fastify (corps JSON vide/malformé, type de contenu
     // refusé…) : statut 4xx porté par l'erreur elle-même ; jamais 500.
@@ -1037,6 +1143,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       return reply.code(503).send({ status: "degraded", mode: "réel" });
     }
   });
+
+  // API produit « tontine réelle » (docs/API_TONTINE.md) : mode réel seulement.
+  if (pool && emailSender) {
+    registerTontineRoutes(app, {
+      pool,
+      now,
+      emailSender,
+      emailSimulated: emailSender instanceof NullEmailSender,
+      emailAvailable: !(emailSender instanceof DisabledEmailSender),
+      ...(options.codeSender ? { codeSender: options.codeSender } : {}),
+    });
+    // Console d'exploitation (opérateurs seulement, 0029_ops_console).
+    registerOpsRoutes(app, { pool, now });
+  }
 
   // Routes du squelette C00 (pipeline fictif) : n'existent PAS en mode réel
   // (aucune implémentation PG) — 404 Fastify, jamais de données fictives.
@@ -1280,6 +1400,67 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       return reply.code(200).send(await realGovernance.redeemInvitation(groupId, invitationId));
     }
     return reply.code(200).send(governance.redeemInvitation(invitationId));
+  });
+
+  // Parrainage / cooptation : un candidat demande à rejoindre sous la caution
+  // d'un membre actif. Mode réel : le CANDIDAT est l'acteur de session (le
+  // corps est ignoré, §14) ; le parrain (CIBLE) doit être membre actif réel.
+  app.post("/v1/groups/:groupId/sponsorships", async (request, reply) => {
+    const { groupId } = request.params as { groupId: string };
+    const body = sponsorshipRequestBody.parse(request.body);
+    if (pool && realGovernance) {
+      const candidateId = await realIdentityFrom(pool, request, now);
+      return reply
+        .code(201)
+        .send(await realGovernance.requestSponsorship({
+          sponsorshipId: body.sponsorshipId,
+          groupId,
+          candidateId,
+          sponsorId: body.sponsorId,
+        }));
+    }
+    return reply.code(201).send(governance.requestSponsorship({
+      sponsorshipId: body.sponsorshipId,
+      groupId,
+      candidateId: body.candidateId,
+      sponsorId: body.sponsorId,
+    }));
+  });
+
+  // Décision d'un parrainage ouvert (endorsed/rejected). Mode réel : le
+  // décideur doit être membre actif du groupe (anti-IVOR). En fictif, la
+  // décision est appliquée telle quelle.
+  app.post("/v1/groups/:groupId/sponsorships/:sponsorshipId/decision", async (request, reply) => {
+    const { sponsorshipId } = request.params as { groupId: string; sponsorshipId: string };
+    const body = sponsorshipDecisionBody.parse(request.body);
+    if (pool && realGovernance) {
+      const { groupId } = request.params as { groupId: string };
+      await realGroupActorFrom(pool, request, groupId, now);
+      return reply.code(200).send(await realGovernance.decideSponsorship(groupId, sponsorshipId, body.decision));
+    }
+    return reply.code(200).send(governance.decideSponsorship(sponsorshipId, body.decision));
+  });
+
+  // Découvrabilité : vue publique minimale des groupes (nom + modèle +
+  // typologie), sans registre réel (4.1).
+  app.get("/v1/discoverable-groups", async (_request, reply) => {
+    if (pool && realGovernance) return reply.code(200).send(await realGovernance.listDiscoverable());
+    return reply.code(200).send(governance.listDiscoverable());
+  });
+
+  // Vue MULTI-ADHÉSION d'un membre (C21 §2.5) : la liste des tontines dont il
+  // fait partie, avec modèle/typologie/hiérarchie (parent) et état d'adhésion.
+  // Mode RÉEL : l'identité listée est celle de la SESSION Bearer, résolue
+  // SERVEUR (§14) — le client ne choisit jamais de quelle identité il liste.
+  // Mode fictif : identité du squelette via query (C01 la résoudra depuis
+  // session + RLS). Aucune donnée financière n'est exposée.
+  app.get("/v1/me/groups", async (request, reply) => {
+    if (pool && realGovernance) {
+      const identityId = await realIdentityFrom(pool, request, now);
+      return reply.code(200).send(await realGovernance.listGroupsForMember(identityId));
+    }
+    const { identityId } = request.query as { identityId?: string };
+    return reply.code(200).send(governance.listGroupsForMember(identityId ?? ""));
   });
 
   /* --- C04 : moteur de règles versionnées et acceptations (3.1 → 3.7, 6.7) --- */
@@ -2193,6 +2374,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     };
     if (pool && realSupport) {
       const identityId = await realIdentityFrom(pool, request, now);
+      await assertRealOperator(pool, identityId);
       const ctx = realSupportCtxFrom(identityId, now());
       return reply.code(201).send(await realSupport.request(ctx, input));
     }
@@ -2209,6 +2391,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       const identityId = await realIdentityFrom(pool, request, now);
       const groupId = await supportRequestGroup(pool, requestId);
       if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
+      await assertRealOperator(pool, identityId);
       const ctx = realSupportCtxFrom(identityId, now());
       return reply.code(200).send(await realSupport.approve(ctx, groupId, requestId, body.ttlSeconds));
     }
@@ -2227,6 +2410,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       const identityId = await realIdentityFrom(pool, request, now);
       const groupId = await supportRequestGroup(pool, requestId);
       if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
+      await assertRealOperator(pool, identityId);
       const ctx = realSupportCtxFrom(identityId, now());
       return reply.code(200).send(await realSupport.act(ctx, groupId, requestId, body.action));
     }
@@ -2241,6 +2425,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       const identityId = await realIdentityFrom(pool, request, now);
       const groupId = await supportRequestGroup(pool, requestId);
       if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
+      await assertRealOperator(pool, identityId);
       const ctx = realSupportCtxFrom(identityId, now());
       return reply.code(200).send(await realSupport.revoke(ctx, groupId, requestId));
     }
@@ -2254,6 +2439,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { groupId, requestId } = request.params as { groupId: string; requestId: string };
     if (pool && realSupport) {
       const identityId = await realIdentityFrom(pool, request, now);
+      await assertRealOperator(pool, identityId);
       const ctx = realSupportCtxFrom(identityId, now());
       return reply.code(200).send(await realSupport.view(ctx, groupId, requestId));
     }
@@ -2608,6 +2794,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const body = economicsBody.parse(request.body);
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
+      await assertRealOperator(pool, identityId);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.computeEconomics(ctx, body));
     }
@@ -2621,6 +2808,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const body = riskBody.parse(request.body);
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
+      await assertRealOperator(pool, identityId);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(201).send(await realMetrics.addRisk(ctx, body));
     }
@@ -2632,6 +2820,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/metrics/risks", async (request, reply) => {
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
+      await assertRealOperator(pool, identityId);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.listRisks(ctx));
     }
@@ -2644,6 +2833,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/metrics/extension-check", async (request, reply) => {
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
+      await assertRealOperator(pool, identityId);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.extensionStatus(ctx));
     }
@@ -2657,6 +2847,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/metrics/extension-check", async (request, reply) => {
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
+      await assertRealOperator(pool, identityId);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.extensionStatus(ctx));
     }

@@ -2,7 +2,7 @@
 
 **Version :** phase de déploiement — 2026-10-08.
 **Statut :** pile **exécutable et persistée** : API à l'écoute, base PostgreSQL
-réelle (25 jalons : `roles_create.sql` + migrations 0001→0023 + `roles.sql`),
+réelle (27 jalons : `roles_create.sql` + migrations 0001→0025 + `roles.sql`),
 identité réelle (session → RLS) en mode réel. Ce document dit exactement ce qui
 est réel, prouvé, et ce qui reste ouvert. Aucun PASS simulé.
 
@@ -15,7 +15,7 @@ est réel, prouvé, et ce qui reste ouvert. Aucun PASS simulé.
 | API Fastify (`packages/api/src/main.ts`) | **RÉEL** | `GET /v1/health` → `{"status":"ok","mode":"réel"}` (pool PG) ou `{"status":"ok","mode":"fictif"}` (repli sans pool). |
 | Sondes | **RÉEL** | `/v1/health/live` → 200 `{status:"ok"}` ; `/v1/health/ready` → 200 `{status:"ready",mode}` ou **503** (base injoignable). |
 | Persistance API → PostgreSQL | **RÉEL** | Stores PG (journal, cotisations, disbursement, dispute, proposal, validation, règles, planning, métriques, session, découverte worker). Mode réel actif dès que `KOMBE_API_DATABASE_URL` est valide. |
-| Migrations + provisioning rôles (`migrate.mjs`) | **RÉEL** | Runner explicite de 25 fichiers, verrou consultatif, transaction par fichier, idempotent (table `kombe_migration`). Preuve §17 exécutée sur base réelle : vide → dernier jalon + seconde passe tout « skipped ». |
+| Migrations + provisioning rôles (`migrate.mjs`) | **RÉEL** | Runner explicite de 27 fichiers, verrou consultatif, transaction par fichier, idempotent (table `kombe_migration`). Preuve §17 exécutée sur base réelle : vide → dernier jalon + seconde passe tout « skipped ». |
 | Identité / RLS | **RÉEL** | Résolution session `Bearer <sessionId>` → rôle `kombe_app` (RLS par groupe) ; en-tête `x-actor` **interdit** en mode réel. |
 | Worker outbox (C13) | **HORS PÉRIMÈTRE** | Voir `COORDINATION_MULTI_HARNESS/`. |
 | Backup/restore | **PROCÉDURE ÉCRITE, EXÉCUTION BLOCKED_EXTERNAL** | §6 ci-dessous. |
@@ -50,7 +50,7 @@ Arrêt + purge des données : `docker compose down -v`.
 ```bash
 pnpm -r --if-present run build
 export KOMBE_DATABASE_URL=postgresql://kombe:kombe_dev_only@localhost:5432/kombe
-node packages/db/scripts/migrate.mjs migrate    # 25 jalons, idempotent
+node packages/db/scripts/migrate.mjs migrate    # 27 jalons, idempotent
 export KOMBE_API_DATABASE_URL="$KOMBE_DATABASE_URL"
 export PORT=3000 HOST=0.0.0.0
 pnpm --filter @kombe/api run start              # node dist/main.js → écoute
@@ -124,7 +124,7 @@ Une sauvegarde non restaurée est un espoir, pas une preuve :
 ```bash
 createdb kombe_restore_check
 pg_restore --dbname="kombe_restore_check" "kombe-$(date +%F).dump" --exit-on-error
-psql kombe_restore_check -c "SELECT count(*) FROM kombe_migration"   # 25 jalons
+psql kombe_restore_check -c "SELECT count(*) FROM kombe_migration"   # 27 jalons
 psql kombe_restore_check -c "SELECT count(*) FROM journal"
 dropdb kombe_restore_check
 ```
@@ -187,7 +187,15 @@ quand le propriétaire crée le projet séparé.
    (rôle `neondb_owner`).
 2. Migrations exécutées réellement : `KOMBE_DATABASE_URL=…/kombe_prod pnpm
    --filter @kombe/db run migrate` → **exit 0, 25 jalons** (rôles, migrations
-   0001–0023, `provision/roles.sql`).
+   0001–0023, `provision/roles.sql`). **Avancé le 2026-10-09** : les slices
+   d'amorçage (0024) et multi-adhésion (0025) sont arrivées APRÈS ce déploiement
+   initial ; `migrate` relancé idempotemment sur `kombe_prod` (rôle
+   `neondb_owner`) → `applied=[0024,0025]`, **27 jalons**. Vérifié en base réelle :
+   colonnes `group.display_name/tontine_model/rotation_type/parent_group_id/join_code`
+   présentes, fonction `kombe_member_groups` présente, et ExÉCUTABLE par
+   `kombe_app` (rôle Vercel, sous RLS) — `SELECT … FROM kombe_member_groups(…)`
+   renvoie 0 ligne (pas de « permission denied ») : la route `GET /me/groups`
+   sert réellement en production, pas seulement en preuve.
 3. Connexion applicative activée : `ALTER ROLE kombe_app WITH LOGIN PASSWORD
    '<fort>'` (mot de passe aléatoire 144 bits, enregistré hors dépôt dans
    `.env.prod`, gitignored — §15). Vérifié en se connectant réellement en

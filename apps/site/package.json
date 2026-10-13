@@ -1,0 +1,20 @@
+{
+  "name": "@kombe/site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "KÓMBE — site de marque (couche A). Vanilla TypeScript, sans framework : LCP et appareils Android modestes d'abord. Aucun témoignage, chiffre ou utilisateur inventé.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@kombe/brand": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2"
+  }
+}

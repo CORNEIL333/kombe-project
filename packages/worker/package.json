@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test --test-isolation=none test/outbox.test.mjs"
+    "test": "node --test test/outbox.test.mjs"
   },
   "dependencies": {
     "@kombe/domain": "workspace:*",

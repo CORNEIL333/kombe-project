@@ -59,6 +59,7 @@ async function runSql(client, relPath) {
 
 const migrator = new pg.Client({ connectionString: url });
 await migrator.connect();
+await (await import("../../db/scripts/guard.mjs")).assertNonProdTeardown(migrator, "kombe.api.pgSessionResolver");
 const observations = {};
 let failures = 0;
 
@@ -90,7 +91,7 @@ try {
   `);
 
   const DOWN = [
-    "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
+    "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
     "migrations/0016_privacy_law.down.sql", "migrations/0015_export_manifest.down.sql",
     "migrations/0014_support_security.down.sql", "migrations/0013_outbox.down.sql",
     "migrations/0012_proposal.down.sql", "migrations/0011_disbursement.down.sql",
@@ -110,7 +111,7 @@ try {
     "migrations/0010_dispute_cases.sql", "migrations/0011_disbursement.sql", "migrations/0012_proposal.sql",
     "migrations/0013_outbox.sql", "migrations/0014_support_security.sql", "migrations/0015_export_manifest.sql",
     "migrations/0016_privacy_law.sql", "migrations/0017_pilot_metrics.sql",
-    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "provision/roles.sql",
+    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "provision/roles.sql",
   ];
   for (const f of UP) await runSql(migrator, f);
 

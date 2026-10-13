@@ -68,6 +68,21 @@ check("SMOKE-AUTH-BAD", badAuth.status === 401, {
   status: badAuth.status, body: badAuth.body,
 });
 
+// Déploiement « un seul projet » (vercel.json / KOMBE_WEB_ROOT) : le site est
+// servi à la même origine. KOMBE_SMOKE_API_ONLY=1 saute ces vérifications.
+if (process.env.KOMBE_SMOKE_API_ONLY !== "1") {
+  const channels = await get("/v1/auth/channels");
+  const open = channels.body && typeof channels.body === "object" ? Object.entries(channels.body).filter(([, v]) => v === true).map(([k]) => k) : [];
+  check("SMOKE-LOGIN-CHANNEL", channels.status === 200 && open.length > 0, { status: channels.status, open });
+  for (const path of ["/", "/bureau/", "/ops/", "/direction/", "/engineering/"]) {
+    const r = await fetch(`${base}${path}`, { redirect: "follow" }).catch(() => null);
+    const text = r ? await r.text() : "";
+    check(`SMOKE-WEB ${path}`, r !== null && r.status === 200 && /<div id="root">/.test(text), { status: r?.status ?? 0 });
+  }
+  const cfg = await get("/kombe-dashboard-config.json");
+  check("SMOKE-WEB-CONFIG", cfg.status === 200 && typeof cfg.body?.apiBaseUrl === "string", { status: cfg.status, body: cfg.body });
+}
+
 process.stdout.write(JSON.stringify({
   target: "kombe.release.smoke",
   baseUrl: base,

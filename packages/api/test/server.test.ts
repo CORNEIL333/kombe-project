@@ -47,6 +47,9 @@ describe("gardes HTTP (§20/§25) : CORS à liste fermée + limitation de débit
       expect(ok.headers["access-control-allow-origin"]).toBe("https://ops.pages.dev");
       expect(ok.headers["access-control-allow-headers"]).toContain("authorization");
       expect(ok.headers["access-control-allow-origin"]).not.toBe("*");
+      // Clients en `credentials: include` (ApiClient) : sans cet en-tête le navigateur bloque tout.
+      expect(ok.headers["access-control-allow-credentials"]).toBe("true");
+      expect(ok.headers["access-control-allow-headers"]).toContain("idempotency-key");
 
       const ko = await app.inject({
         method: "OPTIONS",
@@ -55,6 +58,7 @@ describe("gardes HTTP (§20/§25) : CORS à liste fermée + limitation de débit
       });
       expect(ko.statusCode).toBe(403);
       expect(ko.headers["access-control-allow-origin"]).toBeUndefined();
+      expect(ko.headers["access-control-allow-credentials"]).toBeUndefined();
     } finally {
       delete process.env.KOMBE_CORS_ORIGINS;
     }

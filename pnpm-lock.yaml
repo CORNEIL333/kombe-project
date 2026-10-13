@@ -88,6 +88,9 @@ importers:
       '@kombe/dashboard-core':
         specifier: workspace:*
         version: link:../../packages/dashboard-core
+      '@kombe/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -151,6 +154,19 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(jsdom@30.1.1)(vite@8.3.2(jiti@2.7.0))
 
+  apps/site:
+    dependencies:
+      '@kombe/brand':
+        specifier: workspace:*
+        version: link:../../packages/brand
+    devDependencies:
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite:
+        specifier: ^8.3.2
+        version: 8.3.2(jiti@2.7.0)
+
   packages/api:
     dependencies:
       '@kombe/domain':
@@ -185,11 +201,19 @@ importers:
         specifier: ^2.1.8
         version: 2.1.8(@types/node@22.10.2)(jsdom@30.1.1)(lightningcss@1.33.0)
 
+  packages/brand: {}
+
   packages/client:
     dependencies:
+      '@kombe/brand':
+        specifier: workspace:*
+        version: link:../brand
       '@kombe/dashboard-core':
         specifier: workspace:*
         version: link:../dashboard-core
+      '@kombe/domain':
+        specifier: workspace:*
+        version: link:../domain
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -232,6 +256,10 @@ importers:
         version: 5.0.3(jsdom@30.1.1)(vite@8.3.2(jiti@2.7.0))
 
   packages/dashboard-core:
+    dependencies:
+      '@kombe/brand':
+        specifier: workspace:*
+        version: link:../brand
     devDependencies:
       '@testing-library/react':
         specifier: ^16.3.3

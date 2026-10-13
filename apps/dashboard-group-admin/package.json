@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Dashboard web de gouvernance et administration de groupe, sans données simulées.",
+  "description": "Espace bureau : tableau de bord du bureau d’un groupe sur l’API tontine réelle.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -13,7 +13,8 @@
   "dependencies": {
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "@kombe/dashboard-core": "workspace:*"
+    "@kombe/dashboard-core": "workspace:*",
+    "@kombe/domain": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

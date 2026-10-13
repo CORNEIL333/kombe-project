@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app/di/app_dependencies.dart';
 import 'app/kombe_app.dart';
@@ -10,6 +12,12 @@ const String _apiBaseUrl = String.fromEnvironment('KOMBE_API_BASE_URL');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Polices OFL embarquées : leurs licences apparaissent dans « À propos ».
+  LicenseRegistry.addLicense(() async* {
+    for (final (String family, String file) in <(String, String)>[('Manrope', 'OFL-Manrope.txt'), ('Fraunces', 'OFL-Fraunces.txt')]) {
+      yield LicenseEntryWithLineBreaks(<String>[family], await rootBundle.loadString('assets/fonts/$file'));
+    }
+  });
   final Uri? apiBaseUrl = _apiBaseUrl.isEmpty
       ? null
       : Uri.tryParse(_apiBaseUrl);

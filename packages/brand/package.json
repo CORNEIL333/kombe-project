@@ -1,0 +1,16 @@
+{
+  "name": "@kombe/brand",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "KÓMBE — fondations de marque partagées : jetons canoniques, CSS généré, polices OFL auto-hébergées, signes vectoriels.",
+  "exports": {
+    "./kombe.css": "./css/kombe.css",
+    "./marks/*": "./marks/*",
+    "./tokens.json": "./tokens/kombe.tokens.json"
+  },
+  "scripts": {
+    "tokens": "node scripts/build-tokens.mjs",
+    "test": "node scripts/build-tokens.mjs --check && node --test scripts/tokens.test.mjs"
+  }
+}

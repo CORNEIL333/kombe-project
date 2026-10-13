@@ -6,9 +6,9 @@ import '../../core/security/biometric_service.dart';
 import '../../core/security/secure_session_store.dart';
 import '../../data/local/contribution_draft_database.dart';
 import '../../data/local/preferences_repository_impl.dart';
-import '../../data/remote/http_auth_repository.dart';
 import '../../data/remote/kombe_api_client.dart';
 import '../../data/remote/stored_session_codec.dart';
+import '../../data/remote/tontine_repositories.dart';
 import '../../data/repositories/unavailable_repositories.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
@@ -60,9 +60,10 @@ final class AppDependencies {
     );
   }
 
-  /// Mode RÉEL (Piste A3 suite) — SEUL le périmètre déjà prouvé base réelle
-  /// est branché (connexion par code email, ADR-0024) : les 13 autres
-  /// dépôts restent `Unavailable*` (honnête, pas encore câblé), même ici.
+  /// Mode RÉEL : tous les dépôts parlent à l'API « tontine réelle »
+  /// (docs/API_TONTINE.md), la même que la PWA — connexion par téléphone ou
+  /// e-mail, groupes, cotisations, validation, notifications, statuts, tableau
+  /// de bord (`tontine_repositories.dart`, I-07).
   /// `apiBaseUrl` est lue par l'appelant (`main.dart`) depuis
   /// `--dart-define=KOMBE_API_BASE_URL` — absente par défaut (voir
   /// `AppDependencies.unconfigured`), jamais devinée.
@@ -81,19 +82,23 @@ final class AppDependencies {
         return <String, String>{'authorization': 'Bearer ${stored.sessionId}'};
       },
     );
+    // Adresse du site web (PWA) : même hôte que l'API, sans le préfixe /v1.
+    final Uri webBase = apiBaseUrl.replace(
+      path: apiBaseUrl.path.replaceFirst(RegExp(r'/v1/?$'), '/'),
+    );
     return AppDependencies(
-      authRepository: HttpAuthRepository(
+      authRepository: TontineAuthRepository(
         api: api,
         sessionStore: secureSessionStore,
       ),
-      profileRepository: const UnavailableProfileRepository(),
-      groupRepository: const UnavailableGroupRepository(),
-      contributionRepository: const UnavailableContributionRepository(),
-      governanceRepository: const UnavailableGovernanceRepository(),
-      disputeRepository: const UnavailableDisputeRepository(),
-      notificationRepository: const UnavailableNotificationRepository(),
-      documentRepository: const UnavailableDocumentRepository(),
-      dashboardRepository: const UnavailableDashboardRepository(),
+      profileRepository: TontineProfileRepository(api: api),
+      groupRepository: TontineGroupRepository(api: api),
+      contributionRepository: TontineContributionRepository(api: api),
+      governanceRepository: TontineGovernanceRepository(api: api),
+      disputeRepository: const TontineDisputeRepository(),
+      notificationRepository: TontineNotificationRepository(api: api),
+      documentRepository: TontineDocumentRepository(api: api, webBase: webBase),
+      dashboardRepository: TontineDashboardRepository(api: api),
       draftRepository: ContributionDraftDatabase(),
       preferencesRepository: PreferencesRepositoryImpl(
         SharedPreferencesAsync(),

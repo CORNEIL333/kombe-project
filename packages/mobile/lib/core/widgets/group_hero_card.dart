@@ -3,119 +3,84 @@ import 'package:flutter/material.dart';
 import '../../domain/entities/group.dart';
 import '../design/kombe_colors.dart';
 import '../formatters/xaf.dart';
+import 'kombe_visuals.dart';
 
+/// Carte héro d'un groupe (maquettes « Tableau de bord » / « Cycle ») :
+/// photo de la marque sous un voile forêt, nom, cycle, membres, montant.
 class GroupHeroCard extends StatelessWidget {
-  const GroupHeroCard({required this.group, super.key, this.onTap});
+  const GroupHeroCard({required this.group, super.key, this.onTap, this.eyebrow});
 
   final GroupSummary group;
   final VoidCallback? onTap;
 
+  /// Sur-titre optionnel (ex. « Mon groupe principal »).
+  final String? eyebrow;
+
   @override
   Widget build(BuildContext context) {
+    final TextTheme t = Theme.of(context).textTheme;
     return Semantics(
       button: onTap != null,
-      label: group.name,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            gradient: const LinearGradient(
-              colors: <Color>[KombeColors.forestDark, KombeColors.forest],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: CustomPaint(painter: const _MountainPatternPainter()),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(20),
+      label: '${group.name}, cycle ${group.cycleIndex} sur ${group.cycleTotal}, '
+          '${group.memberCount} membres, cotisation ${Xaf.format(group.contributionAmountXaf)}',
+      child: ExcludeSemantics(
+        child: Material(
+          color: KombeColors.forest,
+          borderRadius: BorderRadius.circular(22),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: PhotoBackdrop(
+              asset: KombePhotos.coverFor(group.id),
+              alignment: const Alignment(.4, 0),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 16, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Row(
                       children: <Widget>[
-                        const Icon(Icons.groups_2_outlined, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            group.name,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  color: Colors.white,
-                                ),
+                        if (eyebrow != null) ...<Widget>[
+                          const Icon(Icons.groups_rounded, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(eyebrow!, style: t.bodyMedium?.copyWith(color: Colors.white))),
+                        ] else
+                          Expanded(
+                            child: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleLarge?.copyWith(color: Colors.white, fontSize: 22)),
                           ),
-                        ),
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: .12),
-                            borderRadius: BorderRadius.circular(99),
-                            border: Border.all(color: Colors.white24),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            child: Text(
-                              '${group.cycleIndex}/${group.cycleTotal}',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
+                        CycleBadge(index: group.cycleIndex, total: group.cycleTotal),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${group.memberCount} membres',
-                      style: const TextStyle(color: Colors.white70),
+                    if (eyebrow != null) ...<Widget>[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleLarge?.copyWith(color: Colors.white, fontSize: 22)),
+                          ),
+                          if (onTap != null) const Icon(Icons.chevron_right_rounded, color: Colors.white),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Text('${group.memberCount} membres', style: t.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: .85))),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Container(height: 1, width: 220, color: Colors.white.withValues(alpha: .18)),
                     ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Montant de la cotisation',
-                      style: TextStyle(color: Colors.white70),
-                    ),
+                    Text('Montant de la cotisation', style: t.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: .85))),
                     const SizedBox(height: 4),
                     Text(
                       Xaf.format(group.contributionAmountXaf),
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            color: Colors.white,
-                          ),
+                      style: t.headlineLarge?.copyWith(color: Colors.white, fontSize: 30, fontFeatures: const <FontFeature>[FontFeature.tabularFigures()]),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
-}
-
-class _MountainPatternPainter extends CustomPainter {
-  const _MountainPatternPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint p1 = Paint()..color = KombeColors.gold.withValues(alpha: .12);
-    final Paint p2 = Paint()..color = Colors.black.withValues(alpha: .08);
-    final Path mountain = Path()
-      ..moveTo(size.width * .38, size.height)
-      ..lineTo(size.width * .72, size.height * .35)
-      ..lineTo(size.width, size.height * .64)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(mountain, p1);
-    final Path base = Path()
-      ..moveTo(0, size.height * .78)
-      ..quadraticBezierTo(size.width * .55, size.height * .62, size.width, size.height * .8)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(base, p2);
-  }
-
-  @override
-  bool shouldRepaint(covariant _MountainPatternPainter oldDelegate) => false;
 }

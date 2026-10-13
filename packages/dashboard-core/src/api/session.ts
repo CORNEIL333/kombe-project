@@ -1,21 +1,38 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ApiClient } from './client';
 
-/** Session réelle KÓMBE (ADR-0024) : `sessionId` opaque généré SERVEUR, porté
- *  en `Authorization: Bearer`, jamais un JWT, jamais dérivé côté client. */
+/** Session réelle KÓMBE : `sessionId` opaque généré SERVEUR, porté en
+ *  `Authorization: Bearer`, jamais un JWT, jamais dérivé côté client. */
 export interface KombeSession { readonly sessionId: string; readonly expiresAt: number }
 export type SessionPhase =
   | { readonly kind: 'anonymous' }
-  | { readonly kind: 'code_sent'; readonly identityId: string }
+  | { readonly kind: 'code_sent'; readonly identityId: string; readonly devCode?: string }
   | { readonly kind: 'authenticated'; readonly identityId: string; readonly session: KombeSession };
 
-/** Flux de connexion hors-bande (C02) : le serveur émet un code sur le canal
- *  de l'identité ; le client ne fournit que identityId + code, jamais de mot
- *  de passe. Les deux appels sont réels — aucun état fabriqué. */
+interface CodeRequestResult { readonly accepted: true; readonly login: string; readonly channel: string; readonly devCode?: string }
+interface CodeVerificationResult { readonly sessionId: string; readonly expiresAt: number; readonly identityId: string }
+
+/** Connexion unique de la plateforme (L-01) : téléphone (+237…) ou e-mail →
+ *  code à 6 chiffres → session. Mêmes routes que la PWA (`/v1/auth/*`) : un
+ *  membre du bureau se connecte au tableau de bord avec son numéro. Le serveur
+ *  ne révèle jamais si le compte existe. */
 export class AccessApi {
   constructor(private readonly api: ApiClient) {}
-  requestLogin(identityId: string) { return this.api.post<{ accepted: true }>('/v1/access/login-requests', { identityId }); }
-  completeLogin(identityId: string, code: string) { return this.api.post<KombeSession>('/v1/access/login-completions', { identityId, code }); }
+  requestLogin(login: string) {
+    return this.api.post<CodeRequestResult>('/v1/auth/code-requests', { login }, { 'idempotency-key': cle() });
+  }
+  async completeLogin(login: string, code: string): Promise<KombeSession & { identityId: string }> {
+    const r = await this.api.post<CodeVerificationResult>('/v1/auth/code-verifications', { login, code }, { 'idempotency-key': cle() });
+    return { sessionId: r.sessionId, expiresAt: r.expiresAt, identityId: r.identityId };
+  }
+  logout(token: string) {
+    return this.api.request<void>('/v1/auth/logout', { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: '{}' });
+  }
+}
+
+function cle(): string {
+  const c = globalThis.crypto;
+  return c && typeof c.randomUUID === 'function' ? c.randomUUID() : `k-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
 export interface SessionController {
@@ -23,32 +40,63 @@ export interface SessionController {
   readonly busy: boolean;
   readonly error: string | null;
   readonly token: string | null;
-  begin(identityId: string): Promise<void>;
+  begin(login: string): Promise<void>;
   confirm(code: string): Promise<void>;
   logout(): void;
   dismissError(): void;
 }
 
-/** Machine à états minimale du flux C02. `token` est lu à chaque requête par
+const STORAGE_KEY = 'kombe.dashboard.session';
+
+/** Session gardée pour l'onglet (sessionStorage) : un rechargement ne
+ *  déconnecte pas ; fermer l'onglet, si. Toute erreur de stockage est ignorée. */
+function restore(): SessionPhase {
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return { kind: 'anonymous' };
+    const p = JSON.parse(raw) as { identityId?: unknown; sessionId?: unknown; expiresAt?: unknown };
+    if (typeof p.identityId === 'string' && typeof p.sessionId === 'string' && typeof p.expiresAt === 'number' && p.expiresAt > Date.now()) {
+      return { kind: 'authenticated', identityId: p.identityId, session: { sessionId: p.sessionId, expiresAt: p.expiresAt } };
+    }
+  } catch { /* stockage indisponible */ }
+  return { kind: 'anonymous' };
+}
+
+function persist(phase: SessionPhase): void {
+  try {
+    if (phase.kind === 'authenticated') window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ identityId: phase.identityId, ...phase.session }));
+    else window.sessionStorage.removeItem(STORAGE_KEY);
+  } catch { /* stockage indisponible */ }
+}
+
+/** Machine à états du flux de connexion. `token` est lu à chaque requête par
  *  l'`ApiClient` (getSessionToken) — il reflète toujours la phase courante. */
 export function useSession(access: AccessApi): SessionController {
-  const [phase, setPhase] = useState<SessionPhase>({ kind: 'anonymous' });
+  const [phase, setPhase] = useState<SessionPhase>(restore);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const begin = useCallback(async (identityId: string) => {
+  useEffect(() => { persist(phase); }, [phase]);
+  const begin = useCallback(async (login: string) => {
     setBusy(true); setError(null);
-    try { await access.requestLogin(identityId); setPhase({ kind: 'code_sent', identityId }); }
-    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    try {
+      const r = await access.requestLogin(login);
+      setPhase({ kind: 'code_sent', identityId: r.login, ...(r.devCode ? { devCode: r.devCode } : {}) });
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
   }, [access]);
   const confirm = useCallback(async (code: string) => {
     if (phase.kind !== 'code_sent') return;
     setBusy(true); setError(null);
-    try { const session = await access.completeLogin(phase.identityId, code); setPhase({ kind: 'authenticated', identityId: phase.identityId, session }); }
-    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    try {
+      const s = await access.completeLogin(phase.identityId, code);
+      setPhase({ kind: 'authenticated', identityId: s.identityId, session: { sessionId: s.sessionId, expiresAt: s.expiresAt } });
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
   }, [access, phase]);
-  const logout = useCallback(() => { setPhase({ kind: 'anonymous' }); setError(null); }, []);
+  const logout = useCallback(() => {
+    if (phase.kind === 'authenticated') void access.logout(phase.session.sessionId).catch(() => undefined);
+    setPhase({ kind: 'anonymous' }); setError(null);
+  }, [access, phase]);
   const dismissError = useCallback(() => setError(null), []);
   const token = phase.kind === 'authenticated' ? phase.session.sessionId : null;
   return { phase, busy, error, token, begin, confirm, logout, dismissError };

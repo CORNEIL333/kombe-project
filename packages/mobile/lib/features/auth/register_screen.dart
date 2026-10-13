@@ -78,11 +78,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               key: _formKey,
               child: TextFormField(
                 controller: _email,
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const <String>[AutofillHints.email],
+                keyboardType: TextInputType.text,
+                autofillHints: const <String>[AutofillHints.telephoneNumber, AutofillHints.email],
                 decoration: InputDecoration(labelText: l10n.email),
                 validator: (String? value) =>
-                    AuthValidators.isEmail(value ?? '')
+                    AuthValidators.isLogin(value ?? '')
                     ? null
                     : l10n.invalidEmail,
               ),

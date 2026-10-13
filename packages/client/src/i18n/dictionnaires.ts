@@ -7,11 +7,12 @@
 
 export const fr = {
   "app.titre": "KÓMBE",
-  "app.sousTitre": "Registre de tontines fermées",
+  "app.sousTitre": "Votre tontine, plus claire.",
   "lien.evitement": "Aller au contenu principal",
   "langue.libelle": "Langue",
   "langue.fr": "Français",
   "langue.en": "English",
+  "langue.pcm": "Pidgin",
   "langue.bascule": "Changer la langue de l'interface",
 
   "parcours.titre": "Créer mon groupe",
@@ -59,7 +60,7 @@ export const fr = {
 
   "obligation.titre": "Aperçu d'une contribution",
   "obligation.consigne":
-    "Ce que vous déclarez est distingué de ce qui est validé par le serveur.",
+    "Ce que vous déclarez reste distinct de ce que le trésorier a confirmé.",
   "statut.enCours": "Déclaré — en cours de validation",
   "statut.valide": "Validé",
   "statut.conteste": "Contesté",
@@ -74,12 +75,58 @@ export const fr = {
   "horsLigne.badge": "Hors ligne",
   "horsLigne.derniereSync": "Dernière synchronisation : {date}",
   "horsLigne.brouillonsEnAttente":
-    "{nombre} brouillon(s) en attente — non validés par le serveur",
+    "{nombre} brouillon(s) sur cet appareil — pas encore envoyés au groupe",
   "horsLigne.jamaisValide":
     "Brouillon local — jamais considéré validé tant que vous êtes hors ligne",
 
   "nav.creerGroupe": "Créer un groupe",
   "nav.cotisation": "Ma cotisation",
+
+  "nav.tontines": "Mes tontines",
+  "amorce.titre": "Créer, rejoindre ou découvrir une tontine",
+  "amorce.consigne":
+    "Ces actions parlent au serveur réel. Les décisions (devise, fuseau, identités, typologie) restent serveur.",
+  "amorce.creer": "Créer une tontine",
+  "amorce.rejoindre": "Rejoindre avec un code",
+  "amorce.decouvrir": "Découvrir des tontines",
+  "amorce.parrainage": "Demander un parrainage",
+  "amorce.sessionRequise":
+    "Ouvrez une session réelle pour créer une tontine, rejoindre ou être parrainé.",
+  "amorce.chargerListe": "Charger la liste publique",
+  "amorce.creee": "Tontine créée sur le serveur.",
+  "amorce.rejointe": "Demande d'adhésion transmise (en attente de validation).",
+  "amorce.parrainDemande": "Demande de parrainage transmise au serveur.",
+  "amorce.listeVide": "Aucune tontine publique à découvrir pour le moment.",
+  "amorce.typologieP1":
+    "Typologie reconnue mais non démarrable au pilote (recette dédiée à venir).",
+  "amorce.mesTontines": "Mes adhésions",
+  "amorce.chargerMesTontines": "Voir mes tontines",
+  "amorce.mesTontinesVide":
+    "Vous n'êtes membre d'aucune tontine pour le moment.",
+  "amorce.superviseePar": "supervisée par {id}",
+  "adhesion.active": "membre actif",
+  "adhesion.pending": "adhésion en attente",
+  "adhesion.revoked": "révoqué",
+  "adhesion.departed": "parti",
+  "champ.modeleTontine": "Modèle de tontine",
+  "champ.typologie": "Typologie de rotation",
+  "champ.parentGroupe": "Groupe parent de supervision (facultatif)",
+  "aide.parentGroupe":
+    "Une association faîtière supervise des tontines ; la supervision n'a aucun droit financier.",
+  "champ.codeInvitation": "Code d'invitation reçu",
+  "champ.identifiantParrain": "Identifiant du parrain (membre actif)",
+  "bouton.creerTontine": "Créer la tontine",
+  "bouton.rejoindre": "Rejoindre",
+  "bouton.demanderParrainage": "Demander le parrainage",
+  "modele.famille": "Famille",
+  "modele.collegues": "Collègues",
+  "modele.fetes": "Fêtes",
+  "modele.construction": "Construction",
+  "modele.etudiant": "Étudiant",
+  "modele.personnalise": "Personnalisé",
+  "typologie.rotativeFermee": "Rotation fermée (égale)",
+  "typologie.tirage": "Tirage au sort",
+  "typologie.negocie": "Négocié",
 
   "connexion.titre": "Connexion",
   "connexion.consigne":
@@ -123,10 +170,21 @@ export const fr = {
   "scene.cotisation.accent": "le groupe confirme.",
   "scene.cotisation.texte":
     "Une déclaration reste en attente tant qu'une autre personne du groupe ne l'a pas confirmée. Rien n'est présenté comme payé avant.",
+  "connexion.ongletConnexion": "Se connecter",
+  "connexion.ongletInscription": "Créer un compte",
+  "connexion.titreInscription": "Créer votre compte",
+  "connexion.consigneInscription":
+    "Un code à 6 chiffres valide votre adresse email — aucun mot de passe.",
+  "connexion.codeInscriptionEnvoye":
+    "Code d'inscription envoyé — vérifiez votre boîte de réception.",
+  "bouton.creerCompte": "Créer mon compte",
+  "bouton.verifierCompte": "Vérifier et activer mon compte",
+  "connexion.compteVerifie":
+    "Compte vérifié — saisissez le code de connexion qui vient de vous être envoyé.",
 
   "cotisation.titre": "Déclarer une cotisation",
   "cotisation.consigne":
-    "Ce que vous déclarez est distingué de ce qui est validé par le serveur.",
+    "Ce que vous déclarez reste distinct de ce que le trésorier a confirmé.",
   "champ.groupe": "Identifiant du groupe",
   "champ.obligation": "Identifiant de l'obligation",
   "bouton.charger": "Charger l'obligation",
@@ -145,17 +203,19 @@ export const fr = {
 } as const;
 
 export type CleI18n = keyof typeof fr;
-export type Langue = "fr" | "en";
+/** `pcm` : pidgin camerounais (bêta) ; toute chaîne non traduite retombe sur l'anglais. */
+export type Langue = "fr" | "en" | "pcm";
 
 // EN couvre exactement les mêmes clés (le type force la complétude : aucune
 // chaîne FR ne peut rester sans équivalent EN à la compilation).
 export const en: Record<CleI18n, string> = {
   "app.titre": "KÓMBE",
-  "app.sousTitre": "Closed tontine registry",
+  "app.sousTitre": "Your tontine, made clear.",
   "lien.evitement": "Skip to main content",
   "langue.libelle": "Language",
   "langue.fr": "Français",
   "langue.en": "English",
+  "langue.pcm": "Pidgin",
   "langue.bascule": "Change the interface language",
 
   "parcours.titre": "Create my group",
@@ -203,7 +263,7 @@ export const en: Record<CleI18n, string> = {
 
   "obligation.titre": "Contribution preview",
   "obligation.consigne":
-    "What you declare is kept apart from what the server validates.",
+    "What you declare stays separate from what the treasurer has confirmed.",
   "statut.enCours": "Declared — awaiting validation",
   "statut.valide": "Validated",
   "statut.conteste": "Disputed",
@@ -217,12 +277,58 @@ export const en: Record<CleI18n, string> = {
   "horsLigne.badge": "Offline",
   "horsLigne.derniereSync": "Last sync: {date}",
   "horsLigne.brouillonsEnAttente":
-    "{nombre} draft(s) pending — not validated by the server",
+    "{nombre} draft(s) on this device — not yet sent to the group",
   "horsLigne.jamaisValide":
     "Local draft — never treated as validated while you are offline",
 
   "nav.creerGroupe": "Create a group",
   "nav.cotisation": "My contribution",
+
+  "nav.tontines": "My tontines",
+  "amorce.titre": "Create, join or discover a tontine",
+  "amorce.consigne":
+    "These actions talk to the real server. Decisions (currency, timezone, identities, rotation type) stay server-side.",
+  "amorce.creer": "Create a tontine",
+  "amorce.rejoindre": "Join with a code",
+  "amorce.decouvrir": "Discover tontines",
+  "amorce.parrainage": "Request a sponsorship",
+  "amorce.sessionRequise":
+    "Open a real session to create a tontine, join, or be sponsored.",
+  "amorce.chargerListe": "Load the public list",
+  "amorce.creee": "Tontine created on the server.",
+  "amorce.rejointe": "Join request submitted (awaiting validation).",
+  "amorce.parrainDemande": "Sponsorship request submitted to the server.",
+  "amorce.listeVide": "No public tontine to discover right now.",
+  "amorce.typologieP1":
+    "Rotation type recognized but not startable on the pilot (dedicated recipe to come).",
+  "amorce.mesTontines": "My memberships",
+  "amorce.chargerMesTontines": "View my tontines",
+  "amorce.mesTontinesVide":
+    "You are not a member of any tontine yet.",
+  "amorce.superviseePar": "supervised by {id}",
+  "adhesion.active": "active member",
+  "adhesion.pending": "membership pending",
+  "adhesion.revoked": "revoked",
+  "adhesion.departed": "departed",
+  "champ.modeleTontine": "Tontine model",
+  "champ.typologie": "Rotation type",
+  "champ.parentGroupe": "Supervising parent group (optional)",
+  "aide.parentGroupe":
+    "An umbrella association supervises tontines; supervision carries no financial rights.",
+  "champ.codeInvitation": "Invitation code received",
+  "champ.identifiantParrain": "Sponsor identifier (active member)",
+  "bouton.creerTontine": "Create the tontine",
+  "bouton.rejoindre": "Join",
+  "bouton.demanderParrainage": "Request the sponsorship",
+  "modele.famille": "Family",
+  "modele.collegues": "Colleagues",
+  "modele.fetes": "Parties",
+  "modele.construction": "Construction",
+  "modele.etudiant": "Student",
+  "modele.personnalise": "Custom",
+  "typologie.rotativeFermee": "Closed (equal) rotation",
+  "typologie.tirage": "Random draw",
+  "typologie.negocie": "Negotiated",
 
   "connexion.titre": "Sign in",
   "connexion.consigne":
@@ -266,10 +372,21 @@ export const en: Record<CleI18n, string> = {
   "scene.cotisation.accent": "the group confirms.",
   "scene.cotisation.texte":
     "A declaration stays pending until another group member confirms it. Nothing is shown as paid before that.",
+  "connexion.ongletConnexion": "Sign in",
+  "connexion.ongletInscription": "Create an account",
+  "connexion.titreInscription": "Create your account",
+  "connexion.consigneInscription":
+    "A 6-digit code verifies your email address — no password.",
+  "connexion.codeInscriptionEnvoye":
+    "Sign-up code sent — check your inbox.",
+  "bouton.creerCompte": "Create my account",
+  "bouton.verifierCompte": "Verify and activate my account",
+  "connexion.compteVerifie":
+    "Account verified — enter the sign-in code that was just sent to you.",
 
   "cotisation.titre": "Declare a contribution",
   "cotisation.consigne":
-    "What you declare is kept apart from what the server validates.",
+    "What you declare stays separate from what the treasurer has confirmed.",
   "champ.groupe": "Group identifier",
   "champ.obligation": "Obligation identifier",
   "bouton.charger": "Load the obligation",
@@ -287,7 +404,13 @@ export const en: Record<CleI18n, string> = {
   "cotisation.rejouee": "Already declared identically — no new write (replay).",
 };
 
-export const dictionnaires: Record<Langue, Record<CleI18n, string>> = { fr, en };
+export const pcm: Partial<Record<CleI18n, string>> = {
+  "app.sousTitre": "Wuna njangi, clear clear.",
+  "langue.libelle": "Language",
+  "langue.bascule": "Change di language",
+};
+
+export const dictionnaires: Record<Langue, Partial<Record<CleI18n, string>>> = { fr, en, pcm };
 
 /** Interpolation minimaliste : remplace `{nom}` par la valeur fournie. */
 export function interpoler(

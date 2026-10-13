@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/formatters/labels.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/section_card.dart';
@@ -51,7 +52,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     child: Icon(Icons.description_outlined),
                   ),
                   title: Text(item.title),
-                  subtitle: Text(item.kind.name),
+                  subtitle: Text(KombeLabels.documentKind(item.kind)),
                   trailing: const Icon(Icons.open_in_new),
                   onTap: () => launchUrl(
                     item.downloadUri,

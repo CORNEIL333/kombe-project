@@ -71,6 +71,7 @@ async function withIdentity(client, identityId, fn) {
 async function main() {
   const migrator = new pg.Client({ connectionString: url });
   await migrator.connect();
+  await (await import("../scripts/guard.mjs")).assertNonProdTeardown(migrator, "kombe.db.isolation");
   const observations = {};
 
   try {
@@ -92,37 +93,49 @@ async function main() {
     `);
 
     // État initial reproductible : on repart d'un schéma propre en base de test.
-    await runSql(migrator, "migrations/0023_worker_discovery.down.sql");
-    await runSql(migrator, "migrations/0022_cycle_schedule.down.sql");
-    await runSql(migrator, "migrations/0021_privacy_restore_points.down.sql");
-    await runSql(migrator, "migrations/0020_group_resolvers.down.sql");
-    await runSql(migrator, "migrations/0019_token_security.down.sql");
-    await runSql(migrator, "migrations/0018_session_resolver.down.sql");
-    await runSql(migrator, "migrations/0017_pilot_metrics.down.sql");
-    await runSql(migrator, "migrations/0016_privacy_law.down.sql");
-    await runSql(migrator, "migrations/0015_export_manifest.down.sql");
-    await runSql(migrator, "migrations/0014_support_security.down.sql");
-    await runSql(migrator, "migrations/0013_outbox.down.sql");
-    await runSql(migrator, "migrations/0012_proposal.down.sql");
-    await runSql(migrator, "migrations/0011_disbursement.down.sql");
-    await runSql(migrator, "migrations/0010_dispute_cases.down.sql");
-    await runSql(migrator, "migrations/0009_contribution_validation.down.sql");
-    await runSql(migrator, "migrations/0008_contribution_idempotency.down.sql");
-    await runSql(migrator, "migrations/0007_event_journal.down.sql");
-    // Miroir inverse COMPLET de la liste up : 0002/0003/0004 créent des tables
-    // (export_request, role_change_request, access_session, verification_token,
-    // identity_access, invitation) dont les FK référencent identity/group/
-    // membership. Sans leurs .down.sql ici, 0001_init.down.sql DROPpe ces tables
-    // de base SANS CASCADE et PostgreSQL refuse (`other objects depend on it`),
-    // ce qui fait FAILLIR dbtest sur toute base réelle (cf. prérequis déclaré en
-    // tête de 0001_init.down.sql). 0005/0006 n'ALTÈRENT que des tables que 0001
-    // droppe déjà : leurs downs sont redondants mais posés pour symétrie.
-    await runSql(migrator, "migrations/0006_cycle_schedule.down.sql");
-    await runSql(migrator, "migrations/0005_rules_engine.down.sql");
-    await runSql(migrator, "migrations/0004_group_governance.down.sql");
-    await runSql(migrator, "migrations/0003_access.down.sql");
-    await runSql(migrator, "migrations/0002_role_change.down.sql");
-    await runSql(migrator, "migrations/0001_init.down.sql");
+    // Base VIERGE (CI : conteneur neuf) : rien à démonter — les .down.sql
+    // historiques ne sont pas tolérants à l'absence de leurs tables (X-07).
+    const vierge = (await migrator.query(`SELECT to_regclass('public."group"') IS NULL AS v`)).rows[0].v === true;
+    if (!vierge) {
+      await runSql(migrator, "migrations/0030_decisions.down.sql");
+      await runSql(migrator, "migrations/0029_ops_console.down.sql");
+      await runSql(migrator, "migrations/0028_product_api.down.sql");
+      await runSql(migrator, "migrations/0027_association.down.sql");
+      await runSql(migrator, "migrations/0026_tontine_core.down.sql");
+      await runSql(migrator, "migrations/0025_member_groups.down.sql");
+      await runSql(migrator, "migrations/0024_group_onboarding.down.sql");
+      await runSql(migrator, "migrations/0023_worker_discovery.down.sql");
+      await runSql(migrator, "migrations/0022_cycle_schedule.down.sql");
+      await runSql(migrator, "migrations/0021_privacy_restore_points.down.sql");
+      await runSql(migrator, "migrations/0020_group_resolvers.down.sql");
+      await runSql(migrator, "migrations/0019_token_security.down.sql");
+      await runSql(migrator, "migrations/0018_session_resolver.down.sql");
+      await runSql(migrator, "migrations/0017_pilot_metrics.down.sql");
+      await runSql(migrator, "migrations/0016_privacy_law.down.sql");
+      await runSql(migrator, "migrations/0015_export_manifest.down.sql");
+      await runSql(migrator, "migrations/0014_support_security.down.sql");
+      await runSql(migrator, "migrations/0013_outbox.down.sql");
+      await runSql(migrator, "migrations/0012_proposal.down.sql");
+      await runSql(migrator, "migrations/0011_disbursement.down.sql");
+      await runSql(migrator, "migrations/0010_dispute_cases.down.sql");
+      await runSql(migrator, "migrations/0009_contribution_validation.down.sql");
+      await runSql(migrator, "migrations/0008_contribution_idempotency.down.sql");
+      await runSql(migrator, "migrations/0007_event_journal.down.sql");
+      // Miroir inverse COMPLET de la liste up : 0002/0003/0004 créent des tables
+      // (export_request, role_change_request, access_session, verification_token,
+      // identity_access, invitation) dont les FK référencent identity/group/
+      // membership. Sans leurs .down.sql ici, 0001_init.down.sql DROPpe ces tables
+      // de base SANS CASCADE et PostgreSQL refuse (`other objects depend on it`),
+      // ce qui fait FAILLIR dbtest sur toute base réelle (cf. prérequis déclaré en
+      // tête de 0001_init.down.sql). 0005/0006 n'ALTÈRENT que des tables que 0001
+      // droppe déjà : leurs downs sont redondants mais posés pour symétrie.
+      await runSql(migrator, "migrations/0006_cycle_schedule.down.sql");
+      await runSql(migrator, "migrations/0005_rules_engine.down.sql");
+      await runSql(migrator, "migrations/0004_group_governance.down.sql");
+      await runSql(migrator, "migrations/0003_access.down.sql");
+      await runSql(migrator, "migrations/0002_role_change.down.sql");
+      await runSql(migrator, "migrations/0001_init.down.sql");
+    }
     // Rôles créés AVANT les migrations : 0007 (REVOKE kombe_app) et 0013
     // (POLICY/GRANT kombe_app, kombe_worker) les référencent ; roles.sql en
     // dernier reste nécessaire pour les grants sur tables existantes.
@@ -150,6 +163,13 @@ async function main() {
     await runSql(migrator, "migrations/0021_privacy_restore_points.sql");
     await runSql(migrator, "migrations/0022_cycle_schedule.sql");
     await runSql(migrator, "migrations/0023_worker_discovery.sql");
+    await runSql(migrator, "migrations/0024_group_onboarding.sql");
+    await runSql(migrator, "migrations/0025_member_groups.sql");
+    await runSql(migrator, "migrations/0026_tontine_core.sql");
+    await runSql(migrator, "migrations/0027_association.sql");
+    await runSql(migrator, "migrations/0028_product_api.sql");
+    await runSql(migrator, "migrations/0029_ops_console.sql");
+    await runSql(migrator, "migrations/0030_decisions.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
@@ -831,12 +851,51 @@ async function main() {
       reopen_cross_link_accepted: reopenCrossAccepted,
     };
 
+    // ── C30-DECISION : scrutins et bulletins isolés par groupe, bulletin définitif.
+    await migrator.query(`
+      INSERT INTO group_decision (decision_id, group_id, kind, params, reason, opened_by_identity_id, closes_at, electorate)
+        VALUES ('dec_a','grpA','pause','{}','Pause fictive','idn_a', now() + interval '1 day', 1),
+               ('dec_b','grpB','pause','{}','Pause fictive','idn_b', now() + interval '1 day', 1)
+        ON CONFLICT DO NOTHING;
+    `);
+    const c30Cross = await withTenant(app, "grpA", async () => {
+      const r = await app.query("SELECT count(*)::int AS n FROM group_decision WHERE decision_id = 'dec_b'");
+      return r.rows[0].n;
+    });
+    let c30ForeignBallot = true;
+    try {
+      await withTenant(app, "grpA", async () => {
+        await app.query("INSERT INTO decision_ballot (group_id, decision_id, membership_id, choice) VALUES ('grpB','dec_b','mem_b','yes')");
+      });
+    } catch {
+      c30ForeignBallot = false;
+    }
+    let c30BallotUpdate = true;
+    await app.query("BEGIN");
+    await app.query("SELECT set_config('kombe.group_id', 'grpA', true)");
+    await app.query("INSERT INTO decision_ballot (group_id, decision_id, membership_id, choice) VALUES ('grpA','dec_a','mem_a','yes')");
+    try {
+      await app.query("SAVEPOINT s");
+      await app.query("UPDATE decision_ballot SET choice = 'no' WHERE decision_id = 'dec_a'");
+    } catch {
+      c30BallotUpdate = false;
+    }
+    await app.query("ROLLBACK");
+    observations.C30_DECISION = {
+      cross_group_rows: c30Cross,
+      foreign_ballot_accepted: c30ForeignBallot,
+      ballot_update_accepted: c30BallotUpdate,
+    };
+
     await app.end();
 
     const { runC13 } = await import("../../worker/test/postgres.mjs");
     Object.assign(observations, await runC13(pg, migrator, url));
 
     const pass =
+      observations.C30_DECISION.cross_group_rows === 0 &&
+      observations.C30_DECISION.foreign_ballot_accepted === false &&
+      observations.C30_DECISION.ballot_update_accepted === false &&
       observations.C01_TENANT.cross_group_rows === 0 &&
       observations.C01_FK.foreign_link_accepted === false &&
       observations.C01_POOL.leaked_rows === 0 &&

@@ -3,11 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/formatters/labels.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/screen_states.dart';
-import '../../core/widgets/server_action_guard.dart';
 import '../../core/widgets/section_card.dart';
+import '../../core/widgets/server_action_guard.dart';
 import '../../domain/entities/dispute.dart';
 import '../../domain/repositories/dispute_repository.dart';
 
@@ -65,7 +66,7 @@ class _DisputesScreenState extends State<DisputesScreen> {
                     ),
                     title: Text(item.subject),
                     subtitle: Text(
-                      '${item.status.name} • ${DateFormat.yMMMd(locale).format(item.openedAtUtc.toLocal())}',
+                      '${KombeLabels.disputeStatus(item.status)} • ${DateFormat.yMMMd(locale).format(item.openedAtUtc.toLocal())}',
                     ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => context.push('/app/disputes/${item.id}'),
@@ -208,7 +209,7 @@ class _DisputeDetailScreenState extends State<DisputeDetailScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  dispute.summary.status.name,
+                  KombeLabels.disputeStatus(dispute.summary.status),
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
                 const SizedBox(height: 18),

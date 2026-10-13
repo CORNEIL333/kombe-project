@@ -16,9 +16,13 @@ import { DomainError } from "./errors.js";
 export const ROLES = [
   "founder",
   "animator",
+  "vice_president",
   "treasurer",
+  "treasurer_deputy",
   "secretary",
   "auditor",
+  "censor",
+  "advisor",
   "member",
 ] as const;
 export type Role = (typeof ROLES)[number];
@@ -95,6 +99,30 @@ const MATRIX: Record<Role, readonly Action[]> = {
     "journal.read",
     "journal.checkpoint",
   ],
+  // Bureau élargi (L-11, ADR-0026). Le vice-président supplée le président
+  // sans clôturer seul un tour ; le trésorier adjoint confirme les cotisations
+  // du trésorier (indépendance par objet) ; le censeur et le conseiller ont
+  // les droits d'un membre, leurs actes propres passent par le module tontine.
+  vice_president: [
+    "group.read",
+    "member.invite",
+    "rules.accept",
+    "contribution.declare",
+    "vote.open",
+    "vote.cast",
+    "dispute.raise",
+    "journal.read",
+  ],
+  treasurer_deputy: [
+    "group.read",
+    "contribution.declare",
+    "contribution.validate",
+    "rules.accept",
+    "vote.cast",
+    "journal.read",
+  ],
+  censor: ["group.read", "rules.accept", "contribution.declare", "vote.cast", "dispute.raise", "journal.read"],
+  advisor: ["group.read", "rules.accept", "contribution.declare", "vote.cast", "dispute.raise", "journal.read"],
   member: [
     "group.read",
     "role.accept",

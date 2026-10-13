@@ -34,7 +34,16 @@ export function FournisseurLangue({
   readonly langueInitiale?: Langue;
   readonly children: ReactNode;
 }) {
-  const [langue, setLangue] = useState<Langue>(langueInitiale);
+  // La langue choisie est gardée sur ce téléphone (sinon chaque ouverture
+  // repartait en français).
+  const [langue, setLangue] = useState<Langue>(() => {
+    try {
+      const l = window.localStorage.getItem("kombe.langue");
+      return l === "fr" || l === "en" || l === "pcm" ? l : langueInitiale;
+    } catch {
+      return langueInitiale;
+    }
+  });
 
   // Miroir `document.lang` pour la prononciation des lecteurs d'écran.
   useEffect(() => {
@@ -43,11 +52,16 @@ export function FournisseurLangue({
 
   const definirLangue = useCallback((prochaine: Langue) => {
     setLangue(prochaine);
+    try {
+      window.localStorage.setItem("kombe.langue", prochaine);
+    } catch {
+      /* stockage indisponible : la langue vaut pour cette visite */
+    }
   }, []);
 
   const t = useCallback<ValeurLangue["t"]>(
     (cle, variables) =>
-      interpoler(dictionnaires[langue][cle] ?? dictionnaires.fr[cle], variables),
+      interpoler(dictionnaires[langue][cle] ?? (langue === "pcm" ? dictionnaires.en[cle] : undefined) ?? (dictionnaires.fr[cle] as string), variables),
     [langue],
   );
 
@@ -76,6 +90,7 @@ export function BasculeLangue() {
   const options: ReadonlyArray<{ valeur: Langue; libelle: string }> = [
     { valeur: "fr", libelle: t("langue.fr") },
     { valeur: "en", libelle: t("langue.en") },
+    { valeur: "pcm", libelle: t("langue.pcm") },
   ];
   return (
     <div

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/formatters/labels.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/screen_states.dart';
@@ -54,7 +55,7 @@ class _ContributionDetailScreenState extends State<ContributionDetailScreen> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Statut'),
-                      trailing: Text(contribution.status.name),
+                      trailing: Text(KombeLabels.contributionStatus(contribution.status)),
                     ),
                     const Divider(),
                     ListTile(
@@ -62,7 +63,7 @@ class _ContributionDetailScreenState extends State<ContributionDetailScreen> {
                       title: const Text('Canal déclaré'),
                       // '—' = le contrat de lecture ne rend pas le canal ;
                       // le client ne l'invente pas.
-                      trailing: Text(contribution.channel?.name ?? '—'),
+                      trailing: Text(KombeLabels.channel(contribution.channel)),
                     ),
                   ],
                 ),

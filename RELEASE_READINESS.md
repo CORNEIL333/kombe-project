@@ -27,13 +27,13 @@ DEPLOY.md §7.
 | §22 smoke release | `release-smoke.mjs` contre production déployée | **NON EXÉCUTÉ** — attend le déploiement (job CI `release-smoke` prêt) | — |
 | §17 vide→dernier jalon | `migrateEmptyToLatest.pg.mjs` sur base réelle | voir RELEASE_MANIFEST.json | 2026-10-08 |
 | §23/§24 backup/restore | 6.1 puis 6.2 de DEPLOY.md exécutés | **BLOCKED_EXTERNAL** (binaires PG absents de l'hôte) | — |
-| Base production Neon | DEPLOY.md §7.1 exécuté (base `kombe_prod`, 25 jalons, kombe_app vérifié) | **PASS (exécuté 2026-10-08)** — base dédiée dans le projet existant (bascule projet dédié : §6.3) | 2026-10-08 |
+| Base production Neon | DEPLOY.md §7.1 exécuté (base `kombe_prod`, **27 jalons**, kombe_app vérifié) | **PASS (exécuté 2026-10-08 ; avancé 2026-10-09 : 0024+0025 appliqués, kombe_app EXECUTE `kombe_member_groups` vérifié en base réelle)** — base dédiée dans le projet existant (bascule projet dédié : §6.3) | 2026-10-09 |
 | Décision hébergement | `[OPEN-D01]/[OPEN-D02]` de STACK.md | **TRANCHÉ** (2026-10-08, DEPLOY.md §4/§7) | 2026-10-08 |
 
 ## Prochaine transition
 
 `STAGING_READY` → `PRODUCTION_DEPLOYED` exige (ordre DEPLOY.md §7.0) :
-projet Neon production créé + migrations exécutées (25 jalons) → API Vercel
+projet Neon production créé + migrations exécutées (27 jalons) → API Vercel
 déployée avec `health/ready` en mode réel → config des 4 dashboards pointée
 vers l'URL API → dashboards Cloudflare + PWA + admin Vercel déployés →
 `release-smoke` vert contre l'API en production.

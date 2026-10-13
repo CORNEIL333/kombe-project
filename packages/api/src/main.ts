@@ -13,6 +13,7 @@
  * squelette, jamais un backend de production (en mode réel, les routes sans
  * store PG réel répondent 404 plutôt que de servir des données fictives).
  */
+import { registerWebStatic } from "./webStatic.js";
 import { buildApp } from "./server.js";
 import { createApiPool, readApiDatabaseUrl } from "./db/pgPool.js";
 
@@ -56,6 +57,9 @@ async function main(): Promise<void> {
   const databaseUrl = readApiDatabaseUrl();
   const pool = databaseUrl ? createApiPool({ connectionString: databaseUrl }) : undefined;
   const app = buildApp(pool ? { pool } : {});
+  // Site web à la même origine (scripts/build-web.mjs → dist-web) : optionnel.
+  const webRoot = process.env.KOMBE_WEB_ROOT;
+  if (webRoot) registerWebStatic(app, webRoot);
   const port = readPort();
   const host = readHost();
 

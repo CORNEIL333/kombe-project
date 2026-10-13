@@ -4,7 +4,7 @@
          (la permission n'existait que sous src/debug). -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="kombe_mobile"
+        android:label="KÓMBE"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
