@@ -65,6 +65,7 @@ const UP_MIGRATIONS = [
   "migrations/0026_tontine_core.sql",
   "migrations/0027_association.sql",
   "migrations/0028_product_api.sql",
+  "migrations/0029_ops_console.sql",
   "provision/roles.sql",
 ];
 

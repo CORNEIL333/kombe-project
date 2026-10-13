@@ -123,7 +123,7 @@ try {
   `);
 
   const DOWN = [
-    "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
+    "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
     "migrations/0016_privacy_law.down.sql", "migrations/0015_export_manifest.down.sql",
     "migrations/0014_support_security.down.sql", "migrations/0013_outbox.down.sql",
     "migrations/0012_proposal.down.sql", "migrations/0011_disbursement.down.sql",
@@ -143,7 +143,7 @@ try {
     "migrations/0010_dispute_cases.sql", "migrations/0011_disbursement.sql", "migrations/0012_proposal.sql",
     "migrations/0013_outbox.sql", "migrations/0014_support_security.sql", "migrations/0015_export_manifest.sql",
     "migrations/0016_privacy_law.sql", "migrations/0017_pilot_metrics.sql",
-    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "provision/roles.sql",
+    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "provision/roles.sql",
   ];
   for (const f of UP) await runSql(migrator, f);
 
@@ -283,6 +283,17 @@ try {
     notFoundRes.statusCode === 404 && notFoundRes.json().code === "RESERVATION_INCOHERENTE",
     { status: notFoundRes.statusCode, body: notFoundRes.json() },
   );
+
+  // ── X-08 : indicateurs GLOBAUX réservés aux opérateurs de la plateforme ──
+  const econRefused = await inject({
+    method: "POST", url: "/v1/metrics/economics", headers: headers(sessionId),
+    payload: { exposedMembers: 10, paidCount: 2, promisedCount: 5, supportMinutes: 0, supportCostPerMinuteMinor: "0", infrastructureCostMinor: "0", cancellations: 0, taxesMinor: "0" },
+  });
+  const riskRefused = await inject({ method: "GET", url: "/v1/metrics/risks", headers: headers(sessionId) });
+  check("M-OPERATOR-ONLY", econRefused.statusCode === 403 && riskRefused.statusCode === 403, {
+    economics: econRefused.statusCode, risks: riskRefused.statusCode,
+  });
+  await migrator.query(`UPDATE identity_access SET is_operator = true WHERE identity_id = 'membre_m@example.test'`);
 
   // ── M-ECONOMICS : calcul RÉEL (2/10 = 20 % < 25 % ⇒ G2 non atteinte) ──────
   const econRes = await inject({

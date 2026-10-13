@@ -93,6 +93,7 @@ async function main() {
     `);
 
     // État initial reproductible : on repart d'un schéma propre en base de test.
+    await runSql(migrator, "migrations/0029_ops_console.down.sql");
     await runSql(migrator, "migrations/0028_product_api.down.sql");
     await runSql(migrator, "migrations/0027_association.down.sql");
     await runSql(migrator, "migrations/0026_tontine_core.down.sql");
@@ -161,6 +162,7 @@ async function main() {
     await runSql(migrator, "migrations/0026_tontine_core.sql");
     await runSql(migrator, "migrations/0027_association.sql");
     await runSql(migrator, "migrations/0028_product_api.sql");
+    await runSql(migrator, "migrations/0029_ops_console.sql");
     await runSql(migrator, "provision/roles.sql");
 
     // Deux groupes A/B, une identité et une obligation chacune (fictives).
