@@ -23,11 +23,27 @@ export interface CodeMessage {
 
 export interface CodeSender {
   readonly simulated: boolean;
+  /** Canaux réellement servis par ce fournisseur (vide : voie fermée). */
+  readonly channels: readonly ("sms" | "whatsapp" | "email")[];
   send(message: CodeMessage): Promise<void>;
+}
+
+/**
+ * Production sans fournisseur SMS configuré : l'API démarre quand même (la
+ * connexion par e-mail reste ouverte) et la voie SMS répond un refus clair.
+ * Jamais un faux envoi : rien n'est prétendu parti.
+ */
+export class DisabledCodeSender implements CodeSender {
+  readonly simulated = false;
+  readonly channels = [] as const;
+  async send(): Promise<void> {
+    throw new DomainError("SMS_DELIVERY_FAILED", "Envoi par SMS pas encore ouvert : connectez-vous par e-mail");
+  }
 }
 
 export class SimulatorCodeSender implements CodeSender {
   readonly simulated = true;
+  readonly channels = ["sms", "whatsapp"] as const;
   readonly sent: CodeMessage[] = [];
   async send(message: CodeMessage): Promise<void> {
     this.sent.push(message);
@@ -37,6 +53,7 @@ export class SimulatorCodeSender implements CodeSender {
 
 export class AfricasTalkingSender implements CodeSender {
   readonly simulated = false;
+  readonly channels = ["sms"] as const;
   constructor(
     private readonly username: string,
     private readonly apiKey: string,
@@ -61,6 +78,7 @@ export class AfricasTalkingSender implements CodeSender {
 
 export class WebhookSender implements CodeSender {
   readonly simulated = false;
+  readonly channels = ["sms", "whatsapp"] as const;
   constructor(
     private readonly url: string,
     private readonly token: string | undefined,
@@ -82,10 +100,14 @@ export class WebhookSender implements CodeSender {
 
 /** Adapte l'expéditeur e-mail existant (Resend) au contrat d'envoi de code. */
 export class EmailCodeSender implements CodeSender {
+  readonly channels: readonly "email"[];
   constructor(
     private readonly email: EmailSender,
     readonly simulated: boolean,
-  ) {}
+    available = true,
+  ) {
+    this.channels = available ? ["email"] : [];
+  }
   async send(message: CodeMessage): Promise<void> {
     try {
       await this.email.send({ to: message.to, subject: "Votre code KÓMBE", text: message.text });
@@ -118,7 +140,10 @@ export function codeSenderFromEnv(env: NodeJS.ProcessEnv = process.env): CodeSen
       if (!url || !/^https:\/\//.test(url)) throw new Error("KOMBE_SMS_WEBHOOK_URL (https://…) est requise.");
       return new WebhookSender(url, env.KOMBE_SMS_WEBHOOK_TOKEN);
     }
+    case "":
+      // Production sans fournisseur : voie SMS fermée, e-mail ouvert (DEPLOY.md).
+      return new DisabledCodeSender();
     default:
-      throw new Error("KOMBE_SMS_PROVIDER absent ou inconnu (simulator | africastalking | webhook).");
+      throw new Error("KOMBE_SMS_PROVIDER inconnu (simulator | africastalking | webhook).");
   }
 }

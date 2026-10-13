@@ -3,7 +3,7 @@
    pas de réseau SMS. Le serveur ne dit jamais si le compte existe : le premier
    code vérifié crée le compte. À la première connexion, on demande le nom. */
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { acces, memoriserSession, type Session } from "./api.js";
 import { Champ, Retour, useAction } from "./ui.js";
 import { useTextes } from "./textes.js";
@@ -65,6 +65,26 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
   const [session, setSession] = useState<Session | null>(null);
   const [nom, setNom] = useState("");
   const action = useAction();
+  // Canaux réellement ouverts sur ce déploiement (ex. pas encore de compte SMS :
+  // seule la connexion par e-mail est proposée). En cas d'échec : tous affichés.
+  const [canaux, setCanaux] = useState<readonly Voie[]>(["sms", "whatsapp", "email"]);
+  useEffect(() => {
+    let actif = true;
+    acces.canaux().then(
+      (c) => {
+        if (!actif) return;
+        const ouverts = (["sms", "whatsapp", "email"] as const).filter((v) => c[v]);
+        if (ouverts.length) {
+          setCanaux(ouverts);
+          setVoie((v) => (ouverts.includes(v) ? v : (ouverts[0] as Voie)));
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      actif = false;
+    };
+  }, []);
 
   const envoyer = async (e: FormEvent) => {
     e.preventDefault();
@@ -150,7 +170,7 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
             <form onSubmit={envoyer} className="pile">
               <fieldset className="choix-segment">
                 <legend className="visuellement-cache">{tx("cx.titre")}</legend>
-                {(["sms", "whatsapp", "email"] as const).map((v) => (
+                {canaux.map((v) => (
                   <label key={v} className={voie === v ? "segment segment--actif" : "segment"}>
                     <input type="radio" name="voie" value={v} checked={voie === v} onChange={() => setVoie(v)} />
                     {tx(v === "sms" ? "cx.parSms" : v === "whatsapp" ? "cx.parWhatsapp" : "cx.parEmail")}

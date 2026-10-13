@@ -130,6 +130,7 @@ const t = (id: string) => `/v1/tontines/${encodeURIComponent(id)}`;
 /* ── Accès ─────────────────────────────────────────────────────────────── */
 
 export const acces = {
+  canaux: () => appel<{ sms: boolean; whatsapp: boolean; email: boolean }>(null, "GET", "/v1/auth/channels"),
   demanderCode: (login: string, channel?: "sms" | "whatsapp" | "email") =>
     appel<AuthCodeRequestResult>(null, "POST", "/v1/auth/code-requests", { login, ...(channel ? { channel } : {}) }),
   verifierCode: (login: string, code: string) => appel<AuthSessionResult>(null, "POST", "/v1/auth/code-verifications", { login, code }),

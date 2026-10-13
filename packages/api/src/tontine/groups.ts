@@ -75,8 +75,14 @@ function invitationCode(): string {
   return s;
 }
 
+/** Adresse publique de la PWA pour les liens d'invitation : explicite, sinon
+ *  le domaine de production fourni par Vercel (même origine que l'API). */
 export function appUrl(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.KOMBE_PUBLIC_APP_URL ?? "http://localhost:5173").replace(/\/+$/, "");
+  const explicit = env.KOMBE_PUBLIC_APP_URL;
+  if (explicit) return explicit.replace(/\/+$/, "");
+  const vercel = env.VERCEL_PROJECT_PRODUCTION_URL ?? env.VERCEL_URL;
+  if (vercel) return `https://${vercel.replace(/^https?:\/\//, "").replace(/\/+$/, "")}`;
+  return "http://localhost:5173";
 }
 
 function flags(): TontineDetail["flags"] {

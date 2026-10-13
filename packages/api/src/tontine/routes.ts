@@ -105,12 +105,14 @@ export interface TontineRoutesOptions {
   readonly emailSender: EmailSender;
   /** Expéditeur e-mail simulé (pas de clé Resend hors production). */
   readonly emailSimulated: boolean;
+  /** Faux si la production n'a pas de clé Resend : voie e-mail fermée. */
+  readonly emailAvailable?: boolean;
   readonly codeSender?: CodeSender;
 }
 
 export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesOptions): void {
   const { pool, now } = opts;
-  const auth = new TontineAuth(pool, opts.codeSender ?? codeSenderFromEnv(), new EmailCodeSender(opts.emailSender, opts.emailSimulated), now);
+  const auth = new TontineAuth(pool, opts.codeSender ?? codeSenderFromEnv(), new EmailCodeSender(opts.emailSender, opts.emailSimulated, opts.emailAvailable !== false), now);
   const groups = new GroupService(pool, now);
   const cycle = new CycleService(pool, now);
   const meetings = new MeetingService(pool, now);
@@ -138,6 +140,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   }
 
   /* ── Connexion ─────────────────────────────────────────────────────── */
+  app.get("/v1/auth/channels", async () => auth.channels());
   app.post("/v1/auth/code-requests", async (req, reply) => reply.code(202).send(await auth.requestCode(S.codeRequest.parse(req.body))));
   app.post("/v1/auth/code-verifications", async (req, reply) => reply.code(201).send(await auth.verifyCode(S.codeVerify.parse(req.body))));
   app.post("/v1/auth/logout", async (req, reply) => {

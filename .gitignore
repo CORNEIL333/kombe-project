@@ -120,3 +120,4 @@ harness/reports/*.html
 *.temp
 .scratch/
 .neon
+dist-web/

@@ -13,7 +13,8 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"]],
   use: {
-    baseURL: "http://localhost:4173",
+    // KOMBE_E2E_BASE_URL : viser un déploiement déjà servi (même origine que l'API).
+    baseURL: process.env.KOMBE_E2E_BASE_URL ?? "http://localhost:4173",
     trace: "off",
     screenshot: "off",
   },
@@ -28,11 +29,15 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    // Sert le build de production (dist/) — le même artefact que celui livré.
-    command: "node node_modules/vite/bin/vite.js preview --port 4173 --strictPort",
-    url: "http://localhost:4173",
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
+  ...(process.env.KOMBE_E2E_BASE_URL
+    ? {}
+    : {
+      webServer: {
+      // Sert le build de production (dist/) — le même artefact que celui livré.
+      command: "node node_modules/vite/bin/vite.js preview --port 4173 --strictPort",
+      url: "http://localhost:4173",
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+      }),
 });

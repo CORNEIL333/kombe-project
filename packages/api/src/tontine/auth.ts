@@ -72,9 +72,29 @@ export class TontineAuth {
     private readonly now: () => number,
   ) {}
 
+  /** Canaux de connexion réellement ouverts sur ce déploiement. */
+  channels(): { sms: boolean; whatsapp: boolean; email: boolean } {
+    return {
+      sms: this.sender.channels.includes("sms"),
+      whatsapp: this.sender.channels.includes("whatsapp"),
+      email: this.emailSender.channels.includes("email"),
+    };
+  }
+
   async requestCode(input: { login: string; channel?: "sms" | "whatsapp" | "email" | undefined }): Promise<AuthCodeRequestResult> {
     const { login, kind } = canonicalLogin(input.login);
     const channel: "sms" | "whatsapp" | "email" = kind === "email" ? "email" : input.channel === "whatsapp" ? "whatsapp" : "sms";
+    const sender = channel === "email" ? this.emailSender : this.sender;
+    if (!sender.channels.includes(channel)) {
+      throw new DomainError(
+        channel === "email" ? "EMAIL_DELIVERY_FAILED" : "SMS_DELIVERY_FAILED",
+        channel === "email"
+          ? "Connexion par e-mail pas encore ouverte : utilisez votre numéro de téléphone"
+          : channel === "whatsapp"
+            ? "Envoi par WhatsApp pas encore ouvert : choisissez le SMS ou l'e-mail"
+            : "Envoi par SMS pas encore ouvert : connectez-vous par e-mail",
+      );
+    }
     const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
     const nowMs = this.now();
     const shouldSend = await inTx(this.pool, async (db) => {
@@ -113,8 +133,17 @@ export class TontineAuth {
     let devCode: string | undefined;
     if (shouldSend) {
       const text = `KOMBE : votre code est ${code}. Il expire dans 10 minutes. Ne le partagez avec personne.`;
-      const sender = channel === "email" ? this.emailSender : this.sender;
-      await sender.send({ to: login, text, channel });
+      try {
+        await sender.send({ to: login, text, channel });
+      } catch (err) {
+        // Envoi échoué : le code n'a jamais été reçu, on le retire pour que la
+        // personne puisse redemander sans attendre le délai anti-répétition.
+        await inTx(this.pool, async (db) => {
+          await asIdentity(db, login);
+          await db.query(`DELETE FROM verification_token WHERE identity_id = $1 AND purpose = 'login' AND consumed_at IS NULL`, [login]);
+        }).catch(() => undefined);
+        throw err;
+      }
       if (sender.simulated && process.env.NODE_ENV !== "production") devCode = code;
     }
     return { accepted: true, login, channel, ...(devCode ? { devCode } : {}) };

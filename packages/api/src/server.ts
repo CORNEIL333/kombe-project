@@ -1032,7 +1032,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     reply.header("x-content-type-options", "nosniff");
     reply.header("x-frame-options", "DENY");
     reply.header("referrer-policy", "no-referrer");
-    reply.header("content-security-policy", "default-src 'none'; frame-ancestors 'none'");
+    // Les pages du site servi à la même origine (webStatic) posent leur propre CSP.
+    if (!reply.getHeader("content-security-policy")) {
+      reply.header("content-security-policy", "default-src 'none'; frame-ancestors 'none'");
+    }
     reply.header("cache-control", "no-store");
   });
 
@@ -1132,6 +1135,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       now,
       emailSender,
       emailSimulated: emailSender instanceof NullEmailSender,
+      emailAvailable: !(emailSender instanceof DisabledEmailSender),
       ...(options.codeSender ? { codeSender: options.codeSender } : {}),
     });
     // Console d'exploitation (opérateurs seulement, 0029_ops_console).
