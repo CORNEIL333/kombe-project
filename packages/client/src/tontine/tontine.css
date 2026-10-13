@@ -652,3 +652,29 @@ fieldset.champ legend {
     box-shadow: none;
   }
 }
+
+/* Mode séance sans réseau (L-05) : opérations gardées sur le téléphone. */
+.bandeau--file,
+.bandeau--succes {
+  margin: 0 0 var(--espace-3);
+  padding: 0.75rem 1rem;
+  border-radius: var(--rayon-s);
+  color: var(--k-encre-950);
+}
+.bandeau--file {
+  background: var(--k-or-100);
+  border-left: 4px solid var(--k-or-700);
+}
+.bandeau--file p {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+}
+.bandeau--succes {
+  background: #e6f4ea;
+  border-left: 4px solid #1e7a3c;
+  font-weight: 700;
+}
+.file-liste {
+  margin: 0;
+  padding-left: 1.2rem;
+}

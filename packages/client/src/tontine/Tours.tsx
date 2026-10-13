@@ -112,7 +112,7 @@ function DetailTour({ ctx, tour, onFini }: { readonly ctx: ContexteGroupe; reado
       {peutClore ? (
         <Carte titre={tx("to.clore")}>
           <p className="aide-champ">{tx("to.cloreAide")}</p>
-          <Retour erreur={action.erreur} />
+          <Retour erreur={action.erreur} succes={action.succes} />
           <button type="button" className="bouton" disabled={action.enCours} onClick={() => void action.lancer(() => cycle.clore(ctx.session, gid, tour.seq)).then(onFini)}>
             {tx("to.clore")}
           </button>
@@ -192,7 +192,7 @@ function FormulaireRemise({ ctx, tour, onFini }: { readonly ctx: ContexteGroupe;
           )}
         </Charge>
       </fieldset>
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       <button
         type="button"
         className="bouton"
@@ -248,7 +248,7 @@ function Echanges({ ctx, tours }: { readonly ctx: ContexteGroupe; readonly tours
           </select>
         </Champ>
       </div>
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       <button
         type="button"
         className="bouton bouton-secondaire"

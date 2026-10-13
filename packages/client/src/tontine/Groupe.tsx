@@ -17,6 +17,7 @@ import { Discipline } from "./Discipline.js";
 import { Decisions } from "./Decisions.js";
 import { Statuts, Journal } from "./Statuts.js";
 import { Reglages } from "./Reglages.js";
+import { EnFileAttente } from "./fileAttente.js";
 
 type Onglet = "apercu" | "membres" | "seances" | "argent" | "tours" | "discipline" | "decisions" | "statuts" | "journal" | "reglages";
 const ONGLETS: { id: Onglet; cle: CleTexte }[] = [
@@ -322,7 +323,7 @@ function Demarrage({ ctx }: { readonly ctx: ContexteGroupe }) {
           ))}
         </ol>
       ) : null}
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       <button type="button" className="bouton" disabled={action.enCours || !pret} onClick={() => void demarrer()}>
         {action.enCours ? tx("app.envoi") : tx("td.demarrer")}
       </button>
@@ -348,16 +349,25 @@ function ToutDeclarer({ ctx, echeances, onFini }: { readonly ctx: ContexteGroupe
 
   const envoyer = async () => {
     await action.lancer(async () => {
+      // Sans réseau, chaque déclaration est gardée sur le téléphone : on les
+      // garde toutes, puis on le dit une seule fois.
+      let gardee: EnFileAttente | null = null;
       for (const d of duTour) {
-        await argent.declarer(ctx.session, ctx.groupe.groupId, {
-          fundId: d.fundId,
-          kind: "contribution",
-          amount: d.remaining,
-          roundSeq: d.roundSeq,
-          channel: canal,
-          ...(reference.trim() ? { reference: reference.trim() } : {}),
-        });
+        try {
+          await argent.declarer(ctx.session, ctx.groupe.groupId, {
+            fundId: d.fundId,
+            kind: "contribution",
+            amount: d.remaining,
+            roundSeq: d.roundSeq,
+            channel: canal,
+            ...(reference.trim() ? { reference: reference.trim() } : {}),
+          });
+        } catch (err) {
+          if (err instanceof EnFileAttente) gardee = err;
+          else throw err;
+        }
       }
+      if (gardee) throw gardee;
       return true;
     }, tx("ar.declare"));
     onFini();

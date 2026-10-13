@@ -137,7 +137,7 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
               <Champ id="cx-nom" libelle={tx("cx.nom")} aide={tx("cx.nomAide")}>
                 <input id="cx-nom" value={nom} onChange={(e) => setNom(e.target.value)} maxLength={80} autoComplete="name" required />
               </Champ>
-              <Retour erreur={action.erreur} />
+              <Retour erreur={action.erreur} succes={action.succes} />
               <button className="bouton" type="submit" disabled={action.enCours || nom.trim().length < 2}>
                 {action.enCours ? tx("app.envoi") : tx("cx.continuer")}
               </button>
@@ -158,7 +158,7 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
                   required
                 />
               </Champ>
-              <Retour erreur={action.erreur} />
+              <Retour erreur={action.erreur} succes={action.succes} />
               <button className="bouton" type="submit" disabled={action.enCours || code.length !== 6}>
                 {action.enCours ? tx("app.envoi") : tx("cx.valider")}
               </button>
@@ -198,7 +198,7 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
                   </div>
                 </Champ>
               )}
-              <Retour erreur={action.erreur} />
+              <Retour erreur={action.erreur} succes={action.succes} />
               <button className="bouton" type="submit" disabled={action.enCours || login.trim().length < 6}>
                 {action.enCours ? tx("app.envoi") : tx("cx.envoyer")}
               </button>

@@ -162,7 +162,7 @@ function Invitations({ ctx }: { readonly ctx: ContexteGroupe }) {
         </button>
       }
     >
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
@@ -268,7 +268,7 @@ function MembreSansSmartphone({ ctx, membres, onFini }: { readonly ctx: Contexte
           </select>
         </Champ>
       </div>
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       <button
         type="button"
         className="bouton"

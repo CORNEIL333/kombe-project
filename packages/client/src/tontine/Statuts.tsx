@@ -36,7 +36,7 @@ export function Statuts({ ctx }: { readonly ctx: ContexteGroupe }) {
         ) : null
       }
     >
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       <Charge etat={etat} recharger={recharger}>
         {(st) =>
           st === null ? (

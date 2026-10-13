@@ -87,7 +87,7 @@ function DetailSeance({ ctx, meetingId, onChange }: { readonly ctx: ContexteGrou
               {s.location ? ` · ${s.location}` : ""}
               {s.hostName ? ` · ${s.hostName}` : ""}
             </p>
-            <Retour erreur={action.erreur} />
+            <Retour erreur={action.erreur} succes={action.succes} />
           </Carte>
 
           {s.state === "open" && peut(ctx.roles, "meeting.attendance") ? (

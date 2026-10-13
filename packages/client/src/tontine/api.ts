@@ -39,6 +39,7 @@ import type {
   HistorySummary,
 } from "@kombe/domain";
 import { ApiClient, ApiError, loadRuntimeConfig } from "@kombe/dashboard-core";
+import { EnFileAttente, envoyerFile, estErreurReseau, mettreEnFile } from "./fileAttente.js";
 
 export { ApiError };
 export type {
@@ -118,19 +119,55 @@ function cleIdempotence(): string {
 
 type Methode = "GET" | "POST" | "PUT" | "PATCH";
 
-async function appel<T>(session: Session | null, methode: Methode, chemin: string, corps?: unknown, query?: Record<string, string | undefined>): Promise<T> {
+/** Écriture gardable sans réseau (mode séance, L-05) : groupe + libellé affiché. */
+interface HorsLigne {
+  readonly groupId: string;
+  readonly libelle: string;
+}
+
+async function appel<T>(
+  session: Session | null,
+  methode: Methode,
+  chemin: string,
+  corps?: unknown,
+  query?: Record<string, string | undefined>,
+  horsLigne?: HorsLigne,
+): Promise<T> {
   const api = await client();
   const headers: Record<string, string> = {};
   if (session) headers.authorization = `Bearer ${session.sessionId}`;
-  if (methode !== "GET") headers["idempotency-key"] = cleIdempotence();
+  const cle = methode !== "GET" ? cleIdempotence() : "";
+  if (cle) headers["idempotency-key"] = cle;
   const q: Record<string, string> = {};
   for (const [k, v] of Object.entries(query ?? {})) if (v !== undefined && v !== "") q[k] = v;
-  return api.request<T>(chemin, {
-    method: methode,
-    headers,
-    ...(corps !== undefined ? { body: JSON.stringify(corps) } : methode === "GET" ? {} : { body: "{}" }),
-    ...(Object.keys(q).length ? { query: q } : {}),
-  });
+  try {
+    return await api.request<T>(chemin, {
+      method: methode,
+      headers,
+      ...(corps !== undefined ? { body: JSON.stringify(corps) } : methode === "GET" ? {} : { body: "{}" }),
+      ...(Object.keys(q).length ? { query: q } : {}),
+    });
+  } catch (err) {
+    if (horsLigne && (methode === "POST" || methode === "PUT") && estErreurReseau(err)) {
+      throw new EnFileAttente(mettreEnFile({ groupId: horsLigne.groupId, libelle: horsLigne.libelle, methode, chemin, corps: corps ?? {}, cle }));
+    }
+    throw err;
+  }
+}
+
+/** Envoie les opérations gardées sur ce téléphone, avec leur clé d'origine. */
+export async function envoyerEnAttente(session: Session): Promise<{ envoyees: number; refusees: number; restantes: number }> {
+  const api = await client();
+  return envoyerFile(
+    async (op) => {
+      await api.request<unknown>(op.chemin, {
+        method: op.methode,
+        headers: { authorization: `Bearer ${session.sessionId}`, "idempotency-key": op.cle },
+        body: JSON.stringify(op.corps),
+      });
+    },
+    (err) => (err instanceof ApiError ? { status: err.status, message: err.message } : null),
+  );
 }
 
 const t = (id: string) => `/v1/tontines/${encodeURIComponent(id)}`;
@@ -222,7 +259,11 @@ export const seances = {
     id: string,
     mid: string,
     entries: { membershipId: string; status: string; representedByMembershipId?: string | null }[],
-  ) => appel<MeetingDetail>(s, "PUT", `${t(id)}/meetings/${encodeURIComponent(mid)}/attendance`, { entries }),
+  ) =>
+    appel<MeetingDetail>(s, "PUT", `${t(id)}/meetings/${encodeURIComponent(mid)}/attendance`, { entries }, undefined, {
+      groupId: id,
+      libelle: `Appel de la séance (${entries.length} membre(s))`,
+    }),
   clore: (s: Session, id: string, mid: string, notes?: string, decisions?: string[]) =>
     appel<MeetingDetail>(s, "POST", `${t(id)}/meetings/${encodeURIComponent(mid)}/close`, {
       ...(notes ? { notes } : {}),
@@ -244,9 +285,13 @@ export const argent = {
       meetingId: filtre.meetingId,
       mine: filtre.mine ? "1" : undefined,
     }),
-  declarer: (s: Session, id: string, input: DeclareMovementInput) => appel<MovementView>(s, "POST", `${t(id)}/movements`, input),
+  declarer: (s: Session, id: string, input: DeclareMovementInput) =>
+    appel<MovementView>(s, "POST", `${t(id)}/movements`, input, undefined, { groupId: id, libelle: `Versement déclaré : ${input.amount} FCFA` }),
   confirmerLot: (s: Session, id: string, movementIds: string[]) =>
-    appel<MovementView[]>(s, "POST", `${t(id)}/movements/confirmations`, { movementIds }),
+    appel<MovementView[]>(s, "POST", `${t(id)}/movements/confirmations`, { movementIds }, undefined, {
+      groupId: id,
+      libelle: `Confirmation de ${movementIds.length} versement(s)`,
+    }),
   controler: (s: Session, id: string, mvid: string) => appel<MovementView>(s, "POST", `${t(id)}/movements/${encodeURIComponent(mvid)}/control`),
   rejeter: (s: Session, id: string, mvid: string, reason: string) =>
     appel<MovementView>(s, "POST", `${t(id)}/movements/${encodeURIComponent(mvid)}/rejection`, { reason }),
@@ -315,6 +360,7 @@ export const historique = {
 
 /** Message d'erreur affichable : le serveur renvoie un motif métier en français. */
 export function messageErreur(err: unknown): string {
+  if (err instanceof EnFileAttente) return err.message;
   if (err instanceof ApiError) {
     if (err.status === 0 || /timeout|abort/i.test(err.message)) return "Réseau indisponible. Réessayez quand la connexion revient.";
     return err.message || `Erreur ${err.status}`;

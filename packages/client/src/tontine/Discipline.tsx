@@ -53,7 +53,7 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
         ) : null
       }
     >
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       {nouvelle && membres.etat.statut === "ok" ? (
         <div className="formulaire-encart pile">
           <Champ id="am-qui" libelle={tx("td.membres")}>
@@ -242,7 +242,7 @@ function Secours({ ctx }: { readonly ctx: ContexteGroupe }) {
         )
       }
     >
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       {demande ? (
         <div className="formulaire-encart pile">
           {membres.etat.statut === "ok" ? (
@@ -388,7 +388,7 @@ function Dettes({ ctx }: { readonly ctx: ContexteGroupe }) {
 
   return (
     <Carte titre={tx("di.dettes")}>
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (

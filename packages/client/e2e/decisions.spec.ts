@@ -7,60 +7,9 @@
 
    Prérequis : API en mode réel sur KOMBE_E2E_API avec le simulateur SMS. */
 
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-const API = process.env.KOMBE_E2E_API ?? "http://localhost:3000";
-const run = Date.now().toString().slice(-7);
-
-interface Personne {
-  readonly nom: string;
-  readonly session: { sessionId: string; identityId: string; expiresAt: number };
-}
-
-async function apiJoignable(): Promise<boolean> {
-  try {
-    const r = await fetch(`${API}/v1/health/ready`);
-    return r.ok && ((await r.json()) as { mode?: string }).mode === "réel";
-  } catch {
-    return false;
-  }
-}
-
-async function appel<T>(p: Personne | null, methode: string, chemin: string, corps?: unknown): Promise<T> {
-  const r = await fetch(`${API}${chemin}`, {
-    method: methode,
-    headers: {
-      "content-type": "application/json",
-      "idempotency-key": `e2e-${run}-${Math.random().toString(36).slice(2)}`,
-      ...(p ? { authorization: `Bearer ${p.session.sessionId}` } : {}),
-    },
-    ...(corps !== undefined ? { body: JSON.stringify(corps) } : methode === "GET" ? {} : { body: "{}" }),
-  });
-  if (!r.ok) throw new Error(`${methode} ${chemin} → ${r.status} ${await r.text()}`);
-  return (r.status === 204 ? null : await r.json()) as T;
-}
-
-async function personne(n: number, nom: string): Promise<Personne> {
-  const tel = `6${run}${n}`.slice(0, 9);
-  const req = await appel<{ login: string; devCode?: string }>(null, "POST", "/v1/auth/code-requests", { login: tel });
-  const ses = await appel<{ sessionId: string; identityId: string; expiresAt: number }>(null, "POST", "/v1/auth/code-verifications", {
-    login: req.login,
-    code: req.devCode,
-  });
-  const p = { nom, session: ses };
-  await appel(p, "PATCH", "/v1/me", { displayName: nom });
-  return p;
-}
-
-async function pageDe(browser: Browser, p: Personne): Promise<Page> {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const page = await ctx.newPage();
-  await page.route("**/kombe-dashboard-config.json", (route) =>
-    route.fulfill({ contentType: "application/json", body: JSON.stringify({ apiBaseUrl: API, environment: "e2e" }) }),
-  );
-  await page.addInitScript((s) => window.localStorage.setItem("kombe.session", JSON.stringify(s)), p.session);
-  return page;
-}
+import { appel, apiJoignable, associationDemarree, pageDe, personne, run, API } from "./outils.js";
 
 async function ouvrirVotes(page: Page, groupe: string) {
   await page.goto("/");
@@ -76,43 +25,8 @@ test("pause des séances votée par l'assemblée (ADR-0038), puis reprise du cah
   const awa = await personne(1, "Awa Ndongo");
   const bertrand = await personne(2, "Bertrand Ekwalla");
   const chantal = await personne(3, "Chantal Mbappe");
-  const jour = new Date(Date.now() + 3_600_000).toISOString().slice(0, 10);
   const nomGroupe = `Njangi Votes ${run}`;
-  const t = await appel<{ groupId: string }>(awa, "POST", "/v1/tontines", {
-    name: nomGroupe,
-    founderDisplayName: awa.nom,
-    settings: {
-      contributionPerShare: "5000",
-      cadence: { kind: "weekly", weekday: new Date(`${jour}T12:00:00Z`).getUTCDay() },
-      firstMeetingDate: jour,
-      deadlineTime: "18:00",
-      meetingPlace: "Chez Awa",
-      maxMembers: 5,
-      transparency: "all_members",
-      feeBearer: "member",
-      payoutPolicy: "full_with_advance",
-      newcomersLast: false,
-      guarantorRequired: false,
-      payoutWitnesses: 1,
-      fines: { lateContributionFixed: "0", lateContributionPerDay: "0", lateContributionCap: "0", meetingLate: "0", meetingAbsence: "0", indisciplineCap: "0", graceDays: 0 },
-      solidarity: { enabled: false, perMeeting: "0", scale: [] },
-      operating: { enabled: false, perMeeting: "0" },
-      yearEndReserve: { enabled: false, perMeeting: "0" },
-    },
-  });
-  const gid = t.groupId;
-  const inv = await appel<{ code: string }>(awa, "POST", `/v1/tontines/${gid}/invitations`, { maxUses: 5, days: 7 });
-  const ids: Record<string, string> = {};
-  for (const p of [bertrand, chantal]) {
-    const j = await appel<{ membershipId: string }>(p, "POST", `/v1/invitations/${inv.code}/join`, { displayName: p.nom });
-    ids[p.nom] = j.membershipId;
-    await appel(awa, "POST", `/v1/tontines/${gid}/members/${j.membershipId}/admission`, { decision: "admit" });
-  }
-  await appel(awa, "POST", `/v1/tontines/${gid}/roles`, { membershipId: ids[bertrand.nom], role: "treasurer" });
-  await appel(bertrand, "POST", `/v1/tontines/${gid}/roles/acceptance`, { role: "treasurer" });
-  const st = await appel<{ hash: string }>(awa, "POST", `/v1/tontines/${gid}/statutes`);
-  for (const p of [awa, bertrand, chantal]) await appel(p, "POST", `/v1/tontines/${gid}/statutes/acceptance`, { hash: st.hash });
-  await appel(awa, "POST", `/v1/tontines/${gid}/cycle`, { order: "join_order" });
+  const { gid } = await associationDemarree(nomGroupe, [awa, bertrand, chantal]);
   const avant = await appel<{ seq: number; date: string }[]>(awa, "GET", `/v1/tontines/${gid}/rounds`);
 
   /* Awa demande le vote dans la PWA. */

@@ -131,7 +131,7 @@ function LigneDecision({ ctx, d, onFini }: { readonly ctx: ContexteGroupe; reado
           <span className="aide-champ">{tx("dc.secret")}</span>
         ) : null}
         {d.outcomeNote ? <p className="aide-champ">{d.outcomeNote}</p> : null}
-        <Retour erreur={action.erreur} />
+        <Retour erreur={action.erreur} succes={action.succes} />
         {motif ? (
           <div className="formulaire-encart pile">
             <Champ id={`dc-motif-${d.decisionId}`} libelle={tx("dc.motif")}>
@@ -233,7 +233,7 @@ function FormulaireOuverture({
   });
   return (
     <div className="formulaire-encart pile">
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       <Champ id="dc-genre" libelle={tx("dc.type")}>
         <select
           id="dc-genre"

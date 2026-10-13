@@ -238,7 +238,7 @@ function Accuse({ ctx, m, onFini }: { readonly ctx: ContexteGroupe; readonly m: 
       >
         {tx("ar.recu")}
       </button>
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
     </>
   );
 }
@@ -264,7 +264,7 @@ export function AConfirmer({ ctx, onFini, meetingId }: { readonly ctx: ContexteG
 
   return (
     <Carte titre={tx("ar.aConfirmer")}>
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
@@ -363,7 +363,7 @@ function AControler({ ctx, onFini }: { readonly ctx: ContexteGroupe; readonly on
   const action = useAction();
   return (
     <Carte titre={tx("ar.aControler")}>
-      <Retour erreur={action.erreur} />
+      <Retour erreur={action.erreur} succes={action.succes} />
       <Charge etat={etat} recharger={recharger}>
         {(liste) => {
           const aControler = liste.filter((m) => m.can.control);

@@ -17,7 +17,7 @@ export const fr = {
   "app.enregistrer": "Enregistrer",
   "app.annuler": "Annuler",
   "app.envoi": "Envoi en cours…",
-  "app.horsLigne": "Hors connexion : rien n'est envoyé au groupe tant que le réseau n'est pas revenu.",
+  "app.horsLigne": "Hors connexion : l'appel, les déclarations et les confirmations sont gardés sur ce téléphone et envoyés au retour du réseau. Rien n'est transmis au groupe avant.",
   "app.sessionExpiree": "Votre session a expiré. Reconnectez-vous.",
   "app.vide": "Rien pour l'instant.",
 
@@ -466,6 +466,12 @@ export const fr = {
   "hi.inconnus": "Noms non retrouvés parmi les membres : {noms}. Les lignes sont gardées sous ce nom.",
   "hi.fichierIllisible": "Fichier illisible : exportez de nouveau depuis l'ancienne application.",
 
+  "fa.titre": "{n} opération(s) gardée(s) sur ce téléphone, pas encore transmise(s) au groupe.",
+  "fa.envoyer": "Envoyer maintenant",
+  "fa.envoyees": "{n} opération(s) gardée(s) hors connexion transmise(s) au groupe.",
+  "fa.refus": "refusée par le serveur : {motif}",
+  "fa.retirer": "Retirer",
+
   "jour.0": "dimanche",
   "jour.1": "lundi",
   "jour.2": "mardi",
@@ -488,7 +494,7 @@ export const en: Record<CleTexte, string> = {
   "app.enregistrer": "Save",
   "app.annuler": "Cancel",
   "app.envoi": "Sending…",
-  "app.horsLigne": "Offline: nothing is sent to the group until the network is back.",
+  "app.horsLigne": "Offline: the roll call, declarations and confirmations are kept on this phone and sent when the network is back. Nothing reaches the group before.",
   "app.sessionExpiree": "Your session has expired. Please sign in again.",
   "app.vide": "Nothing yet.",
 
@@ -936,6 +942,12 @@ export const en: Record<CleTexte, string> = {
   "hi.resultat": "{ok} line(s) imported, {deja} already there, {ko} refused · {total}",
   "hi.inconnus": "Names not found among members: {noms}. Lines are kept under that name.",
   "hi.fichierIllisible": "Unreadable file: export again from the previous app.",
+
+  "fa.titre": "{n} operation(s) kept on this phone, not yet sent to the group.",
+  "fa.envoyer": "Send now",
+  "fa.envoyees": "{n} operation(s) kept offline sent to the group.",
+  "fa.refus": "refused by the server: {motif}",
+  "fa.retirer": "Remove",
 
   "jour.0": "Sunday",
   "jour.1": "Monday",

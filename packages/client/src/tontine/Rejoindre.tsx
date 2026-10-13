@@ -51,7 +51,7 @@ export function Rejoindre({ session, codeInitial, onFini }: { readonly session: 
               required
             />
           </Champ>
-          <Retour erreur={action.erreur} />
+          <Retour erreur={action.erreur} succes={action.succes} />
           <button type="submit" className="bouton" disabled={action.enCours || code.trim().length < 4}>
             {tx("rej.verifier")}
           </button>
@@ -70,7 +70,7 @@ export function Rejoindre({ session, codeInitial, onFini }: { readonly session: 
               <Champ id="rej-nom" libelle={tx("rej.nom")}>
                 <input id="rej-nom" value={nom} onChange={(e) => setNom(e.target.value)} maxLength={80} required />
               </Champ>
-              <Retour erreur={action.erreur} />
+              <Retour erreur={action.erreur} succes={action.succes} />
               <button type="submit" className="bouton" disabled={action.enCours || nom.trim().length < 2}>
                 {action.enCours ? tx("app.envoi") : tx("rej.envoyer")}
               </button>

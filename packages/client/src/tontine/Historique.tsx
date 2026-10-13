@@ -107,7 +107,7 @@ export function Historique({ ctx }: { readonly ctx: ContexteGroupe }) {
       </Charge>
       {peutImporter ? (
         <div className="formulaire-encart pile">
-          <Retour erreur={action.erreur} />
+          <Retour erreur={action.erreur} succes={action.succes} />
           <Champ id="hi-libelle" libelle={tx("hi.libelle")}>
             <input id="hi-libelle" value={libelle} maxLength={80} placeholder="Cahier 2025" onChange={(e) => setLibelle(e.target.value)} />
           </Champ>

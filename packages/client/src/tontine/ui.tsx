@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { estSessionExpiree, messageErreur } from "./api.js";
+import { EnFileAttente, estErreurReseau } from "./fileAttente.js";
 import { useTextes } from "./textes.js";
 
 export type Etat<T> = { readonly statut: "chargement" } | { readonly statut: "ok"; readonly donnees: T } | { readonly statut: "erreur"; readonly message: string; readonly expiree: boolean };
@@ -18,7 +19,15 @@ export function useDonnees<T>(charger: () => Promise<T>, deps: readonly unknown[
     setEtat((e) => (e.statut === "ok" ? e : { statut: "chargement" }));
     chargerRef.current().then(
       (donnees) => actif && setEtat({ statut: "ok", donnees }),
-      (err: unknown) => actif && setEtat({ statut: "erreur", message: messageErreur(err), expiree: estSessionExpiree(err) }),
+      // Sans réseau, on garde à l'écran les dernières données reçues plutôt
+      // que d'effacer la séance en cours (le bandeau dit qu'on est hors ligne).
+      (err: unknown) =>
+        actif &&
+        setEtat((e) =>
+          e.statut === "ok" && (estErreurReseau(err) || (typeof navigator !== "undefined" && !navigator.onLine))
+            ? e
+            : { statut: "erreur", message: messageErreur(err), expiree: estSessionExpiree(err) },
+        ),
     );
     return () => {
       actif = false;
@@ -46,7 +55,10 @@ export function useAction() {
       if (messageSucces) setSucces(messageSucces);
       return r;
     } catch (err) {
-      setErreur(messageErreur(err));
+      // Gardé sur le téléphone faute de réseau : information, pas une erreur,
+      // et jamais présenté comme transmis.
+      if (err instanceof EnFileAttente) setSucces(err.message);
+      else setErreur(messageErreur(err));
       return undefined;
     } finally {
       verrou.current = false;

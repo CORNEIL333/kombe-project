@@ -12,6 +12,7 @@ import { Creation } from "./tontine/Creation.js";
 import { Rejoindre } from "./tontine/Rejoindre.js";
 import { Groupe } from "./tontine/Groupe.js";
 import { useTextes } from "./tontine/textes.js";
+import { FileAttente } from "./tontine/FileAttente.js";
 
 export type Route =
   | { readonly ecran: "accueil" }
@@ -143,6 +144,7 @@ export function App() {
           {tx("app.horsLigne")}
         </p>
       )}
+      {session ? <FileAttente session={session} enLigne={enLigne} /> : null}
       <main id="contenu" tabIndex={-1} className="contenu-tontine">
         {!session ? (
           <ConnexionTelephone
