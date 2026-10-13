@@ -192,6 +192,38 @@ structurel en base).
 > refusé) = scénarios C10-CASE / C10-INDEP / C10-REOPEN de
 > `tests/isolation.pg.mjs`, **BLOCKED** sans base réelle.
 
+## Tontine réelle, socle produit (migration additive `0024_tontine_core.sql`, ADR-0025/0026)
+| Table / objet | Rôle | Contraintes clés |
+|---|---|---|
+| `group` (élargi) | Nom affiché, créateur, réglages, devise. | + `name` (1–120), `created_by_identity_id` (FK identité), `settings` jsonb objet (transparence, frais Mobile Money, avaliseur…), `currency` = `XAF` |
+| `membership` (élargi) | Admission tracée, avaliseur, représentant. | + `display_name`, `joined_at`, `admitted_by_identity_id` (CHECK ≠ identité admise), `invitation_id`, `sponsor_membership_id` / `proxy_membership_id` (FK composées, jamais soi-même) ; index unique partiel `membership_one_pending` (une demande en attente par identité et groupe) |
+| `role_assignment` (élargi) | Bureau complet : président, vice-président, secrétaire, trésorier, trésorier adjoint, commissaire aux comptes, censeur, conseiller. | CHECK `role` élargi ; + `proposed_by_identity_id` / `approved_by_identity_id` (CHECK distincts), `mandate_start` / `mandate_end` (fin > début), `ended_at`. L'unicité d'une fonction active est contrôlée par le serveur. |
+| `journal.actor_role` | Mêmes rôles élargis. | CHECK élargi |
+| `invitation` (élargi) | Code court « Rejoindre avec un code ». | + `created_by_identity_id`, `code` (8 caractères `[A-HJ-NP-Z2-9]`, unique) |
+| `identity_profile` | Nom et langue (fr/en/pcm) de l'identité. | RLS `self_scope` sur `kombe.identity_id` |
+| `kombe_my_memberships()` | « Mes groupes » pour l'identité de la transaction. | SECURITY DEFINER, sortie minimale (groupe, adhésion, état, nom, rôles actifs) |
+| `kombe_invitation_by_code(text)` | Recherche d'une invitation par code. | SECURITY DEFINER, session requise, format vérifié |
+
+## L'association (migration additive `0025_association.sql`, ADR-0027 à 0032)
+| Table / objet | Rôle | Contraintes clés |
+|---|---|---|
+| `cycle_schedule` (élargi) | Cadences réelles : quotidienne, tous les N jours, hebdomadaire, quinzaine, jour du mois, « 2e samedi ». | CHECK `frequency` élargi ; + `cadence` jsonb |
+| `cycle_round_frozen_guard()` (réécrit) | Tour figé après démarrage, sauf changement de titulaire approuvé (`kombe.order_change`) ou décalage voté (`kombe.schedule_shift`). | Suppression toujours refusée |
+| `share`, `share_holder`, `round.share_id` | Parts : un membre peut avoir plusieurs parts, une part peut être partagée (poids). | Index `round_one_beneficiary_per_group` limité aux calendriers sans parts ; `round_one_round_per_share` |
+| `fund` | Caisses : rotation, secours, réserve de fin d'année, fonctionnement, amendes (prêt et collecte derrière drapeau). | RLS `tenant_isolation` |
+| `meeting`, `attendance` | Séance (prévue, ouverte, close, annulée), appel. | Trigger : l'appel n'est modifiable que séance ouverte |
+| `fund_movement` | Mouvement EXTERNE documenté (espèces, Orange Money, MTN MoMo, banque) : déclaré, confirmé, contrôlé ou rejeté. KÓMBE ne garde pas l'argent. | Confirmateur ≠ déclarant ; référence ou justification pour un paiement électronique ; une seule contre-passation par mouvement |
+| `fine` | Amendes (retard de cotisation, retard ou absence en séance, indiscipline). | Barème du groupe, contestable |
+| `aid_request` | Secours (décès, naissance, mariage, maladie…). | Plafond annuel, dérogation motivée |
+| `member_debt` | Arriérés, avances, reprise. | |
+| `order_change`, `draw`, `auction_bid` | Échange de tour, tour prioritaire, tirage engagé (empreinte publiée avant), enchère (drapeau). | |
+| `statutes_version`, `statutes_acceptance` | Statuts générés depuis les règles, acceptés par empreinte. | Trigger : version immuable |
+| `loan`, `collector_period` | Prêts et collecte journalière, désactivés par défaut. | Drapeaux `loan_register`, `daily_collector` |
+| `legacy_import`, `legacy_contribution` | Reprise de l'historique d'un cahier ou d'un export. | Marqueur `imported_historical` |
+| `inbox_notification`, `kombe_notify(...)` | Boîte de notifications in-app, libellés sans montant ni nom. | RLS `self_scope` ; écriture par fonction SECURITY DEFINER bornée au groupe courant |
+
+Toutes les tables de groupe de 0025 portent RLS `tenant_isolation`, `SELECT/INSERT/UPDATE` pour `kombe_app`, jamais `DELETE`.
+
 ## Provisionnement (`provision/roles.sql`)
 | Rôle | Privilèges | But |
 |---|---|---|
