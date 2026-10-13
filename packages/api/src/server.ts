@@ -1016,8 +1016,21 @@ function realMetricsCtxFrom(identityId: string, nowMs: number): MetricsContext {
   };
 }
 
+/** Routes réellement déclarées par chaque instance (contrat OpenAPI ↔ runtime). */
+const ROUTE_REGISTRY = new WeakMap<FastifyInstance, { method: string; url: string }[]>();
+export function registeredRoutes(app: FastifyInstance): readonly { method: string; url: string }[] {
+  return ROUTE_REGISTRY.get(app) ?? [];
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const app = Fastify({ logger: false });
+  const declared: { method: string; url: string }[] = [];
+  ROUTE_REGISTRY.set(app, declared);
+  app.addHook("onRoute", (r) => {
+    for (const m of Array.isArray(r.method) ? r.method : [r.method]) {
+      if (m !== "HEAD" && m !== "OPTIONS") declared.push({ method: m, url: r.url });
+    }
+  });
 
   // CORS multi-origines + limitation de débit (§20/§25) : enregistrées avant
   // tout autre hook pour que le pré-flight OPTIONS soit répondu sans toucher
