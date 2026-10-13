@@ -12,6 +12,7 @@ export const fr = {
   "langue.libelle": "Langue",
   "langue.fr": "Français",
   "langue.en": "English",
+  "langue.pcm": "Pidgin",
   "langue.bascule": "Changer la langue de l'interface",
 
   "parcours.titre": "Créer mon groupe",
@@ -202,7 +203,8 @@ export const fr = {
 } as const;
 
 export type CleI18n = keyof typeof fr;
-export type Langue = "fr" | "en";
+/** `pcm` : pidgin camerounais (bêta) ; toute chaîne non traduite retombe sur l'anglais. */
+export type Langue = "fr" | "en" | "pcm";
 
 // EN couvre exactement les mêmes clés (le type force la complétude : aucune
 // chaîne FR ne peut rester sans équivalent EN à la compilation).
@@ -213,6 +215,7 @@ export const en: Record<CleI18n, string> = {
   "langue.libelle": "Language",
   "langue.fr": "Français",
   "langue.en": "English",
+  "langue.pcm": "Pidgin",
   "langue.bascule": "Change the interface language",
 
   "parcours.titre": "Create my group",
@@ -401,7 +404,13 @@ export const en: Record<CleI18n, string> = {
   "cotisation.rejouee": "Already declared identically — no new write (replay).",
 };
 
-export const dictionnaires: Record<Langue, Record<CleI18n, string>> = { fr, en };
+export const pcm: Partial<Record<CleI18n, string>> = {
+  "app.sousTitre": "Wuna njangi, clear clear.",
+  "langue.libelle": "Language",
+  "langue.bascule": "Change di language",
+};
+
+export const dictionnaires: Record<Langue, Partial<Record<CleI18n, string>>> = { fr, en, pcm };
 
 /** Interpolation minimaliste : remplace `{nom}` par la valeur fournie. */
 export function interpoler(

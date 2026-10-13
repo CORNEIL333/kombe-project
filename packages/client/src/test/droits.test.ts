@@ -17,3 +17,11 @@ describe("droits PWA = matrice du domaine", () => {
     expect(OUVREURS).toEqual(DECISION_OPENERS);
   });
 });
+
+describe("pidgin (bêta)", () => {
+  it("ne traduit que des clés existantes et retombe sur l'anglais", async () => {
+    const { pcm, en } = await import("../tontine/textes.js");
+    for (const k of Object.keys(pcm)) expect(k in en, k).toBe(true);
+    expect(Object.keys(pcm).length).toBeGreaterThan(80);
+  });
+});

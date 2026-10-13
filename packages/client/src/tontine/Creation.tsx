@@ -97,13 +97,13 @@ export function premiereSeance(c: Cadence, depart: string): string {
   return depart;
 }
 
-export function dureeLisible(jours: number, langue: "fr" | "en"): string {
+export function dureeLisible(jours: number, langue: "fr" | "en" | "pcm"): string {
   if (jours < 60) {
     const s = Math.max(1, Math.round(jours / 7));
-    return langue === "en" ? `${s} week${s > 1 ? "s" : ""}` : `${s} semaine${s > 1 ? "s" : ""}`;
+    return langue !== "fr" ? `${s} week${s > 1 ? "s" : ""}` : `${s} semaine${s > 1 ? "s" : ""}`;
   }
   const m = Math.round(jours / 30.4);
-  return langue === "en" ? `${m} months` : `${m} mois`;
+  return langue !== "fr" ? `${m} months` : `${m} mois`;
 }
 
 const ETAPES: CleTexte[] = ["cr.e.groupe", "cr.e.rythme", "cr.e.cotisation", "cr.e.ordre", "cr.e.bureau", "cr.e.reglement", "cr.e.recap"];
