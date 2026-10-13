@@ -1,173 +1,126 @@
-# MORNING SETUP — Déployer KÓMBE en quelques clics
+# Mettre KÓMBE en ligne — en quelques clics
 
-**Objectif :** passer de « tout est codé, testé, base de prod à jour » à
-« URLs publiques accessibles », avec le minimum d'actions humaines. Tout ce qui
-ne dépend **pas** d'un compte externe est **déjà fait et prouvé** (voir §A). Ce
-fichier ne liste **que** les actions qui exigent les identifiants du propriétaire
-(§39 DEPLOY.md) — chacune 2–5 min, dans l'ordre.
+Dernière mise à jour : 13 octobre 2026 (branche `claude/continue-previous-a102rx`).
 
-Dernière mise à jour : 2026-10-09. Branche : `claude/overnight-release`.
+**Tout le produit tient dans UN seul projet Vercel** : l'API (`/v1/…`), la PWA
+des membres (`/`), l'Espace bureau (`/bureau/`) et les tableaux de bord
+Opérations (`/ops/`), Direction (`/direction/`) et Engineering
+(`/engineering/`). Même adresse pour tout : pas de CORS à régler, pas d'URL à
+recopier dans des fichiers, pas de compte Cloudflare. Les migrations de la base
+s'appliquent toutes seules pendant le build de production.
 
 ---
 
-## A. Déjà prêt et VÉRIFIÉ (ne rien refaire)
+## Avant de commencer (5 minutes, une seule fois)
 
-| Élément | État réel | Preuve |
+Vous avez besoin de **deux chaînes de connexion** vers la base Neon `kombe_prod`
+(console Neon → *Connect* → choisir la base `kombe_prod`, connexion **directe**,
+pas le *pooler*) :
+
+| Variable | Rôle PostgreSQL | Sert à |
 |---|---|---|
-| Code applicatif (domain/api/worker/db/client/dashboards/mobile) | **VERT** | `pnpm -r build` ✓ · `typecheck` exit 0 ✓ · tests : domain ✓, api 216, worker 10/0, dashboard-core 33, client 29, dashboards ×4 ✓ |
-| Base de production Neon `kombe_prod` | **27 jalons, à jour** | migrate idempotent exécuté (`applied=[0024,0025]`) ; 5 colonnes `group` d'amorçage présentes ; fonction `kombe_member_groups` présente et exécutable par `kombe_app` (RLS). Voir DEPLOY.md §7.1 |
-| API en mode RÉEL contre `kombe_prod` | **SMOKE_PASS** | `node dist/main.js` (mode RÉEL, RLS kombe_app) + `scripts/release-smoke.mjs` → exit 0 : LIVE 200, READY 200 `mode:"réel"`, AUTH-401 + AUTH-BAD 401 (garde active, aucun repli fictif). NB : localhost ≠ déploiement (DEPLOY.md §33) — ça prouve l'artefact, pas Vercel. |
-| Persistance | **13 stores PG** câblés dès qu'un pool est présent | `server.ts` (routes en double branche `pool && real*` ; les routes squelette fictives sont `if (!pool)` → 404 en prod, jamais de fausse donnée) |
-| Auth clients | **paires RÉELLES utilisées** | PWA + mobile appellent `/access/login-requests` + `/login-completions` + `/registrations(/verifications)` + `/recovery-*` ; **jamais** `/access/sessions` (fictif) |
-| Artefacts de build prod | **versionnés et validés** | `vercel.json` + `api/serverless.js` → `packages/api/dist/serverless.js` (présent) ; 4 `kombe-dashboard-config.json` pointés vers `https://kombe-api.vercel.app` (dont admin, aligné 2026-10-09) |
+| `KOMBE_API_DATABASE_URL` | `kombe_app` (celle de `.env.prod`, `KOMBE_PROD_API_DATABASE_URL`) | l'API, sous RLS |
+| `KOMBE_MIGRATION_DATABASE_URL` | `neondb_owner` (propriétaire) | appliquer les migrations au build |
 
-**⚠️ Garde anti-teardown-prod (ajoutée 2026-10-09).** Les preuves de recette
-(`packages/api/test/*.proof.mjs`, `isolation.pg.mjs`, `migrateEmptyToLatest.pg.mjs`)
-font un **DROP complet** du schéma à chaque cycle DOWN/UP. Elles ne doivent
-JAMAIS viser `kombe_prod`. Incident réel : une variable d'env résiduelle du shell
-(`$env:KOMBE_API_DATABASE_URL`) écrasait `--env-file` (Node ne remplace pas une
-variable déjà définie) et redirigeait les preuves vers la prod. Dorénavant
-`packages/db/scripts/guard.mjs` lit `current_database()` avant tout teardown et
-ABORTE (`status:BLOCKED exit 2`) si la base est dans `KOMBE_PROD_DATABASE_NAMES`
-(défaut : `kombe_prod`). Lancer les preuves dans un shell **neuf** (ou après
-`Remove-Item Env:\KOMBE_API_DATABASE_URL`) ; `node --env-file=.env
-scripts/run_neon_proofs.mjs` doit afficher **14/14 PASS**, jamais BLOCKED.
+Et **au moins une voie de connexion** pour les membres :
 
-**Ce qui manque UNIQUEMENT :** les jetons de compte (personnel) + 5 clics de
-déploiement.
+- **E-mail (disponible tout de suite)** : `RESEND_API_KEY` (compte Resend
+  existant) + `KOMBE_EMAIL_FROM`. Tant qu'aucun domaine n'est vérifié chez
+  Resend, l'expéditeur `onboarding@resend.dev` ne livre **qu'à l'adresse du
+  propriétaire du compte Resend** : parfait pour vos essais, insuffisant pour
+  de vrais membres (voir « Ouverture au public »).
+- **SMS (recommandé au Cameroun)** : `KOMBE_SMS_PROVIDER=africastalking`,
+  `AFRICASTALKING_USERNAME`, `AFRICASTALKING_API_KEY` (compte Africa's Talking
+  à créer, ~10 min). Sans ces variables l'API démarre quand même : la voie SMS
+  est simplement fermée et la PWA ne propose que l'e-mail.
 
 ---
 
-## B. Déploiement — dans cet ordre (dépendances réelles)
+## 1. Fusionner le travail sur `master` (1 clic)
 
-### 1) Vercel — API (≈ 4 min) → débloque tout le reste
+Sur GitHub, ouvrir la pull request de `claude/continue-previous-a102rx` vers
+`master` et cliquer **Merge**. Vercel déploie en production la branche
+`master`.
+
+## 2. Créer le projet Vercel (4 clics)
+
+1. vercel.com → **Add New… → Project** → importer `CORNEIL333/kombe-project`.
+2. *Framework Preset* : **Other**. *Root Directory* : laisser la racine.
+   Ne rien changer d'autre : `vercel.json` fournit déjà l'installation, le
+   build (`node scripts/vercel-build.mjs`), le dossier publié (`dist-web`),
+   la route `/v1/*` vers l'API et les en-têtes de sécurité.
+3. *Environment Variables* (portée **Production**) — coller :
+
+   | Nom | Valeur |
+   |---|---|
+   | `KOMBE_API_DATABASE_URL` | chaîne `kombe_app` → `kombe_prod` |
+   | `KOMBE_MIGRATION_DATABASE_URL` | chaîne `neondb_owner` → `kombe_prod` |
+   | `RESEND_API_KEY` | clé Resend |
+   | `KOMBE_EMAIL_FROM` | `KÓMBE <onboarding@resend.dev>` (puis votre domaine) |
+   | `KOMBE_SMS_PROVIDER` + identifiants | *facultatif*, voir plus haut |
+
+4. **Deploy**.
+
+Le build fait, dans l'ordre : compilation de l'API → assemblage du site →
+**migrations** (0026 à 0029 manquent aujourd'hui sur `kombe_prod`, qui est à
+27 jalons ; elles s'appliquent ici, une seule fois). Si une étape échoue, rien
+n'est mis en ligne.
+
+## 3. Vérifier (1 commande ou 1 clic)
+
+Ouvrir `https://<votre-projet>.vercel.app/v1/health/ready` → doit afficher
+`{"status":"ready","mode":"réel"}`. Ou, depuis un poste :
+
 ```bash
-# une fois le projet Vercel créé (Importer le dépôt, Root = racine, framework Other)
-vercel link                       # choisir l'org + créer le projet "kombe-api"
-vercel env add KOMBE_API_DATABASE_URL production   # coller la valeur de .env.prod : KOMBE_PROD_API_DATABASE_URL
-vercel env add RESEND_API_KEY production           # valeur Resend existante
-vercel env add KOMBE_EMAIL_FROM production         # ex. no-reply@kombe.app
-vercel env add KOMBE_CORS_ORIGINS production       # listes d'origines (voir D)
-vercel --prod
+KOMBE_SMOKE_BASE_URL=https://<votre-projet>.vercel.app node scripts/release-smoke.mjs
+# → "status": "SMOKE_PASS" (API, voies de connexion, PWA et 4 tableaux de bord servis)
 ```
 
-**⚠️ Email d'inscription — domaine vérifié OBLIGATOIRE (≈ 2 min, sinon les
-inscriptions d'utilisateurs réels échouent en silence).** En mode réel, `requireResendSender()`
-exige `RESEND_API_KEY` (sinon l'API **démarre pas** — pas de repli simulé). Mais
-si `KOMBE_EMAIL_FROM` est **absent**, le code retombe sur
-`KÓMBE <onboarding@resend.dev>`, l'expéditeur de TEST Resend qui **ne livre
-qu'à la boîte du propriétaire du compte Resend** : toute inscription d'un vrai
-utilisateur (autre email) renvoie `502 EMAIL_DELIVERY_FAILED`. **Action
-propriétaire** : dans Resend → Domains, vérifier un domaine (DKIM/SPF, ~2 min,
-ex. `kombe.app`), puis régler `KOMBE_EMAIL_FROM` sur une adresse de ce domaine
-(ex. `no-reply@kombe.app`). Sans domaine vérifié, la PWA/mobile **ne peuvent pas
-inscrire d'utilisateurs réels** — ce n'est pas un bug du code, c'est la config
-Resend.
+## 4. Vous connecter et devenir opérateur (2 minutes)
 
-**Vérif obligatoire** (stop si échec) :
-```bash
-curl https://kombe-api.vercel.app/v1/health/ready   # → {"status":"ready","mode":"réel"}
-```
-Si `503`/`degraded` : la base est injoignable depuis Vercel → vérifier que
-`KOMBE_API_DATABASE_URL` est bien la chaîne `kombe_app` de `kombe_prod`
-(`.env.prod`). Si `mode:"fictif"` : la variable d'env n'est pas arrivée au
-déploiement.
+1. Ouvrir `https://<votre-projet>.vercel.app/` → se connecter (e-mail du
+   compte Resend, ou téléphone si le SMS est configuré) → saisir son nom.
+2. Donner à ce compte la fonction d'**opérateur de la plateforme** (accès à
+   `/ops/`, `/direction/`, `/engineering/`). Au choix :
+   - console Neon → *SQL Editor* → base `kombe_prod` :
+     ```sql
+     UPDATE identity_access SET is_operator = true
+      WHERE identity_id = 'votre@email.cm';   -- ou '+2376XXXXXXXX'
+     ```
+   - ou depuis un poste : `KOMBE_DATABASE_URL=<chaîne neondb_owner> node packages/db/scripts/grant-operator.mjs votre@email.cm`
+3. Ouvrir `/ops/`, `/direction/`, `/engineering/` : l'Engineering doit
+   afficher **Schéma : À jour** (29 migrations + rôles).
 
-### 2) Dashboards — Cloudflare Workers Static Assets (≈ 3 min chacun)
-> Le token Cloudflare actuellement fourni est **lecture seule** (aucun droit
-> d'écriture Workers). **Action requise :** créer un token avec la permission
-> **« Cloudflare Workers : Modifier »** (niveau Account).
-
-Pour `operations`, `direction`, `engineering`, `group-admin` :
-```bash
-pnpm --filter @kombe/dashboard-operations... run build     # idem par dashboard
-cd apps/dashboard-operations
-CLOUDFLARE_API_TOKEN=<token-modifier> CLOUDFLARE_ACCOUNT_ID=<id> npx wrangler@4 deploy
-```
-Chaque `wrangler.toml` est déjà versionné (assets-only + fallback SPA).
-URL obtenue : `https://kombe-dashboard-<x>.<subdomaine>.workers.dev`.
-
-### 3) PWA (Flutter web) — Vercel (≈ 5 min)
-```bash
-cd packages/mobile
-flutter pub get
-flutter build web --release --dart-define=KOMBE_API_BASE_URL="https://kombe-api.vercel.app"
-vercel deploy --prod .          # vercel.json embarqué (en-têtes, outputDirectory build/web)
-```
-(Équivalent CI : job manuel `deploy-pwa-vercel`, exige `VERCEL_TOKEN`.)
-
-> **Décision PWA — option de secours PROUVÉE.** La décision d'hébergement
-> (`RELEASE_MANIFEST.hostingDecision`, propriétaire) retient la PWA **Flutter
-> web** (`packages/mobile`), mais son `flutter build web --release` est
-> `BLOCKED_EXTERNAL` sur cet hôte (toolchain web interrompue — voir
-> `RELEASE_MANIFEST.testSuites`). Une **alternative web fonctionnelle existe
-> déjà** : `@kombe/client` (React + Vite) — **build Vite ✓ et 29 tests verts sur
-> cet hôte**, mêmes parcours (Connexion/inscription, amorçage créer/rejoindre/
-> type/parrainage, « Mes adhésions », déclaration de cotisation). Elle lit son
-> URL API au **runtime** via le même mécanisme éprouvé que les dashboards
-> (`loadRuntimeConfig` → `/kombe-dashboard-config.json` servi, repli
-> `VITE_KOMBE_API_BASE_URL`). Déploiement (≈ 2 min, si le propriétaire la
-> choisit) : `pnpm --filter @kombe/client build` → héberger `dist/` en statique
-> (Vercel/Cloudflare) + servir un `kombe-dashboard-config.json` avec l'URL API
-> réelle. **Ce n'est PAS un changement de décision** — juste une porte de sortie
-> si le build Flutter reste bloqué. À trancher par le propriétaire.
-
-### 4) Dashboard admin — Vercel (≈ 3 min)
-Projet Vercel, Root Directory = `apps/dashboard-group-admin`, framework Vite,
-output `dist`. `vercel.json` déjà versionné. Sa config pointe déjà l'URL API
-(§A).
+Le bureau d'un groupe (président, secrétaire, trésorier, commissaire) n'a
+besoin de rien : il ouvre `/bureau/` avec son propre compte.
 
 ---
 
-## C. C-order final (après B)
+## Ouverture au public (quand vous êtes prêt)
 
-> ⚠️ **URL de l'API « collée » au build.** L'URL API est embarquée À LA
-> COMPILATION dans 3 points : les 4 `apps/dashboard-*/public/kombe-dashboard-config.json`
-> (`apiBaseUrl`, actuellement `https://kombe-api.vercel.app`), et le
-> `--dart-define=KOMBE_API_BASE_URL` de la PWA (§B.3). **Si l'URL réelle produite
-> par Vercel diffère** de `https://kombe-api.vercel.app` (ex. sous-domaine
-> `kombe-api-<hash>.vercel.app` ou un domaine perso), il faut : (1) saisir
-> l'URL exacte dans les 4 configs + le `--dart-define`, (2) **re-builder et
-> re-déployer** dashboards + PWA. Une config qui pointe une URL morte = écrans
-> qui tournent à vide (jamais un « ça marche » silencieux).
-
-Rajouter chaque URL publique obtenue à `KOMBE_CORS_ORIGINS` (API) puis
-redeploy l'API :
-```bash
-vercel env rm KOMBE_CORS_ORIGINS production ; vercel env add KOMBE_CORS_ORIGINS production
-# valeur = origines séparées par des virgules, voir D
-vercel --prod
-```
-
-## D. `KOMBE_CORS_ORIGINS` — valeur exacte (liste fermée)
-```
-https://kombe-api.vercel.app,https://<pwa>.vercel.app,https://<admin>.vercel.app,https://kombe-dashboard-operations.<sub>.workers.dev,https://kombe-dashboard-direction.<sub>.workers.dev,https://kombe-dashboard-engineering.<sub>.workers.dev,https://kombe-dashboard-group-admin.<sub>.workers.dev
-```
-Aucun `*` (le CORS est une liste fermée, `httpGuards.ts`).
-
-## E. Smoke réel contre la prod déployée (verdict §41/§43)
-```bash
-KOMBE_SMOKE_BASE_URL="https://kombe-api.vercel.app" node scripts/release-smoke.mjs
-# → SMOKE_PASS attend que READY renvoie mode:"réel" contre Neon via Vercel
-```
-C'est la **première preuve de bout en bout** (Vercel → Neon). Consigner le
-verdict dans `RELEASE_MANIFEST.json` (`release-smoke-deployed` PENDING → PASS).
-
----
-
-## F. Récap des secrets/identifiants à fournir (hors dépôt, jamais commités)
-| Variable | Où | Source |
+| Action | Où | Pourquoi |
 |---|---|---|
-| `KOMBE_API_DATABASE_URL` | Vercel (API) | = `KOMBE_PROD_API_DATABASE_URL` de `.env.prod` (rôle `kombe_app`, base `kombe_prod`) |
-| `RESEND_API_KEY`, `KOMBE_EMAIL_FROM` | Vercel (API) | compte Resend existant |
-| `KOMBE_CORS_ORIGINS` | Vercel (API) | §D |
-| `VERCEL_TOKEN` (+ org/project) | CLI + CI GitLab | compte Vercel (Hobby gratuit) |
-| `CLOUDFLARE_API_TOKEN` (**Modifier** Workers) + `CLOUDFLARE_ACCOUNT_ID` | CLI wrangler | compte Cloudflare — remplacer le token lecture-seule actuel |
+| Vérifier un domaine chez Resend (DKIM/SPF) et mettre `KOMBE_EMAIL_FROM=no-reply@votre-domaine` | Resend + Vercel | sinon les codes e-mail n'arrivent qu'au propriétaire du compte Resend |
+| Compte Africa's Talking (SMS Cameroun) + 3 variables | Africa's Talking + Vercel | connexion par téléphone, la plus naturelle pour les membres |
+| Domaine personnalisé (ex. `app.kombe.cm`) | Vercel → Domains | les liens d'invitation WhatsApp utilisent automatiquement ce domaine ; sinon `KOMBE_PUBLIC_APP_URL` |
+| Numéro d'astreinte et contact données personnelles | `/ops/` → Incidents & runbooks | exigé avant ouverture |
 
-## G. Optionnel (plus tard, non bloquant)
-- Domaines publics définitifs : DNS CNAME → Vercel/Cloudflare ; mettre à jour
-  `KOMBE_CORS_ORIGINS` + les 4 configs, redeploy (DEPLOY.md §7.6.4).
-- Projet Neon dédié (compute isolé des preuves) : bascule `pg_dump`/`pg_restore`
-  (DEPLOY.md §6.3).
-- Backup/restore réel 6.1/6.2 sur un hôte outillé PostgreSQL 16+ (BLOCKED ici :
-  binaires absents).
+## Ce qui reste hors de ce guide (non bloquant)
+
+- **Application mobile Flutter** (Android/iOS) : le code est dans
+  `packages/mobile` ; son build et ses tests n'ont pas pu être exécutés ici
+  (outils Flutter absents). Le web (PWA) couvre tous les parcours. Voir
+  `docs/BLOCAGES_TONTINE_REELLE.md`.
+- **Sauvegarde / restauration testées** (`pg_dump`/`pg_restore`, DEPLOY.md §6) :
+  Neon fournit la restauration à un instant donné ; l'exercice complet reste à
+  faire sur un poste outillé.
+- **Ancien découpage** (API seule sur Vercel, tableaux de bord sur Cloudflare,
+  `KOMBE_CORS_ORIGINS`) : toujours possible (DEPLOY.md §7), plus nécessaire.
+  Pour un hébergement Docker (Render), poser `KOMBE_WEB_ROOT=/app/dist-web`
+  après `node scripts/build-web.mjs` : l'API sert alors le même site.
+
+## Garde-fou
+
+Les preuves de recette (`scripts/proofs-local.sh`, `packages/**/*.proof.mjs`)
+**effacent** le schéma de la base visée. Elles refusent `kombe_prod`
+(`packages/db/scripts/guard.mjs`) : ne jamais les pointer vers la production.
