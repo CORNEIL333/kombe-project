@@ -74,13 +74,13 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 | GET | `/v1/tontines/:id/meetings/:mid` | membre | → `MeetingDetail` |
 | POST | `/v1/tontines/:id/meetings/:mid/open` | Président / VP / Secrétaire | → `MeetingDetail` |
 | PUT | `/v1/tontines/:id/meetings/:mid/attendance` | bureau, censeur | `{ entries: { membershipId, status, representedByMembershipId? }[] }` → `MeetingDetail` |
-| POST | `/v1/tontines/:id/meetings/:mid/close` | Président / VP / Secrétaire | `{ notes? }` → `MeetingDetail` (PV généré, empreinte SHA-256) |
+| POST | `/v1/tontines/:id/meetings/:mid/close` | Président / VP / Secrétaire | `{ notes?, decisions?: string[] }` → `MeetingDetail` (PV généré, empreinte SHA-256) |
 | POST | `/v1/tontines/:id/meetings/:mid/minutes-approval` | Président / VP / Secrétaire | `{ hash }` → `MeetingDetail` |
 
 ## Caisses et mouvements
 
 | GET | `/v1/tontines/:id/funds` | membre | → `FundView[]` |
-| GET | `/v1/tontines/:id/movements` | membre | `?fundId=&roundSeq=&state=` → `MovementView[]` |
+| GET | `/v1/tontines/:id/movements` | membre | `?fundId=&roundSeq=&state=&meetingId=&mine=1` → `MovementView[]` |
 | POST | `/v1/tontines/:id/movements` | membre | `DeclareMovementInput` → `MovementView` (déclaré) |
 | POST | `/v1/tontines/:id/movements/confirmations` | Trésorier / adjoint | `{ movementIds: string[] }` → `MovementView[]` (collecte en lot ; jamais sa propre déclaration) |
 | POST | `/v1/tontines/:id/movements/:mvid/control` | Commissaire aux comptes | → `MovementView` (validé) |
@@ -92,7 +92,8 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 | GET | `/v1/tontines/:id/fines` | membre | → `FineView[]` |
 | POST | `/v1/tontines/:id/fines` | Censeur / Président / VP | `{ membershipId, kind, amount?, reason, meetingId? }` → `FineView` |
 | POST | `/v1/tontines/:id/fines/:fid/contest` | membre sanctionné | `{ reason }` → `FineView` |
-| POST | `/v1/tontines/:id/fines/:fid/cancel` | Président / VP (≠ émetteur) | `{ reason }` → `FineView` |
+| POST | `/v1/tontines/:id/fines/:fid/cancel` | Président / VP (≠ membre concerné) | `{ reason }` → `FineView` |
+| POST | `/v1/tontines/:id/fines/:fid/maintain` | Président / VP (≠ membre concerné) | `{ reason }` → `FineView` (contestation rejetée) |
 | GET | `/v1/tontines/:id/aids` | membre | → `AidView[]` |
 | POST | `/v1/tontines/:id/aids` | membre | `{ beneficiaryMembershipId?, event, eventDate, note? }` → `AidView` |
 | POST | `/v1/tontines/:id/aids/:aid/decision` | bureau (≠ bénéficiaire) | `{ decision: "approve" \| "reject", note?, overrideAmount?, overrideReason? }` → `AidView` |
@@ -103,3 +104,14 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 ## Registre
 
 | GET | `/v1/tontines/:id/journal` | membre | → `{ valid: boolean, entries: JournalEntryView[] }` (chaîne d'empreintes vérifiée) |
+
+## Comportements à connaître (implémentation vérifiée sur PostgreSQL)
+
+- **Erreurs** : `{ code, message }` ; sur ces routes `message` est un motif métier en français, affichable tel quel. 401 session, 403 droit, 404 hors portée (jamais « ce groupe existe »), 409 conflit d'état, 422 saisie, 429 trop d'essais.
+- **Idempotence** : toute écriture accepte `Idempotency-Key` (8 à 120 caractères). Même clé + même corps ⇒ réponse rejouée (`idempotent-replay: true`) ; même clé + autre corps ⇒ 409.
+- **Régler une dette** : `POST movements` avec `relatedKind: "debt"`, `relatedId` ; le serveur choisit la caisse et le type (avance ⇒ remboursement au fonds de caisse ; impayé ⇒ cotisation de rotation du tour concerné).
+- **Payer une amende** : `kind: "fine_payment"` sur la caisse `fines`, `relatedKind: "fine"` ; le montant est celui de l'amende.
+- **Confirmation** : la trésorerie confirme, jamais sa propre déclaration ni son propre versement ; les versements du trésorier sont confirmés par la présidence. Si un commissaire aux comptes est en fonction, la confirmation donne « confirmé » puis le commissaire valide ; sinon la confirmation valide directement.
+- **Remise** : déclarée par la trésorerie (jamais par le bénéficiaire), devant témoins présents si la séance est ouverte ; le bénéficiaire (ou son mandataire) confirme la réception ; le tour ne se clôt qu'après cette confirmation. Une avance du fonds de caisse est tracée en sortie du fonds de caisse ET en entrée de la cagnotte.
+- **Échéances** : la part d'un tour transformée en dette (remise réduite, avance, clôture) quitte les échéances et apparaît dans les dettes.
+- **Recette** : `packages/api/test/tontineApi.proof.mjs` déroule tout ce contrat sur une vraie base (44 vérifications).

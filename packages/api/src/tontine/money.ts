@@ -299,7 +299,7 @@ export class MoneyService {
           throw new DomainError("FUND_INVALID", "Une dépense se justifie (objet, facture)");
         }
         const bal = await fundConfirmedBalance(db, groupId, fund.fundId);
-        if (bal < amount) throw new DomainError("FUND_INVALID", "Le solde confirmé de la caisse ne couvre pas cette dépense");
+        if (bal < amount) throw new DomainError("FUND_INVALID", "Le total confirmé de la caisse ne couvre pas cette dépense");
         memberId = actor.membershipId;
         relatedKind = null;
       } else {
