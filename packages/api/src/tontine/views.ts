@@ -269,6 +269,9 @@ export function currentRound(rounds: readonly RoundView[]): RoundView | null {
 
 /* ── Échéances ───────────────────────────────────────────────────────── */
 
+/** Motif posé sur les dettes annulées avec la remise rejetée qui les avait ouvertes. */
+export const PAYOUT_REJECTED_REASON = "Remise rejetée : écriture annulée";
+
 interface PaidSums {
   confirmed: bigint;
   declared: bigint;
@@ -298,6 +301,7 @@ export async function computeDues(
   const paidRes = await db.query(
     `SELECT fund_id, round_seq, state, COALESCE(SUM(amount),0)::text AS s FROM fund_movement
       WHERE group_id = $1 AND membership_id = $2 AND kind = 'contribution' AND state IN ('declared','confirmed','validated')
+        AND related_kind IS DISTINCT FROM 'debt'
       GROUP BY fund_id, round_seq, state`,
     [group.groupId, membershipId],
   );
@@ -310,6 +314,16 @@ export async function computeDues(
     paid.set(key, cur);
   }
 
+  // Part d'un tour « transférée » en dette (avance de caisse ou impayé suivi) :
+  // elle se règle depuis l'écran des dettes, plus depuis les échéances.
+  const tr = await db.query(
+    `SELECT origin_ref, COALESCE(SUM(amount),0)::text AS s FROM member_debt
+      WHERE group_id = $1 AND debtor_membership_id = $2 AND origin_ref LIKE 'round:%'
+        AND NOT (state = 'written_off' AND write_off_reason = $3)
+      GROUP BY origin_ref`,
+    [group.groupId, membershipId, PAYOUT_REJECTED_REASON],
+  );
+  const transferred = new Map(tr.rows.map((x) => [Number(String(x.origin_ref).slice(6)), BigInt(String(x.s))]));
   const upcoming = rounds.find((r) => r.date > today);
   const relevant = rounds.filter((r) =>
     opts.roundSeq !== undefined ? r.seq === opts.roundSeq : r.date <= today || r.seq === upcoming?.seq,
@@ -323,7 +337,8 @@ export async function computeDues(
       else if (f.perMeeting > 0n && r.date >= joined) due = f.perMeeting;
       if (due === 0n) continue;
       const p = paid.get(`${f.fundId}|${r.seq}`) ?? { confirmed: 0n, declared: 0n };
-      const remaining = due - p.confirmed - p.declared;
+      const moved = f.kind === "rotation" ? (transferred.get(r.seq) ?? 0n) : 0n;
+      const remaining = due - p.confirmed - p.declared - moved;
       const rem = remaining > 0n ? remaining : 0n;
       if (opts.onlyOpen && rem === 0n) continue;
       out.push({
@@ -390,6 +405,12 @@ export async function movementViews(
     actor.membershipId,
   ]);
   const represents = new Set(proxied.rows.map((x) => String(x.membership_id)));
+  const treasuryRes = await db.query(
+    `SELECT membership_id FROM role_assignment WHERE group_id = $1 AND role IN ('treasurer','treasurer_deputy') AND accepted_at IS NOT NULL AND ended_at IS NULL`,
+    [actor.groupId],
+  );
+  const treasury = new Set(treasuryRes.rows.map((x) => String(x.membership_id)));
+  const presidency = actor.membershipState === "active" && (actor.roles.includes("animator") || actor.roles.includes("vice_president"));
   const canConfirm = may(actor, "movement.confirm");
   const canControl = may(actor, "movement.control");
   return r.rows.map((row) => {
@@ -425,7 +446,9 @@ export async function movementViews(
       witnesses: (row.witness_membership_ids as string[] | null ?? []).map((w) => names.byMembership.get(w) ?? w),
       beneficiaryConfirmedAt: isoInstant(row.beneficiary_confirmed_at),
       can: {
-        confirm: canConfirm && state === "declared" && !isPayout && declaredBy !== actor.identityId && !mine,
+        confirm:
+          (canConfirm || (presidency && memberId !== null && treasury.has(memberId))) &&
+          state === "declared" && !isPayout && row.related_kind !== "advance" && declaredBy !== actor.identityId && !mine,
         control:
           canControl && state === "confirmed" && declaredBy !== actor.identityId && confirmedBy !== actor.identityId && !mine,
         reject: canConfirm && (state === "declared" || state === "confirmed") && declaredBy !== actor.identityId && !mine,

@@ -401,6 +401,13 @@ export class CycleService {
            VALUES ($1,$2,$3,'advance',$4,$5,$6,'other','Avance pour la remise du tour',$7,'advance',$8)`,
           [newId("mvt"), groupId, operating.fundId, m(plan.advanceAmount), meeting?.meeting_id ?? null, seq, actor.identityId, movementId],
         );
+        // Contrepartie dans la cagnotte : l'avance entre en rotation (pas de double compte).
+        await db.query(
+          `INSERT INTO fund_movement (movement_id, group_id, fund_id, kind, amount, meeting_id, round_seq, channel, justification,
+                                      declared_by_identity_id, related_kind, related_id)
+           VALUES ($1,$2,$3,'transfer_in',$4,$5,$6,'other','Avance reçue du fonds de caisse',$7,'advance',$8)`,
+          [newId("mvt"), groupId, rotation.fundId, m(plan.advanceAmount), meeting?.meeting_id ?? null, seq, actor.identityId, movementId],
+        );
       }
       const sponsors = await db.query(`SELECT membership_id, sponsor_membership_id FROM membership WHERE group_id = $1`, [groupId]);
       const sponsorOf = new Map(sponsors.rows.map((x) => [String(x.membership_id), x.sponsor_membership_id ? String(x.sponsor_membership_id) : null]));
