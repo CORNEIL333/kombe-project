@@ -66,7 +66,7 @@ export function registerHttpGuards(app: FastifyInstance, env: NodeJS.ProcessEnv 
     // recovery sous /v1/access/*).
     const now = Date.now();
     const ip = request.ip;
-    const isAuthRoute = request.method === "POST" && /^\/v1\/access\//.test(request.url);
+    const isAuthRoute = request.method === "POST" && /^\/v1\/(access|auth)\//.test(request.url);
     if (!globalLimit.allow(ip, now) || (isAuthRoute && !authLimit.allow(ip, now))) {
       await reply.code(429).header("retry-after", "60").send({
         code: "RATE_LIMITED",

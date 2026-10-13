@@ -40,7 +40,9 @@ import {
   privacySubjectGroup,
 } from "./db/pgGroupResolvers.js";
 import { resolveSession, resolveGroupActor, type GroupActor } from "./db/pgSessionResolver.js";
-import { ResendEmailSender, type EmailSender } from "./email/emailSender.js";
+import { NullEmailSender, ResendEmailSender, type EmailSender } from "./email/emailSender.js";
+import { registerTontineRoutes } from "./tontine/routes.js";
+import type { CodeSender } from "./tontine/sms.js";
 import {
   FictitiousCommandStore,
   type Actor,
@@ -235,6 +237,32 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   METRICS_SEVERITE_INCONNUE: 422,
   METRICS_VALEUR_INVALIDE: 422,
   METRICS_RISQUE_CRITIQUE_SANS_CONTROLE: 409,
+  // Tontine réelle (API produit, docs/API_TONTINE.md).
+  TONTINE_FORBIDDEN: 403,
+  OBJET_INTROUVABLE: 404,
+  STATE_CONFLICT: 409,
+  AUTH_THROTTLED: 429,
+  SMS_DELIVERY_FAILED: 502,
+  PHONE_INVALID: 422,
+  GROUP_NAME_INVALID: 422,
+  CADENCE_INVALID: 422,
+  MEETING_STATE_INVALID: 409,
+  ATTENDANCE_INVALID: 422,
+  WITNESS_REQUIRED: 422,
+  FUND_INVALID: 422,
+  FUND_KIND_DISABLED: 403,
+  MOVEMENT_STATE_INVALID: 409,
+  MOVEMENT_NOT_INDEPENDENT: 403,
+  FINE_INVALID: 422,
+  AID_INVALID: 422,
+  AID_CAP_EXCEEDED: 422,
+  DEBT_INVALID: 422,
+  ORDER_CHANGE_INVALID: 422,
+  DRAW_INVALID: 422,
+  SHARES_INVALID: 422,
+  MANDATE_INVALID: 422,
+  IMPORT_INVALID: 422,
+  RECONCILIATION_INCOHERENTE: 409,
 };
 
 export interface BuildAppOptions {
@@ -277,6 +305,9 @@ export interface BuildAppOptions {
    *  hors RLS applicative. Absent : `journal.checkpoint` reste indisponible
    *  en mode réel (RESERVATION_INCOHERENTE côté store). */
   readonly journalVerifierPool?: pg.Pool;
+  /** Envoi des codes de connexion (SMS) de l'API tontine ; par défaut lu
+   *  depuis `KOMBE_SMS_PROVIDER` (simulateur interdit en production). */
+  readonly codeSender?: CodeSender;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -611,15 +642,25 @@ function metricsCtxFrom(
   };
 }
 
+/** Voie e-mail fermée (production sans RESEND_API_KEY) : échec explicite à l'usage. */
+class DisabledEmailSender implements EmailSender {
+  async send(): Promise<void> {
+    throw new DomainError("EMAIL_DELIVERY_FAILED", "Voie e-mail non configurée");
+  }
+}
+
 /** Construit l'expéditeur Resend réel depuis l'environnement. Échec explicite
  *  (jamais un repli silencieux) si `RESEND_API_KEY` est absente : un pool réel
  *  sans expéditeur réel serait un mode réel partiellement simulé, exclu. */
 function requireResendSender(): EmailSender {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    throw new Error(
-      "RESEND_API_KEY absente : mode réel (pool fourni) exige un expéditeur email réel (ADR-0023/0024).",
-    );
+    // Connexion par téléphone d'abord (ADR-0025) : l'e-mail est une seconde
+    // voie. Hors production, un expéditeur SIMULÉ (rien ne part, le code est
+    // rendu au développeur) ; en production, la voie e-mail est fermée et
+    // répond EMAIL_DELIVERY_FAILED — jamais un faux envoi silencieux.
+    if (process.env.NODE_ENV !== "production") return new NullEmailSender();
+    return new DisabledEmailSender();
   }
   const from = process.env.KOMBE_EMAIL_FROM && process.env.KOMBE_EMAIL_FROM.length > 0
     ? process.env.KOMBE_EMAIL_FROM
@@ -979,9 +1020,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const pool = options.pool;
   const now = options.now ?? (() => Date.now());
   const realContribution = pool ? new PgContributionStore(pool) : undefined;
-  const realAccess = pool
-    ? new PgAccessStore(pool, options.emailSender ?? requireResendSender())
-    : undefined;
+  const emailSender = pool ? (options.emailSender ?? requireResendSender()) : undefined;
+  const realAccess = pool && emailSender ? new PgAccessStore(pool, emailSender) : undefined;
   const realGovernance = pool ? new PgGovernanceStore(pool) : undefined;
   const realValidation = pool ? new PgValidationStore(pool) : undefined;
   const realDisputes = pool ? new PgDisputeStore(pool) : undefined;
@@ -1000,7 +1040,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     }
     if (error instanceof DomainError) {
       const status = STATUS_BY_CODE[error.code] ?? 400;
-      return reply.code(status).send({ code: error.code, message: "Requête refusée" });
+      // API produit (tontine réelle) : le motif métier, en français, est
+      // affiché tel quel à la personne (jamais un détail technique : les
+      // erreurs Postgres sont traduites en amont, cf. tontine/infra.ts).
+      const productRoute = /^\/v1\/(auth|me|tontines|invitations)(\/|\?|$)/.test(_request.url);
+      return reply.code(status).send({ code: error.code, message: productRoute ? error.message : "Requête refusée" });
     }
     // Erreurs de PROTOCOLE Fastify (corps JSON vide/malformé, type de contenu
     // refusé…) : statut 4xx porté par l'erreur elle-même ; jamais 500.
@@ -1037,6 +1081,17 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       return reply.code(503).send({ status: "degraded", mode: "réel" });
     }
   });
+
+  // API produit « tontine réelle » (docs/API_TONTINE.md) : mode réel seulement.
+  if (pool && emailSender) {
+    registerTontineRoutes(app, {
+      pool,
+      now,
+      emailSender,
+      emailSimulated: emailSender instanceof NullEmailSender,
+      ...(options.codeSender ? { codeSender: options.codeSender } : {}),
+    });
+  }
 
   // Routes du squelette C00 (pipeline fictif) : n'existent PAS en mode réel
   // (aucune implémentation PG) — 404 Fastify, jamais de données fictives.

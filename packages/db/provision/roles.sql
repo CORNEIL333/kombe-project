@@ -29,9 +29,22 @@ END $$;
 
 -- Membership du rôle connectant dans chaque rôle KÓMBE (permet SET ROLE kombe_app/worker).
 -- Sur Neon, CURRENT_USER = neondb_owner ; sur Docker, CURRENT_USER = kombe_migrateur.
-GRANT kombe_migrateur TO CURRENT_USER;
-GRANT kombe_app TO CURRENT_USER;
-GRANT kombe_worker TO CURRENT_USER;
+-- Tolérant : un rôle ne peut pas s'accorder lui-même (CURRENT_USER =
+-- kombe_migrateur) et PostgreSQL 16 exige ADMIN OPTION pour accorder un rôle ;
+-- si l'appartenance existe déjà (docker-init.sql), on ne fait rien.
+DO $$
+DECLARE r text;
+BEGIN
+  FOREACH r IN ARRAY ARRAY['kombe_migrateur','kombe_app','kombe_worker'] LOOP
+    IF r <> CURRENT_USER AND NOT pg_has_role(CURRENT_USER, r, 'MEMBER') THEN
+      BEGIN
+        EXECUTE format('GRANT %I TO CURRENT_USER', r);
+      EXCEPTION WHEN insufficient_privilege THEN
+        RAISE NOTICE 'GRANT % TO % refusé (droits insuffisants) — à poser par le superuser.', r, CURRENT_USER;
+      END;
+    END IF;
+  END LOOP;
+END $$;
 
 -- kombe_app : uniquement SELECT/INSERT/UPDATE/DELETE, jamais de DDL.
 GRANT USAGE ON SCHEMA public TO kombe_app;
@@ -70,6 +83,15 @@ REVOKE UPDATE, DELETE ON analytics_event FROM kombe_app;
 REVOKE UPDATE, DELETE ON unit_economics_snapshot FROM kombe_app;
 REVOKE INSERT, UPDATE, DELETE ON internal_notification, notification_delivery FROM kombe_app;
 REVOKE ALL ON notification_preference, notification_channel FROM kombe_app;
+-- Tontine réelle (0025/0026) : aucune suppression applicative (historique
+-- conservé, corrections par contre-écriture), statuts publiés immuables,
+-- boîte de notifications alimentée seulement par kombe_notify().
+REVOKE DELETE ON share, share_holder, fund, meeting, attendance, fund_movement, fine, aid_request,
+  member_debt, order_change, draw, auction_bid, statutes_acceptance, loan, collector_period,
+  legacy_import, legacy_contribution FROM kombe_app;
+REVOKE UPDATE, DELETE ON statutes_version FROM kombe_app;
+REVOKE INSERT, DELETE ON inbox_notification FROM kombe_app;
+REVOKE UPDATE, DELETE ON api_idempotency FROM kombe_app;
 
 -- kombe_worker : lecture/maJ de l'outbox et du registre de commandes seulement.
 GRANT USAGE ON SCHEMA public TO kombe_worker;

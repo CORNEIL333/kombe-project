@@ -33,3 +33,4 @@ export * from "./securityLog.js";
 export * from "./export.js";
 export * from "./privacy.js";
 export * from "./metrics.js";
+export * from "./tontine/index.js";
