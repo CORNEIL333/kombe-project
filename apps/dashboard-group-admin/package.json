@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Dashboard web de gouvernance et administration de groupe, sans données simulées.",
+  "description": "KÓMBE Bureau : console du bureau d’une association (séances, validations, caisses) sur les routes tontine réelles, sans données simulées.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
