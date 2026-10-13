@@ -1,4 +1,6 @@
 import {ApiClient, encodePath} from '@kombe/dashboard-core';
+// Client typé des routes « tontine réelle » utilisé par le Bureau (src/tontine/client.ts).
+export {TontineApi} from './tontine/client';
 export interface CycleSchedule {readonly groupId?:string;readonly ruleVersion?:number;readonly memberCount?:number;readonly rounds?:number;readonly frequency?:string;readonly state?:string;readonly contribution?:string;readonly roundPot?:string;readonly cycleExpectedTotal?:string;readonly schedule?:readonly Record<string,unknown>[]}
 export interface DisputeView {readonly disputeId?:string;readonly state?:string;readonly [key:string]:unknown}
 export interface DeclareDisbursementInput {readonly disbursementId:string;readonly roundId:string;readonly obligationId:string;readonly beneficiaryIdentityId:string;readonly netAmount:string;readonly groupFees:string;readonly personalFeesOutOfPot?:string;readonly requiredControllers:number;readonly allegedDate:number}
