@@ -77,6 +77,40 @@ tags:
       des risques dont un critique sans contrôle effectif bloque l'extension
       (C18, 16.1–16.3, 18.13)
 
+  - name: tontine-identity
+    description: >
+      Tontine réelle — identité de la session : produit, mes groupes, mon
+      profil (mode réel uniquement, docs/API_TONTINE.md)
+  - name: tontine-group
+    description: Tontine réelle — création d'un groupe (le créateur devient Président), vue d'ensemble, membres, règlement
+  - name: tontine-invitations
+    description: Tontine réelle — codes d'invitation, demandes d'adhésion et admission
+  - name: tontine-bureau
+    description: Tontine réelle — fonctions du bureau (proposition, acceptation, fin de mandat)
+  - name: tontine-schedule
+    description: Tontine réelle — calendrier des tours, parts, tirage engagé, échanges de tours, mes échéances
+  - name: tontine-meetings
+    description: Tontine réelle — séances, appel, collecte, remise devant témoins, procès-verbal
+  - name: tontine-funds
+    description: Tontine réelle — caisses (rotation, secours, amendes, fonds de caisse, réserve)
+  - name: tontine-movements
+    description: >
+      Tontine réelle — mouvements faits HORS de KÓMBE : déclaré → confirmé
+      (trésorier, ou le bénéficiaire pour une remise) → validé (commissaire aux
+      comptes quand la caisse exige le contrôle). KÓMBE ne garde pas l'argent.
+  - name: tontine-fines
+    description: Tontine réelle — amendes selon le barème, contestation, arbitrage
+  - name: tontine-aids
+    description: Tontine réelle — secours (caisse de solidarité) selon le barème
+  - name: tontine-debts
+    description: Tontine réelle — dettes, avaliseur, abandon motivé
+  - name: tontine-statutes
+    description: Tontine réelle — statuts générés depuis le règlement, acceptation à l'empreinte
+  - name: tontine-history
+    description: Tontine réelle — reprise en lecture seule de l'historique d'un ancien njangi
+  - name: tontine-notifications
+    description: Tontine réelle — notifications in-app sans montant ni nom
+
 paths:
   /groups:
     post:
@@ -2384,6 +2418,1527 @@ paths:
         "422": { $ref: "#/components/responses/Unprocessable" }
 
 
+  # ── Tontine réelle (lots L-01 à L-21) — mode réel uniquement ─────────────
+  # Routes enregistrées par packages/api/src/tontine/routes.ts quand le serveur
+  # tourne avec PostgreSQL (`buildApp({ pool })`). Session Bearer obligatoire
+  # (sauf /product) ; l'acteur et TOUTES ses fonctions acceptées sont résolus
+  # côté serveur ; chaque acte est vérifié par la matrice des rôles du domaine
+  # (packages/domain/src/tontine/roles.ts). Référence lisible : docs/API_TONTINE.md.
+
+  /product:
+    get:
+      tags: [tontine-identity]
+      operationId: getProduct
+      summary: Positionnement du produit et drapeaux ouverts par le porteur
+      security: []
+      responses:
+        "200":
+          description: Phrase de positionnement (fr/en) et drapeaux de fonctionnalités ouverts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductInfo" }
+
+  /me/groups:
+    get:
+      tags: [tontine-identity]
+      operationId: listMyGroups
+      summary: Mes groupes (adhésions actives ou en attente) et mes fonctions
+      responses:
+        "200":
+          description: Une ligne par adhésion de l'identité de la session.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MyGroup" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /me/profile:
+    get:
+      tags: [tontine-identity]
+      operationId: getMyProfile
+      summary: "Mon profil (nom affiché, langue)"
+      responses:
+        "200":
+          description: Profil de l'identité de la session (langue « fr » par défaut).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    put:
+      tags: [tontine-identity]
+      operationId: putMyProfile
+      summary: Mettre à jour mon profil
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProfileUpdate" }
+      responses:
+        "200":
+          description: Profil enregistré.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Profile" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /me/notifications:
+    get:
+      tags: [tontine-notifications]
+      operationId: listMyNotifications
+      summary: "Mes notifications in-app (100 dernières, sans montant ni nom)"
+      responses:
+        "200":
+          description: "Notifications de l'identité, de la plus récente à la plus ancienne."
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/NotificationRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /me/notifications/{notificationId}/read:
+    post:
+      tags: [tontine-notifications]
+      operationId: markNotificationRead
+      summary: Marquer une notification comme lue (idempotent)
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: string, pattern: "^\\d{1,18}$" }
+      responses:
+        "204": { description: Notification marquée lue (sans effet si déjà lue). }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /tontine/groups:
+    post:
+      tags: [tontine-group]
+      operationId: createTontineGroup
+      summary: Créer un groupe — le créateur en devient le Président
+      description: >
+        Crée le groupe en état `configuration`, l'adhésion ACTIVE du créateur
+        avec les fonctions « membre » et « Président » (animator) acceptées
+        d'office, et les caisses demandées (par défaut : rotation, secours,
+        amendes, fonds de caisse, réserve de fin d'année ; la rotation est
+        toujours ajoutée). Les caisses `loan` et `collector` sont refusées ici
+        (FUND_KIND_DISABLED). Toute identité authentifiée peut créer un groupe.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTontineGroupRequest" }
+      responses:
+        "201":
+          description: Groupe créé.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TontineGroupCreated" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /invitations/by-code/{code}:
+    get:
+      tags: [tontine-invitations]
+      operationId: lookupInvitationByCode
+      summary: "Lire une invitation par son code (identité authentifiée, hors groupe)"
+      parameters:
+        - $ref: "#/components/parameters/InvitationCode"
+      responses:
+        "200":
+          description: "Groupe visé et utilisabilité du code (non expiré, non révoqué, non épuisé)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvitationLookup" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "410": { $ref: "#/components/responses/Gone" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /invitations/by-code/{code}/requests:
+    post:
+      tags: [tontine-invitations]
+      operationId: requestMembershipByCode
+      summary: Demander à rejoindre un groupe avec un code (adhésion EN ATTENTE)
+      description: >
+        Crée une adhésion `pending`, admise ou refusée ensuite par la présidence.
+        Si le groupe exige un avaliseur (`guarantorRequired`), `sponsorMembershipId`
+        doit désigner un membre actif (sinon DEBT_INVALID, 422).
+      parameters:
+        - $ref: "#/components/parameters/InvitationCode"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MembershipRequestBody" }
+      responses:
+        "201":
+          description: "Demande enregistrée, en attente de décision."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MembershipRequested" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "410": { $ref: "#/components/responses/Gone" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/overview:
+    get:
+      tags: [tontine-group]
+      operationId: getGroupOverview
+      summary: Vue d'ensemble du groupe pour l'acteur (tout membre actif)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: "Nom, état, réglages, mes fonctions, effectifs, calendrier, prochaine séance, file à valider."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupOverview" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /groups/{groupId}/members:
+    get:
+      tags: [tontine-group]
+      operationId: listGroupMembers
+      summary: Membres du groupe (tout membre actif ; demandes en attente et contacts pour le bureau d'admission)
+      description: >
+        Les adhésions `pending` et le champ `contact` (numéro masqué « +237 6•• •• •• 12 »)
+        ne sont visibles que des fonctions qui invitent ou admettent (Président,
+        Vice-président, Secrétaire général). En transparence `anonymized`, un
+        simple membre voit « Membre » à la place des autres noms.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: Membres actifs (et en attente pour le bureau).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MemberView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /groups/{groupId}/settings:
+    patch:
+      tags: [tontine-group]
+      operationId: patchGroupSettings
+      summary: "Modifier le règlement du groupe (action group.manage — Président, Vice-président, Secrétaire général)"
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GroupSettingsPatch" }
+      responses:
+        "200":
+          description: Réglages complets après fusion (montants en chaînes décimales).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupSettings" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/invitations:
+    get:
+      tags: [tontine-invitations]
+      operationId: listGroupInvitations
+      summary: "Codes d'invitation du groupe (action member.invite — Président, Vice-président, Secrétaire général)"
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: 50 derniers codes émis.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InvitationRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [tontine-invitations]
+      operationId: createGroupInvitation
+      summary: Émettre un code d'invitation de 8 caractères (action member.invite)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateInvitationRequest" }
+      responses:
+        "201":
+          description: Code émis (alphabet sans 0/O/1/I).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvitationCreated" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "410": { $ref: "#/components/responses/Gone" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/invitations/{invitationId}/revocations:
+    post:
+      tags: [tontine-invitations]
+      operationId: revokeGroupInvitation
+      summary: Révoquer un code d'invitation (action member.invite)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - { name: invitationId, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Code révoqué. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /groups/{groupId}/memberships/{membershipId}/decisions:
+    post:
+      tags: [tontine-invitations]
+      operationId: decideMembership
+      summary: "Admettre ou refuser une demande d'adhésion (action member.admit — Président, Vice-président)"
+      description: >
+        On ne s'admet jamais soi-même (APPROVER_NOT_DISTINCT). L'admission est
+        refusée si l'effectif maximal (`maxMembers`) est atteint (RULE_INVALID).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MembershipId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [admit, refuse] }
+      responses:
+        "200":
+          description: Nouvel état de l'adhésion.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [state]
+                properties:
+                  state: { type: string, enum: [active, revoked] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/roles:
+    get:
+      tags: [tontine-bureau]
+      operationId: listBureauRoles
+      summary: "Fonctions du bureau en cours, proposées ou acceptées (tout membre actif)"
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: "Fonctions non terminées, hors « membre ». `accepted_at` nul = proposition en attente d'acceptation."
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RoleAssignmentRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [tontine-bureau]
+      operationId: proposeBureauRole
+      summary: "Proposer une fonction à un membre actif (action role.assign — Président, Vice-président)"
+      description: >
+        La personne nommée accepte ensuite elle-même. Une fonction financière
+        (trésorier, trésorier adjoint, commissaire aux comptes) ne s'attribue
+        pas à soi-même (APPROVER_NOT_DISTINCT, 403). Président et trésorier :
+        une seule personne à la fois (MANDATE_INVALID tant que le mandat en
+        cours n'est pas terminé). Mandat de 5 ans au plus.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProposeRoleRequest" }
+      responses:
+        "201":
+          description: Fonction proposée.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [roleAssignmentId]
+                properties:
+                  roleAssignmentId: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/roles/{roleAssignmentId}/acceptances:
+    post:
+      tags: [tontine-bureau]
+      operationId: acceptBureauRole
+      summary: La personne nommée accepte sa fonction (elle seule)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/RoleAssignmentId"
+      responses:
+        "204": { description: Fonction acceptée ; elle compte dès la requête suivante. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/roles/{roleAssignmentId}/end:
+    post:
+      tags: [tontine-bureau]
+      operationId: endBureauRole
+      summary: "Mettre fin à une fonction (démission par le titulaire, ou fin décidée par la présidence)"
+      description: >
+        Le titulaire peut toujours démissionner ; mettre fin à la fonction
+        d'un autre exige role.assign. Le Président ne quitte sa fonction que si
+        un Vice-président accepté assure l'intérim (MANDATE_INVALID sinon).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/RoleAssignmentId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 300, default: "" }
+      responses:
+        "204": { description: Fonction terminée. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/tontine-schedule:
+    get:
+      tags: [tontine-schedule]
+      operationId: getTontineSchedule
+      summary: Calendrier des tours (tout membre actif)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: "Calendrier, ou `{ state: \"none\", rounds: [] }` s'il n'existe pas encore."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TontineSchedule" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [tontine-schedule]
+      operationId: buildTontineSchedule
+      summary: "Construire ou reconstruire le calendrier en brouillon (action schedule.manage — Président, Vice-président, Secrétaire général)"
+      description: >
+        Recalcule tours, parts et échéances depuis la cadence. Refusé une fois
+        le cycle démarré (SCHEDULE_FROZEN, 409) et sous l'effectif minimal
+        (CYCLE_START_NOT_READY, 409). Sans `shares`, une part par membre actif
+        dans l'ordre choisi (`join_order`, `manual` qui cite chaque membre actif
+        une fois, ou `draw` révélé).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BuildScheduleRequest" }
+      responses:
+        "200":
+          description: Calendrier en brouillon.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TontineSchedule" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/tontine-schedule/start:
+    post:
+      tags: [tontine-schedule]
+      operationId: startTontineSchedule
+      summary: Démarrer le cycle — fige le calendrier et crée les séances (action schedule.manage)
+      description: >
+        Exige un Président et un Trésorier ACCEPTÉS et distincts, et au moins
+        deux tours (CYCLE_START_NOT_READY, 409). Le groupe passe de
+        `configuration` à `active` ; chaque membre est notifié.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: "Calendrier démarré (`state = started`, chaque tour porte son `meetingId`)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TontineSchedule" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/draws:
+    post:
+      tags: [tontine-schedule]
+      operationId: commitDraw
+      summary: "Engager un tirage au sort — publier l'empreinte avant la graine (action order.manage — Président, Vice-président, Secrétaire général)"
+      description: >
+        `commitment` = SHA-256 hexadécimal de la chaîne `kombe-draw:<graine>`.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [commitment]
+              properties:
+                commitment: { type: string, pattern: "^[0-9a-f]{64}$" }
+      responses:
+        "201":
+          description: Tirage engagé.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [drawId]
+                properties:
+                  drawId: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/draws/{drawId}/reveal:
+    post:
+      tags: [tontine-schedule]
+      operationId: revealDraw
+      summary: Révéler la graine et obtenir l'ordre tiré (action order.manage)
+      description: >
+        L'ordre ne dépend que de la graine et de la liste des membres actifs :
+        tout membre peut le rejouer. Si `newcomersLast` est actif, les derniers
+        admis passent après les anciens. Graine différente de l'engagement :
+        DRAW_INVALID (422).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - { name: drawId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [seed]
+              properties:
+                seed: { type: string, minLength: 16, maxLength: 200 }
+      responses:
+        "200":
+          description: "Ordre tiré (identifiants d'adhésion), à passer ensuite en `order.mode = draw`."
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order]
+                properties:
+                  order:
+                    type: array
+                    items: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/order-changes:
+    get:
+      tags: [tontine-schedule]
+      operationId: listOrderChanges
+      summary: Demandes d'échange de tours (tout membre actif)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: 50 dernières demandes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/OrderChangeRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [tontine-schedule]
+      operationId: requestOrderSwap
+      summary: Demander l'échange de deux tours (un titulaire de l'un des deux tours)
+      description: >
+        Les deux tours ne doivent pas encore avoir eu leur remise et doivent
+        avoir des titulaires distincts (ORDER_CHANGE_INVALID, 422). Le
+        demandeur compte comme ayant accepté.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [seqA, seqB]
+              properties:
+                seqA: { type: integer, minimum: 1 }
+                seqB: { type: integer, minimum: 1 }
+                reason: { type: [string, "null"], maxLength: 500, default: null }
+      responses:
+        "201":
+          description: Demande créée (état `requested`).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changeId]
+                properties:
+                  changeId: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/order-changes/{changeId}/{act}:
+    post:
+      tags: [tontine-schedule]
+      operationId: actOnOrderChange
+      summary: "Accepter, approuver ou rejeter un échange de tours"
+      description: >
+        `accept` : chaque titulaire concerné. `approve` : bureau (order.manage),
+        par une personne NON concernée par l'échange (APPROVER_NOT_DISTINCT).
+        `reject` : un titulaire concerné ou le bureau. L'échange s'applique
+        quand tous les titulaires ont accepté ET qu'un membre du bureau a
+        approuvé (`state = applied`).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - { name: changeId, in: path, required: true, schema: { type: string } }
+        - { name: act, in: path, required: true, schema: { type: string, enum: [accept, approve, reject] } }
+      responses:
+        "200":
+          description: Nouvel état de la demande.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [state]
+                properties:
+                  state: { type: string, enum: [requested, applied, rejected] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/my-obligations:
+    get:
+      tags: [tontine-schedule]
+      operationId: listMyObligations
+      summary: "Mes échéances de rotation (tout membre actif, pour lui-même)"
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: "Une échéance par tour, avec montants dû / déclaré / validé et statut de retard."
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MyObligation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /groups/{groupId}/pending-validations:
+    get:
+      tags: [tontine-movements]
+      operationId: listPendingValidations
+      summary: Ma file « à valider » — ce que ma fonction me permet de confirmer ou contrôler
+      description: >
+        Trésorier / trésorier adjoint : mouvements `declared` (hors remises).
+        Bénéficiaire : ses remises `declared`. Commissaire aux comptes :
+        mouvements `confirmed`. Jamais les mouvements que j'ai déclarés.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: Mouvements en attente de mon acte.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MovementView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /groups/{groupId}/funds:
+    get:
+      tags: [tontine-funds]
+      operationId: listFunds
+      summary: Caisses du groupe et écart du registre (tout membre actif)
+      description: >
+        `registerBalance` = somme signée des mouvements VALIDÉS (écart du
+        registre, pas de l'argent détenu par KÓMBE). Les mouvements déclarés
+        ou confirmés sont montrés à part (`inProgressIn`, `inProgressOut`).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: "Caisses, dans l'ordre de création."
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FundView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [tontine-funds]
+      operationId: createFund
+      summary: "Ouvrir une caisse (action fund.manage — Président, Vice-président, Trésorier)"
+      description: >
+        `loan` et `collector` restent fermées tant que le porteur n'a pas ouvert
+        le drapeau correspondant (`loan_register`, `daily_collector`) :
+        FUND_KIND_DISABLED (403).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateFundRequest" }
+      responses:
+        "201":
+          description: Caisse ouverte.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [fundId]
+                properties:
+                  fundId: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/movements:
+    get:
+      tags: [tontine-movements]
+      operationId: listMovements
+      summary: "Mouvements des caisses (tout membre actif, filtrés selon la transparence)"
+      description: >
+        200 derniers. En transparence `bureau_only`, un simple membre ne voit
+        que les siens ; en `anonymized`, le nom et l'adhésion des autres sont
+        masqués. La `reference` n'est visible que du bureau et du déclarant.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - { name: state, in: query, required: false, schema: { $ref: "#/components/schemas/MovementState" } }
+        - { name: fundId, in: query, required: false, schema: { type: string } }
+        - { name: meetingId, in: query, required: false, schema: { type: string } }
+        - { name: mine, in: query, required: false, schema: { type: string, enum: ["true", "false"] } }
+      responses:
+        "200":
+          description: "Mouvements, du plus récent au plus ancien."
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MovementView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [tontine-movements]
+      operationId: declareMovement
+      summary: "Déclarer un mouvement fait HORS de KÓMBE (espèces, Orange Money, MTN MoMo, banque)"
+      description: >
+        Tout membre déclare SES versements (`contribution`, `fine_payment`,
+        `advance_repayment`). Déclarer pour un autre membre, ou une sortie
+        (`payout`, `advance`, `transfer_out`, `fee`, `expense`), exige
+        movement.confirm (trésorerie) ou meeting.attendance (Président,
+        Vice-président, Secrétaire général, Censeur). Canal électronique sans
+        référence : `justification` obligatoire (REFERENCE_JUSTIFICATION_REQUIRED).
+        Une cotisation à la caisse de rotation est rattachée à son échéance
+        (`obligationId`, ou déduite de `meetingId`) et ne dépasse jamais le
+        restant dû (CONTRIBUTION_EXCEEDS_REMAINING, 409). Une sortie ne dépasse
+        pas l'écart du registre de la caisse (FUND_INVALID). Le mouvement naît
+        `declared` ; la trésorerie est notifiée.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/OptionalIdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DeclareMovementRequest" }
+      responses:
+        "201":
+          description: Mouvement déclaré (ou résultat d'origine si la même clé est rejouée).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MovementReceipt" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/movements/{movementId}/confirmations:
+    post:
+      tags: [tontine-movements]
+      operationId: confirmMovement
+      summary: Confirmer un mouvement déclaré (trésorerie ; le BÉNÉFICIAIRE pour une remise)
+      description: >
+        Le déclarant ne confirme jamais sa propre opération
+        (MOVEMENT_NOT_INDEPENDENT, 403). Si la caisse exige le contrôle
+        (`controlRequired`), l'état devient `confirmed` et le commissaire aux
+        comptes est notifié ; sinon la confirmation vaut validation (`validated`).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MovementId"
+      responses:
+        "200":
+          description: Nouvel état.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MovementStateView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/movements/{movementId}/controls:
+    post:
+      tags: [tontine-movements]
+      operationId: controlMovement
+      summary: Valider un mouvement confirmé (action movement.control — Commissaire aux comptes)
+      description: >
+        Le contrôleur est distinct du déclarant et du confirmateur
+        (MOVEMENT_NOT_INDEPENDENT, 403). Effets à la validation : échéance
+        créditée, amende payée, secours versé, dette réglée.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MovementId"
+      responses:
+        "200":
+          description: Mouvement validé.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MovementStateView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/movements/{movementId}/rejections:
+    post:
+      tags: [tontine-movements]
+      operationId: rejectMovement
+      summary: "Rejeter un mouvement en cours (trésorerie, commissaire, ou bénéficiaire d'une remise)"
+      description: >
+        Seul un mouvement `declared` ou `confirmed` se rejette. Le déclarant ne
+        rejette pas sa propre opération. Le déclarant est notifié.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MovementId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 500 }
+      responses:
+        "200":
+          description: Mouvement rejeté.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MovementStateView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/movements/confirmations:
+    post:
+      tags: [tontine-movements]
+      operationId: confirmMovementsBatch
+      summary: "Confirmer plusieurs mouvements d'un coup (trésorerie, après une collecte)"
+      description: >
+        Tout ou rien : une seule transaction ; le premier refus annule le lot
+        et renvoie son erreur.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [movementIds]
+              properties:
+                movementIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items: { type: string }
+      responses:
+        "200":
+          description: "État obtenu par mouvement (`{ \"<movementId>\": \"confirmed\" | \"validated\" }`)."
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { $ref: "#/components/schemas/MovementState" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/meetings:
+    get:
+      tags: [tontine-meetings]
+      operationId: listMeetings
+      summary: Séances du cycle (tout membre actif)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: Séances par numéro croissant.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MeetingRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /groups/{groupId}/meetings/{meetingId}:
+    get:
+      tags: [tontine-meetings]
+      operationId: getMeeting
+      summary: "Détail d'une séance — appel, tour, cagnotte, échéances, procès-verbal (tout membre actif)"
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MeetingId"
+      responses:
+        "200":
+          description: Détail de la séance.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [tontine-meetings]
+      operationId: updateMeeting
+      summary: "Modifier lieu, hôte, notes ou date d'une séance planifiée ou ouverte (action meeting.manage — Président, Vice-président, Secrétaire général)"
+      description: >
+        Un report (`scheduledDate`) déplace aussi la date du tour. Une valeur
+        `null` laisse le champ inchangé.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MeetingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateMeetingRequest" }
+      responses:
+        "204": { description: Séance mise à jour. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/meetings/{meetingId}/open:
+    post:
+      tags: [tontine-meetings]
+      operationId: openMeeting
+      summary: Ouvrir une séance planifiée (action meeting.manage)
+      description: "L'appel est pré-rempli « absent » pour chaque membre actif, puis corrigé."
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MeetingId"
+      responses:
+        "200":
+          description: Séance ouverte.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingStateView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/meetings/{meetingId}/cancel:
+    post:
+      tags: [tontine-meetings]
+      operationId: cancelMeeting
+      summary: "Annuler une séance planifiée, avec motif (action meeting.manage)"
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MeetingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 300 }
+      responses:
+        "200":
+          description: Séance annulée.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingStateView" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/meetings/{meetingId}/attendance:
+    put:
+      tags: [tontine-meetings]
+      operationId: recordAttendance
+      summary: "Faire l'appel d'une séance ouverte (action meeting.attendance — Président, Vice-président, Secrétaire général, Censeur)"
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MeetingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AttendanceRequest" }
+      responses:
+        "200":
+          description: Décompte après l'appel (représenté et en retard comptent présents).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AttendanceTally" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/meetings/{meetingId}/collections:
+    post:
+      tags: [tontine-meetings]
+      operationId: collectInMeeting
+      summary: Collecte en séance ouverte — plusieurs cotisations déclarées d'un coup
+      description: >
+        Chaque ligne devient un mouvement `contribution` déclaré (caisse de
+        rotation par défaut). Saisir pour un autre membre exige movement.confirm
+        ou meeting.attendance. En espèces, aucune référence n'est demandée ;
+        sinon, sans référence, le motif « Reçu en séance » est appliqué.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MeetingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CollectionRequest" }
+      responses:
+        "201":
+          description: "Mouvements déclarés, dans l'ordre des lignes."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MovementIds" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/meetings/{meetingId}/payouts:
+    post:
+      tags: [tontine-meetings]
+      operationId: recordPayout
+      summary: Remise de la cagnotte en séance devant témoins (Trésorier ou Trésorier adjoint)
+      description: >
+        Séance ouverte, un seul `payout` non rejeté par tour. Témoins présents
+        à l'appel, distincts du bénéficiaire et du déclarant, au moins
+        `minimumWitnesses` (WITNESS_REQUIRED, 422). Montant brut par défaut :
+        la cagnotte du tour ; les frais (`fee`) sont imputés selon `feeBearer`.
+        Une part partagée produit une remise par titulaire, au prorata des
+        poids. Chaque bénéficiaire confirme lui-même la réception.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MeetingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PayoutRequest" }
+      responses:
+        "201":
+          description: Remises (et frais éventuels) déclarées.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MovementIds" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/meetings/{meetingId}/close:
+    post:
+      tags: [tontine-meetings]
+      operationId: closeMeeting
+      summary: Clôturer une séance ouverte et sceller son procès-verbal (action meeting.manage)
+      description: >
+        Avec `autoFines` (défaut), une amende d'absence ou de retard est émise
+        selon le barème pour chaque absent ou retardataire (sauf l'acteur et
+        les montants nuls au barème). Le procès-verbal est généré depuis les
+        faits ; son empreinte (`minutesHash`) sert à l'approuver à l'identique.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MeetingId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CloseMeetingRequest" }
+      responses:
+        "200":
+          description: Séance close.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [minutesHash, finesIssued]
+                properties:
+                  minutesHash: { type: string, pattern: "^[0-9a-f]{64}$" }
+                  finesIssued: { type: integer, minimum: 0 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/meetings/{meetingId}/minutes-approval:
+    post:
+      tags: [tontine-meetings]
+      operationId: approveMinutes
+      summary: "Approuver le procès-verbal d'une séance close, à l'empreinte exacte (action meeting.manage)"
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/MeetingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hash]
+              properties:
+                hash: { type: string, pattern: "^[0-9a-f]{64}$" }
+                inMeetingId: { type: [string, "null"], default: null, description: "Séance au cours de laquelle le PV est approuvé." }
+      responses:
+        "204": { description: Procès-verbal approuvé. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /groups/{groupId}/fines:
+    get:
+      tags: [tontine-fines]
+      operationId: listFines
+      summary: Amendes (bureau et transparence `all_members` — toutes ; sinon les miennes)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: 200 dernières amendes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/FineRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [tontine-fines]
+      operationId: issueFine
+      summary: "Constater une amende (action fine.issue — Censeur, Président, Vice-président)"
+      description: >
+        Jamais à soi-même, motif obligatoire. Le montant vient du barème :
+        fixe pour `meeting_late`/`meeting_absence`, calculé depuis l'échéance
+        (`obligationId` requis) pour `late_contribution`, fourni et plafonné
+        par `indisciplineCap` pour `indiscipline`. Montant nul au barème : FINE_INVALID.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IssueFineRequest" }
+      responses:
+        "201":
+          description: Amende émise ; le membre est notifié.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [fineId, amount]
+                properties:
+                  fineId: { type: string }
+                  amount: { $ref: "#/components/schemas/MoneyString" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/fines/{fineId}/{act}:
+    post:
+      tags: [tontine-fines]
+      operationId: actOnFine
+      summary: "Contester (le membre concerné), maintenir ou annuler (présidence) une amende"
+      description: >
+        `contest` : le membre concerné, motif ≥ 3 caractères. `uphold` /
+        `cancel` : action member.admit (Président, Vice-président), jamais sur
+        sa propre amende ; `cancel` exige un motif. Transitions : issued →
+        contested | cancelled ; contested → issued | cancelled.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - { name: fineId, in: path, required: true, schema: { type: string } }
+        - { name: act, in: path, required: true, schema: { type: string, enum: [contest, uphold, cancel] } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 300, default: "" }
+      responses:
+        "200":
+          description: Nouvel état de l'amende.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [state]
+                properties:
+                  state: { type: string, enum: [contested, issued, cancelled] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/aids:
+    get:
+      tags: [tontine-aids]
+      operationId: listAids
+      summary: Demandes de secours (tout membre actif)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: 200 dernières demandes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AidRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [tontine-aids]
+      operationId: requestAid
+      summary: Demander un secours pour un membre (tout membre actif)
+      description: >
+        Montant fixé par le barème (`aidScale`) ; événement absent du barème :
+        AID_INVALID ; plafond annuel atteint : AID_CAP_EXCEEDED (409). Le
+        secours est imputé sur la caisse de secours (`solidarity`).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RequestAidBody" }
+      responses:
+        "201":
+          description: Demande enregistrée (état `requested`).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [aidId, amount]
+                properties:
+                  aidId: { type: string }
+                  amount: { $ref: "#/components/schemas/MoneyString" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/aids/{aidId}/decisions:
+    post:
+      tags: [tontine-aids]
+      operationId: decideAid
+      summary: "Approuver ou rejeter un secours (action aid.decide — Président, Vice-président, Secrétaire général, Trésorier)"
+      description: >
+        Le bénéficiaire ne décide jamais de sa propre aide (APPROVER_NOT_DISTINCT,
+        403). Un montant hors barème exige `overrideReason` et reste au plus le
+        double du barème (AID_CAP_EXCEEDED).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/AidId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DecideAidBody" }
+      responses:
+        "200":
+          description: Décision enregistrée ; le bénéficiaire est notifié.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [state, amount]
+                properties:
+                  state: { type: string, enum: [approved, rejected] }
+                  amount: { $ref: "#/components/schemas/MoneyString" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/aids/{aidId}/payments:
+    post:
+      tags: [tontine-aids]
+      operationId: payAid
+      summary: Déclarer le versement d'un secours approuvé (Trésorier ou Trésorier adjoint)
+      description: >
+        Crée une remise (`payout`) déclarée sur la caisse de secours ; le
+        bénéficiaire confirme la réception, puis le commissaire valide si la
+        caisse l'exige. Le secours passe à `paid` à la validation.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/AidId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChannelReferenceBody" }
+      responses:
+        "201":
+          description: Remise de secours déclarée.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MovementReceipt" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/debts:
+    get:
+      tags: [tontine-debts]
+      operationId: listDebts
+      summary: Dettes (bureau — toutes ; membre — celles dont il est débiteur ou avaliseur)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: 200 dernières dettes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DebtRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [tontine-debts]
+      operationId: openDebt
+      summary: "Ouvrir une dette d'un membre envers le groupe (action debt.manage — Président, Vice-président, Trésorier)"
+      description: >
+        L'avaliseur (parrain à l'admission) est rattaché automatiquement ; le
+        débiteur et l'avaliseur sont notifiés. Le règlement passe par des
+        mouvements `advance_repayment` (relatedId = debtId) validés.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpenDebtRequest" }
+      responses:
+        "201":
+          description: Dette ouverte.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [debtId]
+                properties:
+                  debtId: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/debts/{debtId}/write-off:
+    post:
+      tags: [tontine-debts]
+      operationId: writeOffDebt
+      summary: "Abandonner une dette ouverte, avec motif (action debt.manage ; jamais sa propre dette)"
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - { name: debtId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 3, maxLength: 300 }
+      responses:
+        "204": { description: Dette abandonnée (`written_off`). }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/statutes:
+    get:
+      tags: [tontine-statutes]
+      operationId: getLatestStatutes
+      summary: Dernière version des statuts générés (tout membre actif)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: "Dernière version, ou `null` si aucune n'est publiée."
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: "#/components/schemas/StatutesView" }
+                  - { type: "null" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [tontine-statutes]
+      operationId: publishStatutes
+      summary: "Générer et publier les statuts depuis le règlement en vigueur (action statutes.publish — Président, Vice-président, Secrétaire général)"
+      description: >
+        Idempotent : si le texte généré est identique à la dernière version, la
+        même version est renvoyée sans en créer une nouvelle.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "201":
+          description: Version publiée (ou version identique existante).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, hash]
+                properties:
+                  version: { type: integer, minimum: 1 }
+                  hash: { type: string, pattern: "^[0-9a-f]{64}$" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /groups/{groupId}/statutes/{version}/acceptances:
+    post:
+      tags: [tontine-statutes]
+      operationId: acceptStatutes
+      summary: Accepter une version des statuts à son empreinte exacte (tout membre actif)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - { name: version, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hash]
+              properties:
+                hash: { type: string, pattern: "^[0-9a-f]{64}$" }
+      responses:
+        "204": { description: Acceptation enregistrée (idempotente). }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "412":
+          description: Empreinte différente du texte publié (RULE_ACCEPT_HASH_MISMATCH) — relire la dernière version.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /groups/{groupId}/history-imports:
+    post:
+      tags: [tontine-history]
+      operationId: importHistory
+      summary: "Reprendre l'historique d'un ancien njangi, en lecture seule (action import.history — Président, Vice-président)"
+      description: >
+        Une seule reprise par njangi et par groupe (IMPORT_INVALID). Les
+        cotisations reprises sont marquées historiques et n'entrent dans aucun
+        total courant. Rapprochement des membres par nom affiché.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HistoryImportRequest" }
+      responses:
+        "201":
+          description: Rapport ligne à ligne (membres et cotisations acceptés ou rejetés avec motif).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HistoryImportResult" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/history:
+    get:
+      tags: [tontine-history]
+      operationId: listLegacyContributions
+      summary: Cotisations historiques reprises (tout membre actif)
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "200":
+          description: 500 dernières cotisations reprises.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/LegacyContributionRow" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2446,6 +4001,46 @@ components:
         Identifiant du manifeste d'export (C12). Le téléchargement et la
         vérification recontrôlent l'accès à l'acheminement ; un objet hors portée
         répond 404 non-divulgation.
+      schema: { type: string }
+    OptionalIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: >
+        Tontine réelle : clé FACULTATIVE (8 à 64 caractères `[A-Za-z0-9_-]`,
+        ignorée sinon). Rejouée avec le même montant, elle renvoie le mouvement
+        d'origine ; avec un autre montant, IDEMPOTENCY_BODY_CONFLICT (409).
+      schema: { type: string, pattern: "^[A-Za-z0-9_-]{8,64}$" }
+    InvitationCode:
+      name: code
+      in: path
+      required: true
+      description: Code d'invitation de 8 caractères (insensible à la casse).
+      schema: { type: string, pattern: "^[A-Za-z0-9]{8}$" }
+    MembershipId:
+      name: membershipId
+      in: path
+      required: true
+      schema: { type: string }
+    RoleAssignmentId:
+      name: roleAssignmentId
+      in: path
+      required: true
+      schema: { type: string }
+    MovementId:
+      name: movementId
+      in: path
+      required: true
+      schema: { type: string }
+    MeetingId:
+      name: meetingId
+      in: path
+      required: true
+      schema: { type: string }
+    AidId:
+      name: aidId
+      in: path
+      required: true
       schema: { type: string }
 
   schemas:
@@ -2510,6 +4105,42 @@ components:
         - DISPUTE_RESOLVER_NOT_DESIGNATED
         - DISPUTE_RESOLVER_NOT_INDEPENDENT
         - DISPUTE_RESOLUTION_REQUIRED
+        - SESSION_INVALID
+        - TOKEN_INVALID
+        - IDENTITY_NOT_ACTIVE
+        - APPROVER_NOT_DISTINCT
+        - ROLE_ACCEPTANCE_REQUIRED
+        - MEMBERSHIP_ALREADY_ACTIVE
+        - INVITATION_INVALID
+        - GROUP_STATE_INVALID
+        - CYCLE_START_NOT_READY
+        - DISBURSEMENT_STATE_INVALID
+        - TONTINE_FORBIDDEN
+        - OBJET_INTROUVABLE
+        - PHONE_INVALID
+        - SMS_DELIVERY_FAILED
+        - GROUP_NAME_INVALID
+        - CADENCE_INVALID
+        - MEETING_STATE_INVALID
+        - ATTENDANCE_INVALID
+        - WITNESS_REQUIRED
+        - FUND_INVALID
+        - FUND_KIND_DISABLED
+        - MOVEMENT_STATE_INVALID
+        - MOVEMENT_NOT_INDEPENDENT
+        - FINE_INVALID
+        - AID_INVALID
+        - AID_CAP_EXCEEDED
+        - DEBT_INVALID
+        - ORDER_CHANGE_INVALID
+        - DRAW_INVALID
+        - SHARES_INVALID
+        - MANDATE_INVALID
+        - IMPORT_INVALID
+        - VALIDATION
+        - INVALID_REQUEST
+        - RATE_LIMITED
+        - INTERNAL
     Error:
       type: object
       required: [code, message]
@@ -3636,6 +5267,807 @@ components:
         error: { type: string, nullable: true }
         internal_chain_intact: { type: boolean }
 
+    # ── Tontine réelle (L-01 à L-21) ───────────────────────────────────────
+
+    TontineMoneyInput:
+      description: >
+        Montant XAF entier strictement positif, en nombre (≤ 1 000 000 000) ou
+        en chaîne de chiffres (≤ 10 chiffres). Jamais de flottant.
+      oneOf:
+        - { type: integer, minimum: 1, maximum: 1000000000 }
+        - { type: string, pattern: "^\\d{1,10}$" }
+    TontineMoneyOrZeroInput:
+      description: "Comme TontineMoneyInput, zéro admis (barème « sans amende »)."
+      oneOf:
+        - { type: integer, minimum: 0, maximum: 1000000000 }
+        - { type: string, pattern: "^\\d{1,10}$" }
+    MoneyString:
+      type: string
+      pattern: "^-?\\d+$"
+      description: Montant XAF entier sérialisé en chaîne décimale (réponses de la tontine réelle).
+    IsoDate:
+      type: string
+      pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+      description: Date métier AAAA-MM-JJ (Africa/Douala).
+    GroupRole:
+      type: string
+      description: >
+        Fonction : animator = Président, vice_president = Vice-président,
+        secretary = Secrétaire général, treasurer = Trésorier,
+        treasurer_deputy = Trésorier adjoint, auditor = Commissaire aux comptes,
+        censor = Censeur, advisor = Conseiller, member = Membre.
+      enum: [animator, vice_president, secretary, treasurer, treasurer_deputy, auditor, censor, advisor, member]
+    PaymentChannel:
+      type: string
+      enum: [cash, orange_money, mtn_momo, bank, other]
+    FundKind:
+      type: string
+      description: "`loan` et `collector` sont fermées par drapeau tant que le porteur ne les ouvre pas."
+      enum: [rotation, solidarity, year_end_reserve, operating, fines, loan, collector]
+    MovementKind:
+      type: string
+      enum: [contribution, payout, fine_payment, advance, advance_repayment, transfer_in, transfer_out, fee, expense]
+    MovementState:
+      type: string
+      description: "declared (déclaré) → confirmed (confirmé, si contrôle exigé) → validated (validé) ; ou rejected."
+      enum: [declared, confirmed, validated, rejected, compensated]
+    AttendanceStatus:
+      type: string
+      enum: [present, late, excused, absent, represented]
+    AidEvent:
+      type: string
+      enum: [death_member, death_spouse, death_parent, death_child, birth, marriage, illness, other]
+    FineKind:
+      type: string
+      enum: [late_contribution, meeting_late, meeting_absence, indiscipline]
+    DebtOrigin:
+      type: string
+      enum: [unpaid_obligation, fund_advance, unpaid_fine, catch_up]
+    Cadence:
+      description: "Rythme des séances. weekday : 0 = dimanche … 6 = samedi."
+      oneOf:
+        - type: object
+          required: [kind]
+          properties:
+            kind: { const: daily }
+            excludedWeekdays: { type: array, maxItems: 6, items: { type: integer, minimum: 0, maximum: 6 } }
+        - type: object
+          required: [kind, n]
+          properties:
+            kind: { const: every_n_days }
+            n: { type: integer, minimum: 2, maximum: 31 }
+        - type: object
+          required: [kind, weekday]
+          properties:
+            kind: { type: string, enum: [weekly, biweekly] }
+            weekday: { type: integer, minimum: 0, maximum: 6 }
+        - type: object
+          required: [kind, day]
+          properties:
+            kind: { const: monthly_day }
+            day: { type: integer, minimum: 1, maximum: 31 }
+        - type: object
+          required: [kind, nth, weekday]
+          properties:
+            kind: { const: monthly_nth_weekday }
+            nth: { type: integer, enum: [1, 2, 3, 4, -1], description: "-1 = dernier du mois" }
+            weekday: { type: integer, minimum: 0, maximum: 6 }
+
+    ProductInfo:
+      type: object
+      required: [positioning, featureFlags]
+      properties:
+        positioning:
+          type: object
+          properties:
+            fr: { type: string }
+            en: { type: string }
+        featureFlags:
+          type: array
+          items: { type: string, enum: [loan_register, auction, daily_collector] }
+
+    MyGroup:
+      type: object
+      properties:
+        groupId: { type: string }
+        membershipId: { type: string }
+        membershipState: { type: string, enum: [active, pending] }
+        name: { type: [string, "null"] }
+        groupState: { type: string }
+        roles: { type: array, items: { $ref: "#/components/schemas/GroupRole" } }
+
+    Profile:
+      type: object
+      required: [identityId, displayName, language]
+      properties:
+        identityId: { type: string, description: "Identité de la session (E.164 +237… ou e-mail)." }
+        displayName: { type: [string, "null"] }
+        language: { type: string, enum: [fr, en, pcm] }
+    ProfileUpdate:
+      type: object
+      required: [displayName, language]
+      properties:
+        displayName: { type: [string, "null"], minLength: 1, maxLength: 80 }
+        language: { type: string, enum: [fr, en, pcm] }
+
+    NotificationRow:
+      type: object
+      description: Libellé sans montant ni nom (écran verrouillé) ; colonnes en snake_case.
+      properties:
+        notification_id: { type: string }
+        group_id: { type: [string, "null"] }
+        kind:
+          type: string
+          enum: [meeting_reminder, due_reminder, validation_waiting, payout_recorded, fine_issued, aid_decided, order_change, membership, minutes_ready, general]
+        target: { type: string, description: "Cible de navigation, ex. group:<id>:validations." }
+        created_at: { type: string, format: date-time }
+        read_at: { type: [string, "null"], format: date-time }
+
+    FineSchedule:
+      type: object
+      required: [lateContributionFixed, lateContributionPerDay, lateContributionCap, meetingLate, meetingAbsence, indisciplineCap, graceDays]
+      properties:
+        lateContributionFixed: { $ref: "#/components/schemas/TontineMoneyOrZeroInput" }
+        lateContributionPerDay: { $ref: "#/components/schemas/TontineMoneyOrZeroInput" }
+        lateContributionCap: { $ref: "#/components/schemas/TontineMoneyOrZeroInput" }
+        meetingLate: { $ref: "#/components/schemas/TontineMoneyOrZeroInput" }
+        meetingAbsence: { $ref: "#/components/schemas/TontineMoneyOrZeroInput" }
+        indisciplineCap: { $ref: "#/components/schemas/TontineMoneyOrZeroInput" }
+        graceDays: { type: integer, minimum: 0, maximum: 60 }
+    GroupSettingsPatch:
+      type: object
+      description: Toutes les clés sont facultatives ; les clés absentes gardent leur valeur.
+      properties:
+        transparency: { type: string, enum: [all_members, bureau_only, anonymized] }
+        feeBearer: { type: string, enum: [member, beneficiary, fund], description: "Qui supporte les frais Mobile Money d'une remise." }
+        guarantorRequired: { type: boolean }
+        newcomersLast: { type: boolean }
+        minMembers: { type: integer, minimum: 2, maximum: 200 }
+        maxMembers: { type: integer, minimum: 2, maximum: 200 }
+        fines: { $ref: "#/components/schemas/FineSchedule" }
+        aidScale:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [event, amount, maxPerYear]
+            properties:
+              event: { $ref: "#/components/schemas/AidEvent" }
+              amount: { $ref: "#/components/schemas/TontineMoneyInput" }
+              maxPerYear: { type: integer, minimum: 0, maximum: 52, description: "0 = sans plafond annuel." }
+        seat: { type: [string, "null"], maxLength: 120 }
+        purpose: { type: [string, "null"], maxLength: 300 }
+        meetingPlace: { type: [string, "null"], maxLength: 120 }
+        minimumWitnesses: { type: integer, minimum: 1, maximum: 5 }
+    GroupSettings:
+      type: object
+      description: Réglages complets ; montants en chaînes décimales.
+      properties:
+        transparency: { type: string, enum: [all_members, bureau_only, anonymized] }
+        feeBearer: { type: string, enum: [member, beneficiary, fund] }
+        guarantorRequired: { type: boolean }
+        newcomersLast: { type: boolean }
+        minMembers: { type: integer }
+        maxMembers: { type: integer }
+        fines:
+          type: object
+          properties:
+            lateContributionFixed: { $ref: "#/components/schemas/MoneyString" }
+            lateContributionPerDay: { $ref: "#/components/schemas/MoneyString" }
+            lateContributionCap: { $ref: "#/components/schemas/MoneyString" }
+            meetingLate: { $ref: "#/components/schemas/MoneyString" }
+            meetingAbsence: { $ref: "#/components/schemas/MoneyString" }
+            indisciplineCap: { $ref: "#/components/schemas/MoneyString" }
+            graceDays: { type: integer }
+        aidScale:
+          type: array
+          items:
+            type: object
+            properties:
+              event: { $ref: "#/components/schemas/AidEvent" }
+              amount: { $ref: "#/components/schemas/MoneyString" }
+              maxPerYear: { type: integer }
+        seat: { type: [string, "null"] }
+        purpose: { type: [string, "null"] }
+        meetingPlace: { type: [string, "null"] }
+        minimumWitnesses: { type: integer }
+
+    CreateTontineGroupRequest:
+      type: object
+      required: [name, displayName]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        displayName: { type: string, minLength: 1, maxLength: 80, description: "Nom affiché du créateur dans ce groupe." }
+        funds: { type: array, maxItems: 7, items: { $ref: "#/components/schemas/FundKind" } }
+        settings: { $ref: "#/components/schemas/GroupSettingsPatch" }
+    TontineGroupCreated:
+      type: object
+      required: [groupId, membershipId]
+      properties:
+        groupId: { type: string }
+        membershipId: { type: string }
+
+    GroupOverview:
+      type: object
+      properties:
+        groupId: { type: string }
+        name: { type: string }
+        state: { type: string, enum: [configuration, active, paused, closed, stopped_with_discrepancies, archived] }
+        settings: { $ref: "#/components/schemas/GroupSettings" }
+        me:
+          type: object
+          properties:
+            membershipId: { type: string }
+            roles: { type: array, items: { $ref: "#/components/schemas/GroupRole" } }
+            displayName: { type: [string, "null"] }
+        members:
+          type: object
+          properties:
+            active: { type: integer }
+            pending: { type: integer }
+        schedule:
+          type: [object, "null"]
+          properties:
+            state: { type: string, enum: [draft, started] }
+            cadence: { $ref: "#/components/schemas/Cadence" }
+            cadenceLabel: { type: [string, "null"], description: "Libellé français, ex. « le 2e samedi du mois »." }
+        nextMeeting:
+          type: [object, "null"]
+          description: Prochaine séance planifiée ou ouverte (colonnes en snake_case).
+          properties:
+            meeting_id: { type: string }
+            seq: { type: integer }
+            scheduled_date: { type: string }
+            state: { type: string, enum: [planned, open] }
+            location: { type: [string, "null"] }
+        pendingValidations: { type: integer, description: "Mouvements du groupe encore déclarés ou confirmés." }
+
+    MemberView:
+      type: object
+      properties:
+        membershipId: { type: string }
+        displayName: { type: string }
+        state: { type: string, enum: [active, pending] }
+        roles: { type: array, items: { $ref: "#/components/schemas/GroupRole" } }
+        joinedAt: { type: [string, "null"], format: date-time }
+        sponsorMembershipId: { type: [string, "null"] }
+        proxyMembershipId: { type: [string, "null"] }
+        isMe: { type: boolean }
+        contact: { type: [string, "null"], description: "Bureau d'admission seulement ; numéro masqué « +237 6•• •• •• 12 »." }
+
+    InvitationLookup:
+      type: object
+      required: [groupId, groupName, usable]
+      properties:
+        groupId: { type: string }
+        groupName: { type: [string, "null"] }
+        usable: { type: boolean }
+    MembershipRequestBody:
+      type: object
+      required: [displayName]
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 80 }
+        sponsorMembershipId: { type: [string, "null"], description: "Avaliseur (membre actif), obligatoire si le groupe l'exige." }
+    MembershipRequested:
+      type: object
+      required: [membershipId, state, groupId]
+      properties:
+        membershipId: { type: string }
+        state: { type: string, enum: [pending] }
+        groupId: { type: string }
+    CreateInvitationRequest:
+      type: object
+      properties:
+        maxUses: { type: integer, minimum: 1, maximum: 200, default: 20 }
+        ttlHours: { type: integer, minimum: 1, maximum: 720, default: 168 }
+        channel: { type: string, enum: [link, whatsapp], default: link }
+    InvitationCreated:
+      type: object
+      required: [invitationId, code, expiresAt]
+      properties:
+        invitationId: { type: string }
+        code: { type: string, pattern: "^[A-HJ-NP-Z2-9]{8}$" }
+        expiresAt: { type: string, format: date-time }
+    InvitationRow:
+      type: object
+      description: Colonnes en snake_case.
+      properties:
+        invitation_id: { type: string }
+        code: { type: string }
+        channel: { type: string, enum: [link, whatsapp] }
+        max_uses: { type: integer }
+        used_count: { type: integer }
+        expires_at: { type: string, format: date-time }
+        revoked_at: { type: [string, "null"], format: date-time }
+
+    ProposeRoleRequest:
+      type: object
+      required: [membershipId, role, mandateStart]
+      properties:
+        membershipId: { type: string }
+        role:
+          type: string
+          enum: [animator, vice_president, secretary, treasurer, treasurer_deputy, auditor, censor, advisor]
+        mandateStart: { $ref: "#/components/schemas/IsoDate" }
+        mandateEnd:
+          oneOf:
+            - { $ref: "#/components/schemas/IsoDate" }
+            - { type: "null" }
+          default: null
+          description: "Strictement après le début, 5 ans au plus ; null = sans terme."
+    RoleAssignmentRow:
+      type: object
+      description: Colonnes en snake_case.
+      properties:
+        role_assignment_id: { type: string }
+        membership_id: { type: string }
+        display_name: { type: [string, "null"] }
+        role: { $ref: "#/components/schemas/GroupRole" }
+        accepted_at: { type: [string, "null"], format: date-time }
+        mandate_start: { type: [string, "null"] }
+        mandate_end: { type: [string, "null"] }
+        proposed: { type: boolean }
+
+    BuildScheduleRequest:
+      type: object
+      required: [cadence, startDate, contributionPerShare, order]
+      properties:
+        cadence: { $ref: "#/components/schemas/Cadence" }
+        startDate: { $ref: "#/components/schemas/IsoDate" }
+        contributionPerShare: { $ref: "#/components/schemas/TontineMoneyInput" }
+        dueTime: { type: string, pattern: "^\\d{2}:\\d{2}$", description: "Heure limite (Douala), « 18:00 » par défaut." }
+        order:
+          oneOf:
+            - type: object
+              required: [mode]
+              properties:
+                mode: { const: join_order }
+            - type: object
+              required: [mode, membershipIds]
+              properties:
+                mode: { const: manual }
+                membershipIds: { type: array, maxItems: 200, items: { type: string } }
+            - type: object
+              required: [mode, drawId]
+              properties:
+                mode: { const: draw }
+                drawId: { type: string }
+        shares:
+          type: array
+          maxItems: 400
+          description: "Parts explicites (une part = un tour) ; jusqu'à 4 titulaires par part, poids de 1 à 100."
+          items:
+            type: object
+            required: [holders]
+            properties:
+              holders:
+                type: array
+                minItems: 1
+                maxItems: 4
+                items:
+                  type: object
+                  required: [membershipId, weight]
+                  properties:
+                    membershipId: { type: string }
+                    weight: { type: integer, minimum: 1, maximum: 100 }
+    ShareHolder:
+      type: object
+      properties:
+        membershipId: { type: string }
+        name: { type: [string, "null"] }
+        weight: { type: integer }
+    TontineSchedule:
+      type: object
+      required: [state, rounds]
+      properties:
+        state: { type: string, enum: [none, draft, started] }
+        cadence: { $ref: "#/components/schemas/Cadence" }
+        cadenceLabel: { type: [string, "null"] }
+        rulesVersion: { type: integer }
+        contributionPerShare: { $ref: "#/components/schemas/MoneyString" }
+        potPerRound: { $ref: "#/components/schemas/MoneyString" }
+        startedAt: { type: [string, "null"], format: date-time }
+        rounds:
+          type: array
+          items:
+            type: object
+            properties:
+              seq: { type: integer }
+              roundId: { type: string }
+              state: { type: string }
+              date: { type: [string, "null"] }
+              shareId: { type: [string, "null"] }
+              holders: { type: array, items: { $ref: "#/components/schemas/ShareHolder" } }
+              meetingId: { type: [string, "null"] }
+    OrderChangeRow:
+      type: object
+      description: Colonnes en snake_case.
+      properties:
+        change_id: { type: string }
+        kind: { type: string, enum: [swap] }
+        seq_a: { type: integer }
+        seq_b: { type: integer }
+        reason: { type: [string, "null"] }
+        required_identity_ids: { type: array, items: { type: string } }
+        accepted_identity_ids: { type: array, items: { type: string } }
+        approved: { type: boolean }
+        state: { type: string, enum: [requested, applied, rejected] }
+        created_at: { type: string, format: date-time }
+    MyObligation:
+      type: object
+      properties:
+        obligationId: { type: string }
+        roundSeq: { type: integer }
+        dueDate: { type: [string, "null"] }
+        due: { $ref: "#/components/schemas/MoneyString" }
+        declared: { $ref: "#/components/schemas/MoneyString" }
+        validated: { $ref: "#/components/schemas/MoneyString" }
+        remaining: { $ref: "#/components/schemas/MoneyString", description: "Dû moins déjà déclaré (restant à déclarer)." }
+        status: { type: string, enum: [settled, on_time, grace, late] }
+        meetingId: { type: [string, "null"] }
+
+    FundView:
+      type: object
+      properties:
+        fundId: { type: string }
+        kind: { $ref: "#/components/schemas/FundKind" }
+        name: { type: string }
+        state: { type: string }
+        rules:
+          type: object
+          properties:
+            perMeetingAmount: { $ref: "#/components/schemas/MoneyString" }
+            annualAmount: { $ref: "#/components/schemas/MoneyString" }
+            controlRequired: { type: boolean }
+            allowNegative: { type: boolean }
+        registerBalance: { $ref: "#/components/schemas/MoneyString", description: "Écart du registre (mouvements validés), jamais de l'argent détenu par KÓMBE." }
+        inProgressIn: { $ref: "#/components/schemas/MoneyString" }
+        inProgressOut: { $ref: "#/components/schemas/MoneyString" }
+    CreateFundRequest:
+      type: object
+      required: [kind, name]
+      properties:
+        kind: { $ref: "#/components/schemas/FundKind" }
+        name: { type: string, minLength: 1, maxLength: 80 }
+        perMeetingAmount: { $ref: "#/components/schemas/TontineMoneyOrZeroInput" }
+        annualAmount: { $ref: "#/components/schemas/TontineMoneyOrZeroInput" }
+        controlRequired: { type: boolean, default: true, description: "Contrôle du commissaire aux comptes exigé après confirmation." }
+
+    DeclareMovementRequest:
+      type: object
+      required: [fundId, kind, amount, channel]
+      properties:
+        fundId: { type: string }
+        kind: { $ref: "#/components/schemas/MovementKind" }
+        amount: { $ref: "#/components/schemas/TontineMoneyInput" }
+        channel: { $ref: "#/components/schemas/PaymentChannel" }
+        reference: { type: [string, "null"], maxLength: 64, description: "Référence de transaction (lettres, chiffres, . - _ / espace)." }
+        justification: { type: [string, "null"], maxLength: 500, description: "Obligatoire pour un canal électronique sans référence." }
+        allegedDate: { oneOf: [{ $ref: "#/components/schemas/IsoDate" }, { type: "null" }], description: "Date du paiement ; aujourd'hui (Douala) par défaut." }
+        membershipId: { type: [string, "null"], description: "Membre concerné ; soi-même par défaut pour un versement." }
+        meetingId: { type: [string, "null"] }
+        obligationId: { type: [string, "null"], description: "Échéance de rotation visée par une cotisation." }
+        relatedKind: { type: [string, "null"], enum: [fine, aid, debt, advance, null] }
+        relatedId: { type: [string, "null"], description: "fineId pour fine_payment, debtId pour advance_repayment (obligatoire)." }
+        payerNote: { type: [string, "null"], maxLength: 120 }
+    MovementReceipt:
+      type: object
+      required: [movementId, state]
+      properties:
+        movementId: { type: string }
+        state: { $ref: "#/components/schemas/MovementState" }
+    MovementStateView:
+      type: object
+      required: [state]
+      properties:
+        state: { $ref: "#/components/schemas/MovementState" }
+    MovementIds:
+      type: object
+      required: [movementIds]
+      properties:
+        movementIds: { type: array, items: { type: string } }
+    MovementView:
+      type: object
+      properties:
+        movementId: { type: string }
+        fundId: { type: string }
+        fundName: { type: string }
+        fundKind: { $ref: "#/components/schemas/FundKind" }
+        kind: { $ref: "#/components/schemas/MovementKind" }
+        amount: { $ref: "#/components/schemas/MoneyString" }
+        state: { $ref: "#/components/schemas/MovementState" }
+        channel: { $ref: "#/components/schemas/PaymentChannel" }
+        reference: { type: [string, "null"], description: "Visible du bureau et du déclarant seulement." }
+        allegedDate: { type: [string, "null"] }
+        declaredAt: { type: string, format: date-time }
+        membershipId: { type: [string, "null"] }
+        memberName: { type: [string, "null"] }
+        meetingId: { type: [string, "null"] }
+        relatedKind: { type: [string, "null"] }
+        relatedId: { type: [string, "null"] }
+        declaredByMe: { type: boolean }
+        rejectedReason: { type: [string, "null"] }
+
+    MeetingStateView:
+      type: object
+      required: [state]
+      properties:
+        state: { type: string, enum: [planned, open, closed, cancelled] }
+    MeetingRow:
+      type: object
+      description: Colonnes en snake_case.
+      properties:
+        meeting_id: { type: string }
+        seq: { type: integer }
+        scheduled_date: { $ref: "#/components/schemas/IsoDate" }
+        state: { type: string, enum: [planned, open, closed, cancelled] }
+        location: { type: [string, "null"] }
+        host_membership_id: { type: [string, "null"] }
+        host_name: { type: [string, "null"] }
+        round_seq: { type: [integer, "null"] }
+        minutes_hash: { type: [string, "null"] }
+        minutes_approved_at: { type: [string, "null"], format: date-time }
+    MeetingDetail:
+      type: object
+      properties:
+        meetingId: { type: string }
+        seq: { type: integer }
+        scheduledDate: { $ref: "#/components/schemas/IsoDate" }
+        state: { type: string, enum: [planned, open, closed, cancelled] }
+        location: { type: [string, "null"] }
+        hostMembershipId: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        minutesText: { type: [string, "null"], description: "Procès-verbal généré à la clôture." }
+        minutesHash: { type: [string, "null"] }
+        minutesApprovedAt: { type: [string, "null"], format: date-time }
+        attendance:
+          type: array
+          items:
+            type: object
+            properties:
+              membership_id: { type: string }
+              display_name: { type: [string, "null"] }
+              status: { $ref: "#/components/schemas/AttendanceStatus" }
+              represented_by_membership_id: { type: [string, "null"] }
+        round:
+          type: [object, "null"]
+          properties:
+            round_id: { type: string }
+            seq: { type: integer }
+            share_id: { type: [string, "null"] }
+            holders: { type: array, items: { $ref: "#/components/schemas/ShareHolder" } }
+        pot: { $ref: "#/components/schemas/MoneyString" }
+        dues:
+          type: array
+          items:
+            type: object
+            properties:
+              obligationId: { type: string }
+              membershipId: { type: string }
+              name: { type: [string, "null"] }
+              due: { $ref: "#/components/schemas/MoneyString" }
+              declared: { $ref: "#/components/schemas/MoneyString" }
+              validated: { $ref: "#/components/schemas/MoneyString" }
+    UpdateMeetingRequest:
+      type: object
+      properties:
+        location: { type: [string, "null"], maxLength: 120 }
+        hostMembershipId: { type: [string, "null"] }
+        scheduledDate: { $ref: "#/components/schemas/IsoDate" }
+        notes: { type: [string, "null"], maxLength: 4000 }
+    AttendanceRequest:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          minItems: 1
+          maxItems: 400
+          items:
+            type: object
+            required: [membershipId, status]
+            properties:
+              membershipId: { type: string }
+              status: { $ref: "#/components/schemas/AttendanceStatus" }
+              representedByMembershipId: { type: [string, "null"], description: "Obligatoire si et seulement si status = represented." }
+    AttendanceTally:
+      type: object
+      required: [present, absent, excused]
+      properties:
+        present: { type: integer }
+        absent: { type: integer }
+        excused: { type: integer }
+    CollectionRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 400
+          items:
+            type: object
+            required: [membershipId, amount, channel]
+            properties:
+              membershipId: { type: string }
+              amount: { $ref: "#/components/schemas/TontineMoneyInput" }
+              channel: { $ref: "#/components/schemas/PaymentChannel" }
+              reference: { type: [string, "null"], maxLength: 64 }
+              fundId: { type: string, description: "Caisse visée ; rotation par défaut." }
+    PayoutRequest:
+      type: object
+      required: [channel, witnessMembershipIds]
+      properties:
+        channel: { $ref: "#/components/schemas/PaymentChannel" }
+        reference: { type: [string, "null"], maxLength: 64 }
+        justification: { type: [string, "null"], maxLength: 500 }
+        witnessMembershipIds: { type: array, maxItems: 10, items: { type: string } }
+        amount: { $ref: "#/components/schemas/TontineMoneyInput", description: "Montant brut ; cagnotte du tour par défaut." }
+        fee: { $ref: "#/components/schemas/TontineMoneyOrZeroInput", description: "Frais Mobile Money, imputés selon feeBearer." }
+    CloseMeetingRequest:
+      type: object
+      properties:
+        decisions: { type: array, maxItems: 50, default: [], items: { type: string, maxLength: 500 } }
+        notes: { type: [string, "null"], maxLength: 4000, default: null }
+        autoFines: { type: boolean, default: true }
+
+    IssueFineRequest:
+      type: object
+      required: [membershipId, kind, reason]
+      properties:
+        membershipId: { type: string }
+        kind: { $ref: "#/components/schemas/FineKind" }
+        amount: { oneOf: [{ $ref: "#/components/schemas/TontineMoneyInput" }, { type: "null" }], description: "Obligatoire pour indiscipline ; ignoré sinon." }
+        reason: { type: string, minLength: 3, maxLength: 300 }
+        meetingId: { type: [string, "null"] }
+        obligationId: { type: [string, "null"], description: "Obligatoire pour late_contribution." }
+    FineRow:
+      type: object
+      description: Colonnes en snake_case.
+      properties:
+        fine_id: { type: string }
+        membership_id: { type: string }
+        display_name: { type: [string, "null"] }
+        kind: { $ref: "#/components/schemas/FineKind" }
+        amount: { $ref: "#/components/schemas/MoneyString" }
+        reason: { type: string }
+        state: { type: string, enum: [issued, contested, paid, cancelled] }
+        issued_at: { type: string, format: date-time }
+        meeting_id: { type: [string, "null"] }
+
+    RequestAidBody:
+      type: object
+      required: [beneficiaryMembershipId, event, eventDate]
+      properties:
+        beneficiaryMembershipId: { type: string }
+        event: { $ref: "#/components/schemas/AidEvent" }
+        eventDate: { $ref: "#/components/schemas/IsoDate" }
+        note: { type: [string, "null"], maxLength: 500, default: null }
+    DecideAidBody:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, reject] }
+        overrideAmount: { oneOf: [{ $ref: "#/components/schemas/TontineMoneyInput" }, { type: "null" }] }
+        overrideReason: { type: [string, "null"], maxLength: 300 }
+        note: { type: [string, "null"], maxLength: 500 }
+    ChannelReferenceBody:
+      type: object
+      required: [channel]
+      properties:
+        channel: { $ref: "#/components/schemas/PaymentChannel" }
+        reference: { type: [string, "null"], maxLength: 64 }
+        justification: { type: [string, "null"], maxLength: 500 }
+    AidRow:
+      type: object
+      description: Colonnes en snake_case.
+      properties:
+        aid_id: { type: string }
+        beneficiary_membership_id: { type: string }
+        display_name: { type: [string, "null"] }
+        event: { $ref: "#/components/schemas/AidEvent" }
+        event_date: { $ref: "#/components/schemas/IsoDate" }
+        amount: { $ref: "#/components/schemas/MoneyString" }
+        state: { type: string, enum: [requested, approved, rejected, paid, cancelled] }
+        requested_at: { type: string, format: date-time }
+        decided_at: { type: [string, "null"], format: date-time }
+
+    OpenDebtRequest:
+      type: object
+      required: [debtorMembershipId, origin, amount]
+      properties:
+        debtorMembershipId: { type: string }
+        origin: { $ref: "#/components/schemas/DebtOrigin" }
+        amount: { $ref: "#/components/schemas/TontineMoneyInput" }
+        creditorFundId: { type: [string, "null"], description: "Caisse créancière (avance) ; null = dette envers la rotation." }
+        originRef: { type: [string, "null"], maxLength: 200 }
+    DebtRow:
+      type: object
+      description: Colonnes en snake_case.
+      properties:
+        debt_id: { type: string }
+        debtor_membership_id: { type: string }
+        display_name: { type: [string, "null"] }
+        origin: { $ref: "#/components/schemas/DebtOrigin" }
+        amount: { $ref: "#/components/schemas/MoneyString" }
+        settled: { $ref: "#/components/schemas/MoneyString" }
+        state: { type: string, enum: [open, settled, written_off] }
+        guarantor_membership_id: { type: [string, "null"] }
+        guarantor_name: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+
+    StatutesView:
+      type: object
+      description: Colonnes en snake_case.
+      properties:
+        version: { type: integer }
+        title: { type: string }
+        body: { type: string, description: "Texte intégral des statuts générés." }
+        hash: { type: string, pattern: "^[0-9a-f]{64}$" }
+        published_at: { type: string, format: date-time }
+        accepted_by_me: { type: boolean }
+        acceptances: { type: integer }
+
+    HistoryImportRequest:
+      type: object
+      required: [njangi]
+      properties:
+        njangi:
+          type: object
+          required: [id, name, members, contributions]
+          properties:
+            id: { type: string, minLength: 1, maxLength: 200 }
+            name: { type: string, minLength: 1, maxLength: 200 }
+            members:
+              type: array
+              maxItems: 500
+              items:
+                type: object
+                required: [uid, name]
+                properties:
+                  uid: { type: string, maxLength: 200 }
+                  name: { type: string, maxLength: 200 }
+                  phone: { type: string, maxLength: 40 }
+                  email: { type: string, maxLength: 200 }
+                  role: { type: string, maxLength: 40 }
+            contributions:
+              type: array
+              maxItems: 20000
+              items:
+                type: object
+                required: [id, uid, amount, date]
+                properties:
+                  id: { type: string, maxLength: 200 }
+                  uid: { type: string, maxLength: 200 }
+                  amount: { type: number, description: "Les montants non entiers sont rejetés ligne à ligne dans le rapport." }
+                  date: { type: string, maxLength: 40 }
+                  status: { type: string, maxLength: 40 }
+    HistoryImportResult:
+      type: object
+      required: [importId, accepted, rejected, report]
+      properties:
+        importId: { type: string }
+        accepted: { type: integer, description: "Lignes acceptées (membres et cotisations)." }
+        rejected: { type: integer }
+        report:
+          type: array
+          items:
+            type: object
+            properties:
+              kind: { type: string, enum: [member, contribution] }
+              legacyId: { type: string }
+              accepted: { type: boolean }
+              reason: { type: [string, "null"] }
+    LegacyContributionRow:
+      type: object
+      description: Colonnes en snake_case.
+      properties:
+        legacy_id: { type: string }
+        legacy_member_name: { type: string }
+        membership_id: { type: [string, "null"] }
+        amount: { $ref: "#/components/schemas/MoneyString" }
+        contribution_date: { $ref: "#/components/schemas/IsoDate" }
+
   responses:
     Forbidden:
       description: Accès refusé sans divulgation (RBAC objet / IDOR / feature pilote fermée)
@@ -3654,6 +6086,16 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
     Unprocessable:
       description: Violation d'invariant de domaine
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Session absente, expirée ou révoquée (SESSION_INVALID)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Gone:
+      description: Code d'invitation inconnu, expiré, révoqué ou épuisé (INVITATION_INVALID)
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
