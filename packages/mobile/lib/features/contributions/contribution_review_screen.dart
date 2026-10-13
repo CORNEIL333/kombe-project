@@ -150,5 +150,6 @@ String _channelLabel(AppLocalizations l10n, PaymentChannel channel) => switch (c
       PaymentChannel.mtnMomo => l10n.mtnMomo,
       PaymentChannel.mobileMoney => l10n.mobileMoney,
       PaymentChannel.bankTransfer => l10n.bankTransfer,
+      PaymentChannel.internationalTransfer => l10n.internationalTransfer,
       PaymentChannel.cash => l10n.cash,
     };

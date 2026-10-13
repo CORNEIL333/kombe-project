@@ -14,6 +14,7 @@ import { CycleService } from "./cycle.js";
 import { DecisionService } from "./decisions.js";
 import { DisciplineService } from "./discipline.js";
 import { GroupService } from "./groups.js";
+import { HistoryService, type HistoryImportInput } from "./history.js";
 import { InboxService } from "./inbox.js";
 import { MeetingService } from "./meetings.js";
 import { MoneyService } from "./money.js";
@@ -104,6 +105,19 @@ const S = {
     incomingMembershipId: id.optional(),
   }),
   ballot: z.object({ choice: z.enum(BALLOT_CHOICES) }),
+  historyImport: z.object({
+    source: z.enum(["kombe_v1", "cahier"]),
+    label: z.string().trim().max(80).optional(),
+    njangi: z
+      .object({
+        id: z.string().min(1).max(200),
+        name: z.string().min(1).max(200),
+        members: z.array(z.object({ uid: z.string().max(200), name: z.string().max(120), phone: z.string().max(40).optional(), email: z.string().max(200).optional(), role: z.string().max(40).optional() })).max(1000),
+        contributions: z.array(z.object({ id: z.string().max(200), uid: z.string().max(200), amount: z.number(), date: z.string().max(40), status: z.string().max(40).optional() })).max(5000),
+      })
+      .optional(),
+    rows: z.array(z.object({ memberName: z.string().max(120), date: z.string().max(40), amount: z.number() })).max(5000).optional(),
+  }),
   notificationsRead: z.object({ ids: z.union([z.array(z.string().max(20)).max(500), z.literal("all")]) }),
   reason,
 };
@@ -132,6 +146,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   const discipline = new DisciplineService(pool, now);
   const inbox = new InboxService(pool, now);
   const decisions = new DecisionService(pool, now);
+  const history = new HistoryService(pool, now);
 
   const H = (r: FastifyRequest): Record<string, unknown> => r.headers as Record<string, unknown>;
   const seqOf = (raw: string | undefined): number => z.coerce.number().int().min(1).max(10_000).parse(raw);
@@ -350,6 +365,12 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     return decisions.lift(H(req), p.id as string, p.did as string, S.reason.parse(req.body).reason);
   });
   app.get("/v1/tontines/:id/sanctions", async (req) => decisions.sanctions(H(req), (req.params as P).id as string));
+
+  /* ── Reprise de l'historique (L-20) ─────────────────────────────── */
+  app.get("/v1/tontines/:id/history", async (req) => history.summary(H(req), (req.params as P).id as string));
+  app.post("/v1/tontines/:id/history-imports", async (req, reply) =>
+    write(req, reply, 201, () => history.importHistory(H(req), (req.params as P).id as string, S.historyImport.parse(req.body) as HistoryImportInput)),
+  );
 
   /* ── Registre ──────────────────────────────────────────────────────── */
   app.get("/v1/tontines/:id/journal", async (req) => inbox.journal(H(req), (req.params as P).id as string));

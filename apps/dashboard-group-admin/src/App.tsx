@@ -38,7 +38,7 @@ const TYPE: Record<string, string> = {
   contribution: 'Cotisation', payout: 'Remise', fine_payment: 'Amende payée', advance: 'Avance de caisse', advance_repayment: 'Remboursement d’avance',
   transfer_in: 'Transfert reçu', transfer_out: 'Transfert envoyé', fee: 'Frais', expense: 'Dépense',
 };
-const CANAL: Record<string, string> = { cash: 'Espèces', orange_money: 'Orange Money', mtn_momo: 'MTN MoMo', bank: 'Banque', other: 'Autre' };
+const CANAL: Record<string, string> = { cash: 'Espèces', orange_money: 'Orange Money', mtn_momo: 'MTN MoMo', bank: 'Banque', international_transfer: 'Transfert depuis l’étranger', other: 'Autre' };
 const BUREAU = ['animator', 'vice_president', 'secretary', 'treasurer', 'treasurer_deputy', 'auditor', 'censor', 'advisor'];
 const xaf = (v: string) => { try { return formatXaf(v); } catch { return `${v} FCFA`; } };
 const jour = (iso: string | null | undefined) => (iso ? formatServerDate(iso.length === 10 ? `${iso}T12:00:00Z` : iso).replace(/,? \d{2}:\d{2}$/, '') : '—');

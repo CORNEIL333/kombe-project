@@ -35,6 +35,8 @@ import type {
   TontineSummary,
   DecisionView,
   SanctionView,
+  HistoryImportResult,
+  HistorySummary,
 } from "@kombe/domain";
 import { ApiClient, ApiError, loadRuntimeConfig } from "@kombe/dashboard-core";
 
@@ -43,6 +45,8 @@ export type {
   AidView,
   DebtView,
   DecisionView,
+  HistoryImportResult,
+  HistorySummary,
   SanctionView,
   DueView,
   FineView,
@@ -297,6 +301,16 @@ export const decisions = {
   lever: (s: Session, id: string, did: string, reason: string) =>
     appel<DecisionView>(s, "POST", `${t(id)}/decisions/${encodeURIComponent(did)}/lift`, { reason }),
   sanctions: (s: Session, id: string) => appel<SanctionView[]>(s, "GET", `${t(id)}/sanctions`),
+};
+
+/** Reprise de l'historique (L-20), à part de tout total courant. */
+export const historique = {
+  resume: (s: Session, id: string) => appel<HistorySummary>(s, "GET", `${t(id)}/history`),
+  importer: (
+    s: Session,
+    id: string,
+    corps: { source: "cahier"; rows: readonly { memberName: string; date: string; amount: number }[]; label?: string } | { source: "kombe_v1"; njangi: unknown },
+  ) => appel<HistoryImportResult>(s, "POST", `${t(id)}/history-imports`, corps),
 };
 
 /** Message d'erreur affichable : le serveur renvoie un motif métier en français. */

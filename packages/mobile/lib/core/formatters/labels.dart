@@ -30,6 +30,7 @@ abstract final class KombeLabels {
         PaymentChannel.mtnMomo => 'MTN Mobile Money',
         PaymentChannel.mobileMoney => 'Mobile Money',
         PaymentChannel.bankTransfer => 'Virement bancaire',
+        PaymentChannel.internationalTransfer => 'Transfert depuis l’étranger',
         PaymentChannel.cash => 'Espèces',
         null => '—',
       };

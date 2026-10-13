@@ -98,5 +98,6 @@
   "serverValidatedOnly": "Aucune validation n'est créée localement.",
   "voteElectorate": "Électeurs",
   "voteMajority": "Oui nécessaires (majorité absolue)",
-  "voteBallots": "Bulletins déposés (vote secret)"
+  "voteBallots": "Bulletins déposés (vote secret)",
+  "internationalTransfer": "Transfert depuis l’étranger (montant reçu en FCFA)"
 }

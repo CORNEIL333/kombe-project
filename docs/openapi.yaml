@@ -6617,6 +6617,114 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/history:
+    get:
+      tags:
+      - tontine
+      operationId: getTontinesByIdHistory
+      summary: HistorySummary (lignes importées, hors de tout total courant)
+      description: 'Rôle requis : membre (sa ligne) / bureau (tout). Corps → réponse : → HistorySummary (lignes importées, hors de tout total courant). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistorySummary'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/history-imports:
+    post:
+      tags:
+      - tontine
+      operationId: postTontinesByIdHistoryImports
+      summary: HistoryImportResult (201 ; réimport sans doublon)
+      description: 'Rôle requis : Président / VP. Corps → réponse : "kombe_v1", label?, rows?: [{ memberName, date, amount }], njangi? } → HistoryImportResult (201 ; réimport sans doublon). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '"kombe_v1", label?, rows?: [{ memberName, date, amount }], njangi? }'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryImportResult'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
 components:
   securitySchemes:
     bearerAuth:
@@ -6688,6 +6796,14 @@ components:
       schema: { type: string }
 
   schemas:
+    HistoryImportResult:
+      type: object
+      additionalProperties: true
+      description: Type `HistoryImportResult` de packages/domain/src/tontine/dto.ts (montants en chaînes d’entiers XAF, dates AAAA-MM-JJ).
+    HistorySummary:
+      type: object
+      additionalProperties: true
+      description: Type `HistorySummary` de packages/domain/src/tontine/dto.ts (montants en chaînes d’entiers XAF, dates AAAA-MM-JJ).
     DecisionView:
       type: object
       additionalProperties: true

@@ -12,7 +12,7 @@ import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, useAction, useDon
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 
-export const CANAUX: readonly PaymentChannel[] = ["cash", "orange_money", "mtn_momo", "bank", "other"];
+export const CANAUX: readonly PaymentChannel[] = ["cash", "orange_money", "mtn_momo", "bank", "international_transfer", "other"];
 
 export function tonMouvement(state: MovementView["state"]): "neutre" | "attente" | "ok" | "alerte" {
   return state === "validated" ? "ok" : state === "rejected" ? "alerte" : state === "confirmed" ? "ok" : "attente";
@@ -40,7 +40,7 @@ export function FormulaireDeclaration({
   const [reference, setReference] = useState("");
   const [payeur, setPayeur] = useState("");
   const action = useAction();
-  const mobile = canal === "orange_money" || canal === "mtn_momo" || canal === "bank";
+  const mobile = canal === "orange_money" || canal === "mtn_momo" || canal === "bank" || canal === "international_transfer";
   const roundSeq = echeance?.roundSeq ?? (pourMembre ? g.currentRound?.seq : undefined);
 
   const envoyer = async () => {

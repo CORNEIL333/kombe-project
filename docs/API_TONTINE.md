@@ -111,6 +111,11 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 | POST | `/v1/tontines/:id/decisions/:did/lift` | Président / VP (≠ personne visée) | `{ reason }` → `DecisionView` (levée d'une suspension) |
 | GET | `/v1/tontines/:id/sanctions` | bureau (tous) / membre (soi) | → `SanctionView[]` (graduation suggérée : avertissement, amende, suspension, vote d'exclusion) |
 
+## Reprise de l'historique (L-20)
+
+| GET | `/v1/tontines/:id/history` | membre (sa ligne) / bureau (tout) | → `HistorySummary` (lignes importées, hors de tout total courant) |
+| POST | `/v1/tontines/:id/history-imports` | Président / VP | `{ source: "cahier" \| "kombe_v1", label?, rows?: [{ memberName, date, amount }], njangi? }` → `HistoryImportResult` (201 ; réimport sans doublon) |
+
 ## Registre
 
 | GET | `/v1/tontines/:id/journal` | membre | → `{ valid: boolean, entries: JournalEntryView[] }` (chaîne d'empreintes vérifiée) |
@@ -125,5 +130,6 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 - **Remise** : déclarée par la trésorerie (jamais par le bénéficiaire), devant témoins présents si la séance est ouverte ; le bénéficiaire (ou son mandataire) confirme la réception ; le tour ne se clôt qu'après cette confirmation. Une avance du fonds de caisse est tracée en sortie du fonds de caisse ET en entrée de la cagnotte.
 - **Échéances** : la part d'un tour transformée en dette (remise réduite, avance, clôture) quitte les échéances et apparaît dans les dettes.
 - **Décisions** : majorité ABSOLUE des électeurs (membres actifs ayant un téléphone, admis avant l'ouverture, personne visée exclue), jamais des seuls votants. Destitution et exclusion : 72 h minimum, pas d'adoption avant l'échéance sauf si tous ont voté. Bulletin unique et définitif ; le journal garde le dépôt, jamais le choix. Exécution dans la même transaction que le bulletin décisif : pause ⇒ tours et séances décalés sur la cadence ; destitution ⇒ fonction terminée ; exclusion ⇒ adhésion révoquée, dette de rattrapage si le membre a déjà bouffé (parrain avaliseur), sinon place vacante (remise bloquée jusqu'à la reprise) ; suspension ⇒ remise refusée (`PAYOUT_SUSPENDED`) jusqu'à la levée ; reprise de place ⇒ la part change de titulaire à partir du premier tour ouvert.
+- **Diaspora** : canal `international_transfer` (Western Union, WorldRemit, Wave, Taptap Send…) ; le montant déclaré est celui REÇU en FCFA ; référence du transfert ou motif obligatoire.
 - **Part partagée** : `POST members/:mid/shares` accepte `sharedWith` (membre) : deux membres tiennent UNE part, chacun cotise la moitié ; `sharedWith: null` défait le partage. Avant le démarrage seulement.
-- **Recette** : `packages/api/test/tontineApi.proof.mjs` déroule tout ce contrat sur une vraie base (44 vérifications) ; `packages/api/test/decisions.proof.mjs` les décisions votées (36 vérifications).
+- **Recette** : `packages/api/test/tontineApi.proof.mjs` déroule tout ce contrat sur une vraie base (44 vérifications) ; `packages/api/test/decisions.proof.mjs` les décisions votées, la reprise du cahier et le transfert depuis l'étranger (49 vérifications).

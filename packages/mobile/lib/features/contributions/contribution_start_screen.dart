@@ -127,6 +127,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                   (PaymentChannel.orangeMoney, Icons.phone_android_rounded, l10n.orangeMoney),
                   (PaymentChannel.mtnMomo, Icons.phone_iphone_rounded, l10n.mtnMomo),
                   (PaymentChannel.bankTransfer, Icons.account_balance_outlined, l10n.bankTransfer),
+                  (PaymentChannel.internationalTransfer, Icons.public, l10n.internationalTransfer),
                   (PaymentChannel.cash, Icons.payments_outlined, l10n.cash),
                 ])
                   Expanded(

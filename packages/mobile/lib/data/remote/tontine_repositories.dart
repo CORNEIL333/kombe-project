@@ -78,6 +78,7 @@ String channelOf(PaymentChannel c) => switch (c) {
   PaymentChannel.orangeMoney => 'orange_money',
   PaymentChannel.mtnMomo => 'mtn_momo',
   PaymentChannel.bankTransfer => 'bank',
+  PaymentChannel.internationalTransfer => 'international_transfer',
   PaymentChannel.mobileMoney => 'other',
 };
 
@@ -86,6 +87,7 @@ PaymentChannel? channelFrom(Object? v) => switch ('$v') {
   'orange_money' => PaymentChannel.orangeMoney,
   'mtn_momo' => PaymentChannel.mtnMomo,
   'bank' => PaymentChannel.bankTransfer,
+  'international_transfer' => PaymentChannel.internationalTransfer,
   'other' => PaymentChannel.mobileMoney,
   _ => null,
 };

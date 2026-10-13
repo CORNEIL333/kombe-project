@@ -98,5 +98,6 @@
   "serverValidatedOnly": "No validation is created locally.",
   "voteElectorate": "Voters",
   "voteMajority": "Yes votes needed (absolute majority)",
-  "voteBallots": "Ballots cast (secret ballot)"
+  "voteBallots": "Ballots cast (secret ballot)",
+  "internationalTransfer": "Transfer from abroad (amount received in FCFA)"
 }

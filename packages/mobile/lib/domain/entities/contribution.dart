@@ -1,6 +1,6 @@
 /// Moyens de paiement réels au Cameroun. `mobileMoney` (opérateur non précisé)
 /// reste lisible pour les brouillons anciens et part comme « autre ».
-enum PaymentChannel { orangeMoney, mtnMomo, mobileMoney, bankTransfer, cash }
+enum PaymentChannel { orangeMoney, mtnMomo, mobileMoney, bankTransfer, internationalTransfer, cash }
 
 enum ContributionStatus {
   draft,

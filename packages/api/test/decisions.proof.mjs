@@ -259,6 +259,41 @@ try {
   const duesA = (await ok(A.token, "GET", `/v1/me/dues?groupId=${gid}`)).filter((d) => d.roundSeq === 2 && d.fundKind === "rotation");
   check("REPLACEMENT-DUES", duesA[0]?.due === "10000", duesA);
 
+  /* ── Reprise du cahier (L-20) : séparée de tout total courant ─────── */
+  const fundsBefore = await ok(A.token, "GET", `/v1/tontines/${gid}/funds`);
+  const cahier = {
+    source: "cahier",
+    label: "Cahier 2025",
+    rows: [
+      { memberName: A.name, date: "2025-01-05", amount: 5000 },
+      { memberName: "awa présidente", date: "2025-01-12", amount: 5000 },
+      { memberName: F.name, date: "2025-01-05", amount: 5000 },
+      { memberName: "Ancien membre", date: "2025-01-05", amount: 5000 },
+      { memberName: B.name, date: "2025-01-05", amount: 12.5 },
+    ],
+  };
+  const imp1 = await ok(A.token, "POST", `/v1/tontines/${gid}/history-imports`, cahier);
+  check("HISTORY-IMPORTED", imp1.acceptedContributions === 4 && imp1.rejected.length === 1 && imp1.total === "20000" && imp1.unmatchedMembers.includes("Ancien membre"), imp1);
+  const imp2 = await ok(A.token, "POST", `/v1/tontines/${gid}/history-imports`, cahier);
+  check("HISTORY-IDEMPOTENT", imp2.acceptedContributions === 0 && imp2.alreadyImported === 4, imp2);
+  const notPresident = await call(D.token, "POST", `/v1/tontines/${gid}/history-imports`, cahier);
+  check("HISTORY-PRESIDENCY-ONLY", notPresident.status === 403, notPresident.status);
+  const hist = await ok(A.token, "GET", `/v1/tontines/${gid}/history`);
+  const awaHist = hist.perMember.find((x) => x.membershipId === mid(A.name));
+  check("HISTORY-MATCHED", awaHist?.count === 2 && awaHist.total === "10000" && hist.total === "20000", hist);
+  // F, simple membre, ne voit que sa propre ligne (D est trésorier à ce stade).
+  const histF = await ok(F.token, "GET", `/v1/tontines/${gid}/history`);
+  check("HISTORY-SELF-ONLY", histF.perMember.length === 1 && histF.perMember[0].total === "5000" && histF.imports.length === 0, histF);
+  const fundsAfter = await ok(A.token, "GET", `/v1/tontines/${gid}/funds`);
+  check("HISTORY-NOT-IN-FUNDS", JSON.stringify(fundsAfter.map((f) => f.confirmedBalance)) === JSON.stringify(fundsBefore.map((f) => f.confirmedBalance)), [fundsBefore, fundsAfter]);
+
+  /* ── Diaspora (L-16) : transfert international, référence exigée ─── */
+  const r3 = 2; // tour à venir : seul le prochain tour est déjà dû
+  const noRefAbroad = await call(F.token, "POST", `/v1/tontines/${gid}/movements`, { fundId: rot, kind: "contribution", amount: "2500", roundSeq: r3, channel: "international_transfer" });
+  check("ABROAD-NEEDS-REFERENCE", noRefAbroad.status === 422, noRefAbroad);
+  const abroad = await ok(F.token, "POST", `/v1/tontines/${gid}/movements`, { fundId: rot, kind: "contribution", amount: "2500", roundSeq: r3, channel: "international_transfer", reference: "WU 123-456-7890" });
+  check("ABROAD-DECLARED", abroad.channel === "international_transfer" && abroad.state === "declared", abroad);
+
   /* ── Accès, idempotence, journal ─────────────────────────────────── */
   const outsider = await call(X.token, "GET", `/v1/tontines/${gid}/decisions`);
   check("OUTSIDER-404", outsider.status === 404, outsider.status);

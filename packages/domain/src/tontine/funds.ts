@@ -39,7 +39,13 @@ export const FUND_LABELS: Readonly<Record<FundKind, { fr: string; en: string }>>
   collector: { fr: "Collecte par un tontinier", en: "Daily collector" },
 };
 
-export const PAYMENT_CHANNELS = ["cash", "orange_money", "mtn_momo", "bank", "other"] as const;
+/**
+ * `international_transfer` : membre de la diaspora qui paie par un service de
+ * transfert (Western Union, WorldRemit, Wave, Taptap Send…). Le montant
+ * déclaré est celui REÇU en FCFA au Cameroun ; la référence du transfert est
+ * obligatoire (ou un motif), comme pour tout canal électronique (L-16).
+ */
+export const PAYMENT_CHANNELS = ["cash", "orange_money", "mtn_momo", "bank", "international_transfer", "other"] as const;
 export type PaymentChannel = (typeof PAYMENT_CHANNELS)[number];
 
 export const CHANNEL_LABELS: Readonly<Record<PaymentChannel, { fr: string; en: string }>> = {
@@ -47,6 +53,7 @@ export const CHANNEL_LABELS: Readonly<Record<PaymentChannel, { fr: string; en: s
   orange_money: { fr: "Orange Money", en: "Orange Money" },
   mtn_momo: { fr: "MTN MoMo", en: "MTN MoMo" },
   bank: { fr: "Banque", en: "Bank" },
+  international_transfer: { fr: "Transfert depuis l'étranger", en: "Transfer from abroad" },
   other: { fr: "Autre", en: "Other" },
 };
 

@@ -22,6 +22,11 @@ ALTER TABLE membership ADD CONSTRAINT membership_share_partner_fk
 ALTER TABLE membership ADD CONSTRAINT membership_share_partner_not_self
   CHECK (share_partner_membership_id IS NULL OR share_partner_membership_id <> membership_id);
 
+-- ── L-16 : diaspora — transfert international (montant reçu en FCFA) ──────
+ALTER TABLE fund_movement DROP CONSTRAINT fund_movement_channel_check;
+ALTER TABLE fund_movement ADD CONSTRAINT fund_movement_channel_check
+  CHECK (channel IN ('cash','orange_money','mtn_momo','bank','international_transfer','other'));
+
 -- ── Décisions votées ───────────────────────────────────────────────────────
 CREATE TABLE group_decision (
   decision_id   text PRIMARY KEY,

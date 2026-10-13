@@ -92,6 +92,7 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   "decision.lifted": "Suspension levée",
   "schedule.paused": "Séances décalées (pause votée)",
   "order.place_taken_over": "Reprise de place",
+  "history.imported": "Historique repris (cahier ou ancienne application)",
 };
 
 export class InboxService {

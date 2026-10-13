@@ -435,6 +435,23 @@ export interface SanctionView {
   readonly payoutSuspended: boolean;
 }
 
+/** Reprise de l'historique (L-20) : lignes séparées, hors de tout total courant. */
+export interface HistoryImportResult {
+  readonly importId: string;
+  readonly source: string;
+  readonly acceptedContributions: number;
+  readonly alreadyImported: number;
+  readonly rejected: readonly { readonly legacyId: string; readonly reason: string }[];
+  readonly unmatchedMembers: readonly string[];
+  readonly total: string;
+}
+
+export interface HistorySummary {
+  readonly imports: readonly { readonly importId: string; readonly label: string; readonly importedAt: string; readonly accepted: number; readonly rejected: number }[];
+  readonly perMember: readonly { readonly memberName: string; readonly membershipId: string | null; readonly count: number; readonly total: string; readonly firstDate: string; readonly lastDate: string }[];
+  readonly total: string;
+}
+
 export interface Page<T> {
   readonly items: readonly T[];
   readonly nextCursor: string | null;

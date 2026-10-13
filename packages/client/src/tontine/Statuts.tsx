@@ -6,6 +6,7 @@ import { Carte, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js"
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 import { ApiError } from "./api.js";
+import { Historique } from "./Historique.js";
 
 export function Statuts({ ctx }: { readonly ctx: ContexteGroupe }) {
   const { tx } = useTextes();
@@ -72,6 +73,8 @@ export function Journal({ ctx }: { readonly ctx: ContexteGroupe }) {
   const gid = ctx.groupe.groupId;
   const { etat, recharger } = useDonnees(() => discipline.journal(ctx.session, gid), [gid]);
   return (
+    <div className="pile">
+    <Historique ctx={ctx} />
     <Carte titre={tx("td.journal")}>
       <Charge etat={etat} recharger={recharger}>
         {(j) => (
@@ -97,5 +100,6 @@ export function Journal({ ctx }: { readonly ctx: ContexteGroupe }) {
         )}
       </Charge>
     </Carte>
+    </div>
   );
 }

@@ -135,6 +135,7 @@ final class HttpContributionRepository implements ContributionRepository {
         PaymentChannel.cash => 'cash',
         PaymentChannel.orangeMoney || PaymentChannel.mtnMomo || PaymentChannel.mobileMoney => 'electronic',
         PaymentChannel.bankTransfer => 'electronic',
+        PaymentChannel.internationalTransfer => 'electronic',
       };
 
   /// Projette le REÇU de déclaration réelle sur l'entité [Contribution]. Le

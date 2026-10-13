@@ -68,7 +68,7 @@ async function ouvrirVotes(page: Page, groupe: string) {
   await page.getByRole("navigation").getByRole("button", { name: "Votes", exact: true }).click();
 }
 
-test("pause des séances votée par l'assemblée (ADR-0038)", async ({ browser }) => {
+test("pause des séances votée par l'assemblée (ADR-0038), puis reprise du cahier (L-20)", async ({ browser }) => {
   test.skip(!(await apiJoignable()), `API réelle injoignable sur ${API}`);
   test.setTimeout(120_000);
 
@@ -144,6 +144,14 @@ test("pause des séances votée par l'assemblée (ADR-0038)", async ({ browser }
   await expect(pChantal.getByText("Adoptée")).toBeVisible();
   await expect(pChantal.getByText(/Séances décalées de 1 occurrence/)).toBeVisible();
   await expect(pChantal.getByRole("button", { name: "Oui", exact: true })).toHaveCount(0);
+
+  /* Awa reprend une page du cahier (L-20) : à part de tout total. */
+  await pAwa.getByRole("navigation").getByRole("button", { name: "Registre", exact: true }).click();
+  await pAwa.getByLabel("Collez les lignes du cahier").fill("Awa Ndongo ; 05/01/2025 ; 5 000\nBertrand Ekwalla ; 05/01/2025 ; 5000\nligne abîmée");
+  await expect(pAwa.getByText(/2 ligne\(s\) lisible\(s\)/)).toBeVisible();
+  await pAwa.getByRole("button", { name: "Reprendre ces lignes" }).click();
+  await expect(pAwa.getByText(/2 ligne\(s\) reprise\(s\), 0 déjà présente\(s\)/)).toBeVisible();
+  await expect(pAwa.getByText(/Total repris : 10\s000/)).toBeVisible();
 
   const apres = await appel<{ seq: number; date: string }[]>(awa, "GET", `/v1/tontines/${gid}/rounds`);
   const plus7 = (d: string) => new Date(Date.parse(`${d}T00:00:00Z`) + 7 * 86_400_000).toISOString().slice(0, 10);
