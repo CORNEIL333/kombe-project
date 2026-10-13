@@ -10,6 +10,18 @@
 // Usage :
 //   node scripts/migrate.mjs migrate   # applique migrations/ puis provision/roles.sql
 //   node scripts/migrate.mjs seed       # charge fixtures/fictitious.sql (après migrate)
+//   node scripts/migrate.mjs status     # liste appliqué / en attente, n'écrit rien
+//   node scripts/migrate.mjs down [N] --confirm
+//                                       # RETOUR ARRIÈRE des N dernières migrations
+//                                       # appliquées (défaut 1) via leurs .down.sql.
+//                                       # DESTRUCTIF (DROP TABLE) : refusé sans --confirm.
+//
+// RÉ-APPLICATION DES DROITS : dès qu'un `migrate` applique au moins une
+// migration, provision/roles.sql (idempotent) est ré-exécuté en fin de run,
+// même si son jalon existe déjà. Ainsi une base MISE À JOUR (ex. production
+// déjà en 0023 qui reçoit 0024/0025) finit avec exactement les mêmes droits
+// qu'une base installée à neuf — sans cela roles.sql, déjà consigné, était
+// ignoré et les deux chemins divergeaient.
 //
 // Env : KOMBE_DATABASE_URL — chaîne de connexion PostgreSQL (rôle propriétaire).
 //
@@ -82,13 +94,14 @@ function blocked(reason) {
 
 // ── Mode : strict (un mode inconnu ne doit JAMAIS appliquer les migrations) ──
 const mode = process.argv[2] ?? "migrate";
-if (mode !== "migrate" && mode !== "seed") {
+const MODES = ["migrate", "seed", "status", "down"];
+if (!MODES.includes(mode)) {
   process.stderr.write(
     JSON.stringify(
       {
         target: "kombe.db.migrate",
         status: "FAIL",
-        reason: `mode inconnu : « ${mode} » (attendu : migrate | seed)`,
+        reason: `mode inconnu : « ${mode} » (attendu : ${MODES.join(" | ")})`,
         exitCode: 1,
       },
       null,
@@ -123,6 +136,37 @@ function stripTopLevelTxMarkers(sql) {
 }
 
 const files = mode === "seed" ? FIXTURES : UP_MIGRATIONS;
+const ROLES_FILE = "provision/roles.sql";
+
+// `down` : nombre de migrations à défaire + garde explicite (destructif).
+let downCount = 1;
+if (mode === "down") {
+  const nArg = process.argv.slice(3).find((a) => /^\d+$/.test(a));
+  if (nArg !== undefined) downCount = Number(nArg);
+  if (!process.argv.includes("--confirm")) {
+    process.stderr.write(
+      JSON.stringify(
+        {
+          target: "kombe.db.migrate",
+          mode,
+          status: "FAIL",
+          reason:
+            "retour arrière DESTRUCTIF (DROP TABLE, perte de données) : relancer avec --confirm " +
+            "après sauvegarde / branche de restauration de la base.",
+          exitCode: 1,
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    process.exit(1);
+  }
+  if (!Number.isInteger(downCount) || downCount < 1) {
+    process.stderr.write(`N invalide pour down : ${downCount}\n`);
+    process.exit(1);
+  }
+}
+
 const client = new pg.Client({ connectionString: url });
 
 try {
@@ -142,6 +186,46 @@ try {
   const already = new Set(
     (await client.query("SELECT name FROM kombe_migration")).rows.map((r) => r.name),
   );
+
+  if (mode === "status") {
+    const pending = UP_MIGRATIONS.filter((f) => !already.has(f));
+    emit({
+      target: "kombe.db.migrate",
+      mode,
+      status: "OK",
+      applied: UP_MIGRATIONS.filter((f) => already.has(f)),
+      pending,
+      exitCode: 0,
+    });
+    await client.end();
+    process.exit(0);
+  }
+
+  if (mode === "down") {
+    // Ordre canonique inverse, uniquement les migrations réellement appliquées.
+    const appliedMigrations = UP_MIGRATIONS.filter(
+      (f) => f.startsWith("migrations/") && already.has(f),
+    );
+    const targets = appliedMigrations.slice(-downCount).reverse();
+    const reverted = [];
+    for (const file of targets) {
+      const downFile = file.replace(/\.sql$/, ".down.sql");
+      const innerSql = stripTopLevelTxMarkers(readFileSync(resolve(dbRoot, downFile), "utf8"));
+      await client.query("BEGIN");
+      try {
+        await client.query(innerSql);
+        await client.query("DELETE FROM kombe_migration WHERE name = $1", [file]);
+        await client.query("COMMIT");
+        reverted.push(downFile);
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw new Error(`${downFile} : ${err && err.message ? err.message : err} (déjà défaits : ${reverted.join(", ") || "aucun"})`);
+      }
+    }
+    emit({ target: "kombe.db.migrate", mode, status: "OK", reverted, exitCode: 0 });
+    await client.end();
+    process.exit(0);
+  }
 
   const applied = [];
   const skipped = [];
@@ -164,7 +248,23 @@ try {
     }
   }
 
-  emit({ target: "kombe.db.migrate", mode, status: "OK", applied, skipped, exitCode: 0 });
+  // Base mise à jour : roles.sql déjà consigné mais de nouvelles tables sont
+  // apparues → ré-application idempotente pour converger vers l'état « neuf ».
+  let rolesReapplied = false;
+  if (mode === "migrate" && applied.length > 0 && !applied.includes(ROLES_FILE)) {
+    const rolesSql = stripTopLevelTxMarkers(readFileSync(resolve(dbRoot, ROLES_FILE), "utf8"));
+    await client.query("BEGIN");
+    try {
+      await client.query(rolesSql);
+      await client.query("COMMIT");
+      rolesReapplied = true;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    }
+  }
+
+  emit({ target: "kombe.db.migrate", mode, status: "OK", applied, skipped, rolesReapplied, exitCode: 0 });
   await client.end();
   process.exit(0);
 } catch (err) {
