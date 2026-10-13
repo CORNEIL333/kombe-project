@@ -24,9 +24,13 @@ import { DomainError } from "./errors.js";
 export type JournalRole =
   | "founder"
   | "animator"
+  | "vice_president"
   | "treasurer"
+  | "treasurer_deputy"
   | "secretary"
   | "auditor"
+  | "censor"
+  | "advisor"
   | "member";
 
 /**
