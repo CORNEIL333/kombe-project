@@ -1,31 +1,34 @@
-/* KÓMBE C15 — scénario E2E réel : le bandeau d'état suit la connectivité RÉELLE
-   du navigateur. On coupe le réseau via l'API d'émulation de Playwright
-   (`context.setOffline(true)`), ce qui met `navigator.onLine` à false et déclenche
-   l'événement `offline` ; le bandeau doit alors afficher l'état hors-ligne et ne
-   JAMAIS revendiquer une validation serveur (C15-OFFLINE côté UX). Remettre le
-   réseau restaure l'état en ligne. */
+/* KÓMBE — E2E : le bandeau hors connexion suit la connectivité RÉELLE du
+   navigateur (Playwright coupe le réseau). Il dit que rien n'est envoyé au
+   groupe et ne prétend jamais qu'une saisie est validée. */
 
 import { expect, test } from "@playwright/test";
 
-test("couper le réseau bascule le bandeau en hors-ligne sans fausse validation (C15)", async ({
-  page,
-}) => {
+test("couper le réseau affiche le bandeau hors connexion, sans fausse validation", async ({ page }) => {
+  await page.route("**/kombe-dashboard-config.json", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify({ apiBaseUrl: "http://localhost:3000" }) }),
+  );
   await page.goto("/");
+  const bandeau = page.locator(".bandeau--horsLigne");
+  await expect(bandeau).toHaveCount(0);
 
-  // En ligne au départ : le bandeau (classe dédiée, unique sur la page) n'évoque
-  // pas « hors ligne ». On cible `.bandeau` pour lever l'ambiguïté avec
-  // l'indicateur d'étape du parcours (qui est aussi role="status").
-  const bandeau = page.locator(".bandeau");
-  await expect(bandeau).toBeVisible();
-  await expect(bandeau).not.toContainText(/Hors ligne/i);
-
-  // Coupure réseau réelle émulée → événement `offline` → React met à jour l'UI.
   await page.context().setOffline(true);
-  await expect(page.locator(".bandeau")).toContainText(/Hors ligne/i);
-  // L'UX ne prétend jamais qu'une soumission hors-ligne est validée par le serveur.
-  await expect(page.locator(".bandeau")).not.toContainText(/validé par le serveur/i);
+  await expect(bandeau).toBeVisible();
+  await expect(bandeau).toContainText(/Hors connexion/);
+  await expect(bandeau).not.toContainText(/valid/i);
 
-  // Retour du réseau → l'état en ligne revient.
   await page.context().setOffline(false);
-  await expect(page.locator(".bandeau")).not.toContainText(/Hors ligne/i);
+  await expect(bandeau).toHaveCount(0);
+});
+
+test("le premier élément atteignable au clavier est le lien d'évitement ; chaque champ a un libellé", async ({ page }) => {
+  await page.route("**/kombe-dashboard-config.json", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify({ apiBaseUrl: "http://localhost:3000" }) }),
+  );
+  await page.goto("/");
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".evitement")).toBeFocused();
+  await expect(page.getByLabel("Numéro de téléphone")).toBeVisible();
+  await page.getByText("Par e-mail").click();
+  await expect(page.getByLabel("Adresse e-mail")).toBeVisible();
 });

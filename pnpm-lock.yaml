@@ -208,6 +208,9 @@ importers:
       '@kombe/dashboard-core':
         specifier: workspace:*
         version: link:../dashboard-core
+      '@kombe/domain':
+        specifier: workspace:*
+        version: link:../domain
       react:
         specifier: ^19.3.0
         version: 19.3.0

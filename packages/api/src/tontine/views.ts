@@ -103,15 +103,17 @@ export async function loadMembers(db: Db, actor: Actor, opts: { readonly include
   const shareCount = new Map<string, number>();
   for (const s of shares) for (const h of s.holders) shareCount.set(h.membershipId, (shareCount.get(h.membershipId) ?? 0) + 1);
   const rolesRes = await db.query(
-    `SELECT membership_id, role FROM role_assignment
-      WHERE group_id = $1 AND accepted_at IS NOT NULL AND ended_at IS NULL`,
+    `SELECT membership_id, role, accepted_at IS NOT NULL AS accepted FROM role_assignment
+      WHERE group_id = $1 AND ended_at IS NULL`,
     [actor.groupId],
   );
   const roles = new Map<string, GroupRole[]>();
+  const pending = new Map<string, GroupRole[]>();
   for (const row of rolesRes.rows) {
-    const list = roles.get(String(row.membership_id)) ?? [];
-    if (row.role !== "member") list.push(row.role as GroupRole);
-    roles.set(String(row.membership_id), list);
+    const target = row.accepted ? roles : pending;
+    const list = target.get(String(row.membership_id)) ?? [];
+    if (row.role !== "member" || row.accepted) list.push(row.role as GroupRole);
+    target.set(String(row.membership_id), list.filter((x) => x !== "member"));
   }
   const r = await db.query(
     `SELECT membership_id, identity_id, display_name, state, sponsor_membership_id, proxy_membership_id, joined_at, share_count
@@ -131,6 +133,7 @@ export async function loadMembers(db: Db, actor: Actor, opts: { readonly include
       displayName: row.display_name ? String(row.display_name) : maskLogin(login),
       state: row.state,
       roles: memberRoles.length > 0 ? memberRoles : row.state === "active" ? (["member"] as GroupRole[]) : [],
+      pendingRoles: pending.get(id) ?? [],
       login: offline ? null : isMe || seeFull ? login : maskLogin(login),
       isMe,
       sponsorMembershipId: row.sponsor_membership_id ? String(row.sponsor_membership_id) : null,

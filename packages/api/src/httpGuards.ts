@@ -53,8 +53,14 @@ export function registerHttpGuards(app: FastifyInstance, env: NodeJS.ProcessEnv 
     if (allowed) {
       reply.header("access-control-allow-origin", origin);
       reply.header("vary", "Origin");
-      reply.header("access-control-allow-headers", "content-type, authorization, idempotency-key, if-match-version");
+      reply.header("access-control-allow-headers", "content-type, authorization, idempotency-key, if-match-version, x-csrf-token");
       reply.header("access-control-allow-methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+      // Les clients (PWA, tableaux de bord) appellent en `credentials: include` :
+      // sans cet en-tête, le navigateur bloque TOUTE réponse cross-origin.
+      // Sûr ici car l'origine est renvoyée exactement (liste fermée, jamais « * »).
+      reply.header("access-control-allow-credentials", "true");
+      reply.header("access-control-expose-headers", "x-correlation-id, idempotent-replay, retry-after");
+      reply.header("access-control-max-age", "600");
     }
     if (request.method === "OPTIONS") {
       await reply.code(allowed ? 204 : 403).send();

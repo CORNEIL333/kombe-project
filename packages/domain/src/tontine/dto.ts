@@ -146,6 +146,8 @@ export interface MemberView {
   readonly displayName: string;
   readonly state: TontineMembershipState;
   readonly roles: readonly GroupRole[];
+  /** Fonctions proposées, en attente d'acceptation par la personne nommée. */
+  readonly pendingRoles: readonly GroupRole[];
   /** Numéro masqué (+237 6•• •• •• 12) ; complet pour le bureau et soi-même. */
   readonly login: string | null;
   readonly isMe: boolean;

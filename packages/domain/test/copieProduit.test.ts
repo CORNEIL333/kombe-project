@@ -81,7 +81,7 @@ describe("copie produit — aucun mot interdit dans les textes affichés", () =>
 
   it("PWA, tableaux de bord et site (composants)", () => {
     const files = [
-      ...walk(resolve(root, "packages/client/src"), [".tsx"]),
+      ...walk(resolve(root, "packages/client/src"), [".tsx", ".ts"]),
       ...walk(resolve(root, "packages/dashboard-core/src"), [".tsx", ".ts"]),
       ...walk(resolve(root, "apps"), [".tsx", ".ts", ".html"]),
     ];

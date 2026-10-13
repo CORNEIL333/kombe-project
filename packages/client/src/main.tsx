@@ -7,6 +7,7 @@ import { FournisseurLangue } from "./i18n/ContexteLangue.js";
 import { App } from "./App.js";
 import "@kombe/brand/kombe.css";
 import "./styles.css";
+import "./tontine/tontine.css";
 
 const conteneur = document.getElementById("root");
 if (conteneur === null) {
