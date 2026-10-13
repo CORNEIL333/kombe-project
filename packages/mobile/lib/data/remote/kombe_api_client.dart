@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:http/http.dart' as http;
 
@@ -43,8 +44,14 @@ final class KombeApiClient {
 
   static Future<Map<String, String>> _noSession() async => const {};
 
-  Uri _uri(String path) =>
-      _baseUrl.replace(path: '${_baseUrl.path}$path');
+  /// Chemin relatif à la base (`/v1`) ; une éventuelle chaîne de requête
+  /// (`?groupId=…`) est portée par l'URL, jamais encodée dans le chemin.
+  Uri _uri(String path) {
+    final int q = path.indexOf('?');
+    final String p = q < 0 ? path : path.substring(0, q);
+    final Uri u = _baseUrl.replace(path: '${_baseUrl.path}$p');
+    return q < 0 ? u : u.replace(query: path.substring(q + 1));
+  }
 
   Future<ApiResponse> get(String path, {Map<String, String>? headers}) =>
       _send('GET', path, headers: headers);
@@ -55,6 +62,25 @@ final class KombeApiClient {
     Map<String, String>? headers,
   }) =>
       _send('POST', path, body: body, headers: headers);
+
+  Future<ApiResponse> patch(
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+  }) =>
+      _send('PATCH', path, body: body, headers: headers);
+
+  Future<ApiResponse> put(
+    String path,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+  }) =>
+      _send('PUT', path, body: body, headers: headers);
+
+  /// Écriture idempotente : une clé neuve par intention (un double appui ou une
+  /// reprise réseau ne crée jamais deux déclarations côté serveur).
+  Future<ApiResponse> postOnce(String path, Map<String, dynamic> body) =>
+      _send('POST', path, body: body, headers: <String, String>{'idempotency-key': newIdempotencyKey()});
 
   Future<ApiResponse> _send(
     String method,
@@ -151,3 +177,9 @@ final class KombeApiClient {
 
   void close() => _client.close();
 }
+
+final Random _keyRandom = Random.secure();
+
+/// Clé d'idempotence aléatoire (128 bits, hexadécimal).
+String newIdempotencyKey() =>
+    List<String>.generate(16, (_) => _keyRandom.nextInt(256).toRadixString(16).padLeft(2, '0')).join();

@@ -26,6 +26,8 @@ abstract final class KombeLabels {
       };
 
   static String channel(PaymentChannel? c) => switch (c) {
+        PaymentChannel.orangeMoney => 'Orange Money',
+        PaymentChannel.mtnMomo => 'MTN Mobile Money',
         PaymentChannel.mobileMoney => 'Mobile Money',
         PaymentChannel.bankTransfer => 'Virement bancaire',
         PaymentChannel.cash => 'Espèces',

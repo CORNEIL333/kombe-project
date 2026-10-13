@@ -31,7 +31,7 @@ class ContributionStartScreen extends StatefulWidget {
 class _ContributionStartScreenState extends State<ContributionStartScreen> {
   final TextEditingController _amount = TextEditingController();
   final TextEditingController _note = TextEditingController();
-  PaymentChannel _channel = PaymentChannel.mobileMoney;
+  PaymentChannel _channel = PaymentChannel.orangeMoney;
   ContributionDraftViewModel? _vm;
   Future<Resource<GroupDetails>>? _group;
 
@@ -124,7 +124,8 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
             Row(
               children: <Widget>[
                 for (final (PaymentChannel value, IconData icon, String label) in <(PaymentChannel, IconData, String)>[
-                  (PaymentChannel.mobileMoney, Icons.phone_android_rounded, l10n.mobileMoney),
+                  (PaymentChannel.orangeMoney, Icons.phone_android_rounded, l10n.orangeMoney),
+                  (PaymentChannel.mtnMomo, Icons.phone_iphone_rounded, l10n.mtnMomo),
                   (PaymentChannel.bankTransfer, Icons.account_balance_outlined, l10n.bankTransfer),
                   (PaymentChannel.cash, Icons.payments_outlined, l10n.cash),
                 ])

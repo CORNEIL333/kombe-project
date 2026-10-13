@@ -133,7 +133,7 @@ final class HttpContributionRepository implements ContributionRepository {
   /// virement bancaire sont tous deux électroniques ; seul l'espèce est cash.
   static String _channelApi(PaymentChannel channel) => switch (channel) {
         PaymentChannel.cash => 'cash',
-        PaymentChannel.mobileMoney => 'electronic',
+        PaymentChannel.orangeMoney || PaymentChannel.mtnMomo || PaymentChannel.mobileMoney => 'electronic',
         PaymentChannel.bankTransfer => 'electronic',
       };
 

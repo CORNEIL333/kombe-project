@@ -146,6 +146,8 @@ class _ContributionReviewScreenState extends State<ContributionReviewScreen> {
 }
 
 String _channelLabel(AppLocalizations l10n, PaymentChannel channel) => switch (channel) {
+      PaymentChannel.orangeMoney => l10n.orangeMoney,
+      PaymentChannel.mtnMomo => l10n.mtnMomo,
       PaymentChannel.mobileMoney => l10n.mobileMoney,
       PaymentChannel.bankTransfer => l10n.bankTransfer,
       PaymentChannel.cash => l10n.cash,

@@ -90,14 +90,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 28),
                       TextFormField(
                         controller: _email,
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const <String>[AutofillHints.email],
+                        keyboardType: TextInputType.text,
+                        autofillHints: const <String>[AutofillHints.telephoneNumber, AutofillHints.email],
                         decoration: InputDecoration(
                           labelText: l10n.email,
-                          prefixIcon: const Icon(Icons.mail_outline_rounded),
+                          prefixIcon: const Icon(Icons.phone_android_rounded),
                         ),
                         validator: (String? value) =>
-                            AuthValidators.isEmail(value ?? '')
+                            AuthValidators.isLogin(value ?? '')
                             ? null
                             : l10n.invalidEmail,
                       ),
