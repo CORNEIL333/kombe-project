@@ -507,7 +507,7 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        "200": { description: Usage consommé (vue publique, aucun registre révélé) }
+        "200": { description: "Usage consommé (vue publique, aucun registre révélé)" }
         "410":
           description: >
             INVITATION_INVALID — erreur unique non divulguante (expirée, révoquée
@@ -860,7 +860,7 @@ paths:
   /groups/{groupId}/declarations:
     post:
       tags: [contributions]
-      operationId: declareContribution
+      operationId: declareContributionLegacy
       summary: >
         Déclaration partielle idempotente (6.1, 18.1, 18.3). La clé
         d'idempotence est scopée (acteur, groupe, type) et compare un hash
@@ -2889,6 +2889,82 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /groups/{groupId}/tontine-schedule/renewals:
+    post:
+      tags: [tontine-schedule]
+      operationId: renewTontineSchedule
+      summary: Renouveler le cycle — enchaîner un nouveau cycle (action schedule.manage)
+      description: >
+        Possible quand tous les tours du cycle en cours sont clos (un tour se
+        clôt quand toutes ses remises sont validées), sinon
+        CYCLE_START_NOT_READY (409). Nouvelle version de règles (cotisation,
+        cadence, ordre peuvent changer), nouvelles parts, tours numérotés à la
+        suite et séances planifiées. Les cycles précédents restent intacts.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BuildScheduleRequest" }
+      responses:
+        "201":
+          description: Nouveau cycle (`cycleNo` incrémenté).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TontineSchedule" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
+  /groups/{groupId}/year-end-reserve/distributions:
+    post:
+      tags: [tontine-funds]
+      operationId: distributeYearEndReserve
+      summary: Redistribuer la réserve de fin d'année (Trésorier ou Trésorier adjoint)
+      description: >
+        Chaque membre récupère ce qu'il a versé dans la réserve (moins ce
+        qu'il a déjà reçu), au prorata si la caisse ne couvre pas tout. Une
+        remise déclarée par membre, que chacun confirme. Refusé tant qu'un
+        mouvement de la réserve attend sa validation
+        (DISBURSEMENT_STATE_INVALID, 409) ou si la réserve est vide (FUND_INVALID, 422).
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel]
+              properties:
+                channel: { $ref: "#/components/schemas/PaymentChannel" }
+                reference: { type: [string, "null"], maxLength: 64 }
+                justification: { type: [string, "null"], maxLength: 500 }
+      responses:
+        "201":
+          description: Remises déclarées.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [distributions]
+                properties:
+                  distributions:
+                    type: array
+                    items:
+                      type: object
+                      required: [membershipId, amount, movementId]
+                      properties:
+                        membershipId: { type: string }
+                        amount: { $ref: "#/components/schemas/MoneyString" }
+                        movementId: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Unprocessable" }
+
   /groups/{groupId}/draws:
     post:
       tags: [tontine-schedule]
@@ -3224,7 +3300,9 @@ paths:
       summary: Valider un mouvement confirmé (action movement.control — Commissaire aux comptes)
       description: >
         Le contrôleur est distinct du déclarant et du confirmateur
-        (MOVEMENT_NOT_INDEPENDENT, 403). Effets à la validation : échéance
+        (MOVEMENT_NOT_INDEPENDENT, 403). Si aucun commissaire n'est
+        indépendant (il reçoit lui-même la remise), le Censeur ou la
+        présidence contrôle à sa place. Effets à la validation : échéance
         créditée, amende payée, secours versé, dette réglée.
       parameters:
         - $ref: "#/components/parameters/GroupId"
@@ -3478,7 +3556,10 @@ paths:
         `minimumWitnesses` (WITNESS_REQUIRED, 422). Montant brut par défaut :
         la cagnotte du tour ; les frais (`fee`) sont imputés selon `feeBearer`.
         Une part partagée produit une remise par titulaire, au prorata des
-        poids. Chaque bénéficiaire confirme lui-même la réception.
+        poids. Chaque bénéficiaire confirme lui-même la réception. Personne ne
+        déclare sa propre remise : quand toute la trésorerie est titulaire du
+        tour, la présidence déclare. Le tour se clôt quand toutes ses remises
+        sont validées.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/MeetingId"
@@ -4146,7 +4227,7 @@ components:
       required: [code, message]
       properties:
         code: { $ref: "#/components/schemas/ErrorCode" }
-        message: { type: string, description: Message générique, sans donnée réelle. }
+        message: { type: string, description: "Message générique, sans donnée réelle." }
         traceId: { type: string }
     CommandReceipt:
       type: object
@@ -4258,8 +4339,7 @@ components:
         openedAt: { type: integer, format: int64 }
         deadline: { type: integer, format: int64, description: Échéance SERVEUR (epoch ms). }
         tally:
-          nullable: true
-          type: object
+          type: [object, "null"]
           properties:
             yes: { type: integer }
             no: { type: integer }
@@ -4267,10 +4347,10 @@ components:
             turnout: { type: integer }
             quorum: { type: integer }
             approved: { type: boolean }
-        closedAt: { type: integer, format: int64, nullable: true }
-        effectiveAt: { type: integer, format: int64, nullable: true, description: Date d'effet SERVEUR, jamais rétroactive. }
-        executedAt: { type: integer, format: int64, nullable: true }
-        cancelReason: { type: string, nullable: true }
+        closedAt: { type: [integer, "null"], format: int64 }
+        effectiveAt: { type: [integer, "null"], format: int64, description: "Date d'effet SERVEUR, jamais rétroactive." }
+        executedAt: { type: [integer, "null"], format: int64 }
+        cancelReason: { type: [string, "null"] }
         version: { type: integer }
 
     RuleSet:
@@ -4514,7 +4594,7 @@ components:
         contributionId: { type: string }
         state: { type: string, enum: [declared, confirmed, validated, rejected, compensated] }
         version: { type: integer, minimum: 1 }
-        reason: { type: string, description: Stable (SELF_DECLARANT, ACTOR_ALREADY_ACTED, AWAITING_CONTROLLERS) le cas échéant. }
+        reason: { type: string, description: "Stable (SELF_DECLARANT, ACTOR_ALREADY_ACTED, AWAITING_CONTROLLERS) le cas échéant." }
         eventHash: { type: string, pattern: "^[0-9a-f]{64}$" }
     CompensationRequest:
       type: object
@@ -4613,9 +4693,9 @@ components:
         obligationId: { type: string }
         category: { type: string, enum: [ordinary, fraud, serious_error] }
         state: { type: string, enum: [open, resolved] }
-        outcome: { type: string, nullable: true }
+        outcome: { type: [string, "null"] }
         raisedAt: { type: integer, minimum: 0 }
-        resolvedAt: { type: integer, minimum: 0, nullable: true }
+        resolvedAt: { type: [integer, "null"], minimum: 0 }
         reopenCount: { type: integer, minimum: 0 }
     DisputeRecord:
       type: object
@@ -4637,11 +4717,11 @@ components:
         notifiedAt: { type: integer, minimum: 0 }
         raisedAt: { type: integer, minimum: 0 }
         state: { type: string, enum: [open, resolved] }
-        outcome: { type: string, nullable: true }
-        resolvedBy: { type: string, nullable: true }
-        resolvedAt: { type: integer, minimum: 0, nullable: true }
+        outcome: { type: [string, "null"] }
+        resolvedBy: { type: [string, "null"] }
+        resolvedAt: { type: [integer, "null"], minimum: 0 }
         correctionContributionIds: { type: array, items: { type: string } }
-        reopenedFromDisputeId: { type: string, nullable: true }
+        reopenedFromDisputeId: { type: [string, "null"] }
         reopenCount: { type: integer, minimum: 0 }
     ResolversRequest:
       type: object
@@ -5222,7 +5302,7 @@ components:
       required: [sessionGeneration, recoveryLockUntil]
       properties:
         sessionGeneration: { type: integer, format: int64 }
-        recoveryLockUntil: { type: integer, format: int64, nullable: true }
+        recoveryLockUntil: { type: [integer, "null"], format: int64 }
 
     SessionView:
       type: object
@@ -5264,7 +5344,7 @@ components:
       required: [tamper_detected, error, internal_chain_intact]
       properties:
         tamper_detected: { type: boolean }
-        error: { type: string, nullable: true }
+        error: { type: [string, "null"] }
         internal_chain_intact: { type: boolean }
 
     # ── Tontine réelle (L-01 à L-21) ───────────────────────────────────────
@@ -5661,6 +5741,8 @@ components:
       required: [state, rounds]
       properties:
         state: { type: string, enum: [none, draft, started] }
+        cycleNo: { type: integer, minimum: 1, description: "Cycle en cours (1, puis 2 après renouvellement…)" }
+        cycleComplete: { type: boolean, description: "Tous les tours du cycle en cours sont clos" }
         cadence: { $ref: "#/components/schemas/Cadence" }
         cadenceLabel: { type: [string, "null"] }
         rulesVersion: { type: integer }
