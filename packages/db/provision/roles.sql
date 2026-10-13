@@ -70,15 +70,10 @@ REVOKE UPDATE, DELETE ON analytics_event FROM kombe_app;
 REVOKE UPDATE, DELETE ON unit_economics_snapshot FROM kombe_app;
 REVOKE INSERT, UPDATE, DELETE ON internal_notification, notification_delivery FROM kombe_app;
 REVOKE ALL ON notification_preference, notification_channel FROM kombe_app;
--- 0024/0025 (tontine réelle) : registres sans suppression applicative.
-REVOKE DELETE ON identity_profile, fund, meeting, attendance, fund_movement, fine, aid_request,
-  member_debt, order_change, draw, auction_bid, statutes_acceptance, loan, collector_period,
-  legacy_import, legacy_contribution, tontine_cycle FROM kombe_app;
-REVOKE UPDATE, DELETE ON statutes_version FROM kombe_app;
-REVOKE INSERT, DELETE ON inbox_notification FROM kombe_app;
-
--- Miroir des REVOKE de 0024/0025 (socle tontine + association). Sans ce bloc,
--- le GRANT blanket ci-dessus rendait DELETE à kombe_app sur ces tables et
+-- Miroir des REVOKE de 0024/0025/0026 (socle tontine, association, cycles).
+-- share et share_holder gardent DELETE : un calendrier en BROUILLON se
+-- reconstruit (le déclencheur round_frozen protège le calendrier démarré).
+-- Sans ce bloc, le GRANT blanket ci-dessus rendait DELETE à kombe_app sur ces tables et
 -- INSERT/DELETE sur inbox_notification lors d'une installation à neuf
 -- (constaté sur PostgreSQL 16 réel, audit 2026-10-13), alors que les
 -- migrations les retirent. Gardé par to_regclass : sans effet si la migration
@@ -88,9 +83,9 @@ DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
     'identity_profile',
-    'share','share_holder','fund','meeting','attendance','fund_movement','fine','aid_request',
+    'fund','meeting','attendance','fund_movement','fine','aid_request',
     'member_debt','order_change','draw','auction_bid','statutes_version','statutes_acceptance',
-    'loan','collector_period','legacy_import','legacy_contribution','inbox_notification'
+    'loan','collector_period','legacy_import','legacy_contribution','inbox_notification','tontine_cycle'
   ] LOOP
     IF to_regclass('public.' || t) IS NOT NULL THEN
       EXECUTE format('REVOKE DELETE ON %I FROM kombe_app', t);
@@ -98,6 +93,9 @@ BEGIN
   END LOOP;
   IF to_regclass('public.inbox_notification') IS NOT NULL THEN
     REVOKE INSERT ON inbox_notification FROM kombe_app;
+  END IF;
+  IF to_regclass('public.statutes_version') IS NOT NULL THEN
+    REVOKE UPDATE ON statutes_version FROM kombe_app;
   END IF;
 END $$;
 

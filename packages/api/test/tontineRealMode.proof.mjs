@@ -210,6 +210,9 @@ try {
 
   // ── L-03 / L-04 : calendrier « 2e samedi du mois », ordre manuel ──────
   const order = ["Brice", "Clarisse", "Papa Fon", "Mama Ngono", "Tata Esther"].map(mid);
+  const draft = await call(P, "PUT", `/v1/groups/${G}/tontine-schedule`, { cadence: { kind: "weekly", weekday: 6 }, startDate: "2026-11-01", contributionPerShare: 5000, order: { mode: "join_order" } });
+  check("L03-DRAFT-BUILT", draft.status === 200 && draft.json.state === "draft" && draft.json.cycleNo === 1, draft.status);
+  // Le brouillon se reconstruit (parts supprimées puis recréées).
   const sched = await call(P, "PUT", `/v1/groups/${G}/tontine-schedule`, {
     cadence: { kind: "monthly_nth_weekday", nth: 2, weekday: 6 },
     startDate: "2026-11-01",
