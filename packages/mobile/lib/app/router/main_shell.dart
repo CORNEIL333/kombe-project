@@ -66,7 +66,7 @@ class MainShell extends StatelessWidget {
     return Scaffold(
       body: SafeArea(bottom: false, child: navigationShell),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: KombeColors.gold,
+        backgroundColor: KombeColors.goldDark,
         foregroundColor: Colors.white,
         elevation: 4,
         highlightElevation: 6,

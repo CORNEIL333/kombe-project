@@ -90,7 +90,7 @@ class _CycleScreenState extends State<CycleScreen> {
                 ResourceUnavailable<CycleDetails>() => ListView(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
                     children: <Widget>[
-                      if (group != null) ...<Widget>[GroupHeroCard(group: group!), const SizedBox(height: 22)],
+                      if (group != null) ...<Widget>[GroupHeroCard(group: group), const SizedBox(height: 22)],
                       _PanneauLancementCycle(
                         bureau: bureau,
                         onLancer: (CycleOrderKind order) => _lancerCycle(order, renouvellement: false),
