@@ -109,3 +109,22 @@ Les photos actuelles sont provisoires. Un shooting réel (Douala, Yaoundé) est 
 ## État de l'implémentation
 
 Voir `docs/design-system/tokens.md` pour les tokens et les composants livrés (PWA, tableaux de bord, palette Flutter).
+
+## v3 — mise en œuvre immersive (oct. 2026)
+
+La direction « L'Orbite » est désormais appliquée de façon identique sur les
+quatre surfaces :
+
+| Surface | Ce qui est livré |
+| --- | --- |
+| Site de présentation (`/site/`) | Héros orbite avec photos de membres, scène « chaos → registre » au défilement, cycle interactif, écrans d'exemple étiquetés « données d'exemple ». |
+| PWA (`/`) | Bandeaux photographiques par écran, couvertures de groupes (photo stable par groupe + monogramme), orbite réelle du cycle sur la page du groupe, entrées en cascade, en-tête mobile à icônes. |
+| Tableaux de bord (`/bureau/`, `/ops/`, `/direction/`, `/engineering/`) | Connexion en scène photographique propre à chaque espace, en-têtes de page « scène » (forêt + photo en fondu + orbite), barre latérale à nœuds, cascade des panneaux. |
+| App mobile (APK) | Logotype Orbite (remplace l'ancien emblème), Manrope imposée dans tout le thème (Android retombait sur Roboto), Newsreader pour la phrase expressive, accueil plein écran photographique, frise d'orbite, transitions d'écran. |
+
+Règles constantes : une seule phrase Newsreader italique par titre ; les
+photos sont des illustrations d'ambiance décoratives (jamais un membre réel,
+jamais une donnée) ; toute animation est coupée sous `prefers-reduced-motion`
+(web) ou quand le système réduit les animations (mobile) ; aucune animation en
+boucle sur mobile. Fraunces est retirée : **Newsreader** (OFL) est la police
+expressive livrée partout.

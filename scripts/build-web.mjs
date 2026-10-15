@@ -78,20 +78,27 @@ if (apks.length) {
     .map((f) => {
       cpSync(resolve(apkDir, f), resolve(dl, f));
       const mo = Math.round(statSync(resolve(apkDir, f)).size / 1e6);
-      return `<li><a href="/telecharger/${f}" download>${libelle(f)}</a><small>${f} · ${mo} Mo</small></li>`;
+      return `<li><a class="b" href="/telecharger/${f}" download>${libelle(f)}</a><small>${f} · ${mo} Mo</small></li>`;
     })
     .join("\n");
   writeFileSync(
     resolve(dl, "index.html"),
     `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Télécharger KÓMBE pour Android</title>
-<style>body{margin:0;font-family:system-ui,sans-serif;background:#061F1B;color:#F6F1E7;line-height:1.5}main{max-width:32rem;margin:0 auto;padding:2rem 1.25rem}
-h1{font-size:1.6rem}ul{list-style:none;padding:0}li{margin:1rem 0}a{display:block;padding:1rem 1.25rem;border-radius:999px;background:#E3B23C;color:#061F1B;font-weight:700;text-decoration:none;text-align:center}
-small{display:block;text-align:center;opacity:.7;margin-top:.35rem}ol{padding-left:1.25rem}</style></head>
-<body><main><h1>KÓMBE pour Android</h1><p>Le registre de votre tontine. KÓMBE ne garde pas votre argent.</p>
+<style>body{margin:0;font-family:Manrope,system-ui,sans-serif;background:#061F1B;color:#F3ECDD;line-height:1.55}
+.scene{position:relative;min-height:46vh;display:flex;align-items:flex-end;background:#082C26 url(/brand/photos/mains-telephone.webp) center/cover}
+.scene:before{content:"";position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(180deg,rgba(6,31,27,.25),rgba(6,31,27,.97))}
+.scene div{position:relative;max-width:32rem;margin:0 auto;padding:2rem 1.25rem 1rem;width:100%;box-sizing:border-box}
+.logo{display:inline-flex;align-items:center;font-weight:800;letter-spacing:.06em;font-size:22px;color:#FBF8F1}
+h1{font-size:2rem;line-height:1.08;letter-spacing:-.03em;margin:1.4rem 0 .4rem;color:#FBF8F1}h1 em{display:block;font-family:Newsreader,Georgia,serif;font-weight:400;color:#E2B868}
+main{max-width:32rem;margin:0 auto;padding:.5rem 1.25rem 2.5rem}ul{list-style:none;padding:0}li{margin:1rem 0}
+a.b{display:block;padding:1rem 1.25rem;border-radius:999px;background:#E2B868;color:#13211C;font-weight:800;text-decoration:none;text-align:center}
+small{display:block;text-align:center;opacity:.72;margin-top:.35rem}ol{padding-left:1.25rem}h2{font-size:1.15rem}</style></head>
+<body><header class="scene"><div><span class="logo" role="img" aria-label="KÓMBE">K<svg width="21" height="21" viewBox="0 0 40 40" aria-hidden="true" style="margin:0 .04em"><circle cx="20" cy="22" r="13" fill="none" stroke="currentColor" stroke-width="4.5"/><path d="M23.5 3.5 L30 1" stroke="#C7922E" stroke-width="4.5" stroke-linecap="round"/></svg>MBE</span>
+<h1>KÓMBE pour Android <em>votre tontine, plus claire.</em></h1><p>Le registre de votre tontine. KÓMBE ne garde pas votre argent.</p></div></header><main>
 <ul>${lignes}</ul>
 <h2>Installer</h2><ol><li>Touchez le bouton, puis ouvrez le fichier téléchargé.</li><li>Autorisez « Installer des applications inconnues » si le téléphone le demande.</li><li>Connectez-vous avec votre adresse e-mail et le code reçu.</li></ol>
-<p>« Application non compatible » ? Prenez l'autre bouton. Pas d'Android ? Utilisez <a href="/" style="display:inline;padding:0;background:none;color:#E3B23C">kombe.vercel.app</a> dans le navigateur.</p></main></body></html>\n`,
+<p>« Application non compatible » ? Prenez l'autre bouton. Pas d'Android ? Utilisez <a href="/" style="color:#E2B868">kombe.vercel.app</a> dans le navigateur.</p></main></body></html>\n`,
   );
 }
 
