@@ -25,22 +25,27 @@ final class ApiResponse {
 /// la réponse en données structurées. Les décisions (idempotence, capacité
 /// sous verrou, droits) restent côté serveur ; le client ne fait qu'appeler le
 /// contrat. Les erreurs non-2xx sont converties en [ApiFailure] portant l'
-/// ErrorCode stable du serveur, sans réinterprétation.
+/// ErrorCode stable du serveur, sans réinterprétation. Un 401 déclenche en
+/// plus [onUnauthorized] (purge de session côté appelant) : l'app finit
+/// toujours reconnectée à l'écran de connexion au lieu d'empiler des erreurs.
 final class KombeApiClient {
   KombeApiClient({
     required Uri baseUrl,
     http.Client? client,
     SessionHeaders? sessionHeaders,
     Duration timeout = const Duration(seconds: 15),
+    Future<void> Function()? onUnauthorized,
   })  : _baseUrl = baseUrl,
         _client = client ?? http.Client(),
         _sessionHeaders = sessionHeaders ?? _noSession,
-        _timeout = timeout;
+        _timeout = timeout,
+        _onUnauthorized = onUnauthorized;
 
   final Uri _baseUrl;
   final http.Client _client;
   final SessionHeaders _sessionHeaders;
   final Duration _timeout;
+  final Future<void> Function()? _onUnauthorized;
 
   static Future<Map<String, String>> _noSession() async => const {};
 
@@ -131,6 +136,13 @@ final class KombeApiClient {
         );
       }
       throw ApiFailure(statusCode: res.statusCode, code: 'RESPONSE_NOT_JSON');
+    }
+    if (res.statusCode == 401) {
+      try {
+        await _onUnauthorized?.call();
+      } catch (_) {
+        // La purge ne doit jamais masquer l'échec d'origine (401).
+      }
     }
     throw _toFailure(res);
   }

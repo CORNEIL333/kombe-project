@@ -208,6 +208,17 @@ final class TontineAuthRepository implements AuthRepository {
     _publish(const ResourceReady<AuthSession?>(null));
     return const OperationSuccess<void>(null);
   }
+
+  /// Session rejetée par le serveur (401 reçu par le client HTTP) : purge
+  /// locale puis publication de l'état déconnecté — le routeur renvoie alors
+  /// à la connexion au lieu de laisser l'app empiler des erreurs. Idempotent :
+  /// un 401 sur le parcours de connexion ne republie rien.
+  Future<void> purgeRejectedSession() async {
+    await _sessionStore.clear();
+    final bool signedIn =
+        _current is ResourceReady<AuthSession?> && (_current as ResourceReady<AuthSession?>).data != null;
+    if (signedIn) _publish(const ResourceReady<AuthSession?>(null));
+  }
 }
 
 // ── Profil ───────────────────────────────────────────────────────────────

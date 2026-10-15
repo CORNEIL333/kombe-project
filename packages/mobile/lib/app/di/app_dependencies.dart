@@ -72,6 +72,9 @@ final class AppDependencies {
     const SecureSessionStore secureSessionStore = SecureSessionStore(
       secureStorage,
     );
+    // Le 401 purge la session et renvoie à la connexion (câblage tardif :
+    // le dépôt d'auth n'existe pas encore quand le client est construit).
+    late final TontineAuthRepository authRepository;
     final KombeApiClient api = KombeApiClient(
       baseUrl: apiBaseUrl,
       sessionHeaders: () async {
@@ -81,16 +84,15 @@ final class AppDependencies {
         if (stored == null || stored.isExpired) return const <String, String>{};
         return <String, String>{'authorization': 'Bearer ${stored.sessionId}'};
       },
+      onUnauthorized: () => authRepository.purgeRejectedSession(),
     );
+    authRepository = TontineAuthRepository(api: api, sessionStore: secureSessionStore);
     // Adresse du site web (PWA) : même hôte que l'API, sans le préfixe /v1.
     final Uri webBase = apiBaseUrl.replace(
       path: apiBaseUrl.path.replaceFirst(RegExp(r'/v1/?$'), '/'),
     );
     return AppDependencies(
-      authRepository: TontineAuthRepository(
-        api: api,
-        sessionStore: secureSessionStore,
-      ),
+      authRepository: authRepository,
       profileRepository: TontineProfileRepository(api: api),
       groupRepository: TontineGroupRepository(api: api),
       contributionRepository: TontineContributionRepository(api: api),
