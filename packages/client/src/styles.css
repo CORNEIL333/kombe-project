@@ -288,15 +288,38 @@ h3 {
   transform: scale(0.98);
 }
 
+/* Bouton secondaire : par défaut sur la coquille sombre (texte sable,
+   bord de verre) ; sur une surface claire (carte, formulaire, message), il
+   repasse en encre. Contraste ≥ 7:1 dans les deux cas. */
 .bouton-secondaire {
+  background: rgba(243, 236, 221, 0.06);
+  border-color: rgba(243, 236, 221, 0.32);
+  color: var(--k-sable-50);
+}
+.bouton.bouton-secondaire:hover:not(:disabled) {
+  background: rgba(243, 236, 221, 0.14);
+  border-color: rgba(243, 236, 221, 0.6);
+  box-shadow: none;
+}
+.tcarte .bouton-secondaire,
+.carte-etape .bouton-secondaire,
+.panneau-formulaire .bouton-secondaire,
+.msg .bouton-secondaire,
+.tuile-tontine .bouton-secondaire,
+.dialogue .bouton-secondaire,
+[role="dialog"] .bouton-secondaire {
   background: transparent;
   border-color: var(--k-encre-300);
   color: var(--couleur-texte);
 }
-.bouton.bouton-secondaire:hover:not(:disabled) {
+.tcarte .bouton.bouton-secondaire:hover:not(:disabled),
+.carte-etape .bouton.bouton-secondaire:hover:not(:disabled),
+.panneau-formulaire .bouton.bouton-secondaire:hover:not(:disabled),
+.msg .bouton.bouton-secondaire:hover:not(:disabled),
+.dialogue .bouton.bouton-secondaire:hover:not(:disabled),
+[role="dialog"] .bouton.bouton-secondaire:hover:not(:disabled) {
   background: var(--k-sable-100);
   border-color: var(--k-encre-600);
-  box-shadow: none;
 }
 
 .bouton-compact {
@@ -875,7 +898,10 @@ a:focus-visible {
 
 .fond-immersif {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: -1;
   background:
     radial-gradient(90% 70% at 0% 0%, rgba(42, 138, 104, 0.35), transparent 60%),
@@ -911,7 +937,8 @@ a:focus-visible {
   position: absolute;
   width: 90%;
   max-width: 900px;
-  aspect-ratio: 1;
+  height: 90vw;
+  max-height: 900px;
   left: -30%;
   bottom: -45%;
   fill: none;
@@ -920,7 +947,10 @@ a:focus-visible {
 }
 .fond-immersif-grain {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   opacity: 0.18;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");

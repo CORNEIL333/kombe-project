@@ -13,6 +13,8 @@ import { Rejoindre } from "./tontine/Rejoindre.js";
 import { Groupe } from "./tontine/Groupe.js";
 import { useTextes } from "./tontine/textes.js";
 import { FileAttente } from "./tontine/FileAttente.js";
+import { BandeauPhoto } from "./composants/Scene.js";
+import { Icone } from "./composants/Icones.js";
 
 export type Route =
   | { readonly ecran: "accueil" }
@@ -120,22 +122,29 @@ export function App() {
             <LogoKombe hauteur={24} />
           </button>
         </div>
+        {session ? (
+          <div className="entete-session">
+            <button
+              type="button"
+              className="bouton bouton-secondaire bouton-compact bouton-icone"
+              aria-current={route.ecran === "notifications" ? "page" : undefined}
+              onClick={() => aller({ ecran: "notifications" })}
+            >
+              <Icone nom="cloche" />
+              <span className="libelle-bouton">{tx("app.notifications")}</span>
+              {nonLues > 0 ? (
+                <span className="compteur" aria-label={`${nonLues}`}>
+                  {nonLues}
+                </span>
+              ) : null}
+            </button>
+            <button type="button" className="bouton bouton-secondaire bouton-compact bouton-icone" onClick={deconnecter}>
+              <Icone nom="sortie" />
+              <span className="libelle-bouton">{tx("app.deconnexion")}</span>
+            </button>
+          </div>
+        ) : null}
         <div className="entete-actions">
-          {session ? (
-            <>
-              <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => aller({ ecran: "notifications" })}>
-                {tx("app.notifications")}
-                {nonLues > 0 ? (
-                  <span className="compteur" aria-label={`${nonLues}`}>
-                    {nonLues}
-                  </span>
-                ) : null}
-              </button>
-              <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={deconnecter}>
-                {tx("app.deconnexion")}
-              </button>
-            </>
-          ) : null}
           <BasculeLangue />
         </div>
       </header>
@@ -154,15 +163,24 @@ export function App() {
             }}
           />
         ) : route.ecran === "creer" ? (
-          <Creation session={session} onCree={(groupId) => aller({ ecran: "groupe", groupId })} onAnnuler={() => aller({ ecran: "accueil" })} />
+          <div className="pile ecran" key="creer">
+            <BandeauPhoto photo="decision" surtitre={tx("imm.crSur")} titre={tx("imm.crTitre")} accent={tx("imm.crAccent")}>
+              <p className="bandeau-photo__meta">{tx("imm.crTexte")}</p>
+            </BandeauPhoto>
+            <Creation session={session} onCree={(groupId) => aller({ ecran: "groupe", groupId })} onAnnuler={() => aller({ ecran: "accueil" })} />
+          </div>
         ) : route.ecran === "rejoindre" ? (
-          <Rejoindre session={session} {...(route.code ? { codeInitial: route.code } : {})} onFini={() => aller({ ecran: "accueil" })} />
+          <div className="pile ecran" key="rejoindre">
+            <BandeauPhoto photo="generations" variante="compact" surtitre={tx("imm.rejSur")} titre={tx("imm.rejTitre")} accent={tx("imm.rejAccent")} />
+            <Rejoindre session={session} {...(route.code ? { codeInitial: route.code } : {})} onFini={() => aller({ ecran: "accueil" })} />
+          </div>
         ) : route.ecran === "notifications" ? (
-          <Notifications session={session} onOuvrir={(groupId) => aller({ ecran: "groupe", groupId })} />
+          <Notifications key="notifications" session={session} onOuvrir={(groupId) => aller({ ecran: "groupe", groupId })} />
         ) : route.ecran === "groupe" ? (
           <Groupe key={route.groupId} session={session} groupId={route.groupId} onRetour={() => aller({ ecran: "accueil" })} />
         ) : (
           <Accueil
+            key="accueil"
             session={session}
             onOuvrir={(groupId) => aller({ ecran: "groupe", groupId })}
             onCreer={() => aller({ ecran: "creer" })}
@@ -172,6 +190,11 @@ export function App() {
       </main>
       <footer className="pied-page">
         <p className="pied-page__promesse">{tx("app.positionnement")}</p>
+        <p>
+          <a className="pied-page__lien" href="/site/">
+            {tx("imm.decouvrir")} →
+          </a>
+        </p>
       </footer>
     </div>
   );

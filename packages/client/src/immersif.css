@@ -1,0 +1,629 @@
+/* KÓMBE — couche immersive de la PWA (direction v2 « L'Orbite », v3).
+   Photos d'ambiance, entrées décalées, bandeaux, couvertures de groupes.
+   Règles : les images sont décoratives (le texte porte l'information) ;
+   pas de `inset` ni d'`aspect-ratio` (Chrome 67 / Safari 14) ; tout mouvement
+   est coupé sous prefers-reduced-motion (règle globale de styles.css). */
+
+/* ───────────── Transition d'écran : chaque écran entre en douceur ───── */
+.ecran {
+  animation: ecran-entree var(--duree-marque) var(--courbe-entree) both;
+}
+@keyframes ecran-entree {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.entree-decalee {
+  animation: apparition var(--duree-marque) var(--courbe-entree) both;
+}
+.ecran > .tcarte,
+.ecran > .pile > .tcarte,
+.ecran > .pile > .msg {
+  animation: apparition var(--duree-marque) var(--courbe-entree) both;
+}
+.ecran > .pile > :nth-child(2) { animation-delay: 60ms; }
+.ecran > .pile > :nth-child(3) { animation-delay: 120ms; }
+.ecran > .pile > :nth-child(4) { animation-delay: 180ms; }
+.ecran > .pile > :nth-child(5) { animation-delay: 240ms; }
+.ecran > .pile > :nth-child(n + 6) { animation-delay: 300ms; }
+
+/* ───────────────────────── Bandeau photographique ─────────────────── */
+.bandeau-photo {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--rayon-xl);
+  border: 1px solid var(--couleur-verre-bord);
+  min-height: 320px;
+  display: flex;
+  box-shadow: var(--ombre-carte);
+  color: var(--k-sable-50);
+  background: var(--k-foret-950);
+}
+.bandeau-photo--compact {
+  min-height: 210px;
+}
+.bandeau-photo__image {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -3;
+  overflow: hidden;
+}
+.bandeau-photo__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 40%;
+  display: block;
+  animation: photo-respire 2.4s var(--courbe-entree) both;
+}
+@keyframes photo-respire {
+  from {
+    transform: scale(1.12);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1.02);
+    opacity: 1;
+  }
+}
+.bandeau-photo__voile {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -2;
+  background:
+    linear-gradient(180deg, rgba(6, 31, 27, 0.25) 0%, rgba(6, 31, 27, 0.55) 45%, rgba(6, 31, 27, 0.94) 100%),
+    linear-gradient(90deg, rgba(6, 31, 27, 0.75) 0%, rgba(6, 31, 27, 0) 70%);
+}
+.bandeau-photo__orbites {
+  position: absolute;
+  z-index: -1;
+  width: 520px;
+  height: 520px;
+  right: -180px;
+  top: -200px;
+  fill: none;
+  stroke: rgba(226, 184, 104, 0.22);
+  stroke-width: 1;
+  animation: orbites-tournent 90s linear infinite;
+}
+@keyframes orbites-tournent {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.bandeau-photo__contenu {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: var(--espace-5);
+}
+.bandeau-photo__texte {
+  max-width: 40rem;
+  min-width: 0;
+}
+.bandeau-photo .surtitre {
+  margin-bottom: var(--espace-2);
+}
+.bandeau-photo__titre {
+  margin: 0;
+  font-size: 2rem;
+  font-size: clamp(1.9rem, 5vw, 3.2rem);
+  font-weight: 800;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+  color: var(--k-sable-50);
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+}
+.bandeau-photo__titre em {
+  font-family: var(--police-expressive);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  color: var(--k-or-300);
+}
+.bandeau-photo--compact .bandeau-photo__titre {
+  font-size: 1.8rem;
+  font-size: clamp(1.7rem, 4.4vw, 2.6rem);
+}
+.bandeau-photo__meta {
+  margin: var(--espace-2) 0 0;
+  color: rgba(251, 248, 241, 0.86);
+  max-width: 46ch;
+  font-size: 0.98rem;
+}
+.bandeau-photo__chiffres {
+  list-style: none;
+  padding: 0;
+  margin: var(--espace-3) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+.bandeau-photo__chiffres li,
+.pastille-verre {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  margin: 0 8px 8px 0;
+  border-radius: 999px;
+  background: rgba(6, 31, 27, 0.55);
+  border: 1px solid rgba(243, 236, 221, 0.22);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--k-sable-50);
+}
+.bandeau-photo__chiffres li[data-ton="attente"]::before,
+.bandeau-photo__chiffres li[data-ton="accent"]::before {
+  content: "";
+  width: 14px;
+  height: 3px;
+  border-radius: 3px;
+  margin-right: 8px;
+  background: var(--k-or-500);
+}
+.bandeau-photo__chiffres li[data-ton="ok"]::before {
+  content: "●";
+  margin-right: 6px;
+  color: #7fd3ae;
+  font-size: 0.7rem;
+}
+.bandeau-photo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: var(--espace-3);
+}
+.bandeau-photo__actions > * {
+  margin: 0 10px 10px 0;
+}
+.bandeau-photo__orbite {
+  flex: none;
+  margin-left: var(--espace-4);
+  align-self: center;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.45));
+}
+
+/* Bouton or : l'action principale sur une scène sombre. */
+.bouton.bouton-or {
+  background: var(--k-or-300);
+  border-color: var(--k-or-300);
+  color: var(--k-encre-950);
+}
+.bouton.bouton-or:hover:not(:disabled) {
+  background: #ecc985;
+  border-color: #ecc985;
+  box-shadow: 0 14px 30px -12px rgba(199, 146, 46, 0.65);
+}
+
+/* ─────────────────────────── Tuiles des groupes ───────────────────── */
+.tuile-tontine {
+  padding: 0;
+  overflow: hidden;
+  gap: 0;
+  box-shadow: 0 24px 48px -28px rgba(0, 0, 0, 0.7);
+  transition:
+    transform var(--duree-ui) var(--courbe-standard),
+    box-shadow var(--duree-ui) var(--courbe-standard),
+    border-color var(--duree-rapide) var(--courbe-standard);
+}
+.tuile-tontine:hover:not(:disabled) {
+  transform: translateY(-4px);
+  box-shadow: 0 34px 60px -30px rgba(0, 0, 0, 0.8);
+}
+.tuile-tontine:active:not(:disabled) {
+  transform: translateY(-1px) scale(0.99);
+}
+.tuile-tontine__couverture {
+  position: relative;
+  display: block;
+  height: 112px;
+  overflow: hidden;
+  background: var(--k-foret-900);
+}
+.tuile-tontine__couverture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 900ms var(--courbe-standard);
+}
+.tuile-tontine:hover:not(:disabled) .tuile-tontine__couverture img {
+  transform: scale(1.06);
+}
+.tuile-tontine__couverture::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 70%;
+  background: linear-gradient(180deg, rgba(8, 44, 38, 0), rgba(8, 44, 38, 0.75));
+}
+.tuile-tontine__monogramme {
+  position: absolute;
+  z-index: 1;
+  left: 16px;
+  bottom: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--k-foret-900);
+  border: 2px solid var(--k-or-300);
+  color: var(--k-sable-50);
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+.tuile-tontine__corps {
+  display: flex;
+  flex-direction: column;
+  padding: var(--espace-3) var(--espace-3) var(--espace-3);
+}
+.tuile-tontine__corps > * {
+  margin-bottom: 6px;
+}
+.tuile-tontine__nom {
+  font-size: 1.2rem;
+  letter-spacing: -0.015em;
+  color: var(--k-foret-950);
+}
+.tuile-tontine__remise {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+  color: var(--k-foret-900);
+}
+.accent-or {
+  width: 16px;
+  height: 3px;
+  border-radius: 3px;
+  margin-right: 8px;
+  background: var(--k-or-500);
+  flex: none;
+}
+
+/* ─────────────────────────────── État vide ─────────────────────────── */
+.etat-vide {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  overflow: hidden;
+  border-radius: var(--rayon-l);
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  box-shadow: var(--ombre-carte);
+}
+.etat-vide__photo {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  object-fit: cover;
+  display: block;
+}
+.etat-vide__texte {
+  padding: var(--espace-4);
+}
+.etat-vide__texte h3 {
+  margin: 0 0 var(--espace-2);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--k-foret-950);
+}
+
+/* ─────────────────────────── Notifications ─────────────────────────── */
+.liste-notifications .liste__ligne {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-column-gap: 14px;
+  background: var(--couleur-surface);
+  color: var(--couleur-texte);
+  border: 0;
+  border-radius: var(--rayon);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  box-shadow: 0 18px 36px -26px rgba(0, 0, 0, 0.7);
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.liste-notifications .liste__ligne--nouveau {
+  box-shadow:
+    inset 4px 0 0 var(--k-or-500),
+    0 18px 36px -26px rgba(0, 0, 0, 0.7);
+}
+.liste-notifications .liste__ligne > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.liste-notifications .aide-champ {
+  color: var(--couleur-texte-affaibli);
+}
+.liste-notifications .bouton-secondaire {
+  background: transparent;
+  border-color: var(--k-encre-300);
+  color: var(--couleur-texte);
+}
+.notif-icone {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--k-foret-50);
+  border: 2px solid var(--k-foret-700);
+}
+.notif-icone::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  top: -3px;
+  right: 2px;
+  background: var(--k-foret-700);
+  border: 2px solid var(--couleur-surface);
+}
+.notif-icone[data-famille="argent"] {
+  background: var(--k-or-100);
+  border-color: var(--k-or-500);
+}
+.notif-icone[data-famille="argent"]::after {
+  background: var(--k-or-500);
+}
+.notif-icone[data-famille="decision"] {
+  background: #f7e4da;
+  border-color: var(--k-argile-500);
+}
+.notif-icone[data-famille="decision"]::after {
+  background: var(--k-argile-500);
+}
+
+/* Surfaces claires supplémentaires : bouton secondaire à l'encre. */
+.bandeau--file .bouton-secondaire,
+.etat-vide .bouton-secondaire {
+  background: transparent;
+  border-color: var(--k-encre-300);
+  color: var(--k-encre-950);
+}
+
+/* ───────────────────────── Chargement : orbite ─────────────────────── */
+.msg[aria-busy="true"] {
+  justify-content: flex-start;
+  background: var(--couleur-verre);
+  color: var(--couleur-sur-fond-affaibli);
+  border: 1px solid var(--couleur-verre-bord);
+}
+.msg[aria-busy="true"]::before {
+  content: "";
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(243, 236, 221, 0.2);
+  border-top-color: var(--k-or-300);
+  animation: orbites-tournent 900ms linear infinite;
+}
+
+/* ───────────────────────── Coquille : en-tête ──────────────────────── */
+.entete-marque {
+  flex: 1 1 auto;
+}
+.entete-session {
+  display: flex;
+  align-items: center;
+}
+.entete-session .bouton {
+  margin-left: 8px;
+}
+.bouton-icone svg {
+  flex: none;
+}
+.bouton-icone[aria-current="page"] {
+  background: rgba(226, 184, 104, 0.16);
+  border-color: var(--k-or-300);
+}
+.entete {
+  position: relative;
+  z-index: 6;
+}
+.entete .compteur {
+  animation: pulsation 2.4s ease-in-out 3;
+}
+@keyframes pulsation {
+  50% {
+    box-shadow: 0 0 0 6px rgba(199, 146, 46, 0.25);
+  }
+}
+.onglets-groupe {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 calc(-1 * var(--espace-2));
+  padding: 8px var(--espace-2);
+  background: rgba(6, 31, 27, 0.82);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--couleur-verre-bord);
+}
+.onglet {
+  transition:
+    background-color var(--duree-rapide) var(--courbe-standard),
+    color var(--duree-rapide) var(--courbe-standard);
+}
+.onglet:hover:not(.onglet--actif) {
+  background: rgba(243, 236, 221, 0.08);
+}
+.pied-page__lien {
+  color: var(--k-or-300);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(226, 184, 104, 0.4);
+}
+.pied-page__lien:hover {
+  border-bottom-color: var(--k-or-300);
+}
+
+/* ─────────────────────────── Connexion (photo) ─────────────────────── */
+.panneau-marque__photo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -3;
+  opacity: 0.62;
+  animation: photo-respire 2.6s var(--courbe-entree) both;
+}
+.panneau-marque__voile {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -2;
+  background:
+    linear-gradient(180deg, rgba(6, 31, 27, 0.35) 0%, rgba(6, 31, 27, 0.6) 45%, rgba(6, 31, 27, 0.96) 100%),
+    radial-gradient(70% 60% at 100% 0%, rgba(199, 146, 46, 0.22), transparent 60%);
+}
+.panneau-marque__orbite {
+  width: 176px;
+  height: 176px;
+  top: 18px;
+  right: 22px;
+}
+
+/* ───────────────────────────── Responsive ─────────────────────────── */
+@media (max-width: 720px) {
+  .bandeau-photo {
+    min-height: 300px;
+    border-radius: var(--rayon-l);
+  }
+  .bandeau-photo--compact {
+    min-height: 190px;
+  }
+  .bandeau-photo__contenu {
+    padding: var(--espace-4) var(--espace-3) var(--espace-3);
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+  .bandeau-photo__orbite {
+    margin: 0 0 var(--espace-3);
+    align-self: flex-end;
+  }
+  .bandeau-photo__actions .bouton {
+    flex: 1 1 auto;
+  }
+  .etat-vide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .etat-vide__photo {
+    height: 180px;
+    min-height: 0;
+  }
+  .liste-notifications .liste__ligne {
+    grid-template-columns: 42px minmax(0, 1fr);
+    grid-row-gap: 10px;
+  }
+  .liste-notifications .liste__ligne > .bouton {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .bandeau-photo__orbite svg {
+    width: 124px;
+    height: 124px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* En-tête compact : logo + deux icônes sur une ligne, langues dessous. */
+  .entete {
+    padding-bottom: var(--espace-3);
+  }
+  .entete-actions {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+  .bouton.bouton-icone {
+    position: relative;
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    min-height: 46px;
+    padding: 0;
+  }
+  .bouton-icone .libelle-bouton {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .bouton-icone .compteur {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    margin: 0;
+  }
+  .saut-langue button {
+    min-height: 36px;
+    padding: 0 0.8rem;
+    font-size: 0.85rem;
+  }
+  /* Le logotype est déjà dans l'en-tête : pas de doublon sur téléphone. */
+  .panneau-marque__marque {
+    display: none;
+  }
+  .panneau-marque {
+    min-height: 26rem;
+    justify-content: flex-end;
+  }
+  .panneau-marque__orbite {
+    width: 190px;
+    height: 190px;
+  }
+  .panneau-formulaire__entete .logo-kombe,
+  .panneau-formulaire__entete h2,
+  .panneau-formulaire__entete .aide-champ {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .panneau-formulaire__entete {
+    margin-bottom: var(--espace-2);
+  }
+}
+
+/* Orbite posée sur une photo : piste et nœuds renforcés pour rester lisibles. */
+.bandeau-photo .orbite--marque .orbite__piste {
+  stroke: rgba(243, 236, 221, 0.45);
+  stroke-width: 3;
+}
+.bandeau-photo .orbite--marque .orbite__noeud--avenir {
+  fill: var(--k-foret-950);
+  stroke: rgba(243, 236, 221, 0.85);
+}
+.bandeau-photo .orbite--marque .orbite__arc {
+  stroke-width: 8;
+}

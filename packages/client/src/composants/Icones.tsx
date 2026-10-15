@@ -3,7 +3,7 @@
    héritée du texte. Toujours décoratives (aria-hidden) : le libellé voisin
    porte le sens. */
 
-export type NomIcone = "validation" | "registre" | "horsLigne" | "trace" | "fleche";
+export type NomIcone = "validation" | "registre" | "horsLigne" | "trace" | "fleche" | "cloche" | "sortie";
 
 const TRACES: Record<NomIcone, string> = {
   // Anneau à trois segments : déclarée → confirmée → validée.
@@ -15,6 +15,10 @@ const TRACES: Record<NomIcone, string> = {
   // Ligne de temps.
   trace: "M6 4v16M6 6.5h.01M6 12h.01M6 17.5h.01M10 6.5h8M10 12h6M10 17.5h8",
   fleche: "M5 12h14M13 6l6 6-6 6",
+  // Cloche : notifications.
+  cloche: "M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15l1.5-2zM10 20.5a2 2 0 0 0 4 0",
+  // Sortie : se déconnecter.
+  sortie: "M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 8l-4 4 4 4M6 12h9",
 };
 
 export function Icone({ nom, taille = 20 }: { readonly nom: NomIcone; readonly taille?: number }) {

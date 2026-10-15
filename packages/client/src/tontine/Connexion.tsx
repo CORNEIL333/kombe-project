@@ -9,6 +9,7 @@ import { Champ, Retour, useAction } from "./ui.js";
 import { useTextes } from "./textes.js";
 import { LogoKombe } from "../composants/Marque.js";
 import { Orbite } from "../composants/Orbite.js";
+import { urlPhoto } from "../composants/Scene.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
 import { useLangue } from "../i18n/ContexteLangue.js";
 import type { CleI18n } from "../i18n/dictionnaires.js";
@@ -24,11 +25,13 @@ function PanneauMarque() {
   const { t } = useLangue();
   return (
     <aside className="panneau-marque">
+      <img className="panneau-marque__photo" src={urlPhoto("hero-cercle")} alt="" aria-hidden="true" decoding="async" />
+      <span className="panneau-marque__voile" aria-hidden="true" />
       <div className="panneau-marque__marque">
         <LogoKombe hauteur={22} />
         <small>{t("marque.tagline")}</small>
       </div>
-      <Orbite className="panneau-marque__orbite" total={8} courant={3} variante="marque" photo="/brand/hero-communaute.jpg" taille={340} />
+      <Orbite className="panneau-marque__orbite" total={8} courant={3} variante="marque" photo={urlPhoto("onboarding-portrait")} taille={340} />
       <div className="panneau-marque__corps">
         <h1>
           {t("connexion.headlinePlain")} <em>{t("connexion.headlineAccent")}</em>

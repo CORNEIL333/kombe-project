@@ -8,6 +8,7 @@ import { App } from "./App.js";
 import "@kombe/brand/kombe.css";
 import "./styles.css";
 import "./tontine/tontine.css";
+import "./immersif.css";
 
 const conteneur = document.getElementById("root");
 if (conteneur === null) {
