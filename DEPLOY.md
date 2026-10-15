@@ -277,3 +277,44 @@ KOMBE_SMOKE_BASE_URL="https://<projet>.vercel.app" node scripts/release-smoke.mj
 Le smoke exige notamment `GET /v1/health/ready` en `mode:"réel"` — un vert ici
 est la première preuve de bout en bout production. Verdict consigné dans
 `RELEASE_MANIFEST.json` (§41/§43).
+
+### 7.8 Checklist porteur finale (session autonome 2026-10-15)
+
+À cocher dans l'ordre ; chaque ligne est une saisie de compte tiers, jamais
+une dépense obligatoire (tout a un plan gratuit) :
+
+- [ ] **Sécurité immédiate — révoquer le token Cloudflare** collé dans la
+  conversation du 2026-10-08 (`round-smoke-d372`, exp. 2026-11-07) : il a été
+  exposé en clair dans un chat. Dashboards.plus nécessaire (projet Vercel
+  unique). Dashboard Cloudflare → API Tokens → Delete.
+- [ ] **SMS** : compte Africa's Talking (gratuit) → `KOMBE_SMS_PROVIDER=
+  africastalking` + `KOMBE_SMS_API_KEY` + `KOMBE_SMS_SENDER_ID` dans Vercel →
+  Environment Variables → login téléphone ouvert.
+- [ ] **E-mail** : vérifier le domaine d'envoi dans Resend → `KOMBE_EMAIL_FROM`
+  (ex. `codes@<domaine>`) dans Vercel → les codes parviennent à tous.
+- [ ] **Redéploiement** : les 5 secrets GitHub (§7.6.2) posés → push master →
+  le pipeline déploie + smoke tout seul.
+- [ ] **APK signés (C1)** : générer un keystore local (hors dépôt) :
+  `keytool -genkeypair -v -keystore kombe-release.keystore -alias kombe
+  -keyalg RSA -keysize 2048 -validity 10000` ; noter `android/k key.properties`
+  (storePassword, keyPassword, keyAlias, storeFile) ; puis
+  `packages/mobile/android/app/build.gradle` avec `signingConfigs.release`.
+  Le script `build-apk.ps1` reste utilisable tel quel en attendant (signé
+  debug keys, installable, « sources inconnues »).
+- [ ] **Domaine custom (B4)** : CNAME vers le projet Vercel → puis mettre à
+  jour `KOMBE_CORS_ORIGINS` et les 4 `kombe-dashboard-config.json`.
+- [ ] **Smoke après chaque étape** (§7.7) : `GET /v1/health/ready` en
+  `mode:"réel"` + `/telecharger/kombe-arm64.apk` en 200.
+
+### 7.9 Sens grand public (livré en session autonome)
+
+- L'app mobile embarque désormais le **démarrage du cycle** (gap C4) : le
+  bureau choisit l'ordre de passage (tirage vérifiable ou ordre d'arrivée)
+  et le calendrier des tours s'affiche à tous — plus de groupe « bloqué ».
+- **Session expirée** : l'app ramène proprement à la connexion au lieu
+  d'empiler des erreurs techniques.
+- Les **messages d'erreur sont les phrases du serveur** (français lisible),
+  jamais des codes bruts.
+- `docs/DESIGN_2026_REFS.md` fixe le référentiel design (Liquid Glass,
+  M3 Expressive, fintech Afrique francophone, WCAG 2.2 AA) et les 12 règles
+  d'or pour la suite des refontes.
