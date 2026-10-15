@@ -7,11 +7,11 @@ par avancement d'intention.
 
 ## État courant : STAGING_READY (code) — déploiement PENDING (actions propriétaire)
 
-Décision hébergement tranchée par le propriétaire le 2026-10-08 (§39 respecté :
-gratuit uniquement, aucune dépense) : Neon (prod, séparée de la base de
-vérification) + Vercel (API serverless, PWA, dashboard admin) + Cloudflare
-Workers Static Assets (dashboards opérations/direction/engineering). Runbook :
-DEPLOY.md §7.
+Décision hébergement mise à jour le 2026-10-09 (§39 respecté : gratuit
+uniquement, aucune dépense) : **LE projet Vercel unique** (site + PWA +
+tableaux de bord + API à la même origine, `dist-web` + `/v1/*`) + Neon
+(`kombe_prod`, 27 jalons). Déploiement automatique à chaque push master via
+GitHub Actions (machine locale éteinte). Runbook : DEPLOY.md §7.
 
 | Porte | Exigence | Verdict réel | Date preuve |
 |---|---|---|---|
@@ -22,7 +22,9 @@ DEPLOY.md §7.
 | §18 liveness/readiness | `/v1/health/live`, `/v1/health/ready` | PASS (commit ab60037) | — |
 | §20 sécurité | en-têtes durcis + CORS liste fermée + rate limit + audit deps + scan secrets | PASS code/audit (httpGuards, 3 tests dédiés) ; scan secrets : substitution manuelle (gitleaks absent, §39) | 2026-10-08 |
 | Déploiement API serverless | handler Vercel + vercel.json + .vercelignore | PASS local (build + smoke HTTP réel du handler, CORS exact) ; **déploiement PENDING** (compte Vercel propriétaire) | 2026-10-08 |
-| Dashboards Cloudflare | builds Vite + config → URL API + wrangler.toml | PASS local (3/3 builds, configs vers `https://kombe-api.vercel.app`, wrangler.toml versionnés) ; **déploiement BLOCKED_EXTERNAL** — token Cloudflare fourni lecture seule (§37, action exacte : token « Cloudflare Workers : Modifier ») | 2026-10-08 |
+| Pipeline CI déploiement | `.github/workflows/deploy-vercel.yml` (push master → deploy --prod → smoke) | PASS local (workflow versionné, skip gracieux sans secrets) ; **exécution PENDING** (secrets GitHub propriétaire : VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID, KOMBE_API_DATABASE_URL, KOMBE_MIGRATION_DATABASE_URL) | 2026-10-09 |
+| Dashboards Cloudflare | — | **SUPERSEDÉ 2026-10-09** : dashboards assemblés dans dist-web (projet Vercel unique, même origine) | 2026-10-09 |
+| Mobile Flutter | `flutter test` + build web + APK Android | PASS tests 24/24 ; build web **pris en charge par le workflow `mobile-ci.yml`** (aucun secret requis, artifact APK) ; exécution CI PENDING | 2026-10-09 |
 | PWA Flutter web | `flutter test` + `flutter build web --release` | PASS tests 24/24 ; build web **BLOCKED_EXTERNAL** (hôte sans toolchain complète — task #14, jamais de PASS déclaré) | 2026-10-08 |
 | §22 smoke release | `release-smoke.mjs` contre production déployée | **NON EXÉCUTÉ** — attend le déploiement (job CI `release-smoke` prêt) | — |
 | §17 vide→dernier jalon | `migrateEmptyToLatest.pg.mjs` sur base réelle | voir RELEASE_MANIFEST.json | 2026-10-08 |
@@ -32,11 +34,11 @@ DEPLOY.md §7.
 
 ## Prochaine transition
 
-`STAGING_READY` → `PRODUCTION_DEPLOYED` exige (ordre DEPLOY.md §7.0) :
-projet Neon production créé + migrations exécutées (27 jalons) → API Vercel
-déployée avec `health/ready` en mode réel → config des 4 dashboards pointée
-vers l'URL API → dashboards Cloudflare + PWA + admin Vercel déployés →
-`release-smoke` vert contre l'API en production.
+`STAGING_READY` → `PRODUCTION_DEPLOYED` exige (DEPLOY.md §7.0) : base Neon
+`kombe_prod` ~~créée~~ **fait** (27 jalons) → **secrets GitHub Actions posés**
+(§7.6.2) → push master → workflow `deploy-vercel.yml` : deploy --prod +
+migrations auto + smoke vert contre l'URL déployée.
 
-Actions propriétaire requises (§39, §37) : comptes/tokens Vercel + Cloudflare,
-projet Neon séparé, DNS définitifs (J+3..J+5). Détail exact : DEPLOY.md §7.6.
+Action propriétaire requise (§37) : créer le projet Vercel unique et poser les
+5 secrets GitHub (VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID,
+KOMBE_API_DATABASE_URL, KOMBE_MIGRATION_DATABASE_URL). Détail : DEPLOY.md §7.6.

@@ -1,0 +1,98 @@
+# KÓMBE — déploiement automatique du projet Vercel UNIQUE (site + PWA +
+# tableaux de bord + API, même origine : scripts/build-web.mjs + vercel.json
+# racine). Le build tourne sur l'infrastructure Vercel (installCommand /
+# buildCommand du vercel.json) : la machine locale peut être éteinte.
+#
+# En production, scripts/vercel-build.mjs applique aussi les migrations
+# manquantes (KOMBE_MIGRATION_DATABASE_URL) ; un aperçu ne touche JAMAIS la
+# base (VERCEL_ENV ≠ production).
+#
+# Secrets requis (Settings → Secrets and variables → Actions) :
+#   VERCEL_TOKEN                  token Vercel (Account Settings → Tokens)
+#   VERCEL_ORG_ID                 id organisation (Settings → General)
+#   VERCEL_PROJECT_ID             id projet (Settings → General du projet)
+#   KOMBE_API_DATABASE_URL        chaîne kombe_app vers kombe_prod (runtime)
+#   KOMBE_MIGRATION_DATABASE_URL  chaîne migrateur vers kombe_prod (migrations)
+#
+# Sans ces secrets, le déploiement s'ignore proprement (warning, pas d'échec).
+name: Déploiement Vercel (production)
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-vercel-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.check.outputs.deploy }}
+    steps:
+      - id: check
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          KOMBE_API_DATABASE_URL: ${{ secrets.KOMBE_API_DATABASE_URL }}
+        run: |
+          if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID" ] && [ -n "$KOMBE_API_DATABASE_URL" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Secrets absents (VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID, KOMBE_API_DATABASE_URL) — déploiement ignoré. Voir DEPLOY.md §7.6."
+          fi
+
+  deploy:
+    name: Deploy + smoke (§22)
+    needs: preflight
+    if: needs.preflight.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Lier le projet Vercel
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          mkdir -p .vercel
+          printf '{\n  "orgId": "%s",\n  "projectId": "%s"\n}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
+
+      - name: Variables du projet (idempotent, production)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          KOMBE_API_DATABASE_URL: ${{ secrets.KOMBE_API_DATABASE_URL }}
+          KOMBE_MIGRATION_DATABASE_URL: ${{ secrets.KOMBE_MIGRATION_DATABASE_URL }}
+        run: |
+          npx --yes vercel@latest env add KOMBE_API_DATABASE_URL production --token "$VERCEL_TOKEN" <<< "$KOMBE_API_DATABASE_URL" || true
+          if [ -n "$KOMBE_MIGRATION_DATABASE_URL" ]; then
+            npx --yes vercel@latest env add KOMBE_MIGRATION_DATABASE_URL production --token "$VERCEL_TOKEN" <<< "$KOMBE_MIGRATION_DATABASE_URL" || true
+          fi
+
+      - name: Déployer en production
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          out="$(npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" 2>&1)" || { printf '%s\n' "$out"; exit 1; }
+          printf '%s\n' "$out"
+          url="$(printf '%s\n' "$out" | grep -oE 'https://[a-zA-Z0-9.-]+' | tail -1)"
+          if [ -z "$url" ]; then echo "URL de déploiement introuvable dans la sortie." >&2; exit 1; fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Déployé : $url"
+
+      - name: Smoke de production (SMOKE-READY exige le mode réel)
+        env:
+          KOMBE_SMOKE_BASE_URL: ${{ steps.deploy.outputs.url }}
+        run: node scripts/release-smoke.mjs
