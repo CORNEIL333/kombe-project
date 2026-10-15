@@ -1,8 +1,10 @@
 import '@kombe/brand/kombe.css';
 import './site.css';
 import { createOrbit, reducedMotion, type OrbitHandle } from './orbit';
+import { initChrome } from './chrome';
 
 document.documentElement.classList.add('js');
+initChrome();
 const reduce = reducedMotion();
 const P = '/brand/photos/';
 
@@ -58,9 +60,6 @@ if (heroSec && !reduce && window.matchMedia('(pointer: fine)').matches) {
   });
 }
 
-/* En-tête : devient plein dès qu'on quitte le haut de page. */
-const top = document.getElementById('top');
-const onTop = (): void => { top?.classList.toggle('is-solid', window.scrollY > 40); };
 
 /* 02 → 03 — la scène s'ordonne au défilement : du désordre au registre. */
 const chaos = document.getElementById('avant');
@@ -96,7 +95,7 @@ let ticking = false;
 const onScroll = (): void => {
   if (ticking) return;
   ticking = true;
-  window.requestAnimationFrame(() => { ticking = false; onTop(); onChaos(); onTilt(); });
+  window.requestAnimationFrame(() => { ticking = false; onChaos(); onTilt(); });
 };
 window.addEventListener('scroll', onScroll, { passive: true });
 window.addEventListener('resize', onScroll);

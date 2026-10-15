@@ -68,6 +68,9 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
   const [session, setSession] = useState<Session | null>(null);
   const [nom, setNom] = useState("");
   const action = useAction();
+  // Lien « Créer un compte » du site (#/inscription) : même parcours par code,
+  // le premier code vérifié crée le compte ; seul le message d'accueil change.
+  const inscription = typeof window !== "undefined" && window.location.hash.indexOf("#/inscription") === 0;
   // Canaux réellement ouverts sur ce déploiement (ex. pas encore de compte SMS :
   // seule la connexion par e-mail est proposée). En cas d'échec : tous affichés.
   const [canaux, setCanaux] = useState<readonly Voie[]>(["sms", "whatsapp", "email"]);
@@ -130,10 +133,21 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
           <header className="panneau-formulaire__entete">
             <LogoKombe hauteur={26} />
             <h2 id="cx-titre">
-              {tx("cx.accroche")} <em>{tx("cx.accent")}</em>
+              {inscription ? tx("cx.inscriptionTitre") : (
+                <>
+                  {tx("cx.accroche")} <em>{tx("cx.accent")}</em>
+                </>
+              )}
             </h2>
             <p className="aide-champ">{tx("app.positionnement")}</p>
           </header>
+          {inscription && !session ? (
+            <div className="mode-inscription" role="note">
+              <strong>{tx("cx.inscriptionTitre")}</strong>
+              <span>{tx("cx.inscriptionAide")}</span>
+              <small>{tx("cx.dejaCompte")}</small>
+            </div>
+          ) : null}
 
           {session ? (
             <form onSubmit={enregistrerNom} className="pile">

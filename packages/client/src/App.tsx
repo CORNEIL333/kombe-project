@@ -158,6 +158,7 @@ export function App() {
         {!session ? (
           <ConnexionTelephone
             onConnecte={(s) => {
+              if (window.location.hash.indexOf("#/inscription") === 0) window.location.hash = "#/";
               setSession(s);
               setRoute(lireRoute(window.location.hash));
             }}

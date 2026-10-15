@@ -627,3 +627,25 @@
 .bandeau-photo .orbite--marque .orbite__arc {
   stroke-width: 8;
 }
+
+/* Mode inscription (#/inscription depuis le site) : message visible. */
+.mode-inscription {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 var(--espace-3);
+  padding: 14px 16px;
+  border-radius: var(--rayon);
+  background: var(--k-or-100);
+  border-left: 4px solid var(--k-or-500);
+  color: var(--k-encre-950);
+}
+.mode-inscription strong {
+  font-size: 1.05rem;
+}
+.mode-inscription span {
+  margin-top: 2px;
+}
+.mode-inscription small {
+  margin-top: 6px;
+  color: var(--k-encre-700);
+}

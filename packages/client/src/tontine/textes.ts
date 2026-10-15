@@ -65,6 +65,9 @@ export const fr = {
   "cx.nomAide": "Le nom que les membres de vos groupes connaissent.",
   "cx.bienvenue": "Bienvenue ! Comment vous appelle-t-on ?",
   "cx.continuer": "Continuer",
+  "cx.inscriptionTitre": "Créer votre compte",
+  "cx.inscriptionAide": "Pas de mot de passe : le premier code reçu crée votre compte.",
+  "cx.dejaCompte": "Déjà un compte ? Le même code vous connecte.",
 
   "acc.titre": "Mes tontines",
   "acc.aucune": "Vous n'êtes membre d'aucune tontine pour l'instant.",
@@ -604,6 +607,9 @@ export const en: Record<CleTexte, string> = {
   "cx.nomAide": "The name the members of your groups know you by.",
   "cx.bienvenue": "Welcome! What should we call you?",
   "cx.continuer": "Continue",
+  "cx.inscriptionTitre": "Create your account",
+  "cx.inscriptionAide": "No password: the first code you receive creates your account.",
+  "cx.dejaCompte": "Already have an account? The same code signs you in.",
 
   "acc.titre": "My tontines",
   "acc.aucune": "You are not a member of any tontine yet.",
