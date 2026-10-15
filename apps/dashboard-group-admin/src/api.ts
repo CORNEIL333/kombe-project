@@ -37,7 +37,7 @@ export class GroupAdminApi {
   approveMinutes(id: string, mid: string, hash: string) { return this.api.post<MeetingDetail>(`${this.t(id)}/meetings/${encodePath(mid)}/minutes-approval`, { hash }, W()); }
   admission(id: string, mid: string, decision: 'admit' | 'reject') { return this.api.post<MemberView>(`${this.t(id)}/members/${encodePath(mid)}/admission`, { decision }, W()); }
   invitations(id: string, s?: AbortSignal) { return this.api.get<InvitationView[]>(`${this.t(id)}/invitations`, undefined, s); }
-  createInvitation(id: string) { return this.api.post<InvitationView>(`${this.t(id)}/invitations`, { maxUses: 30, days: 14 }, W()); }
+  createInvitation(id: string, maxUses?: number, days?: number) { return this.api.post<InvitationView>(`${this.t(id)}/invitations`, { ...(maxUses !== undefined ? { maxUses } : {}), ...(days !== undefined ? { days } : {}) }, W()); }
   revokeInvitation(id: string, iid: string) { return this.api.post<void>(`${this.t(id)}/invitations/${encodePath(iid)}/revocation`, {}, W()); }
   fines(id: string, s?: AbortSignal) { return this.api.get<FineView[]>(`${this.t(id)}/fines`, undefined, s); }
   aids(id: string, s?: AbortSignal) { return this.api.get<AidView[]>(`${this.t(id)}/aids`, undefined, s); }

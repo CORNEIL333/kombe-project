@@ -261,6 +261,16 @@ function Membres({ api, g }: P) {
   const q = useRemote((s) => api.members(g.groupId, s), [api, g.groupId]);
   const inv = useRemote((s) => api.invitations(g.groupId, s), [api, g.groupId], { enabled: admin, isEmpty: () => false });
   const [msg, setMsg] = useState<string | null>(null);
+  const [invUses, setInvUses] = useState('');
+  const [invJours, setInvJours] = useState('');
+  const creerInvitation = async () => {
+    const n = (v: string) => (v.trim() === '' ? undefined : Number(v));
+    const uses = n(invUses);
+    const days = n(invJours);
+    const ok = (x: number | undefined, max: number) => x === undefined || (Number.isInteger(x) && x >= 1 && x <= max);
+    if (!ok(uses, 100) || !ok(days, 30)) { setMsg('Utilisations de 1 à 100, jours de 1 à 30.'); return; }
+    await act(() => api.createInvitation(g.groupId, uses, days));
+  };
   const act = async (fn: () => Promise<unknown>) => { setMsg(null); try { await fn(); q.reload(); if (admin) inv.reload(); } catch (e) { setMsg(errText(e)); } };
   return (
     <>
@@ -280,8 +290,14 @@ function Membres({ api, g }: P) {
             ]} />
           )}</RemoteState>
         </Panel></div>
-        <div className="k-span-4"><Panel title="Invitations" action={admin ? <button type="button" className="k-button k-button-primary" onClick={() => void act(() => api.createInvitation(g.groupId))}>Nouveau lien</button> : undefined}>
-          {admin ? <RemoteState state={inv.state} onRetry={inv.reload}>{(rows) => rows.length === 0 ? <p className="k-hint">Aucun lien.</p> : <>{rows.map((i) => (
+        <div className="k-span-4"><Panel title="Invitations" action={admin ? <button type="button" className="k-button k-button-primary" onClick={() => void creerInvitation()}>Nouveau lien</button> : undefined}>
+          {admin ? <>
+          <div className="k-toolbar">
+            <label className="k-hint">Utilisations <input type="number" min={1} max={100} value={invUses} onChange={(e) => setInvUses(e.target.value)} style={{ width: '5em' }} /></label>
+            <label className="k-hint">Jours <input type="number" min={1} max={30} value={invJours} onChange={(e) => setInvJours(e.target.value)} style={{ width: '4em' }} /></label>
+          </div>
+          <p className="k-hint">Vide = défauts du serveur (30 utilisations, 14 jours).</p>
+          <RemoteState state={inv.state} onRetry={inv.reload}>{(rows) => rows.length === 0 ? <p className="k-hint">Aucun lien.</p> : <>{rows.map((i) => (
             <div key={i.invitationId} className="k-invite">
               <KeyValue label="Code" value={<span className="k-code">{i.code}</span>} />
               <KeyValue label="Valable" value={`jusqu’au ${jour(i.expiresAt)} · ${i.usedCount}/${i.maxUses}`} />
@@ -291,7 +307,8 @@ function Membres({ api, g }: P) {
                 <button type="button" className="k-button k-button-secondary" onClick={() => void act(() => api.revokeInvitation(g.groupId, i.invitationId))}>Révoquer</button>
               </div>}
             </div>
-          ))}</>}</RemoteState> : <p className="k-hint">Réservé au président, au vice-président et au secrétaire.</p>}
+          ))}</>}</RemoteState>
+          </> : <p className="k-hint">Réservé au président, au vice-président et au secrétaire.</p>}
         </Panel></div>
       </div>
     </>
