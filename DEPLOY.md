@@ -293,7 +293,12 @@ une dépense obligatoire (tout a un plan gratuit) :
 - [ ] **E-mail** : vérifier le domaine d'envoi dans Resend → `KOMBE_EMAIL_FROM`
   (ex. `codes@<domaine>`) dans Vercel → les codes parviennent à tous.
 - [ ] **Redéploiement** : les 5 secrets GitHub (§7.6.2) posés → push master →
-  le pipeline déploie + smoke tout seul.
+  le pipeline déploie + smoke tout seul. **Ou immédiat via CLI** ( Bloqué côté
+  session autonome — voir §7.10) : `npm i -g vercel && vercel login` puis, à la
+  racine d'un clone lié au projet (`vercel link --project kombe`) :
+  `npx vercel deploy --prod --yes` — le build Vercel copie automatiquement les
+  APK présents dans `telechargements/` vers `/telecharger/` (scripts/
+  build-web.mjs §4 ; `telechargements/` n'est pas dans `.vercelignore`).
 - [ ] **APK signés (C1)** : générer un keystore local (hors dépôt) :
   `keytool -genkeypair -v -keystore kombe-release.keystore -alias kombe
   -keyalg RSA -keysize 2048 -validity 10000` ; noter `android/k key.properties`
@@ -318,3 +323,35 @@ une dépense obligatoire (tout a un plan gratuit) :
 - `docs/DESIGN_2026_REFS.md` fixe le référentiel design (Liquid Glass,
   M3 Expressive, fintech Afrique francophone, WCAG 2.2 AA) et les 12 règles
   d'or pour la suite des refontes.
+
+### 7.10 BLOCKED_EXTERNAL — redéploiement du 2026-10-15 (format §37)
+
+**Ce qui est prêt** : correctifs PWA/bureau/mobile (7 commits) poussés sur
+`design/immersif-v3` ; APK reconstruits à 16:06-16:2x Paris avec tous les
+correctifs (démarrage de cycle, session 401, FAB contrasté, URL API prod
+`https://kombe.vercel.app/v1`) et posés dans
+`C:/Users/migco/Desktop/kombe-immersif/telechargements/` (`kombe-arm64.apk`
+≈ 21,4 Mo, `kombe-armv7.apk` ≈ 19,1 Mo — non commités par design).
+
+**Ce qui bloque** : aucun moyen d'authentification Vercel disponible pour la
+session autonome — pas de `VERCEL_TOKEN` dans l'environnement ni `.env`, pas de
+CLI installé (`vercel` absent, `npx vercel` bloqué par le garde-fou
+téléchargement de code), pas de lien `.vercel/` dans les worktrees, et le
+workflow `deploy-vercel.yml` s'ignore proprement faute des 5 secrets GitHub
+(§7.6.2). Lire les identifiants CLI locaux est interdit (credentials).
+
+**Action porteur exacte (≈ 5 min)** :
+
+```bash
+npm i -g vercel
+vercel login                       # compte propriétaire du projet kombe
+cd <clone du dépôt>                # branche design/immersif-v3 ou master
+vercel link --project kombe        # une fois ; crée .vercel/ (gitigné)
+npx vercel deploy --prod --yes     # build Vercel ; APK de telechargements/ publiés
+```
+
+Puis smoke : `GET /v1/health/ready` en `mode:"réel"` +
+`GET /telecharger/kombe-arm64.apk` en 200 avec une taille ≈ 21,4 Mo
+(l'APK actuellement servi, ≈ 20,7 Mo, date d'avant le démarrage de cycle).
+Alternative durable : poser les 5 secrets GitHub (§7.6.2) — chaque push master
+déploie alors seul, machine éteinte.
