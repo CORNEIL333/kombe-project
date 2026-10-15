@@ -179,7 +179,6 @@ const t = (id: string) => `/v1/tontines/${encodeURIComponent(id)}`;
 export const acces = {
   canaux: () => appel<{ sms: boolean; whatsapp: boolean; email: boolean; neonAuthUrl?: string | null }>(null, "GET", "/v1/auth/channels"),
   /** Jeton Neon Auth (e-mail prouvé par Neon) → session KÓMBE (ADR-0040). */
-  echangerNeon: (token: string) => appel<AuthSessionResult>(null, "POST", "/v1/auth/neon-exchange", { token }),
   demanderCode: (login: string, channel?: "sms" | "whatsapp" | "email") =>
     appel<AuthCodeRequestResult>(null, "POST", "/v1/auth/code-requests", { login, ...(channel ? { channel } : {}) }),
   verifierCode: (login: string, code: string) => appel<AuthSessionResult>(null, "POST", "/v1/auth/code-verifications", { login, code }),

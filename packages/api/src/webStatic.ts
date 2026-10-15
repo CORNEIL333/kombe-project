@@ -29,11 +29,12 @@ const TYPES: Readonly<Record<string, string>> = {
   ".txt": "text/plain; charset=utf-8",
 };
 
-/** CSP des pages web : tout vient de la même origine (API comprise), sauf les
- *  polices Google ; styles en ligne permis (attributs style de React). */
+/** CSP des pages web : tout vient de la même origine (API comprise), y compris les
+ *  polices (auto-hébergées) ; styles en ligne permis (attributs style de React). */
 export const WEB_CSP =
-  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-  "font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.neon.tech https://*.neon.com; " +
+  "default-src 'self'; script-src 'self'; " +
+  "style-src 'self' 'unsafe-inline'; " +
+  "font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; " +
   "frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
 
 /** Résout un chemin d'URL en fichier DANS `root`, ou null (hors racine, absent). */

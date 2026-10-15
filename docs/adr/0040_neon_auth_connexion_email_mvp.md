@@ -27,7 +27,29 @@ membres ne pouvaient donc pas se connecter.
 - Activé seulement si `NEON_AUTH_BASE_URL` et `NEON_AUTH_JWKS_URL` sont posés ;
   sinon l'ancienne voie (Resend) reste en place. Le téléphone (SMS) est
   inchangé : Neon Auth ne fait pas de connexion « téléphone d'abord ».
-- La CSP autorise `https://*.neon.tech` et `https://*.neon.com` en `connect-src`.
+- ~~La CSP autorise `https://*.neon.tech` et `https://*.neon.com` en `connect-src`.~~ (révisé : relais par l'API, voir plus bas)
+
+## Révision du 15/10/2026 — relais par l'API
+
+Mise en ligne : le parcours « navigateur → Neon » reposait sur un **cookie
+tiers** (`__Secure-neon-auth.session_token`, `SameSite=None; Partitioned`)
+que Safari / iPhone, Firefox strict et la navigation privée bloquent. Le
+navigateur ne parle donc plus à Neon :
+
+- `POST /v1/auth/code-requests` (e-mail) : l'API demande le code à Neon
+  (`/email-otp/send-verification-otp`, avec l'en-tête `Origin` du domaine de
+  confiance, exigé par Neon) ;
+- `POST /v1/auth/code-verifications` (e-mail) : l'API vérifie le code chez Neon
+  (`/sign-in/email-otp`), lit le jeton (`/token`) avec le cookie reçu côté
+  serveur, le vérifie (JWKS, émetteur, adresse vérifiée) et ouvre la session
+  KÓMBE ;
+- `/v1/auth/channels` renvoie `neonAuthUrl: null` ; `POST /v1/auth/neon-exchange`
+  reste disponible ;
+- le client Neon (`@neondatabase/auth`) quitte la PWA ; la CSP revient à
+  `connect-src 'self'`.
+
+Preuve : `neonAuth.proof.mjs` (faux service Neon : `RELAY-*`) et parcours réel
+contre Neon Auth en production (boîte e-mail jetable).
 
 ## Conséquences
 
@@ -39,5 +61,5 @@ membres ne pouvaient donc pas se connecter.
 - Neon indique que l'expéditeur partagé sert au démarrage ; la production
   durable demande un SMTP personnalisé. **À l'achat du domaine** : SMTP
   personnalisé dans Neon Auth (ou retour à Resend), puis revue de cette ADR.
-- Le client Neon (`@neondatabase/auth`, bêta) est chargé à la demande
-  (≈ 44 kB gzip), seulement pour la connexion par e-mail.
+- ~~Le client Neon (`@neondatabase/auth`, bêta) est chargé à la demande.~~
+  Retiré (révision du 15/10/2026).

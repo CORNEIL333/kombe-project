@@ -10,7 +10,6 @@ import { useTextes } from "./textes.js";
 import { LogoKombe } from "../composants/Marque.js";
 import { Orbite } from "../composants/Orbite.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
-import { envoyerCodeNeon, jetonNeon } from "./neonAuth.js";
 import { useLangue } from "../i18n/ContexteLangue.js";
 import type { CleI18n } from "../i18n/dictionnaires.js";
 
@@ -69,15 +68,11 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
   // Canaux réellement ouverts sur ce déploiement (ex. pas encore de compte SMS :
   // seule la connexion par e-mail est proposée). En cas d'échec : tous affichés.
   const [canaux, setCanaux] = useState<readonly Voie[]>(["sms", "whatsapp", "email"]);
-  // Neon Auth (ADR-0040) : quand le déploiement l'annonce, l'e-mail passe par Neon.
-  const [neonUrl, setNeonUrl] = useState<string | null>(null);
-  const [parNeon, setParNeon] = useState(false);
   useEffect(() => {
     let actif = true;
     acces.canaux().then(
       (c) => {
         if (!actif) return;
-        setNeonUrl(c.neonAuthUrl ?? null);
         const ouverts = (["sms", "whatsapp", "email"] as const).filter((v) => c[v]);
         if (ouverts.length) {
           setCanaux(ouverts);
@@ -93,23 +88,8 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
 
   const envoyer = async (e: FormEvent) => {
     e.preventDefault();
-    if (voie === "email" && neonUrl) {
-      const email = login.trim().toLowerCase();
-      const ok = await action.lancer(async () => {
-        await envoyerCodeNeon(neonUrl, email);
-        return true;
-      });
-      if (ok) {
-        setParNeon(true);
-        setLoginEnvoye(email);
-        setCodeTest(null);
-        setCode("");
-      }
-      return;
-    }
     const r = await action.lancer(() => acces.demanderCode(login.trim(), voie));
     if (r) {
-      setParNeon(false);
       setLoginEnvoye(r.login);
       setCodeTest(r.devCode ?? null);
       setCode("");
@@ -120,7 +100,8 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
     e.preventDefault();
     if (!loginEnvoye) return;
     const r = await action.lancer(async () => {
-      const res = parNeon && neonUrl ? await acces.echangerNeon(await jetonNeon(neonUrl, loginEnvoye, code)) : await acces.verifierCode(loginEnvoye, code);
+      // E-mail via Neon Auth (ADR-0040) : relayé par l'API, aucun appel tiers ici.
+      const res = await acces.verifierCode(loginEnvoye, code);
       const s: Session = { sessionId: res.sessionId, identityId: res.identityId, expiresAt: res.expiresAt };
       const moi = await acces.moi(s);
       return { s, moi };

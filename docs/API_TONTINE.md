@@ -21,7 +21,7 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 |---|---|---|
 | POST | `/v1/auth/code-requests` | `AuthCodeRequest` → `AuthCodeRequestResult` (202, anti-énumération) |
 | POST | `/v1/auth/code-verifications` | `AuthCodeVerification` → `AuthSessionResult` (crée le compte au premier code) |
-| POST | `/v1/auth/neon-exchange` | `{ token }` (jeton Neon Auth signé, e-mail prouvé par Neon) → `AuthSessionResult` (201 ; actif seulement si `NEON_AUTH_JWKS_URL` et `NEON_AUTH_BASE_URL` sont posés ; jeton expiré, d'une autre clé, d'un autre émetteur ou adresse non vérifiée ⇒ 401) — ADR-0040 |
+| POST | `/v1/auth/neon-exchange` | `{ token }` (jeton Neon Auth signé, e-mail prouvé par Neon) → `AuthSessionResult` (201 ; actif seulement si `NEON_AUTH_JWKS_URL` et `NEON_AUTH_BASE_URL` sont posés ; jeton expiré, d'une autre clé, d'un autre émetteur ou adresse non vérifiée ⇒ 401) — ADR-0040. Avec Neon Auth configuré, `code-requests` / `code-verifications` pour un e-mail sont **relayés par l'API** vers Neon (aucun cookie tiers) ; `channels.neonAuthUrl` vaut `null` |
 | POST | `/v1/auth/logout` | → 204 (révoque la session) |
 | GET | `/v1/me` | → `MeView` |
 | PATCH | `/v1/me` | `MeUpdate` → `MeView` |

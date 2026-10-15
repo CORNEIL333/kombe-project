@@ -1,12 +1,21 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import legacy from "@vitejs/plugin-legacy";
+
+/* Téléphones du terrain (Cameroun) : beaucoup d'Android dont Chrome n'est plus
+   mis à jour, et d'iPhone bloqués en iOS 14–15. Un seul bundle, abaissé à
+   Chrome 67 / Safari 14 — plancher imposé par les BigInt des montants — avec
+   les polyfills nécessaires (core-js à la demande). Aucun script en ligne : la
+   CSP stricte reste intacte. Plus ancien : public/demarrage.js affiche un
+   message clair au lieu d'un écran figé. */
+export const CIBLES_TERRAIN = ["chrome >= 67", "and_chr >= 67", "safari >= 14", "ios_saf >= 14", "samsung >= 9", "firefox >= 68", "edge >= 79", "opera >= 54"];
 
 // KÓMBE C14 — build Vite + recette unitaire (vitest/jsdom). L'exécution E2E est
 // portée par playwright.config.ts (test:e2e), volontairement séparée de `test`
 // pour que `pnpm -r test` reste déterministe et rapide (jsdom, sans serveur).
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), legacy({ renderLegacyChunks: false, modernTargets: CIBLES_TERRAIN, modernPolyfills: true })],
   server: {
     port: 5173,
     // Dév local : le navigateur appelle la PWA sur :5173 ; `/v1` est relayé

@@ -22,7 +22,7 @@ pas le *pooler*) :
 
 | Variable | Rôle PostgreSQL | Sert à |
 |---|---|---|
-| `KOMBE_API_DATABASE_URL` | `kombe_app` (celle de `.env.prod`, `KOMBE_PROD_API_DATABASE_URL`) | l'API, sous RLS |
+| `KOMBE_API_DATABASE_URL` | `neondb_owner`, connexion directe ; l'API bascule seule en `kombe_app` (`SET ROLE`, ADR-0022) | l'API, sous RLS |
 | `KOMBE_MIGRATION_DATABASE_URL` | `neondb_owner` (propriétaire) | appliquer les migrations au build |
 
 Et **au moins une voie de connexion** pour les membres :
@@ -61,7 +61,7 @@ Sur GitHub, ouvrir la pull request de `claude/continue-previous-a102rx` vers
 
    | Nom | Valeur |
    |---|---|
-   | `KOMBE_API_DATABASE_URL` | chaîne `kombe_app` → `production` / `neondb` |
+   | `KOMBE_API_DATABASE_URL` | chaîne directe `neondb_owner` → `production` / `neondb` (l'API passe en `kombe_app`) |
    | `KOMBE_MIGRATION_DATABASE_URL` | chaîne `neondb_owner` → `production` / `neondb` |
    | `RESEND_API_KEY` | clé Resend |
    | `KOMBE_EMAIL_FROM` | `KÓMBE <onboarding@resend.dev>` (puis votre domaine) |

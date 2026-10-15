@@ -45,3 +45,15 @@ describe("registerWebStatic", () => {
     expect((await app.inject({ method: "POST", url: "/" })).statusCode).toBe(404);
   });
 });
+
+describe("CSP", () => {
+  it("vercel.json porte exactement la CSP servie par l'API", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { WEB_CSP } = await import("../src/webStatic.js");
+    const conf = JSON.parse(readFileSync(new URL("../../../vercel.json", import.meta.url), "utf8")) as {
+      headers: { headers: { key: string; value: string }[] }[];
+    };
+    const csp = conf.headers.flatMap((h) => h.headers).find((h) => h.key === "Content-Security-Policy");
+    expect(csp?.value).toBe(WEB_CSP);
+  });
+});
