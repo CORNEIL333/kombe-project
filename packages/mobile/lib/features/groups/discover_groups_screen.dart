@@ -126,8 +126,7 @@ class _DiscoverGroupsScreenState extends State<DiscoverGroupsScreen> {
                         spacing: 8,
                         runSpacing: 6,
                         children: <Widget>[
-                          _Chip(label: tontineModelLabel(g.tontineModel)),
-                          _Chip(label: rotationTypeLabel(g.rotationType)),
+                          const _Chip(label: 'Sur parrainage'),
                         ],
                       ),
                     ),

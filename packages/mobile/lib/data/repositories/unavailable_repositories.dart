@@ -126,13 +126,8 @@ final class UnavailableGroupRepository implements GroupRepository {
   }) async => const OperationBlocked<void>(_reason);
 
   @override
-  Future<OperationResult<String>> createGroup({
-    required String groupId,
-    required String displayName,
-    required String tontineModel,
-    required String rotationType,
-    String? parentGroupId,
-  }) async => const OperationBlocked<String>(_reason);
+  Future<OperationResult<String>> createGroup(TontineCreation draft) async =>
+      const OperationBlocked<String>(_reason);
 
   @override
   Future<Resource<List<DiscoverableGroup>>> listDiscoverable() async =>

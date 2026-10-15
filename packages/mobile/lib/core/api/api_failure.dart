@@ -17,7 +17,13 @@ final class ApiFailure implements Exception {
   final String? traceId;
 
   @override
-  String toString() => 'ApiFailure($statusCode, $code)';
+  String toString() {
+    // La raison française du serveur prime sur le code technique : sans cela,
+    // les écrans (affichage en `error.toString()`) masquent le motif réel
+    // (ex. « Envoi par SMS pas encore ouvert : connectez-vous par e-mail »).
+    final String m = message?.trim() ?? '';
+    return m.isEmpty ? 'ApiFailure($statusCode, $code)' : m;
+  }
 }
 
 /// Garde-client non réseau (ex. portée de groupe indisponible pour une

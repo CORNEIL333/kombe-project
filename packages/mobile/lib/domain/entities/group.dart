@@ -1,56 +1,88 @@
 enum GroupRole { member, treasurer, controller, secretary, administrator }
 
-/// Modèles de tontine préconfigurés (C03 §2.2) — alignés sur le domaine
-/// (@kombe/domain/src/tontine.ts). Le choix pré-remplit des règles
-/// éditables ; ce n'est pas un invariant financier.
-const List<String> tontineModels = <String>[
-  'famille',
-  'collegues',
-  'fetes',
-  'construction',
-  'etudiant',
-  'personnalise',
-];
+/// Rythme de séance (mêmes kinds que `cadenceSchema` serveur, API tontine
+/// réelle). Chaque kind ne renseigne que ses champs propres.
+enum CadenceKind {
+  weekly,
+  biweekly,
+  monthlyDay,
+  monthlyNthWeekday,
+  everyNDays,
+}
 
-/// Étiquette lisible d'un modèle de tontine.
-String tontineModelLabel(String model) => switch (model) {
-  'famille' => 'Famille',
-  'collegues' => 'Collègues',
-  'fetes' => 'Fêtes',
-  'construction' => 'Construction',
-  'etudiant' => 'Étudiant',
-  _ => 'Personnalisé',
+String cadenceKindLabel(CadenceKind kind) => switch (kind) {
+  CadenceKind.weekly => 'Chaque semaine',
+  CadenceKind.biweekly => 'Toutes les deux semaines',
+  CadenceKind.monthlyDay => 'Chaque mois (quantième)',
+  CadenceKind.monthlyNthWeekday => 'Chaque mois (jour précis)',
+  CadenceKind.everyNDays => 'Tous les n jours',
 };
 
-/// Typologies de rotation (C03 §2.3). Seule `rotative_fermee` est
-/// démarrable au pilote ; `tirage` et `negocie` sont reconnus à la
-/// création mais leur démarrage échoue fermé (P1, recette dédiée).
-const List<String> rotationTypes = <String>[
-  'rotative_fermee',
-  'tirage',
-  'negocie',
-];
+/// Paramètres que l'administrateur (le bureau) fournit à la CRÉATION d'une
+/// tontine (API réelle `POST /v1/tontines`) : nom, cotisation par part et par
+/// séance, rythme, date de première séance, heure limite, nombre max de
+/// membres. Aucun de ces choix n'est décidé à la place du bureau : le montant
+/// et la fréquence sont des paramètres d'admin, collectés ici.
+final class TontineCreation {
+  const TontineCreation({
+    required this.name,
+    required this.contributionPerShare,
+    required this.cadenceKind,
+    this.weekday,
+    this.dayOfMonth,
+    this.nth,
+    this.everyNDays,
+    required this.firstMeetingDate,
+    required this.deadlineTime,
+    required this.maxMembers,
+    this.meetingPlace,
+  });
 
-String rotationTypeLabel(String type) => switch (type) {
-  'rotative_fermee' => 'Rotation fermée (égale)',
-  'tirage' => 'Tirage au sort',
-  _ => 'Négocié',
-};
+  final String name;
 
-/// Groupe proposé à la découverte publique : nom + modèle + typologie
-/// seulement, JAMAIS de registre réel avant adhésion (C03 §4.1).
+  /// Montant entier XAF par part et par séance (chaîne de chiffres, jamais
+  /// de décimales — ADR-0002) ; choisi par le bureau, jamais pré-rempli.
+  final String contributionPerShare;
+  final CadenceKind cadenceKind;
+
+  /// 0 = dimanche … 6 = samedi (même convention que le serveur).
+  final int? weekday;
+  final int? dayOfMonth;
+  final int? nth;
+  final int? everyNDays;
+
+  /// YYYY-MM-DD et HH:mm, formats validés par le serveur.
+  final String firstMeetingDate;
+  final String deadlineTime;
+  final int maxMembers;
+  final String? meetingPlace;
+
+  /// Cadence au format `cadenceSchema` serveur (discriminated union sur kind).
+  Map<String, dynamic> get cadenceJson => switch (cadenceKind) {
+    CadenceKind.weekly => <String, dynamic>{'kind': 'weekly', 'weekday': weekday ?? 1},
+    CadenceKind.biweekly => <String, dynamic>{'kind': 'biweekly', 'weekday': weekday ?? 1},
+    CadenceKind.monthlyDay => <String, dynamic>{'kind': 'monthly_day', 'day': dayOfMonth ?? 5},
+    CadenceKind.monthlyNthWeekday => <String, dynamic>{
+      'kind': 'monthly_nth_weekday',
+      'weekday': weekday ?? 1,
+      'nth': nth ?? 1,
+    },
+    CadenceKind.everyNDays => <String, dynamic>{'kind': 'every_n_days', 'n': everyNDays ?? 7},
+  };
+}
+
+/// Groupe proposé à la découverte publique : nom seulement. Le produit réel ne
+/// publie aucun annuaire (les tontines restent privées ; on y entre par
+/// invitation), cette vue reste vide — mais la forme est conservée pour le
+/// parcours « parrainage ». JAMAIS de registre réel avant adhésion (C03 §4.1).
 final class DiscoverableGroup {
   const DiscoverableGroup({
     required this.groupId,
     required this.name,
-    required this.tontineModel,
-    required this.rotationType,
   });
 
   final String groupId;
   final String name;
-  final String tontineModel;
-  final String rotationType;
 }
 
 /// Vue consolidée MULTI-ADHÉSION d'une tontine pour un membre (C21 §2.5) :
@@ -62,8 +94,6 @@ final class MemberGroup {
   const MemberGroup({
     required this.groupId,
     required this.displayName,
-    required this.tontineModel,
-    required this.rotationType,
     required this.groupState,
     required this.membershipState,
     this.parentGroupId,
@@ -71,8 +101,6 @@ final class MemberGroup {
 
   final String groupId;
   final String displayName;
-  final String tontineModel;
-  final String rotationType;
   final String groupState;
   final String membershipState;
   final String? parentGroupId;

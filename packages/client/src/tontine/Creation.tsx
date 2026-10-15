@@ -132,7 +132,12 @@ export function Creation({
   const [etape, setEtape] = useState(edition?.verrouille ? 6 : 0);
   const [nom, setNom] = useState(edition?.name ?? "");
   const [monNom, setMonNom] = useState("");
-  const [r, setR] = useState<TontineSettings>(() => edition?.settings ?? reglementParDefaut(aujourdhui()));
+  const [r, setR] = useState<TontineSettings>(() => {
+    const base = edition?.settings ?? reglementParDefaut(aujourdhui());
+    // Le montant par part est un paramètre d'admin : en création il n'est
+    // JAMAIS pré-rempli à la place du bureau (l'étape Cotisation l'exige).
+    return edition ? base : { ...base, contributionPerShare: "" };
+  });
   const action = useAction();
   const maj = (p: Partial<TontineSettings>) => setR((x) => ({ ...x, ...p }));
 

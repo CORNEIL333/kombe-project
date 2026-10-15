@@ -16,16 +16,14 @@ abstract interface class GroupRepository {
     required String phoneE164,
   });
 
-  /// Crée une tontine (C03 §2.1-2.3) : nom, modèle, typologie de rotation,
-  /// parent de supervision éventuel (C21). Renvoie l'identifiant du groupe
-  /// créé par le serveur (jamais choisi localement).
-  Future<OperationResult<String>> createGroup({
-    required String groupId,
-    required String displayName,
-    required String tontineModel,
-    required String rotationType,
-    String? parentGroupId,
-  });
+  /// Crée une tontine via l'API réelle `POST /v1/tontines` : le bureau
+  /// fournit les vrais paramètres (nom, cotisation par part, rythme, date
+  /// de première séance, heure limite, nombre max de membres). Le serveur
+  /// choisit seul l'identifiant retourné ; montant et fréquence ne sont
+  /// JAMAIS décidés à la place de l'admin. L'ordre de tour (tirage vérifiable,
+  /// ordre d'arrivée, décidé par le bureau) se règle à chaque saison, au
+  /// démarrage du cycle — pas à la création.
+  Future<OperationResult<String>> createGroup(TontineCreation draft);
 
   /// Découvrabilité publique (C03 §4.1) : vue minimale des groupes
   /// ouverts, sans registre réel.

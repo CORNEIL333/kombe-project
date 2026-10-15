@@ -21,9 +21,10 @@ Widget _wrap(Widget child) => MaterialApp(
     );
 
 /// C21 §2.5 — la vue consolidée « Mes tontines » doit réellement AFFICHER les
-/// tontines servies par `GET /me/groups` (multi-adhésion), avec modèle ·
-/// typologie · état d'adhésion, et la supervision parent quand elle existe.
-/// Dépôt factice : deux adhésions actives.
+/// tontines servies par `GET /me/tontines` (multi-adhésion), avec l'état
+/// d'adhésion et la supervision parent quand elle existe. Aucun modèle ni
+/// typologie factice : le produit réel n'a jamais ces champs. Dépôt factice :
+/// plusieurs adhésions actives.
 void main() {
   testWidgets('MyGroupsScreen liste les tontines adhérentes + états',
       (WidgetTester tester) async {
@@ -42,10 +43,9 @@ void main() {
     expect(find.text('Mes tontines'), findsOneWidget);
     expect(find.text('Les Étoiles de Yaoundé'), findsOneWidget);
     expect(find.text('Solidarité Bamiléké'), findsOneWidget);
-    // Étiquette d'adhésion + modèle décodés côté écran (pas de champ financier).
+    // Étiquette d'adhésion décodée côté écran (pas de champ financier).
     // FakeWorld sert 3 adhésions.
     expect(find.text('Membre actif'), findsNWidgets(3));
-    expect(find.text('Famille'), findsNWidgets(3));
   });
 
   testWidgets('MyGroupsScreen affiche l’état vide honnête sans adhésion',

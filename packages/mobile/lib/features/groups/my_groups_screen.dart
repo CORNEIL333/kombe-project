@@ -8,12 +8,12 @@ import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
 
 /// Vue consolidée « mes tontines » (C21 §2.5) : TOUTES les tontines dont le
-/// membre fait partie (MULTI-ADHÉSION), servie par la route RÉELLE
-/// `GET /me/groups`. Contrairement à la maquette [GroupSummary] (champs
-/// financiers non exposés au pilote), cette vue n'affiche que l'identité de la
-/// tontine, son modèle/typologie, l'état d'adhésion, et la hiérarchie de
-/// supervision (une grande tontine qui en chapeaute plusieurs). L'identité
-/// listée est toujours celle de la session, résolue serveur (§14).
+/// membre fait partie (MULTI-ADHÉSION), servie par l'API réelle
+/// `GET /me/tontines`. Contrairement à la maquette [GroupSummary] (champs
+/// financiers non exposés au pilote), cette vue n'affiche que l'identité de
+/// la tontine, l'état d'adhésion, et la hiérarchie de supervision (une
+/// grande tontine qui en chapeaute plusieurs). L'identité listée est
+/// toujours celle de la session, résolue serveur (§14).
 class MyGroupsScreen extends StatefulWidget {
   const MyGroupsScreen({super.key});
 
@@ -77,8 +77,6 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
                             spacing: 8,
                             runSpacing: 6,
                             children: <Widget>[
-                              _Chip(label: tontineModelLabel(g.tontineModel)),
-                              _Chip(label: rotationTypeLabel(g.rotationType)),
                               _Chip(label: membershipStateLabel(g.membershipState)),
                             ],
                           ),

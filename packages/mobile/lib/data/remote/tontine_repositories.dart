@@ -271,8 +271,6 @@ final class TontineGroupRepository implements GroupRepository {
       .map((Map<String, dynamic> g) => MemberGroup(
             groupId: '${g['groupId']}',
             displayName: '${g['name']}',
-            tontineModel: 'personnalise',
-            rotationType: 'rotative_fermee',
             groupState: '${g['state']}',
             membershipState: '${g['membershipState']}',
           ))
@@ -390,20 +388,13 @@ final class TontineGroupRepository implements GroupRepository {
       });
 
   @override
-  Future<OperationResult<String>> createGroup({
-    required String groupId,
-    required String displayName,
-    required String tontineModel,
-    required String rotationType,
-    String? parentGroupId,
-  }) =>
+  Future<OperationResult<String>> createGroup(TontineCreation draft) =>
       _write<String>(() async {
         final String founder = '${(await _api.get('/me')).body['displayName'] ?? ''}'.trim();
-        final String today = DateTime.now().toUtc().add(const Duration(hours: 1)).toIso8601String().substring(0, 10);
         final Map<String, dynamic> created = (await _api.postOnce('/tontines', <String, dynamic>{
-          'name': displayName.trim(),
+          'name': draft.name.trim(),
           'founderDisplayName': founder.isEmpty ? 'Président' : founder,
-          'settings': defaultTontineSettings(today),
+          'settings': settingsForDraft(draft),
         }))
             .body;
         return '${created['groupId']}';
@@ -423,14 +414,17 @@ final class TontineGroupRepository implements GroupRepository {
       const OperationBlocked<void>('On rejoint un groupe avec le code d’invitation envoyé par son bureau.');
 }
 
-/// Règlement par défaut (mêmes valeurs que l'assistant de la PWA et le serveur).
-Map<String, dynamic> defaultTontineSettings(String today) => <String, dynamic>{
-      'contributionPerShare': '10000',
-      'cadence': <String, dynamic>{'kind': 'weekly', 'weekday': 0},
-      'firstMeetingDate': today,
-      'deadlineTime': '18:00',
-      'meetingPlace': null,
-      'maxMembers': 12,
+/// Règlement envoyé à `POST /v1/tontines` : montant, rythme, date, heure
+/// limite et plafond de membres viennent du formulaire du bureau (jamais
+/// pré-remplis à sa place) ; le reste reprend les par défauts éditables
+/// ensuite (mêmes valeurs que l'assistant PWA et `defaultSettings` serveur).
+Map<String, dynamic> settingsForDraft(TontineCreation draft) => <String, dynamic>{
+      'contributionPerShare': draft.contributionPerShare,
+      'cadence': draft.cadenceJson,
+      'firstMeetingDate': draft.firstMeetingDate,
+      'deadlineTime': draft.deadlineTime,
+      'meetingPlace': draft.meetingPlace,
+      'maxMembers': draft.maxMembers,
       'transparency': 'all_members',
       'feeBearer': 'member',
       'payoutPolicy': 'full_with_advance',

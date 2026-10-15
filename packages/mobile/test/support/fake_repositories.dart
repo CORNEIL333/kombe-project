@@ -284,36 +284,30 @@ final class FakeGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<OperationResult<String>> createGroup({
-    required String groupId,
-    required String displayName,
-    required String tontineModel,
-    required String rotationType,
-    String? parentGroupId,
-  }) async {
+  Future<OperationResult<String>> createGroup(TontineCreation draft) async {
     await _lag();
     w.groups.insert(
       0,
       GroupSummary(
-        id: groupId,
-        name: displayName,
+        id: 'grp-fake-${w.groups.length + 1}',
+        name: draft.name,
         role: GroupRole.administrator,
         memberCount: 1,
         cycleIndex: 0,
         cycleTotal: 1,
-        contributionAmountXaf: 0,
+        contributionAmountXaf: int.tryParse(draft.contributionPerShare) ?? 0,
         nextDueAtUtc: w.nextDue,
       ),
     );
-    return OperationSuccess<String>(groupId);
+    return const OperationSuccess<String>('grp-fake-1');
   }
 
   @override
   Future<Resource<List<DiscoverableGroup>>> listDiscoverable() async {
     await _lag();
     return const ResourceReady<List<DiscoverableGroup>>(<DiscoverableGroup>[
-      DiscoverableGroup(groupId: 'decouvrir-1', name: 'Tontine des artisans', tontineModel: 'collegues', rotationType: 'rotative_fermee'),
-      DiscoverableGroup(groupId: 'decouvrir-2', name: 'Épargne construction', tontineModel: 'construction', rotationType: 'rotative_fermee'),
+      DiscoverableGroup(groupId: 'decouvrir-1', name: 'Tontine des artisans'),
+      DiscoverableGroup(groupId: 'decouvrir-2', name: 'Épargne construction'),
     ]);
   }
 
@@ -325,8 +319,6 @@ final class FakeGroupRepository implements GroupRepository {
         MemberGroup(
           groupId: g.id,
           displayName: g.name,
-          tontineModel: 'famille',
-          rotationType: 'rotative_fermee',
           groupState: 'active',
           membershipState: 'active',
         ),
