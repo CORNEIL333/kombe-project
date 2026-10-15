@@ -144,3 +144,52 @@ Trois causes distinctes, toutes élucidées :
 - `pnpm --filter @kombe/api run typecheck` : exit 0.
 - E2E PWA existant : l'étape Cotisation saisit explicitement « 5000 »,
   compatible avec le champ désormais vide au départ.
+
+## 5. Session autonome du 2026-10-15 (après-midi) — audit approfondi + correctifs
+
+Audit approfondi mené en parallèle sur les trois surfaces (mobile 115 fichiers,
+PWA + site + dashboard bureau, référentiel design 2026). Rapport design :
+`docs/DESIGN_2026_REFS.md` (12 règles d'or, ~30 sources vérifiées).
+
+### 5.1 Corrigé dans la session (preuves en §5.3)
+
+| # | Sévérité | Trouvaille | Correctif |
+|---|----------|------------|-----------|
+| 1 | **P1** | Gap C4 confirmé : aucun écran mobile pour `POST /v1/tontines/:id/cycle` ni `/cycle-renewals` — un groupe créé depuis l'app restait sans tours | Écran Cycle : panneau « Le cycle n'est pas encore lancé » (bureau seulement) avec choix d'ordre **tirage vérifiable** (engagement scellé puis révélé via `POST /draws`) ou **ordre d'arrivée** ; bannière « Saison terminée » quand tous les tours sont servis. L'ordre manuel reste en PWA (seul écran à manipuler la liste des parts) — honnêteté assumée |
+| 2 | **P1** | Aucune gestion globale du 401 : session expirée = écrans en échec en boucle | `KombeApiClient.onUnauthorized` → purge `SecureSessionStore` → état déconnecté → redirection connexion (idempotent, ne masque jamais l'échec) |
+| 3 | **P2** | PWA Création : cagnotte/durée/simulateur assimilaient maxMembres au nombre de parts (fausses attentes financières dès qu'un membre prend 2-5 parts) | Libellés « hypothèse : une part par membre » explicites (FR/EN) |
+| 4 | **P2** | Invitations codées en dur 30 utilisations / 14 jours en PWA **et** dashboard bureau | Utilisations (1-100) et jours (1-30) saisies, champs vides = défauts serveur affichés |
+| 5 | **P2** | Dépôt mobile : une tontine créée avait un cycle fantôme (`cycleTotal: 1` dans le fake) | Fake aligné sur le réel : création = cycle non démarré → panneau de lancement |
+| 6 | **P2** | Écran Cycle : un cycle simplement non démarré s'affichait « Service indisponible » | État dédié avec explication et prérequis (2 membres actifs, trésorier, statuts acceptés) |
+| 7 | **P3** | `devCode` de connexion affiché si le serveur le renvoie, même en production | Double garde-fou : `import.meta.env.DEV` côté UI |
+| 8 | **P3** | Échec de copie du lien d'invitation silencieux (PWA) | Message « Copie impossible : utilisez Partager sur WhatsApp » |
+
+### 5.2 Trouvé et DOCUMENTÉ (non corrigé, priorisé pour la suite)
+
+**Mobile** — capacités serveur non exposées : UI parts 1-5 (`/members/:mid/shares`),
+contestation d'amende (`/fines/:fid/contest`), votes d'ouverture/clôture
+(`/decisions`), réserve (`/reserve-distributions`), échanges de tour
+(`/order-changes`), tirage seul (`/draws`), imports cahier de reprise.
+Parcours morts à purger ou brancher : litiges (`openDispute` bloqué),
+découverte/parrainage (toujours vide), exports. ~225 chaînes FR en dur
+(l10n incomplet, PCM absent de `language_screen`). Rejet de paiement avec
+motif imposé en dur (repo:611). Majority rule réinventée client
+(`requiredYes = n/2+1`, repo:681). FAB contraste 2.5:1 (or/blanc).
+
+**PWA** — amendes non rattachées à la séance (`meetingId` jamais collecté,
+`Discipline.tsx:95`) ; décisions de clôture tronquées à 30 sans avertissement
+(`Seances.tsx:168`) ; ~80 % des clés i18n `dictionnaires.ts` mortes (résidus
+harness, doublonnées par `textes.ts`) ; `src/horsLigne/` + `ImmersiveBackdrop`
+jamais rendus (code mort) ; `docs/openapi.yaml` = ancien contrat harness
+`/v1/groups` à archiver (le vrai contrat : `docs/API_TONTINE.md`).
+
+**Sécurité** : rien de bloquant — pas de `dangerouslySetInnerHTML`, PV
+échappés, localStorage limité au jeton de session, aucun secret en dépôt.
+
+### 5.3 Preuves de recette de la session
+
+- `flutter analyze` : **0 erreur** (110 infos de lint préexistantes).
+- `flutter test` : **31/31** (dont 4 nouveaux tests widget du panneau de
+  lancement de cycle + 2 tests du hook 401 du client HTTP).
+- `pnpm --filter @kombe/client run typecheck` : exit 0 ; vitest **23/23**.
+- `pnpm --filter @kombe/dashboard-group-admin run typecheck` : exit 0 ; vitest **3/3**.
