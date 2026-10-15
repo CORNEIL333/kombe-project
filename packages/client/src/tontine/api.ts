@@ -318,7 +318,7 @@ export const argent = {
     appel<RedistributionReserve>(s, "POST", `${t(id)}/reserve-distributions`, input),
 };
 
-/* ── Repères (ADR-0040) ─────────────────────────────────────────────────── */
+/* ── Repères (ADR-0039) ─────────────────────────────────────────────────── */
 
 export interface Simulation {
   readonly cadenceLabel: string;

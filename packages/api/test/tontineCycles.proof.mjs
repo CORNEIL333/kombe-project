@@ -1,5 +1,5 @@
 // KÓMBE @kombe/api — preuve base réelle : cycle complet, cycles successifs,
-// réserve de fin d'année, conflits d'intérêts et repères (ADR-0040).
+// réserve de fin d'année, conflits d'intérêts et repères (ADR-0039).
 //
 // Script de recette RÉEL (PostgreSQL 16, rôle kombe_app sous RLS, aucune
 // simulation de succès). Sans KOMBE_API_DATABASE_URL : BLOCKED (exit 2).

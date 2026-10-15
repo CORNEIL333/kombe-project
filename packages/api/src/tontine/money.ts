@@ -497,7 +497,7 @@ export class MoneyService {
   }
 
   /**
-   * Redistribution de la réserve de fin d'année (ADR-0040) : chacun reprend ce
+   * Redistribution de la réserve de fin d'année (ADR-0039) : chacun reprend ce
    * qu'il a versé et qui ne lui a pas encore été rendu, au prorata si la caisse
    * est courte. Une remise par membre et par exercice, déclarée par la
    * trésorerie et accusée par le membre, comme toute remise. La remise d'un
