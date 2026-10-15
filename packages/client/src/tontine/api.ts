@@ -41,7 +41,7 @@ import type {
   PaymentChannel,
 } from "@kombe/domain";
 import { ApiClient, ApiError, loadRuntimeConfig } from "@kombe/dashboard-core";
-import { EnFileAttente, envoyerFile, estErreurReseau, mettreEnFile } from "./fileAttente.js";
+import { EnFileAttente, envoyerFile, estErreurReseau, mettreEnFile } from "./fileAttenteMoteur.js";
 
 export { ApiError };
 export type {

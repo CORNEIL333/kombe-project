@@ -3,126 +3,304 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="color-scheme" content="light" />
-  <meta name="theme-color" content="#FBF8F1" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#061F1B" />
   <title>KÓMBE — Votre tontine, plus claire.</title>
-  <meta name="description" content="Les tours, les cotisations et les décisions de votre tontine, visibles par chaque membre. KÓMBE ne détient jamais l’argent du groupe." />
-  <link rel="icon" type="image/svg+xml" href="/brand/kombe-mark.svg" />
-  <link rel="preload" as="image" href="/brand/hero-communaute.jpg" />
+  <meta name="description" content="KÓMBE tient le registre de votre tontine et de votre association : qui a cotisé, qui a confirmé, à qui revient le tour. Il ne garde pas votre argent." />
+  <meta property="og:title" content="KÓMBE — Votre tontine, plus claire." />
+  <meta property="og:description" content="Le registre partagé des tontines, njangi et associations. KÓMBE ne garde pas votre argent." />
+  <meta property="og:image" content="/brand/photos/hero-cercle.jpg" />
+  <link rel="icon" type="image/svg+xml" href="/brand/symbole-orbite.svg" />
+  <link rel="preload" as="image" href="/brand/photos/cercle-vue-dessus.webp" type="image/webp" />
 </head>
 <body>
-  <a class="skip" href="#acte-1">Aller au contenu</a>
+  <a class="skip" href="#contenu">Aller au contenu</a>
 
-  <header class="top">
-    <a class="lock" href="#acte-1" aria-label="KÓMBE — accueil">
-      <img src="/brand/kombe-mark.svg" alt="" width="30" height="30" />
-      <span>KÓMBE</span>
+  <header class="top" id="top">
+    <a class="logo" href="#hero" aria-label="KÓMBE — accueil">
+      <span aria-hidden="true">K</span><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="22" r="13" fill="none" stroke="currentColor" stroke-width="4.5"/><path d="M23.5 3.5 L30 1" stroke="#C7922E" stroke-width="4.5" stroke-linecap="round"/></svg><span aria-hidden="true">MBE</span>
     </a>
-    <nav aria-label="Sections">
-      <a href="#acte-4">Le cycle</a>
-      <a href="#acte-5">Les preuves</a>
-      <a href="#acte-6">Les décisions</a>
+    <nav class="top__nav" aria-label="Sections">
+      <a href="#cycle">Le cycle</a>
+      <a href="#app">L’application</a>
+      <a href="#bureau">Le bureau</a>
+      <a href="#questions">Questions</a>
     </nav>
-    <a class="pill" href="#acte-7">Accès</a>
+    <div class="top__cta">
+      <a class="btn btn--ghost btn--sm" href="/telecharger/">Android</a>
+      <a class="btn btn--gold btn--sm" href="/">Ouvrir KÓMBE</a>
+    </div>
   </header>
 
-  <main>
-    <!-- ACTE 01 — LE GROUPE -->
-    <section class="act act--hero" id="acte-1" aria-labelledby="h-hero">
-      <div class="hero-stage" id="hero-orbit" aria-hidden="false"></div>
-      <div class="hero-photo" role="img" aria-label="Une membre de tontine, souriante"></div>
-      <div class="hero-copy">
-        <p class="eyebrow"><span class="num">01</span> Le groupe · Tontines fermées</p>
-        <h1 id="h-hero" class="display">Votre tontine,<span>plus claire.</span></h1>
-        <p class="lead">Les tours, les cotisations et les décisions du groupe, visibles par chaque membre.</p>
-        <div class="ctas">
-          <a class="btn" href="#acte-2">Voir comment <span class="btn-node" aria-hidden="true">↓</span></a>
-          <a class="ghost" href="#acte-7">Accès sur invitation</a>
+  <main id="contenu">
+    <!-- 01 · LE GROUPE -->
+    <section class="hero" id="hero" aria-labelledby="h-hero">
+      <div class="hero__bg" aria-hidden="true"></div>
+      <div class="hero__grain" aria-hidden="true"></div>
+      <div class="wrap hero__grid">
+        <div class="hero__copy">
+          <p class="eyebrow"><span class="eyebrow__dot"></span>Tontines · njangi · associations</p>
+          <h1 id="h-hero" class="title-xl" data-split>Votre tontine,<br /><em>plus claire.</em></h1>
+          <p class="lead">KÓMBE ne garde pas votre argent. Il garde la vérité du groupe&nbsp;: qui a cotisé, qui a confirmé, à qui revient le tour.</p>
+          <div class="ctas">
+            <a class="btn btn--gold" href="/">Ouvrir KÓMBE <span class="btn__arrow" aria-hidden="true">→</span></a>
+            <a class="btn btn--line" href="/telecharger/">Télécharger pour Android</a>
+          </div>
+          <ul class="trust" aria-label="Ce que KÓMBE garantit">
+            <li><span class="trust__ring"></span>Vérifié à plusieurs</li>
+            <li><span class="trust__ring trust__ring--dash"></span>Fonctionne hors connexion</li>
+            <li><span class="trust__ring trust__ring--full"></span>Rien ne s’efface</li>
+          </ul>
+        </div>
+        <div class="hero__stage" aria-hidden="false">
+          <div class="hero__center" role="img" aria-label="Un groupe de tontine réuni en cercle, vu du dessus"></div>
+          <div class="hero__orbit" id="hero-orbit"></div>
+          <div class="chip chip--a" aria-hidden="true"><span class="ring ring--pending"></span><span><b>Cotisation déclarée</b><small>En attente de validation</small></span></div>
+          <div class="chip chip--b" aria-hidden="true"><span class="ring ring--done"></span><span><b>Validée par le trésorier</b><small>Ajoutée au registre</small></span></div>
+          <div class="chip chip--c" aria-hidden="true"><span class="ring ring--gold"></span><span><b>Tour 4 · Marie A.</b><small>Bénéficiaire du mois</small></span></div>
         </div>
       </div>
-      <div class="chip chip--a" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="9" fill="none" stroke="#E7DFCC" stroke-width="3"/><path d="M12 3a9 9 0 1 1-7.8 13.5" fill="none" stroke="#A15C00" stroke-width="3" stroke-linecap="round"/></svg><span><b>Cotisation déclarée</b><small>En attente de validation</small></span></div>
-      <div class="chip chip--b" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="9" fill="none" stroke="#147A54" stroke-width="3"/><path d="M8 12.4l2.8 2.8L16.2 9.6" fill="none" stroke="#147A54" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Validation enregistrée</b><small>Par le trésorier du groupe</small></span></div>
+      <a class="scroll-cue" href="#avant" aria-label="Découvrir la suite"><span></span></a>
     </section>
 
-    <!-- ACTES 02 + 03 — LE DÉSORDRE → LA CLARTÉ (une même scène qui s'ordonne au défilement) -->
-    <section class="act act--chaos" id="acte-2" aria-labelledby="h-chaos">
-      <div class="chaos-sticky">
-        <div class="chaos-crowd" id="chaos-crowd" aria-hidden="true"></div>
-        <div class="chaos-copy">
-          <p class="eyebrow eyebrow--inv"><span class="num">02</span> Organiser</p>
-          <h2 id="h-chaos" class="display display--inv"><span class="swap swap--a">Un cahier, des messages, des souvenirs.</span><span class="swap swap--b">Un seul registre, que tout le monde lit.</span></h2>
-          <p class="chaos-lead"><span class="swap swap--a">Qui a payé en mars ? Qui reçoit ce mois-ci ? La réponse dépend souvent de qui tient le cahier.</span><span class="swap swap--b">Chaque événement répond à quatre questions : qui, quoi, quand, et à quel statut.</span></p>
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <span>Organiser</span><i></i><span>Cotiser</span><i></i><span>Valider</span><i></i><span>Décider</span><i></i><span><em>ensemble</em></span><i></i>
+        <span>Organiser</span><i></i><span>Cotiser</span><i></i><span>Valider</span><i></i><span>Décider</span><i></i><span><em>ensemble</em></span><i></i>
+      </div>
+    </div>
+
+    <!-- 02 → 03 · DU CAHIER AU REGISTRE -->
+    <section class="chaos" id="avant" aria-labelledby="h-chaos">
+      <div class="chaos__sticky">
+        <div class="chaos__photo" aria-hidden="true"></div>
+        <div class="chaos__crowd" id="chaos-crowd" aria-hidden="true"></div>
+        <div class="wrap chaos__grid">
+          <div class="chaos__copy reveal">
+            <p class="eyebrow eyebrow--light"><span class="eyebrow__num">01</span>Avant</p>
+            <h2 id="h-chaos" class="title-lg">
+              <span class="swap swap--a">Un cahier, des messages, <em>des souvenirs.</em></span>
+              <span class="swap swap--b">Un seul registre, <em>que tout le monde lit.</em></span>
+            </h2>
+            <p class="chaos__lead">
+              <span class="swap swap--a">Qui a payé en mars&nbsp;? Qui reçoit ce mois-ci&nbsp;? La réponse dépend souvent de qui tient le cahier.</span>
+              <span class="swap swap--b">Chaque événement répond à quatre questions&nbsp;: qui, quoi, quand, et à quel statut.</span>
+            </p>
+          </div>
+          <ol class="frags" aria-label="Exemple de registre">
+            <li class="frag" style="--x:-8%;--y:-40%;--r:-6deg"><span class="frag__k">Cahier, p. 14</span><span class="frag__v">« Paul — mars — payé&nbsp;? »</span><span class="frag__s">Validée</span></li>
+            <li class="frag" style="--x:10%;--y:-30%;--r:5deg"><span class="frag__k">Message vocal 0:42</span><span class="frag__v">« J’ai envoyé hier soir »</span><span class="frag__s frag__s--w">En attente</span></li>
+            <li class="frag" style="--x:-12%;--y:30%;--r:4deg"><span class="frag__k">Capture d’écran</span><span class="frag__v">Reçu de transfert, sans nom</span><span class="frag__s frag__s--w">En attente</span></li>
+            <li class="frag" style="--x:6%;--y:50%;--r:-5deg"><span class="frag__k">Réunion de samedi</span><span class="frag__v">« On avait dit l’ordre inverse… »</span><span class="frag__s">Règles v3</span></li>
+            <li class="frag" style="--x:-4%;--y:-8%;--r:-3deg"><span class="frag__k">Souvenir</span><span class="frag__v">« Je crois que c’était son tour »</span><span class="frag__s">Tour 4</span></li>
+          </ol>
         </div>
-        <ol class="frags" aria-label="Exemple de registre">
-          <li class="frag" style="--x:-8%;--y:-40%;--r:-6deg"><span class="frag-k">Cahier, p. 14</span><span class="frag-v">« Paul — mars — payé ? »</span><span class="frag-s">Validée</span></li>
-          <li class="frag" style="--x:10%;--y:-30%;--r:5deg"><span class="frag-k">Message vocal 0:42</span><span class="frag-v">« J’ai envoyé hier soir »</span><span class="frag-s frag-s--w">En attente</span></li>
-          <li class="frag" style="--x:-12%;--y:30%;--r:4deg"><span class="frag-k">Capture d’écran</span><span class="frag-v">Reçu de transfert, sans nom</span><span class="frag-s frag-s--w">En attente</span></li>
-          <li class="frag" style="--x:6%;--y:50%;--r:-5deg"><span class="frag-k">Réunion de samedi</span><span class="frag-v">« On avait dit l’ordre inverse… »</span><span class="frag-s">Règles v3</span></li>
-          <li class="frag" style="--x:-4%;--y:-8%;--r:-3deg"><span class="frag-k">Souvenir</span><span class="frag-v">« Je crois que c’était son tour »</span><span class="frag-s">Tour 4</span></li>
-        </ol>
       </div>
     </section>
 
-    <!-- ACTE 04 — LE CYCLE -->
-    <section class="act act--cycle" id="acte-4" aria-labelledby="h-cycle">
-      <div class="cycle-copy">
-        <p class="eyebrow"><span class="num">04</span> Contribuer</p>
-        <h2 id="h-cycle" class="display">Chacun<br />son <em>tour.</em></h2>
-        <p class="body">L’ordre des bénéficiaires est voté, puis gelé au démarrage du cycle. Tout le monde voit où l’on en est. Personne ne le réécrit en silence.</p>
-        <div class="stepper">
-          <button type="button" class="step-btn" id="prev" aria-label="Tour précédent">←</button>
-          <p class="step-text" id="cycle-text" aria-live="polite"></p>
-          <button type="button" class="step-btn" id="next" aria-label="Tour suivant">→</button>
+    <!-- 04 · LE CYCLE -->
+    <section class="sec sec--sand" id="cycle" aria-labelledby="h-cycle">
+      <div class="wrap split">
+        <div class="reveal">
+          <p class="eyebrow"><span class="eyebrow__num">02</span>Le cycle</p>
+          <h2 id="h-cycle" class="title-lg">Chacun son tour, <em>et tout le monde le voit.</em></h2>
+          <p class="body">L’ordre des bénéficiaires est voté puis gelé au démarrage du cycle. Le nœud or et son Accent montrent à qui revient le tour. Personne ne le réécrit en silence.</p>
+          <div class="stepper">
+            <button type="button" class="step-btn" id="prev" aria-label="Tour précédent">←</button>
+            <p class="step-text" id="cycle-text" aria-live="polite"></p>
+            <button type="button" class="step-btn" id="next" aria-label="Tour suivant">→</button>
+          </div>
+          <p class="note">Illustration d’un cycle de 8 membres.</p>
         </div>
-        <p class="note">Illustration d’un cycle de 8 membres.</p>
-      </div>
-      <div class="cycle-orbit" id="cycle-orbit"></div>
-    </section>
-
-    <!-- ACTE 05 — LA PREUVE -->
-    <section class="act act--proof" id="acte-5" aria-labelledby="h-proof">
-      <div class="proof-head">
-        <p class="eyebrow"><span class="num">05</span> Valider</p>
-        <h2 id="h-proof" class="display">Un statut se lit<br />à sa forme.</h2>
-      </div>
-      <ul class="shapes">
-        <li><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="none" stroke="#E7DFCC" stroke-width="10"/><path d="M60 16a44 44 0 1 1-38.1 66" fill="none" stroke="#A15C00" stroke-width="10" stroke-linecap="round"/></svg><b>En attente</b><span>L’arc reste ouvert tant qu’un membre autorisé n’a pas validé.</span></li>
-        <li><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="none" stroke="#147A54" stroke-width="10"/><path d="M41 61l13 13 26-27" fill="none" stroke="#147A54" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg><b>Validée</b><span>L’anneau se ferme. L’entrée rejoint l’historique du groupe.</span></li>
-        <li><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M60 16a44 44 0 0 1 40.6 27" fill="none" stroke="#B42318" stroke-width="10" stroke-linecap="round"/><path d="M103 72A44 44 0 0 1 30 92" fill="none" stroke="#B42318" stroke-width="10" stroke-linecap="round"/><path d="M18 74A44 44 0 0 1 36 23" fill="none" stroke="#B42318" stroke-width="10" stroke-linecap="round" stroke-dasharray="1 16"/></svg><b>Contestée</b><span>Le chemin se rompt. Un litige s’ouvre, instruit par le groupe.</span></li>
-        <li><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="none" stroke="#5B6963" stroke-width="8" stroke-dasharray="2 12" stroke-linecap="round"/></svg><b>Sur cet appareil</b><span>Hors connexion, un brouillon reste un brouillon. Jamais un faux « envoyé ».</span></li>
-      </ul>
-    </section>
-
-    <!-- ACTE 06 — LA DÉCISION -->
-    <section class="act act--decision" id="acte-6" aria-labelledby="h-decision">
-      <div class="decision-orbit" id="decision-orbit"></div>
-      <div class="decision-copy">
-        <p class="eyebrow eyebrow--inv"><span class="num">06</span> Décider</p>
-        <h2 id="h-decision" class="display display--inv">Les règles se votent.<br />Elles ne se devinent pas.</h2>
-        <p class="body body--inv">Montant, fréquence, ordre des tours : chaque changement est proposé, voté selon le quorum du groupe, puis versionné. Une règle ne s’applique jamais en arrière.</p>
-        <button type="button" class="btn btn--inv" id="gather" aria-pressed="false">Voir le groupe se réunir</button>
+        <div class="cycle-visual reveal">
+          <div class="cycle-orbit" id="cycle-orbit"></div>
+          <figure class="photo-card photo-card--float">
+            <img src="/brand/photos/tour-beneficiaire.webp" alt="Une aînée remet une enveloppe à une jeune femme devant le groupe" width="666" height="298" loading="lazy" />
+            <figcaption>Le jour de son tour, la remise se fait comme avant. KÓMBE en garde la trace.</figcaption>
+          </figure>
+        </div>
       </div>
     </section>
 
-    <!-- ACTE 07 — KÓMBE -->
-    <section class="act act--end" id="acte-7" aria-labelledby="h-end">
-      <div class="end-mark" aria-hidden="true">
-        <svg viewBox="0 0 100 100"><circle class="end-ring" cx="50" cy="50" r="34" fill="none" stroke="#2A8A68" stroke-width="10"/><path class="end-arc" d="M16 50A34 34 0 0 1 50 16" fill="none" stroke="#C7922E" stroke-width="10"/><g stroke="#082C26" stroke-width="4"><circle cx="50" cy="16" r="11" fill="#F3ECDD"/><circle cx="16" cy="50" r="11" fill="#C7922E"/><circle cx="84" cy="50" r="11" fill="#FBF8F1"/><circle cx="50" cy="84" r="11" fill="#F3ECDD"/></g></svg>
+    <!-- 05 · L'APPLICATION -->
+    <section class="sec sec--night" id="app" aria-labelledby="h-app">
+      <div class="wrap">
+        <div class="center reveal">
+          <p class="eyebrow eyebrow--light"><span class="eyebrow__num">03</span>L’application</p>
+          <h2 id="h-app" class="title-lg">Toute la tontine, <em>dans la poche.</em></h2>
+          <p class="body body--light">Accueil, cycle, déclaration&nbsp;: trois écrans suffisent pour la vie ordinaire du groupe. Le reste attend qu’on en ait besoin.</p>
+        </div>
+        <div class="phones" id="phones">
+          <figure class="phone phone--l" data-depth="0.6">
+            <div class="phone__screen">
+              <div class="ui ui--home">
+                <div class="ui__hello"><span class="ui__avatar">AN</span><div><b>Bonjour Amina</b><small>Ensemble, on va plus loin.</small></div></div>
+                <div class="ui__hero"><small>Mon groupe principal</small><b>Les Étoiles de Yaoundé</b><span>12 membres · Cycle 4/12</span><strong>25 000 FCFA</strong></div>
+                <div class="ui__pair"><div><small>Prochaine cotisation</small><b>15 nov.</b><em>Dans 5 jours</em></div><div><small>Déclaré ce mois</small><b>275 000</b><i style="--p:92%"></i></div></div>
+                <div class="ui__actions"><span class="a1"></span><span class="a2"></span><span class="a3"></span><span class="a4"></span></div>
+              </div>
+            </div>
+            <figcaption>Accueil</figcaption>
+          </figure>
+          <figure class="phone phone--c" data-depth="1">
+            <div class="phone__screen">
+              <div class="ui ui--cycle">
+                <b class="ui__title">Cycle &amp; bénéficiaires</b>
+                <div class="ui__orbit" id="phone-orbit"></div>
+                <div class="ui__benef"><span class="ui__avatar ui__avatar--gold">MA</span><div><small>Bénéficiaire actuel · Tour 4</small><b>Marie Abena</b></div></div>
+                <ul class="ui__list"><li><span>1</span>Paul A.<em class="ok">Reçu</em></li><li><span>2</span>Amina T.<em class="ok">Reçu</em></li><li><span>3</span>Serge N.<em class="ok">Reçu</em></li><li class="cur"><span>4</span>Marie A.<em class="cur">En cours</em></li></ul>
+              </div>
+            </div>
+            <figcaption>Cycle</figcaption>
+          </figure>
+          <figure class="phone phone--r" data-depth="0.6">
+            <div class="phone__screen">
+              <div class="ui ui--declare">
+                <b class="ui__title">Déclarer une cotisation</b>
+                <div class="ui__steps"><span class="on">1</span><i></i><span>2</span><i></i><span>3</span></div>
+                <label>Montant versé</label><div class="ui__field">25 000 <em>FCFA</em></div>
+                <label>Mode de paiement</label>
+                <div class="ui__tiles"><span class="on">Mobile Money</span><span>Virement</span><span>Espèces</span></div>
+                <div class="ui__note">Rien n’est envoyé à cette étape. Un membre autorisé validera ensuite.</div>
+                <div class="ui__btn">Suivant →</div>
+              </div>
+            </div>
+            <figcaption>Déclaration</figcaption>
+          </figure>
+        </div>
+        <p class="note note--light center">Écrans de l’application, données d’exemple.</p>
       </div>
-      <p class="eyebrow eyebrow--inv"><span class="num">07</span> Ensemble</p>
-      <h2 id="h-end" class="display display--inv display--xl">Votre tontine reste<br />votre tontine.<span>KÓMBE la rend plus claire.</span></h2>
-      <div class="access">
-        <div><b>Sur invitation</b><p>KÓMBE accompagne des tontines fermées. Votre groupe vous invite, vous rejoignez son cercle.</p></div>
-        <div><b>Sans détenir l’argent</b><p>Les fonds circulent entre membres, comme avant. KÓMBE en garde la trace, pas la garde.</p></div>
-        <div><b>Sur un téléphone</b><p>Pensé pour les réseaux faibles : ce qui n’est pas envoyé est clairement signalé.</p></div>
+    </section>
+
+    <!-- 06 · LA PREUVE -->
+    <section class="sec" id="preuve" aria-labelledby="h-proof">
+      <div class="wrap">
+        <div class="reveal">
+          <p class="eyebrow"><span class="eyebrow__num">04</span>La preuve</p>
+          <h2 id="h-proof" class="title-lg">Un statut se lit <em>à sa forme.</em></h2>
+        </div>
+        <ul class="shapes">
+          <li class="reveal"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="44" fill="none" stroke="#E7DCC6" stroke-width="9"/><path class="draw" d="M60 16a44 44 0 1 1-38.1 66" fill="none" stroke="#C7922E" stroke-width="9" stroke-linecap="round"/></svg><b>En attente</b><span>L’arc reste ouvert tant qu’un membre autorisé n’a pas validé.</span></li>
+          <li class="reveal"><svg viewBox="0 0 120 120" aria-hidden="true"><path class="draw" d="M60 16a44 44 0 0 1 38.1 22" fill="none" stroke="#176B52" stroke-width="9" stroke-linecap="round"/><path class="draw" d="M102 66a44 44 0 0 1-37 37.7" fill="none" stroke="#176B52" stroke-width="9" stroke-linecap="round"/><path class="draw" d="M52 103.3A44 44 0 0 1 17 52" fill="none" stroke="#E7DCC6" stroke-width="9" stroke-linecap="round"/></svg><b>Validée à plusieurs</b><span>Membre, trésorier, commissaire&nbsp;: chaque segment est une confirmation.</span></li>
+          <li class="reveal"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="draw" cx="60" cy="60" r="44" fill="none" stroke="#176B52" stroke-width="9"/><path class="draw" d="M41 61l13 13 26-27" fill="none" stroke="#176B52" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg><b>Confirmée</b><span>L’anneau se ferme. L’entrée rejoint l’historique, rien ne s’efface.</span></li>
+          <li class="reveal"><svg viewBox="0 0 120 120" aria-hidden="true"><path d="M60 16a44 44 0 0 1 40.6 27" fill="none" stroke="#B42318" stroke-width="9" stroke-linecap="round"/><path d="M103 72A44 44 0 0 1 30 92" fill="none" stroke="#B42318" stroke-width="9" stroke-linecap="round"/><path d="M18 74A44 44 0 0 1 36 23" fill="none" stroke="#B42318" stroke-width="9" stroke-linecap="round" stroke-dasharray="1 16"/></svg><b>Contestée</b><span>Le chemin se rompt. Un litige s’ouvre, instruit par le groupe.</span></li>
+          <li class="reveal"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="spin" cx="60" cy="60" r="44" fill="none" stroke="#56645E" stroke-width="7" stroke-dasharray="2 12" stroke-linecap="round"/></svg><b>Sur ce téléphone</b><span>Hors connexion, un brouillon reste un brouillon. Jamais un faux «&nbsp;envoyé&nbsp;».</span></li>
+        </ul>
       </div>
-      <a class="btn btn--sand" id="app-link" hidden>Ouvrir KÓMBE</a>
+    </section>
+
+    <!-- 07 · LE BUREAU -->
+    <section class="sec sec--sand" id="bureau" aria-labelledby="h-bureau">
+      <div class="wrap split split--rev">
+        <div class="reveal">
+          <p class="eyebrow"><span class="eyebrow__num">05</span>Le bureau</p>
+          <h2 id="h-bureau" class="title-lg">Pour le trésorier, <em>un vrai poste de travail.</em></h2>
+          <p class="body">Sur ordinateur, l’espace bureau rassemble ce qui demande une décision&nbsp;: cotisations à valider, tours, séances, votes, sanctions et exports pour l’assemblée.</p>
+          <ul class="ticks">
+            <li>Validation à plusieurs, jamais par le déclarant</li>
+            <li>Séances et appel, même sans réseau</li>
+            <li>Exports vérifiables pour l’assemblée générale</li>
+          </ul>
+          <a class="btn btn--forest" href="/bureau/">Ouvrir l’espace bureau <span class="btn__arrow" aria-hidden="true">→</span></a>
+        </div>
+        <figure class="laptop reveal" data-depth="0.4">
+          <div class="laptop__screen">
+            <div class="desk">
+              <aside class="desk__rail"><span class="desk__logo">K◯MBE</span><i class="on"></i><i></i><i></i><i></i><i></i><i></i></aside>
+              <div class="desk__main">
+                <div class="desk__head"><b>Les Étoiles de Yaoundé</b><span>Trésorier</span></div>
+                <div class="desk__row">
+                  <div class="desk__cycle"><div class="desk__orbit" id="desk-orbit"></div><div><small>Cycle en cours</small><b>Tour 4 / 12</b><em>Marie Abena reçoit le pot</em></div></div>
+                  <div class="desk__todo"><small>À traiter</small><p><span class="ring ring--pending"></span>2 cotisations à valider</p><p><span class="ring ring--gold"></span>1 vote ouvert</p><p><span class="ring ring--done"></span>Règles v3 acceptées</p></div>
+                </div>
+                <div class="desk__table"><p><b>Linda M.</b><span>15 000</span><em class="w">En attente</em></p><p><b>Joëlle B.</b><span>15 000</span><em class="w">En attente</em></p><p><b>Paul A.</b><span>25 000</span><em>Validée</em></p></div>
+              </div>
+            </div>
+          </div>
+          <div class="laptop__base" aria-hidden="true"></div>
+          <figcaption class="note">Espace bureau, données d’exemple.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- 08 · LA DÉCISION -->
+    <section class="decision" id="decision" aria-labelledby="h-decision">
+      <div class="decision__photo" aria-hidden="true"></div>
+      <div class="wrap split">
+        <div class="decision__orbit" id="decision-orbit"></div>
+        <div class="reveal">
+          <p class="eyebrow eyebrow--light"><span class="eyebrow__num">06</span>Décider</p>
+          <h2 id="h-decision" class="title-lg title--light">Les règles se votent. <em>Elles ne se devinent pas.</em></h2>
+          <p class="body body--light">Montant, fréquence, ordre des tours&nbsp;: chaque changement est proposé, voté selon le quorum du groupe, puis versionné. Une règle ne s’applique jamais en arrière.</p>
+          <button type="button" class="btn btn--sand" id="gather" aria-pressed="false">Voir le groupe voter</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 · POUR QUI -->
+    <section class="sec" id="pour-qui" aria-labelledby="h-who">
+      <div class="wrap">
+        <div class="reveal">
+          <p class="eyebrow"><span class="eyebrow__num">07</span>Pour qui</p>
+          <h2 id="h-who" class="title-lg">Des groupes qui se font confiance, <em>et veulent le rester.</em></h2>
+        </div>
+        <div class="cards">
+          <article class="pcard reveal"><img src="/brand/photos/cercle-vue-dessus.webp" alt="Un groupe assis en cercle autour d’une table, vu du dessus" width="411" height="407" loading="lazy" /><div><h3>Tontines familiales</h3><p>Les tours et les cotisations de la famille, visibles par chacun, sans dépendre d’un seul cahier.</p></div></article>
+          <article class="pcard reveal"><img src="/brand/photos/generations.webp" alt="Un aîné et un jeune homme regardent ensemble un téléphone" width="474" height="298" loading="lazy" /><div><h3>Njangi de quartier</h3><p>Pensé pour le téléphone, un réseau faible et plusieurs générations autour de la même table.</p></div></article>
+          <article class="pcard reveal"><img src="/brand/photos/tresoriere.webp" alt="Une trésorière vérifie un carnet et son téléphone" width="433" height="305" loading="lazy" /><div><h3>Associations</h3><p>Séances, votes, sanctions et exports pour l’assemblée&nbsp;: le bureau a ce qu’il faut pour rendre des comptes.</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 · TÉLÉCHARGER -->
+    <section class="sec sec--night" id="telecharger" aria-labelledby="h-dl">
+      <div class="wrap split">
+        <div class="reveal">
+          <p class="eyebrow eyebrow--light"><span class="eyebrow__num">08</span>Commencer</p>
+          <h2 id="h-dl" class="title-lg title--light">Sur Android, <em>ou directement dans le navigateur.</em></h2>
+          <div class="dl">
+            <a class="dl__card" href="/telecharger/"><span class="dl__icon" aria-hidden="true">↓</span><span><b>Application Android</b><small>Fichier APK, installation directe</small></span></a>
+            <a class="dl__card" href="/"><span class="dl__icon" aria-hidden="true">◯</span><span><b>Version web</b><small>Sur tout téléphone, installable depuis le navigateur</small></span></a>
+          </div>
+          <p class="note note--light">Connexion sans mot de passe&nbsp;: un code à usage unique vous est envoyé par e-mail.</p>
+        </div>
+        <figure class="dl__photo reveal"><img src="/brand/photos/mains-telephone.webp" alt="Deux mains tiennent un téléphone" width="345" height="407" loading="lazy" /></figure>
+      </div>
+    </section>
+
+    <!-- 11 · QUESTIONS -->
+    <section class="sec sec--sand" id="questions" aria-labelledby="h-faq">
+      <div class="wrap narrow">
+        <p class="eyebrow"><span class="eyebrow__num">09</span>Questions</p>
+        <h2 id="h-faq" class="title-lg">Ce qu’on nous demande <em>souvent.</em></h2>
+        <div class="faq">
+          <details><summary>KÓMBE garde-t-il l’argent du groupe&nbsp;?</summary><p>Non. Les fonds circulent entre membres comme avant (espèces, Mobile Money, virement). KÓMBE tient le registre&nbsp;: qui a déclaré, qui a validé, à qui revient le tour.</p></details>
+          <details><summary>Qui peut valider une cotisation&nbsp;?</summary><p>Un membre autorisé du groupe, jamais la personne qui l’a déclarée. Les règles du groupe fixent qui confirme et qui contrôle.</p></details>
+          <details><summary>Et si le réseau tombe pendant la séance&nbsp;?</summary><p>Les déclarations et l’appel restent sur le téléphone, clairement marqués «&nbsp;pas encore envoyé&nbsp;», puis partent au retour du réseau. Rien n’est présenté comme confirmé avant la réponse du serveur.</p></details>
+          <details><summary>Peut-on modifier une cotisation déjà validée&nbsp;?</summary><p>On ne l’efface pas&nbsp;: une correction s’ajoute à l’historique et l’original reste visible. C’est ce qui permet au groupe de se faire confiance.</p></details>
+          <details><summary>Comment rejoindre un groupe&nbsp;?</summary><p>Le bureau du groupe vous invite. Vous créez votre compte avec votre adresse e-mail et vous retrouvez le groupe dans l’application.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="final" aria-labelledby="h-final">
+      <div class="final__orbit" id="final-orbit" aria-hidden="true"></div>
+      <div class="wrap center">
+        <h2 id="h-final" class="title-xl title--light">Votre tontine reste votre tontine. <em>KÓMBE la rend plus claire.</em></h2>
+        <div class="ctas ctas--center">
+          <a class="btn btn--gold" href="/">Ouvrir KÓMBE <span class="btn__arrow" aria-hidden="true">→</span></a>
+          <a class="btn btn--line" href="/telecharger/">Télécharger pour Android</a>
+        </div>
+      </div>
     </section>
   </main>
 
   <footer class="foot">
-    <span class="lock lock--small"><img src="/brand/kombe-mark-inverse.svg" alt="" width="22" height="22" />KÓMBE</span>
-    <p>KÓMBE ne détient ni ne garantit les fonds des groupes. Aucun conseil financier.</p>
+    <div class="wrap foot__row">
+      <span class="logo logo--sm"><span aria-hidden="true">K</span><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="22" r="13" fill="none" stroke="currentColor" stroke-width="4.5"/><path d="M23.5 3.5 L30 1" stroke="#C7922E" stroke-width="4.5" stroke-linecap="round"/></svg><span aria-hidden="true">MBE</span></span>
+      <p>KÓMBE tient le registre de votre tontine et de votre association. Il ne garde pas votre argent. Aucun conseil financier.</p>
+      <nav aria-label="Liens"><a href="/">Application</a><a href="/bureau/">Espace bureau</a><a href="/telecharger/">Android</a></nav>
+    </div>
   </footer>
   <script type="module" src="/src/main.ts"></script>
 </body>

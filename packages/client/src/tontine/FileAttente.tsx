@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { envoyerEnAttente, type Session } from "./api.js";
-import { lireFile, retirerDeFile, surChangementFile, type OperationEnAttente } from "./fileAttente.js";
+import { lireFile, retirerDeFile, surChangementFile, type OperationEnAttente } from "./fileAttenteMoteur.js";
 import { useTextes } from "./textes.js";
 
 export function FileAttente({ session, enLigne }: { readonly session: Session; readonly enLigne: boolean }) {

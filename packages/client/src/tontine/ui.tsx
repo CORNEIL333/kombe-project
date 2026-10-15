@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { estSessionExpiree, messageErreur } from "./api.js";
-import { EnFileAttente, estErreurReseau } from "./fileAttente.js";
+import { EnFileAttente, estErreurReseau } from "./fileAttenteMoteur.js";
 import { useTextes } from "./textes.js";
 
 export type Etat<T> = { readonly statut: "chargement" } | { readonly statut: "ok"; readonly donnees: T } | { readonly statut: "erreur"; readonly message: string; readonly expiree: boolean };

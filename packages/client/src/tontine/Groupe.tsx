@@ -30,7 +30,7 @@ import { Discipline } from "./Discipline.js";
 import { Decisions } from "./Decisions.js";
 import { Statuts, Journal } from "./Statuts.js";
 import { Reglages } from "./Reglages.js";
-import { EnFileAttente } from "./fileAttente.js";
+import { EnFileAttente } from "./fileAttenteMoteur.js";
 
 type Onglet = "apercu" | "membres" | "seances" | "argent" | "tours" | "discipline" | "decisions" | "statuts" | "journal" | "reglages";
 const ONGLETS: { id: Onglet; cle: CleTexte }[] = [
