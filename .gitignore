@@ -121,3 +121,6 @@ harness/reports/*.html
 .scratch/
 .neon
 dist-web/
+
+# APK publiés sur /telecharger/ (construits à part, jamais commités)
+telechargements/

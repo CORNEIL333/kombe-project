@@ -16,7 +16,7 @@
 // une API hébergée ailleurs. Sortie : dist-web/. Code de sortie ≠ 0 si un
 // seul build échoue.
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -64,4 +64,35 @@ const config = {
   environment: process.env.VERCEL_ENV || process.env.KOMBE_ENVIRONMENT || "production",
 };
 writeFileSync(resolve(out, "kombe-dashboard-config.json"), JSON.stringify(config) + "\n");
+// 4) Application Android : si des APK sont posés dans telechargements/
+//    (construits par packages/mobile/scripts/build-apk.*, jamais commités),
+//    ils sont publiés sous /telecharger/ avec une page simple.
+const apkDir = resolve(root, "telechargements");
+const apks = existsSync(apkDir) ? readdirSync(apkDir).filter((f) => f.endsWith(".apk")).sort() : [];
+if (apks.length) {
+  const dl = resolve(out, "telecharger");
+  mkdirSync(dl, { recursive: true });
+  const libelle = (f) =>
+    f.includes("armv7") ? "Téléphones anciens ou d'entrée de gamme (32 bits)" : f.includes("arm64") ? "La plupart des téléphones (recommandé)" : "Tous les téléphones";
+  const lignes = apks
+    .map((f) => {
+      cpSync(resolve(apkDir, f), resolve(dl, f));
+      const mo = Math.round(statSync(resolve(apkDir, f)).size / 1e6);
+      return `<li><a href="/telecharger/${f}" download>${libelle(f)}</a><small>${f} · ${mo} Mo</small></li>`;
+    })
+    .join("\n");
+  writeFileSync(
+    resolve(dl, "index.html"),
+    `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Télécharger KÓMBE pour Android</title>
+<style>body{margin:0;font-family:system-ui,sans-serif;background:#061F1B;color:#F6F1E7;line-height:1.5}main{max-width:32rem;margin:0 auto;padding:2rem 1.25rem}
+h1{font-size:1.6rem}ul{list-style:none;padding:0}li{margin:1rem 0}a{display:block;padding:1rem 1.25rem;border-radius:999px;background:#E3B23C;color:#061F1B;font-weight:700;text-decoration:none;text-align:center}
+small{display:block;text-align:center;opacity:.7;margin-top:.35rem}ol{padding-left:1.25rem}</style></head>
+<body><main><h1>KÓMBE pour Android</h1><p>Le registre de votre tontine. KÓMBE ne garde pas votre argent.</p>
+<ul>${lignes}</ul>
+<h2>Installer</h2><ol><li>Touchez le bouton, puis ouvrez le fichier téléchargé.</li><li>Autorisez « Installer des applications inconnues » si le téléphone le demande.</li><li>Connectez-vous avec votre adresse e-mail et le code reçu.</li></ol>
+<p>« Application non compatible » ? Prenez l'autre bouton. Pas d'Android ? Utilisez <a href="/" style="display:inline;padding:0;background:none;color:#E3B23C">kombe.vercel.app</a> dans le navigateur.</p></main></body></html>\n`,
+  );
+}
+
 process.stdout.write(`dist-web prêt : / ${APPS.map((a) => a.base).join(" ")} · apiBaseUrl=${config.apiBaseUrl}\n`);
