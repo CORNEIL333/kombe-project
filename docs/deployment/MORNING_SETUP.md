@@ -14,8 +14,10 @@ s'appliquent toutes seules pendant le build de production.
 
 ## Avant de commencer (5 minutes, une seule fois)
 
-Vous avez besoin de **deux chaînes de connexion** vers la base Neon `kombe_prod`
-(console Neon → *Connect* → choisir la base `kombe_prod`, connexion **directe**,
+Vous avez besoin de **deux chaînes de connexion** vers la base de production :
+**branche `production`, base `neondb`** du projet Neon `kombe` (décision du
+15/10/2026 ; `kombe_prod` sur la branche de prévisualisation n'est plus la cible)
+(console Neon → *Connect* → branche `production`, base `neondb`, connexion **directe**,
 pas le *pooler*) :
 
 | Variable | Rôle PostgreSQL | Sert à |
@@ -26,8 +28,8 @@ pas le *pooler*) :
 Et **au moins une voie de connexion** pour les membres :
 
 - **E-mail par Neon Auth (choix du MVP, ADR-0040, aucun domaine requis)** :
-  console Neon → projet de `kombe_prod` → *Auth* → activer, puis activer le
-  plugin **Email OTP** et ajouter l'adresse Vercel du projet aux *trusted
+  console Neon → projet `kombe`, branche `production` → *Auth* (déjà actif ;
+  « Sign-up and Sign-in with Email » activé suffit pour le code e-mail) et ajouter l'adresse Vercel du projet aux *trusted
   domains*. Copier dans Vercel `NEON_AUTH_BASE_URL` (URL du service Auth) et
   `NEON_AUTH_JWKS_URL` (URL JWKS). Les codes partent de `auth@mail.myneon.app`.
 - **E-mail par Resend (après achat d'un domaine)** : `RESEND_API_KEY` (compte Resend
@@ -59,8 +61,8 @@ Sur GitHub, ouvrir la pull request de `claude/continue-previous-a102rx` vers
 
    | Nom | Valeur |
    |---|---|
-   | `KOMBE_API_DATABASE_URL` | chaîne `kombe_app` → `kombe_prod` |
-   | `KOMBE_MIGRATION_DATABASE_URL` | chaîne `neondb_owner` → `kombe_prod` |
+   | `KOMBE_API_DATABASE_URL` | chaîne `kombe_app` → `production` / `neondb` |
+   | `KOMBE_MIGRATION_DATABASE_URL` | chaîne `neondb_owner` → `production` / `neondb` |
    | `RESEND_API_KEY` | clé Resend |
    | `KOMBE_EMAIL_FROM` | `KÓMBE <onboarding@resend.dev>` (puis votre domaine) |
    | `KOMBE_SMS_PROVIDER` + identifiants | *facultatif*, voir plus haut |
@@ -68,8 +70,8 @@ Sur GitHub, ouvrir la pull request de `claude/continue-previous-a102rx` vers
 4. **Deploy**.
 
 Le build fait, dans l'ordre : compilation de l'API → assemblage du site →
-**migrations** (0026 à 0031 manquent aujourd'hui sur `kombe_prod`, qui est à
-27 jalons ; elles s'appliquent ici, une seule fois). Si une étape échoue, rien
+**migrations** (`production` / `neondb` est aujourd'hui à 21 jalons et vide ; les
+migrations manquantes jusqu'à la dernière s'appliquent ici, une seule fois). Si une étape échoue, rien
 n'est mis en ligne.
 
 ## 3. Vérifier (1 commande ou 1 clic)
@@ -88,7 +90,7 @@ KOMBE_SMOKE_BASE_URL=https://<votre-projet>.vercel.app node scripts/release-smok
    compte Resend, ou téléphone si le SMS est configuré) → saisir son nom.
 2. Donner à ce compte la fonction d'**opérateur de la plateforme** (accès à
    `/ops/`, `/direction/`, `/engineering/`). Au choix :
-   - console Neon → *SQL Editor* → base `kombe_prod` :
+   - console Neon → *SQL Editor* → branche `production`, base `neondb` :
      ```sql
      UPDATE identity_access SET is_operator = true
       WHERE identity_id = 'votre@email.cm';   -- ou '+2376XXXXXXXX'
@@ -131,5 +133,6 @@ besoin de rien : il ouvre `/bureau/` avec son propre compte.
 ## Garde-fou
 
 Les preuves de recette (`scripts/proofs-local.sh`, `packages/**/*.proof.mjs`)
-**effacent** le schéma de la base visée. Elles refusent `kombe_prod`
-(`packages/db/scripts/guard.mjs`) : ne jamais les pointer vers la production.
+**effacent** le schéma de la base visée. Elles refusent la production, reconnue
+par son endpoint Neon (`ep-ancient-glade-b148md5t`, direct ou pooler) et par le
+nom `kombe_prod` (`packages/db/scripts/guard.mjs`) : ne jamais les pointer vers la production.

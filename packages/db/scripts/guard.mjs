@@ -22,6 +22,36 @@
 
 const DEFAULT_PROD_DB_NAMES = ['kombe_prod'];
 
+// Production Neon = base « neondb » de la branche « production » (décision
+// porteur 15/10/2026). Le NOM « neondb » est aussi celui des bases jetables :
+// la production se reconnaît donc à son ENDPOINT (hôte direct ou -pooler).
+const DEFAULT_PROD_ENDPOINTS = ['ep-ancient-glade-b148md5t'];
+
+function prodEndpoints() {
+  const raw = process.env.KOMBE_PROD_ENDPOINTS;
+  if (!raw || !raw.trim()) return DEFAULT_PROD_ENDPOINTS;
+  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/** Vrai si l'hôte est un endpoint Neon de production (direct ou pooler). */
+export function isProdHost(host) {
+  const h = String(host || '').toLowerCase();
+  return prodEndpoints().some((ep) => h === ep || h.startsWith(`${ep}.`) || h.startsWith(`${ep}-pooler.`));
+}
+
+function hostFromUrl(url) {
+  try {
+    return new URL(String(url || '')).hostname;
+  } catch {
+    return '';
+  }
+}
+
+function refuse(target, reason) {
+  process.stderr.write(JSON.stringify({ target: target || 'kombe.db.guard', status: 'BLOCKED', reason, exitCode: 2 }, null, 2) + '\n');
+  process.exit(2);
+}
+
 function prodDbNames() {
   const raw = process.env.KOMBE_PROD_DATABASE_NAMES;
   if (!raw || !raw.trim()) return DEFAULT_PROD_DB_NAMES;
@@ -38,6 +68,9 @@ export function dbNameFromUrl(url) {
 
 /** Refus sur URL (contrôle de configuration, avant même de se connecter). */
 export function assertNonProdUrl(url, target) {
+  if (isProdHost(hostFromUrl(url))) {
+    refuse(target, `TEARDOWN REFUSÉ : l'hôte « ${hostFromUrl(url)} » est l'endpoint Neon de PRODUCTION (KOMBE_PROD_ENDPOINTS). Les scripts de recette font un DROP complet du schéma — JAMAIS sur production.`);
+  }
   const db = dbNameFromUrl(url);
   const blocked = prodDbNames();
   if (blocked.includes(db)) {
@@ -64,6 +97,10 @@ export function assertNonProdUrl(url, target) {
 
 /** Refus sur la base RÉELLEMENT connectée (attrape redirections/poolers). */
 export async function assertNonProdTeardown(client, target) {
+  const host = client?.connectionParameters?.host ?? client?.host ?? '';
+  if (isProdHost(host)) {
+    refuse(target, `TEARDOWN REFUSÉ : connecté à l'endpoint Neon de PRODUCTION « ${host} ». Abandon avant tout DROP.`);
+  }
   const res = await client.query('SELECT current_database() AS db');
   const db = res.rows[0].db;
   const blocked = prodDbNames();
