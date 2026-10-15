@@ -565,6 +565,7 @@ function Simulateur({ session, reglement: r }: { readonly session: Session; read
   return (
     <Carte titre={tx("cr.simulation")}>
       <Retour erreur={action.erreur} />
+      <p className="aide-champ">{tx("cr.simHypothese", { n: Math.max(2, Math.min(60, r.maxMembers)) })}</p>
       {sim ? (
         <>
           <p>{sim.summary}</p>

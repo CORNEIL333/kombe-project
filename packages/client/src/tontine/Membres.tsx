@@ -138,31 +138,53 @@ function Invitations({ ctx }: { readonly ctx: ContexteGroupe }) {
   const { etat, recharger } = useDonnees(() => tontines.invitations(ctx.session, gid), [gid]);
   const action = useAction();
   const [copie, setCopie] = useState<string | null>(null);
+  const [copieEchec, setCopieEchec] = useState(false);
+  const [uses, setUses] = useState("");
+  const [jours, setJours] = useState("");
+
+  const nUses = uses.trim() === "" ? undefined : Number(uses);
+  const nJours = jours.trim() === "" ? undefined : Number(jours);
+  const formulaireValide =
+    (nUses === undefined || (Number.isInteger(nUses) && nUses >= 1 && nUses <= 100)) &&
+    (nJours === undefined || (Number.isInteger(nJours) && nJours >= 1 && nJours <= 30));
+
+  const creer = () => {
+    if (!formulaireValide || action.enCours) return;
+    void action.lancer(() => tontines.creerInvitation(ctx.session, gid, nUses, nJours)).then(recharger);
+  };
 
   const copier = async (inv: InvitationView) => {
     try {
       await navigator.clipboard.writeText(inv.url);
       setCopie(inv.invitationId);
+      setCopieEchec(false);
     } catch {
       setCopie(null);
+      setCopieEchec(true);
     }
   };
 
   return (
-    <Carte
-      titre={tx("mb.inviter")}
-      actions={
-        <button
-          type="button"
-          className="bouton bouton-compact"
-          disabled={action.enCours}
-          onClick={() => void action.lancer(() => tontines.creerInvitation(ctx.session, gid, 30, 14)).then(recharger)}
-        >
+    <Carte titre={tx("mb.inviter")}>
+      <form
+        className="pile"
+        onSubmit={(e) => {
+          e.preventDefault();
+          creer();
+        }}
+      >
+        <Retour erreur={action.erreur} succes={action.succes} />
+        <Champ id="inv-uses" libelle={tx("mb.invUses")}>
+          <input id="inv-uses" inputMode="numeric" value={uses} placeholder="30" onChange={(e) => setUses(e.target.value)} />
+        </Champ>
+        <Champ id="inv-jours" libelle={tx("mb.invJours")} aide={tx("mb.invDefauts")}>
+          <input id="inv-jours" inputMode="numeric" value={jours} placeholder="14" onChange={(e) => setJours(e.target.value)} />
+        </Champ>
+        <button type="submit" className="bouton bouton-compact" disabled={action.enCours || !formulaireValide}>
           {tx("mb.creerLien")}
         </button>
-      }
-    >
-      <Retour erreur={action.erreur} succes={action.succes} />
+        {copieEchec ? <p className="aide-champ">{tx("mb.copieEchec")}</p> : null}
+      </form>
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (

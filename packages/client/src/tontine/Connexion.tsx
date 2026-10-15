@@ -97,7 +97,9 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
     const r = await action.lancer(() => acces.demanderCode(login.trim(), voie));
     if (r) {
       setLoginEnvoye(r.login);
-      setCodeTest(r.devCode ?? null);
+      // Double garde-fou : le serveur n'envoie devCode qu'en développement,
+      // l'UI refuse de l'afficher dans un build de production.
+      setCodeTest(import.meta.env.DEV ? (r.devCode ?? null) : null);
       setCode("");
     }
   };
