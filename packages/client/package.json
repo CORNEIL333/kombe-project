@@ -12,11 +12,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@kombe/dashboard-core": "workspace:*",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
     "@kombe/brand": "workspace:*",
-    "@kombe/domain": "workspace:*"
+    "@kombe/dashboard-core": "workspace:*",
+    "@kombe/domain": "workspace:*",
+    "@neondatabase/auth": "0.6.0-beta",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

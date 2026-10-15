@@ -2529,6 +2529,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TontineError'
+  /auth/neon-exchange:
+    post:
+      tags:
+      - tontine
+      operationId: postAuthNeonExchange
+      summary: AuthSessionResult
+      description: 'Rôle requis : public. Corps → réponse : { token } (jeton Neon Auth signé, e-mail prouvé par Neon) → AuthSessionResult. Actif seulement si NEON_AUTH_JWKS_URL et NEON_AUTH_BASE_URL sont posés (ADR-0040). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - token
+              properties:
+                token:
+                  type: string
+                  description: JWT émis par Neon Auth (auth.token())
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResult'
+        '401':
+          description: Jeton refusé (expiré, autre clé, autre émetteur, e-mail non vérifié)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
   /auth/code-verifications:
     post:
       tags:

@@ -21,6 +21,7 @@ import {
   type MeView,
   type VerificationToken,
 } from "@kombe/domain";
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { inTx, sessionIdentity, bearerOf, type Db } from "./infra.js";
 import type { CodeSender } from "./sms.js";
 
@@ -64,21 +65,71 @@ function rowToToken(row: Record<string, unknown>): VerificationToken {
   };
 }
 
+/**
+ * Neon Auth (Managed Better Auth) pour le MVP sans domaine e-mail (ADR-0040) :
+ * Neon envoie et vérifie le code e-mail, puis l'API échange le jeton Neon
+ * (JWT signé, vérifié contre le JWKS du projet) contre une session KÓMBE.
+ * Actif seulement si `NEON_AUTH_JWKS_URL` est posé ; `NEON_AUTH_BASE_URL`
+ * est l'adresse publique du service (renvoyée au client, et émetteur attendu).
+ */
+export interface NeonAuthConfig {
+  readonly baseUrl: string;
+  readonly jwks: JWTVerifyGetKey;
+}
+
+export function neonAuthFromEnv(env: NodeJS.ProcessEnv = process.env): NeonAuthConfig | null {
+  const jwksUrl = env.NEON_AUTH_JWKS_URL?.trim();
+  const baseUrl = env.NEON_AUTH_BASE_URL?.trim();
+  if (!jwksUrl || !baseUrl) return null;
+  return { baseUrl: baseUrl.replace(/\/+$/, ""), jwks: createRemoteJWKSet(new URL(jwksUrl)) };
+}
+
 export class TontineAuth {
   constructor(
     private readonly pool: pg.Pool,
     private readonly sender: CodeSender,
     private readonly emailSender: CodeSender,
     private readonly now: () => number,
+    private readonly neonAuth: NeonAuthConfig | null = null,
   ) {}
 
   /** Canaux de connexion réellement ouverts sur ce déploiement. */
-  channels(): { sms: boolean; whatsapp: boolean; email: boolean } {
+  channels(): { sms: boolean; whatsapp: boolean; email: boolean; neonAuthUrl: string | null } {
     return {
       sms: this.sender.channels.includes("sms"),
       whatsapp: this.sender.channels.includes("whatsapp"),
-      email: this.emailSender.channels.includes("email"),
+      email: this.emailSender.channels.includes("email") || this.neonAuth !== null,
+      neonAuthUrl: this.neonAuth?.baseUrl ?? null,
     };
+  }
+
+  /**
+   * Échange un jeton Neon Auth (e-mail prouvé par Neon) contre une session
+   * KÓMBE. Signature, expiration et émetteur vérifiés ; une adresse non
+   * vérifiée est refusée. Réponse uniforme en cas d'échec (401).
+   */
+  async exchangeNeonToken(input: { token: string }): Promise<AuthSessionResult> {
+    if (!this.neonAuth) throw new DomainError("EMAIL_DELIVERY_FAILED", "Connexion Neon Auth non configurée sur ce déploiement");
+    let email: string;
+    try {
+      const { payload } = await jwtVerify(input.token, this.neonAuth.jwks, { clockTolerance: 30 });
+      const iss = typeof payload.iss === "string" ? payload.iss : "";
+      if (iss && new URL(iss).origin !== new URL(this.neonAuth.baseUrl).origin) throw new Error("issuer");
+      const verified = payload.emailVerified ?? payload.email_verified;
+      if (verified === false) throw new Error("unverified");
+      if (typeof payload.email !== "string") throw new Error("email");
+      email = payload.email;
+    } catch {
+      throw new DomainError("SESSION_INVALID", "Session non délivrée");
+    }
+    const { login, kind } = canonicalLogin(email);
+    if (kind !== "email") throw new DomainError("SESSION_INVALID", "Session non délivrée");
+    await inTx(this.pool, async (db) => {
+      await asIdentity(db, login);
+      await db.query(`INSERT INTO identity (identity_id) VALUES ($1) ON CONFLICT DO NOTHING`, [login]);
+      await db.query(`INSERT INTO identity_access (identity_id) VALUES ($1) ON CONFLICT DO NOTHING`, [login]);
+    });
+    return this.openSession(login);
   }
 
   async requestCode(input: { login: string; channel?: "sms" | "whatsapp" | "email" | undefined }): Promise<AuthCodeRequestResult> {
@@ -176,7 +227,11 @@ export class TontineAuth {
       return { kind: out.kind };
     });
     if (outcome.kind !== "verified") throw tokenVerificationError(outcome.kind === "mismatch" ? "mismatch" : outcome.kind);
-    // Phase 2 : compte activé (canal prouvé) et vraie session serveur.
+    return this.openSession(login);
+  }
+
+  /** Phase 2 : compte activé (canal prouvé) et vraie session serveur. */
+  private async openSession(login: string): Promise<AuthSessionResult> {
     return inTx(this.pool, async (db) => {
       await asIdentity(db, login);
       const acc = await db.query(`SELECT state, session_generation FROM identity_access WHERE identity_id = $1 FOR UPDATE`, [login]);

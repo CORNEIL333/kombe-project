@@ -33,7 +33,7 @@ const TYPES: Readonly<Record<string, string>> = {
  *  polices Google ; styles en ligne permis (attributs style de React). */
 export const WEB_CSP =
   "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-  "font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; " +
+  "font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.neon.tech https://*.neon.com; " +
   "frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
 
 /** Résout un chemin d'URL en fichier DANS `root`, ou null (hors racine, absent). */

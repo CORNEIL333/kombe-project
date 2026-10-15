@@ -235,7 +235,7 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
   );
 }
 
-/** « Mon tour » : quand je reçois, combien, et qui avance à qui (ADR-0039). */
+/** « Mon tour » : quand je reçois, combien, et qui avance à qui (ADR-0040). */
 function MonTour({ ctx }: { readonly ctx: ContexteGroupe }) {
   const { tx, xaf, date } = useTextes();
   const prevision = useDonnees(() => cycle.monTour(ctx.session, ctx.groupe.groupId), [ctx.groupe.groupId, ctx.groupe.cycle?.number]);

@@ -1,6 +1,6 @@
 /**
  * Ce que les cahiers et les autres applications de tontine ne montrent pas
- * (ADR-0039) :
+ * (ADR-0040) :
  *
  *  - Simulateur de cycle avant création : dates réelles, cagnotte, fin du
  *    cycle ; on voit exactement ce qu'on s'engage à faire.

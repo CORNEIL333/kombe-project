@@ -9,7 +9,7 @@ import { z } from "zod";
 import type { CreateTontineInput, DeclareMovementInput, PayoutInput } from "@kombe/domain";
 import { AID_EVENTS, ATTENDANCE_STATUSES, BALLOT_CHOICES, DECISION_KINDS, FINE_KINDS, GROUP_ROLES, PAYMENT_CHANNELS } from "@kombe/domain";
 import type { EmailSender } from "../email/emailSender.js";
-import { TontineAuth } from "./auth.js";
+import { TontineAuth, neonAuthFromEnv, type NeonAuthConfig } from "./auth.js";
 import { CycleService } from "./cycle.js";
 import { DecisionService } from "./decisions.js";
 import { DisciplineService } from "./discipline.js";
@@ -34,6 +34,7 @@ const channelFields = {
 
 const S = {
   codeRequest: z.object({ login: z.string().min(3).max(120), channel: z.enum(["sms", "whatsapp", "email"]).optional() }),
+  neonExchange: z.object({ token: z.string().min(20).max(8000) }),
   codeVerify: z.object({ login: z.string().min(3).max(120), code: z.string().regex(/^\d{6}$/) }),
   meUpdate: z.object({ displayName: z.string().max(80).optional(), language: z.enum(["fr", "en"]).optional() }),
   create: z.object({ name: z.string().min(1).max(120), founderDisplayName: z.string().min(1).max(80), settings: settingsSchema }),
@@ -149,11 +150,19 @@ export interface TontineRoutesOptions {
   /** Faux si la production n'a pas de clé Resend : voie e-mail fermée. */
   readonly emailAvailable?: boolean;
   readonly codeSender?: CodeSender;
+  /** Neon Auth (ADR-0040) ; `null` = désactivé ; absent = lu dans l'environnement. */
+  readonly neonAuth?: NeonAuthConfig | null;
 }
 
 export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesOptions): void {
   const { pool, now } = opts;
-  const auth = new TontineAuth(pool, opts.codeSender ?? codeSenderFromEnv(), new EmailCodeSender(opts.emailSender, opts.emailSimulated, opts.emailAvailable !== false), now);
+  const auth = new TontineAuth(
+    pool,
+    opts.codeSender ?? codeSenderFromEnv(),
+    new EmailCodeSender(opts.emailSender, opts.emailSimulated, opts.emailAvailable !== false),
+    now,
+    opts.neonAuth === undefined ? neonAuthFromEnv() : opts.neonAuth,
+  );
   const groups = new GroupService(pool, now);
   const cycle = new CycleService(pool, now);
   const meetings = new MeetingService(pool, now);
@@ -187,6 +196,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   app.get("/v1/auth/channels", async () => auth.channels());
   app.post("/v1/auth/code-requests", async (req, reply) => reply.code(202).send(await auth.requestCode(S.codeRequest.parse(req.body))));
   app.post("/v1/auth/code-verifications", async (req, reply) => reply.code(201).send(await auth.verifyCode(S.codeVerify.parse(req.body))));
+  app.post("/v1/auth/neon-exchange", async (req, reply) => reply.code(201).send(await auth.exchangeNeonToken(S.neonExchange.parse(req.body))));
   app.post("/v1/auth/logout", async (req, reply) => {
     await auth.logout(H(req));
     return reply.code(204).send();

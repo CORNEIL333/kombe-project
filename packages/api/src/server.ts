@@ -8,6 +8,7 @@
  *    stores PostgreSQL sous RLS. Une route sans implémentation PG n'existe PAS
  *    en mode réel (404 Fastify) : aucune donnée fictive n'est jamais servie.
  */
+import type { NeonAuthConfig } from "./tontine/auth.js";
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import type pg from "pg";
@@ -330,6 +331,8 @@ export interface BuildAppOptions {
   /** Envoi des codes de connexion (SMS) de l'API tontine ; par défaut lu
    *  depuis `KOMBE_SMS_PROVIDER` (simulateur interdit en production). */
   readonly codeSender?: CodeSender;
+  /** Neon Auth (ADR-0040) : configuration injectée (tests) ; sinon lue dans l'environnement. */
+  readonly neonAuth?: NeonAuthConfig | null;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -1153,6 +1156,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       emailSimulated: emailSender instanceof NullEmailSender,
       emailAvailable: !(emailSender instanceof DisabledEmailSender),
       ...(options.codeSender ? { codeSender: options.codeSender } : {}),
+      ...(options.neonAuth !== undefined ? { neonAuth: options.neonAuth } : {}),
     });
     // Console d'exploitation (opérateurs seulement, 0029_ops_console).
     registerOpsRoutes(app, { pool, now });

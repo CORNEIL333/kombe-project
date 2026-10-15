@@ -25,7 +25,12 @@ pas le *pooler*) :
 
 Et **au moins une voie de connexion** pour les membres :
 
-- **E-mail (disponible tout de suite)** : `RESEND_API_KEY` (compte Resend
+- **E-mail par Neon Auth (choix du MVP, ADR-0040, aucun domaine requis)** :
+  console Neon → projet de `kombe_prod` → *Auth* → activer, puis activer le
+  plugin **Email OTP** et ajouter l'adresse Vercel du projet aux *trusted
+  domains*. Copier dans Vercel `NEON_AUTH_BASE_URL` (URL du service Auth) et
+  `NEON_AUTH_JWKS_URL` (URL JWKS). Les codes partent de `auth@mail.myneon.app`.
+- **E-mail par Resend (après achat d'un domaine)** : `RESEND_API_KEY` (compte Resend
   existant) + `KOMBE_EMAIL_FROM`. Tant qu'aucun domaine n'est vérifié chez
   Resend, l'expéditeur `onboarding@resend.dev` ne livre **qu'à l'adresse du
   propriétaire du compte Resend** : parfait pour vos essais, insuffisant pour

@@ -539,7 +539,7 @@ function CaisseAnnexe({
   );
 }
 
-/** Simulateur (ADR-0039) : les vraies dates de chaque séance avant de créer. */
+/** Simulateur (ADR-0040) : les vraies dates de chaque séance avant de créer. */
 function Simulateur({ session, reglement: r }: { readonly session: Session; readonly reglement: TontineSettings }) {
   const { tx, date } = useTextes();
   const [sim, setSim] = useState<Simulation | null>(null);
