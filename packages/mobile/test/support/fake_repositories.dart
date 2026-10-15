@@ -11,6 +11,7 @@ import 'package:kombe_mobile/data/local/preferences_repository_impl.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:kombe_mobile/core/api/api_failure.dart';
 import 'package:kombe_mobile/core/state/operation_result.dart';
 import 'package:kombe_mobile/core/state/resource.dart';
 import 'package:kombe_mobile/domain/entities/auth.dart';
@@ -243,7 +244,7 @@ final class FakeGroupRepository implements GroupRepository {
   Future<Resource<CycleDetails>> getCycle(String groupId) async {
     await _lag();
     final GroupSummary? g = _g(groupId);
-    if (g == null) return const ResourceUnavailable<CycleDetails>();
+    if (g == null || g.cycleTotal == 0) return const ResourceUnavailable<CycleDetails>();
     final List<BeneficiaryTurn> turns = <BeneficiaryTurn>[
       for (int i = 0; i < g.cycleTotal; i++)
         BeneficiaryTurn(
@@ -294,12 +295,46 @@ final class FakeGroupRepository implements GroupRepository {
         role: GroupRole.administrator,
         memberCount: 1,
         cycleIndex: 0,
-        cycleTotal: 1,
+        cycleTotal: 0,
         contributionAmountXaf: int.tryParse(draft.contributionPerShare) ?? 0,
         nextDueAtUtc: w.nextDue,
       ),
     );
     return const OperationSuccess<String>('grp-fake-1');
+  }
+
+  @override
+  Future<OperationResult<void>> startCycle(String groupId, CycleOrderKind order) async {
+    await _lag();
+    return _planifierCycle(groupId, order);
+  }
+
+  @override
+  Future<OperationResult<void>> renewCycle(String groupId, CycleOrderKind order) async {
+    await _lag();
+    return _planifierCycle(groupId, order);
+  }
+
+  Future<OperationResult<void>> _planifierCycle(String groupId, CycleOrderKind order) async {
+    final GroupSummary? g = _g(groupId);
+    if (g == null) return const OperationFailure<void>(ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE'));
+    if (g.memberCount < 2) {
+      return const OperationFailure<void>(
+        ApiFailure(statusCode: 409, code: 'CYCLE_START_NOT_READY', message: 'Au moins deux membres actifs'),
+      );
+    }
+    final int index = w.groups.indexOf(g);
+    w.groups[index] = GroupSummary(
+      id: g.id,
+      name: g.name,
+      role: g.role,
+      memberCount: g.memberCount,
+      cycleIndex: 1,
+      cycleTotal: g.cycleIndex > 0 ? g.cycleTotal : g.memberCount,
+      contributionAmountXaf: g.contributionAmountXaf,
+      nextDueAtUtc: w.nextDue,
+    );
+    return const OperationSuccess<void>(null);
   }
 
   @override

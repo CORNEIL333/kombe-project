@@ -130,6 +130,18 @@ final class UnavailableGroupRepository implements GroupRepository {
       const OperationBlocked<String>(_reason);
 
   @override
+  Future<OperationResult<void>> startCycle(
+    String groupId,
+    CycleOrderKind order,
+  ) async => const OperationBlocked<void>(_reason);
+
+  @override
+  Future<OperationResult<void>> renewCycle(
+    String groupId,
+    CycleOrderKind order,
+  ) async => const OperationBlocked<void>(_reason);
+
+  @override
   Future<Resource<List<DiscoverableGroup>>> listDiscoverable() async =>
       const ResourceUnavailable<List<DiscoverableGroup>>();
 

@@ -132,6 +132,8 @@ void main() {
       appBar: AppBar(title: const Text('Cycle & bénéficiaires')),
       body: CycleView(
         onSeeAll: () {},
+        bureau: false,
+        onRenouveler: (_) async => null,
         cycle: CycleDetails(
           id: 'c',
           groupId: 'design-fixture',

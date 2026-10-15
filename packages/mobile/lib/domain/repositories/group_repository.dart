@@ -29,6 +29,18 @@ abstract interface class GroupRepository {
   /// ouverts, sans registre réel.
   Future<Resource<List<DiscoverableGroup>>> listDiscoverable();
 
+  /// Démarre le premier cycle (`POST /v1/tontines/:id/cycle`) : le bureau
+  /// choisit l'ordre de passage de la saison. Le tirage est vérifiable
+  /// (engagement publié, graine révélée au démarrage) ; l'ordre manuel
+  /// part par part reste dans la PWA. Conditions serveur : au moins deux
+  /// membres actifs, un trésorier désigné, statuts acceptés par tous.
+  Future<OperationResult<void>> startCycle(String groupId, CycleOrderKind order);
+
+  /// Lance la saison suivante (`POST /v1/tontines/:id/cycle-renewals`)
+  /// une fois tous les tours clos : les numéros de tour continuent (N+1…)
+  /// et un nouvel ordre peut être choisi.
+  Future<OperationResult<void>> renewCycle(String groupId, CycleOrderKind order);
+
   /// Vue consolidée « mes tontines » (C21 §2.5) : TOUTES les tontines dont
   /// l'identité de session fait partie (multi-adhésion). L'identité est
   /// résolue SERVEUR depuis la session (§14) ; aucune donnée financière.

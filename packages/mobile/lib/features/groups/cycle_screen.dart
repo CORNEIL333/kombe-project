@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_tokens.g.dart';
 import '../../core/formatters/labels.dart';
+import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/group_hero_card.dart';
 import '../../core/widgets/kombe_logo.dart';
@@ -16,7 +17,8 @@ import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
 import 'groups_view_models.dart';
 
-/// Cycle & bénéficiaires (maquette « Suivi du cycle et ordre des bénéficiaires »).
+/// Cycle & bénéficiaires : suivi des tours, lancement d'une saison
+/// (démarrage du premier cycle ou renouvellement) avec choix d'ordre.
 class CycleScreen extends StatefulWidget {
   const CycleScreen({required this.groupId, super.key});
   final String groupId;
@@ -39,6 +41,31 @@ class _CycleScreenState extends State<CycleScreen> {
     }
   }
 
+  void _recharger() {
+    final GroupRepository repo = context.read<GroupRepository>();
+    setState(() {
+      _vm?.load();
+      _group = repo.getGroup(widget.groupId);
+    });
+  }
+
+  /// Renvoie null en cas de succès, sinon le message à afficher.
+  Future<String?> _lancerCycle(CycleOrderKind order, {required bool renouvellement}) async {
+    final GroupRepository repo = context.read<GroupRepository>();
+    final OperationResult<void> r = renouvellement
+        ? await repo.renewCycle(widget.groupId, order)
+        : await repo.startCycle(widget.groupId, order);
+    switch (r) {
+      case OperationSuccess<void>():
+        _recharger();
+        return null;
+      case OperationBlocked<void>(:final reason):
+        return reason;
+      case OperationFailure<void>(:final error):
+        return error.toString();
+    }
+  }
+
   @override
   void dispose() {
     _vm?.dispose();
@@ -50,29 +77,163 @@ class _CycleScreenState extends State<CycleScreen> {
         appBar: AppBar(centerTitle: true, title: const KombeLogo(size: 38)),
         body: ListenableBuilder(
           listenable: _vm!,
-          builder: (BuildContext context, Widget? child) => ResourceView<CycleDetails>(
-            resource: _vm!.state,
-            builder: (BuildContext context, CycleDetails cycle) => FutureBuilder<Resource<GroupDetails>>(
-              future: _group,
-              builder: (BuildContext context, AsyncSnapshot<Resource<GroupDetails>> snap) => CycleView(
-                cycle: cycle,
-                group: switch (snap.data) {
-                  ResourceReady<GroupDetails>(:final GroupDetails data) => data.summary,
-                  _ => null,
-                },
-                onSeeAll: () => context.push('/app/groups/${widget.groupId}/beneficiaries'),
-              ),
-            ),
+          builder: (BuildContext context, Widget? child) => FutureBuilder<Resource<GroupDetails>>(
+            future: _group,
+            builder: (BuildContext context, AsyncSnapshot<Resource<GroupDetails>> snap) {
+              final GroupSummary? group = switch (snap.data) {
+                ResourceReady<GroupDetails>(:final GroupDetails data) => data.summary,
+                _ => null,
+              };
+              final bool bureau = group?.role == GroupRole.administrator || group?.role == GroupRole.secretary;
+              return switch (_vm!.state) {
+                ResourceLoading<CycleDetails>() => const Center(child: CircularProgressIndicator()),
+                ResourceUnavailable<CycleDetails>() => ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
+                    children: <Widget>[
+                      if (group != null) ...<Widget>[GroupHeroCard(group: group!), const SizedBox(height: 22)],
+                      _PanneauLancementCycle(
+                        bureau: bureau,
+                        onLancer: (CycleOrderKind order) => _lancerCycle(order, renouvellement: false),
+                      ),
+                    ],
+                  ),
+                ResourceFailure<CycleDetails>(:final Object error) => ErrorState(message: error.toString()),
+                ResourceReady<CycleDetails>(:final CycleDetails data) => CycleView(
+                    cycle: data,
+                    group: group,
+                    bureau: bureau,
+                    onSeeAll: () => context.push('/app/groups/${widget.groupId}/beneficiaries'),
+                    onRenouveler: (CycleOrderKind order) => _lancerCycle(order, renouvellement: true),
+                  ),
+              };
+            },
           ),
         ),
       );
 }
 
+/// « Qui reçoit en premier ? » : cartes radio d'ordre, bouton de lancement.
+/// [renouvellement] inverse le libellé (nouvelle saison) et l'appel.
+class _PanneauLancementCycle extends StatefulWidget {
+  const _PanneauLancementCycle({required this.bureau, required this.onLancer, this.renouvellement = false});
+
+  final bool bureau;
+  final bool renouvellement;
+  final Future<String?> Function(CycleOrderKind order) onLancer;
+
+  @override
+  State<_PanneauLancementCycle> createState() => _PanneauLancementCycleState();
+}
+
+class _PanneauLancementCycleState extends State<_PanneauLancementCycle> {
+  CycleOrderKind _ordre = CycleOrderKind.draw;
+  bool _occupe = false;
+  String? _erreur;
+
+  Future<void> _lancer() async {
+    setState(() {
+      _occupe = true;
+      _erreur = null;
+    });
+    final String? erreur = await widget.onLancer(_ordre);
+    if (!mounted) return;
+    if (erreur == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.renouvellement ? 'Nouveau cycle lancé — le calendrier est prêt' : 'Cycle lancé — le calendrier des tours est prêt')),
+      );
+      return;
+    }
+    setState(() {
+      _occupe = false;
+      _erreur = erreur;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme t = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(color: KombeTokens.forest50, borderRadius: BorderRadius.circular(20)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(children: <Widget>[
+                Icon(widget.renouvellement ? Icons.celebration_outlined : Icons.hourglass_top_rounded, color: KombeColors.forest, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    widget.renouvellement ? 'Saison terminée — lancez la suivante' : 'Le cycle n’est pas encore lancé',
+                    style: t.titleLarge,
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              Text(
+                widget.renouvellement
+                    ? 'Tous les tours de cette saison ont été servis. Pour la saison suivante, le bureau choisit à nouveau l’ordre de passage : les tours continuent (T13, T14…) et le calendrier est affiché à tous.'
+                    : 'Aucun tour n’est programmé : personne ne reçoit encore. Le bureau lance le cycle une fois les conditions réunies — au moins deux membres actifs, un trésorier désigné, et les statuts acceptés par tous.',
+                style: t.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+        if (widget.bureau) ...<Widget>[
+          const SizedBox(height: 16),
+          Text('Qui reçoit en premier ?', style: t.titleLarge),
+          const SizedBox(height: 4),
+          for (final CycleOrderKind kind in CycleOrderKind.values)
+            _CarteOrdre(
+              titre: kind.label,
+              sousTitre: kind.aide,
+              groupe: kind,
+              selectionne: _ordre == kind,
+              onSelectionne: _occupe ? null : () => setState(() => _ordre = kind),
+            ),
+          if (_erreur != null) ...<Widget>[
+            const SizedBox(height: 8),
+            Text(_erreur!, style: t.bodySmall?.copyWith(color: KombeColors.danger)),
+          ],
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: _occupe ? null : _lancer,
+            child: _occupe
+                ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : Text(widget.renouvellement ? 'Lancer le nouveau cycle' : 'Lancer le cycle'),
+          ),
+        ] else ...<Widget>[
+          const SizedBox(height: 12),
+          Text(
+            'Seuls le président, le vice-président ou le secrétaire général peuvent lancer le cycle.',
+            style: t.bodySmall,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class CycleView extends StatelessWidget {
-  const CycleView({required this.cycle, required this.onSeeAll, super.key, this.group});
+  const CycleView({
+    required this.cycle,
+    required this.onSeeAll,
+    required this.bureau,
+    required this.onRenouveler,
+    super.key,
+    this.group,
+  });
   final CycleDetails cycle;
   final GroupSummary? group;
+  final bool bureau;
   final VoidCallback onSeeAll;
+  final Future<String?> Function(CycleOrderKind order) onRenouveler;
+
+  bool get _saisonTerminee =>
+      cycle.beneficiaries.isNotEmpty && cycle.beneficiaries.every((BeneficiaryTurn b) => b.status == BeneficiaryStatus.received);
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +246,14 @@ class CycleView extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
       children: <Widget>[
         if (group != null) ...<Widget>[GroupHeroCard(group: group!), const SizedBox(height: 22)],
+        if (_saisonTerminee) ...<Widget>[
+          _PanneauLancementCycle(
+            bureau: bureau,
+            renouvellement: true,
+            onLancer: onRenouveler,
+          ),
+          const SizedBox(height: 24),
+        ],
         Row(
           children: <Widget>[
             Expanded(child: Text('Progression du cycle', style: t.titleLarge)),
@@ -110,6 +279,39 @@ class CycleView extends StatelessWidget {
         ),
         for (final BeneficiaryTurn item in cycle.beneficiaries.take(6)) _TurnRow(turn: item),
       ],
+    );
+  }
+}
+
+/// Carte radio d'ordre : titre + explication honnête, cible entière tactile.
+class _CarteOrdre extends StatelessWidget {
+  const _CarteOrdre({
+    required this.titre,
+    required this.sousTitre,
+    required this.groupe,
+    required this.selectionne,
+    required this.onSelectionne,
+  });
+
+  final String titre;
+  final String sousTitre;
+  final CycleOrderKind groupe;
+  final bool selectionne;
+  final VoidCallback? onSelectionne;
+
+  @override
+  Widget build(BuildContext context) {
+    return RadioListTile<CycleOrderKind>(
+      value: groupe,
+      groupValue: selectionne ? groupe : null,
+      onChanged: onSelectionne == null ? null : (CycleOrderKind? v) => onSelectionne!(),
+      title: Text(titre, style: const TextStyle(fontWeight: FontWeight.w700)),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(sousTitre),
+      ),
+      activeColor: KombeColors.forest,
+      contentPadding: EdgeInsets.zero,
     );
   }
 }

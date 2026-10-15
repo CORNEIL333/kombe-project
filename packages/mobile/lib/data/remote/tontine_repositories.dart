@@ -400,6 +400,28 @@ final class TontineGroupRepository implements GroupRepository {
         return '${created['groupId']}';
       });
 
+  @override
+  Future<OperationResult<void>> startCycle(String groupId, CycleOrderKind order) =>
+      _write<void>(() => _demarrerCycle(groupId, 'cycle', order));
+
+  @override
+  Future<OperationResult<void>> renewCycle(String groupId, CycleOrderKind order) =>
+      _write<void>(() => _demarrerCycle(groupId, 'cycle-renewals', order));
+
+  /// Tirage vérifiable : d'abord l'engagement scellé (`POST /draws`), puis
+  /// le démarrage qui révèle la graine, journalise les deux et plante le
+  /// calendrier. Le serveur reste seul autorité sur l'ordre final.
+  Future<void> _demarrerCycle(String groupId, String action, CycleOrderKind order) async {
+    final Map<String, dynamic> body = <String, dynamic>{
+      'order': switch (order) { CycleOrderKind.draw => 'draw', CycleOrderKind.joinOrder => 'join_order' },
+    };
+    if (order == CycleOrderKind.draw) {
+      final Map<String, dynamic> tirage = (await _api.postOnce('${_t(groupId)}/draws', const <String, dynamic>{})).body;
+      body['drawId'] = '${tirage['drawId']}';
+    }
+    await _api.postOnce('${_t(groupId)}/$action', body);
+  }
+
   /// Les groupes ne sont pas publiés dans un annuaire : on rejoint par invitation.
   @override
   Future<Resource<List<DiscoverableGroup>>> listDiscoverable() async => const ResourceReady<List<DiscoverableGroup>>(<DiscoverableGroup>[]);
