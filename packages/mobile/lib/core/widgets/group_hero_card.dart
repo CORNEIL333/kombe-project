@@ -33,6 +33,7 @@ class GroupHeroCard extends StatelessWidget {
             child: PhotoBackdrop(
               asset: KombePhotos.coverFor(group.id),
               alignment: const Alignment(.4, 0),
+              strength: .8,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 16, 20),
                 child: Column(

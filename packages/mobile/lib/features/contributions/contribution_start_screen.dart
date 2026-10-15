@@ -91,7 +91,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text(l10n.declareContribution, style: t.titleLarge?.copyWith(fontFamily: 'Fraunces', fontWeight: FontWeight.w600, fontSize: 22)),
+        title: Text(l10n.declareContribution, style: t.titleLarge?.copyWith(fontWeight: FontWeight.w800, fontSize: 21, letterSpacing: -.3)),
       ),
       body: SafeArea(
         child: ListView(

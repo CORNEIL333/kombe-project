@@ -90,7 +90,7 @@ class KombeChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (icon != null) ...<Widget>[Icon(icon, size: 14, color: tone == ChipTone.gold ? KombeColors.gold : fg), const SizedBox(width: 4)],
-          Text(label, style: TextStyle(color: fg, fontSize: 12.5, fontWeight: FontWeight.w700)),
+          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: fg, fontSize: 12.5, fontWeight: FontWeight.w700))),
         ],
       ),
     );

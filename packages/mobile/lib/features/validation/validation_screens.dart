@@ -11,7 +11,7 @@ import '../../core/design/kombe_colors.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
-import '../../core/widgets/african_pattern_band.dart';
+import '../../core/widgets/kombe_orbit_band.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/kombe_visuals.dart';
 import '../../core/widgets/screen_states.dart';
@@ -248,7 +248,7 @@ class _ValidationDetailScreenState extends State<ValidationDetailScreen> {
                 ],
               ),
             ),
-            const AfricanPatternBand(height: 36),
+            const KombeOrbitBand(height: 36),
           ],
         ),
       ),

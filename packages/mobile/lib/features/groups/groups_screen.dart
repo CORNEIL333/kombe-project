@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
 import '../../core/widgets/kombe_logo.dart';
+import '../../core/widgets/kombe_motion.dart';
 import '../../core/widgets/kombe_visuals.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
@@ -126,8 +127,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
               emptyTitle: l10n.emptyGroups,
               builder: (BuildContext context, List<GroupSummary> groups) => Column(
                 children: <Widget>[
-                  for (final GroupSummary group in groups) ...<Widget>[
-                    _GroupListCard(group: group),
+                  for (final (int i, GroupSummary group) in groups.indexed) ...<Widget>[
+                    KombeEntrance(index: i, child: _GroupListCard(group: group)),
                     const SizedBox(height: 12),
                   ],
                 ],

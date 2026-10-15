@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../design/kombe_colors.dart';
 import '../design/kombe_spacing.dart';
-import 'african_pattern_band.dart';
+import 'kombe_orbit_band.dart';
 
 class KombeScaffold extends StatelessWidget {
   const KombeScaffold({
@@ -39,7 +39,7 @@ class KombeScaffold extends StatelessWidget {
       body: Column(
         children: <Widget>[
           Expanded(child: content),
-          if (showPattern) const AfricanPatternBand(),
+          if (showPattern) const KombeOrbitBand(),
         ],
       ),
       bottomNavigationBar: bottomNavigationBar,

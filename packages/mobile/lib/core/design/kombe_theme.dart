@@ -2,6 +2,21 @@ import 'package:flutter/material.dart';
 
 import 'kombe_colors.dart';
 import 'kombe_spacing.dart';
+import 'kombe_tokens.g.dart';
+
+/// Phrase expressive (une seule par titre, règle de la charte) : Newsreader
+/// italique. Le reste de l'interface reste en Manrope.
+abstract final class KombeType {
+  static TextStyle accent({double size = 28, Color color = KombeColors.goldDark, double height = 1.05}) => TextStyle(
+        fontFamily: KombeTokens.fontDisplay,
+        fontStyle: FontStyle.italic,
+        fontWeight: FontWeight.w500,
+        fontSize: size,
+        height: height,
+        letterSpacing: -.2,
+        color: color,
+      );
+}
 
 abstract final class KombeTheme {
   static ThemeData light() {
@@ -20,6 +35,15 @@ abstract final class KombeTheme {
       scaffoldBackgroundColor: KombeColors.cream,
       visualDensity: VisualDensity.standard,
       splashFactory: InkSparkle.splashFactory,
+      // Identité v2 : Manrope partout (sans quoi Android retombe sur Roboto).
+      fontFamily: KombeTokens.fontUi,
+      // Mouvement de marque : les écrans glissent et se fondent (Android) ;
+      // iOS garde sa transition native. Réduit si le système coupe les animations.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
     );
 
     return base.copyWith(
@@ -99,7 +123,7 @@ abstract final class KombeTheme {
           backgroundColor: KombeColors.forest,
           foregroundColor: KombeColors.cream,
           shape: const StadiumBorder(),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          textStyle: const TextStyle(fontFamily: KombeTokens.fontUi, fontSize: 16, fontWeight: FontWeight.w800),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -108,7 +132,7 @@ abstract final class KombeTheme {
           foregroundColor: KombeColors.forest,
           side: const BorderSide(color: KombeColors.forest),
           shape: const StadiumBorder(),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontFamily: KombeTokens.fontUi, fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
@@ -117,6 +141,7 @@ abstract final class KombeTheme {
         indicatorColor: KombeColors.mint,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (Set<WidgetState> states) => TextStyle(
+            fontFamily: KombeTokens.fontUi,
             color: states.contains(WidgetState.selected)
                 ? KombeColors.forest
                 : KombeColors.slate,

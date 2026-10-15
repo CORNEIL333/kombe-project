@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
 import '../../core/state/operation_result.dart';
-import '../../core/widgets/african_pattern_band.dart';
+import '../../core/widgets/kombe_orbit_band.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/server_action_guard.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -158,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-            const AfricanPatternBand(height: 42),
+            const KombeOrbitBand(height: 42),
           ],
         ),
       ),

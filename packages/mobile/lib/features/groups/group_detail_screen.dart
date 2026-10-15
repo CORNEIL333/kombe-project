@@ -165,7 +165,7 @@ class _Header extends StatelessWidget {
                   const SizedBox(height: 14),
                   Text(
                     g.name,
-                    style: t.headlineMedium?.copyWith(color: Colors.white, fontFamily: 'Fraunces', fontWeight: FontWeight.w600),
+                    style: t.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: -.6),
                   ),
                   const SizedBox(height: 4),
                   Text('${g.memberCount} membres', style: t.bodyLarge?.copyWith(color: Colors.white.withValues(alpha: .9))),

@@ -27,7 +27,7 @@ Future<void> _loadFonts() async {
   }
 
   await family('Manrope', <String>['Manrope-400.ttf', 'Manrope-500.ttf', 'Manrope-600.ttf', 'Manrope-700.ttf', 'Manrope-800.ttf']);
-  await family('Fraunces', <String>['Fraunces-Display-500.ttf', 'Fraunces-Title-600.ttf']);
+  await family('Newsreader', <String>['Newsreader-500.ttf', 'Newsreader-Italic-500.ttf']);
   final File icons = File('${Platform.environment['FLUTTER_ROOT'] ?? ''}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
   if (icons.existsSync()) {
     final FontLoader l = FontLoader('MaterialIcons')..addFont(Future<ByteData>.value(ByteData.sublistView(Uint8List.fromList(icons.readAsBytesSync()))));
@@ -93,6 +93,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     for (final (String name, String route) in _routes) {
+      // ignore: avoid_print
+      print('tour → $name');
       GoRouter.of(tester.element(find.byType(Scaffold).first)).go(route);
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(seconds: 2));
