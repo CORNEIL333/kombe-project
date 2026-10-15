@@ -68,6 +68,8 @@ function DetailSeance({ ctx, meetingId, onChange }: { readonly ctx: ContexteGrou
     ctx.rafraichir();
   };
 
+  const lignesDecisions = decisions.split("\n").map((d) => d.trim()).filter(Boolean);
+
   return (
     <Charge etat={etat} recharger={recharger}>
       {(s) => (
@@ -149,6 +151,9 @@ function DetailSeance({ ctx, meetingId, onChange }: { readonly ctx: ContexteGrou
               <Champ id="se-dec" libelle={tx("se.decisions")}>
                 <textarea id="se-dec" rows={3} value={decisions} onChange={(e) => setDecisions(e.target.value)} />
               </Champ>
+              {lignesDecisions.length > 30 ? (
+                <p className="aide-champ" role="alert">{tx("se.decTronquees", { n: lignesDecisions.length - 30 })}</p>
+              ) : null}
               <button
                 type="button"
                 className="bouton"
@@ -156,17 +161,7 @@ function DetailSeance({ ctx, meetingId, onChange }: { readonly ctx: ContexteGrou
                 onClick={() =>
                   void action
                     .lancer(() =>
-                      seances.clore(
-                        ctx.session,
-                        gid,
-                        meetingId,
-                        notes.trim() || undefined,
-                        decisions
-                          .split("\n")
-                          .map((d) => d.trim())
-                          .filter(Boolean)
-                          .slice(0, 30),
-                      ),
+                      seances.clore(ctx.session, gid, meetingId, notes.trim() || undefined, lignesDecisions.slice(0, 30)),
                     )
                     .then(apres)
                 }
