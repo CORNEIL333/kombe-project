@@ -1,10 +1,10 @@
-# KÓMBE — exclusions upload Vercel (API serverless, §25).
+# KÓMBE — exclusions upload Vercel (projet unique : API + PWA + tableaux de
+# bord ; `apps/` est construit au build par scripts/build-web.mjs).
 node_modules
 .git
 *.log
 .env
 .env.*
-apps
 packages/*/test
 packages/*/tests
 harness
@@ -14,3 +14,5 @@ COORDINATION_MULTI_HARNESS
 # … sauf les dist indispensables au runtime de la fonction :
 !packages/api/dist
 !packages/domain/dist
+packages/mobile
+dist-web

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // KÓMBE — commande de build du projet Vercel unique (API + web).
 //
-// 1. compile le domaine et l'API (fonction serverless api/serverless.js) ;
+// 1. compile le domaine et l'API (fonction serverless api/serverless.mjs) ;
 // 2. assemble le web (PWA + 4 tableaux de bord + site) dans dist-web/ ;
 // 3. si KOMBE_MIGRATION_DATABASE_URL est posée ET qu'il s'agit du déploiement
 //    de PRODUCTION (VERCEL_ENV=production), applique les migrations manquantes
