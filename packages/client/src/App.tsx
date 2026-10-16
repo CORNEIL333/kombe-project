@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BasculeLangue, SelecteurLangue, useLangue } from "./i18n/ContexteLangue.js";
-import { LogoKombe } from "./composants/Marque.js";
+import { LogoCompose, LogoKombe } from "./composants/Marque.js";
 import { acces, memoriserSession, sessionMemorisee, type Session } from "./tontine/api.js";
 import { ConnexionTelephone } from "./tontine/Connexion.js";
 import { Accueil, Notifications } from "./tontine/Accueil.js";
@@ -120,7 +120,7 @@ export function App() {
       <header className="entete">
         <div className="entete-marque">
           <button type="button" className="lien-logo" onClick={() => aller({ ecran: "accueil" })} aria-label={tx("app.accueil")}>
-            <LogoKombe hauteur={session ? 34 : 46} signature={!session} />
+            {session ? <LogoKombe hauteur={34} /> : <LogoCompose symbole={60} mot={34.3} signature={10.6} ecart={14} />}
           </button>
         </div>
         {session ? null : (

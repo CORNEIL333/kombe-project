@@ -8,19 +8,19 @@ import { useEffect, useState, type FormEvent } from "react";
 import { acces, memoriserSession, type Session } from "./api.js";
 import { Champ, Retour, useAction } from "./ui.js";
 import { useTextes } from "./textes.js";
-import { LogoKombe } from "../composants/Marque.js";
+import { LogoCompose, SymboleKombe } from "../composants/Marque.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
 import { useLangue } from "../i18n/ContexteLangue.js";
 import type { CleI18n } from "../i18n/dictionnaires.js";
 
 /* Atouts : chacun renvoie vers la page du site qui le détaille. */
 const ATOUTS: ReadonlyArray<{ readonly icone: NomIcone; readonly titre: CleI18n; readonly texte: CleI18n; readonly lien: string }> = [
-  { icone: "bouclier", titre: "atout.verifiees.titre", texte: "atout.verifiees.texte", lien: "/site/securite/" },
-  { icone: "groupes", titre: "atout.registre.titre", texte: "atout.registre.texte", lien: "/site/#gestes" },
-  { icone: "mobile-money", titre: "atout.horsLigne.titre", texte: "atout.horsLigne.texte", lien: "/site/aide/#guides" },
+  { icone: "bouclier-plein", titre: "atout.verifiees.titre", texte: "atout.verifiees.texte", lien: "/site/securite/" },
+  { icone: "personnes", titre: "atout.registre.titre", texte: "atout.registre.texte", lien: "/site/#gestes" },
+  { icone: "appareil", titre: "atout.horsLigne.titre", texte: "atout.horsLigne.texte", lien: "/site/aide/#guides" },
   { icone: "cadenas", titre: "atout.securise.titre", texte: "atout.securise.texte", lien: "/site/securite/" },
-  { icone: "attente", titre: "atout.historique.titre", texte: "atout.historique.texte", lien: "/site/securite/" },
-  { icone: "registre", titre: "atout.trace.titre", texte: "atout.trace.texte", lien: "/site/securite/" },
+  { icone: "historique", titre: "atout.historique.titre", texte: "atout.historique.texte", lien: "/site/securite/" },
+  { icone: "equipe", titre: "atout.trace.titre", texte: "atout.trace.texte", lien: "/site/securite/" },
 ];
 
 function PanneauMarque() {
@@ -31,7 +31,9 @@ function PanneauMarque() {
       <h1 className="cx-promesse__titre">
         <span>{t("connexion.headlinePlain")}</span> <em>{t("connexion.headlineAccent")}</em>
       </h1>
-      <p className="cx-promesse__lead">{t("cx2.lead")}</p>
+      <p className="cx-promesse__lead">
+        <b>KÓMBE</b> {t("cx2.lead")}
+      </p>
     </div>
   );
 }
@@ -45,7 +47,7 @@ function Atouts() {
           <li key={a.titre} style={{ animationDelay: `${260 + i * 70}ms` }}>
             <a href={a.lien}>
               <span className="cx-atouts__icone">
-                <Icone nom={a.icone} taille={23} />
+                <Icone nom={a.icone} taille={26} />
               </span>
               <strong>{t(a.titre)}</strong>
               <span className="cx-atouts__texte">{t(a.texte)}</span>
@@ -141,15 +143,19 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
   return (
     <div className="ecran-cx">
       <div className="ecran-cx__photo" aria-hidden="true">
-        <img src="/brand/photos/connexion-portrait.webp" alt="" width="384" height="408" decoding="async" />
+        <img src="/brand/photos/connexion-scene.webp" alt="" width="537" height="650" decoding="async" />
       </div>
-      <span className="ecran-cx__arc ecran-cx__arc--g" aria-hidden="true" />
-      <span className="ecran-cx__arc ecran-cx__arc--d" aria-hidden="true" />
+      <span className="ecran-cx__arc ecran-cx__arc--g" aria-hidden="true">
+        <SymboleKombe taille={300} />
+      </span>
+      <span className="ecran-cx__arc ecran-cx__arc--d" aria-hidden="true">
+        <SymboleKombe taille={300} />
+      </span>
       <PanneauMarque />
       <Atouts />
 
       <section className="cx-carte" aria-labelledby="cx-titre">
-        <LogoKombe hauteur={58} signature className="cx-carte__logo" />
+        <LogoCompose symbole={64} mot={40} signature={12.5} ecart={17} className="cx-carte__logo" />
         <h2 id="cx-titre" className="cx-carte__titre">
           {inscription ? tx("cx.inscriptionTitre") : t("cx2.titre")}
         </h2>
@@ -201,17 +207,15 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
               {canaux.includes("email") ? (
                 <label className={parEmail ? "cx-voie is-actif" : "cx-voie"}>
                   <input type="radio" name="voie" value="email" checked={parEmail} onChange={() => setVoie("email")} />
-                  <Icone nom="contact" taille={19} />
+                  <Icone nom="courriel" taille={21} />
                   {tx("cx.parEmail")}
                 </label>
               ) : null}
-              {telephones.length ? (
-                <label className={!parEmail ? "cx-voie is-actif" : "cx-voie"}>
-                  <input type="radio" name="voie" value="telephone" checked={!parEmail} onChange={() => setVoie(telephones[0] as Voie)} />
-                  <Icone nom="mobile-money" taille={19} />
-                  {t("cx2.parTelephone")}
-                </label>
-              ) : null}
+              <label className={!parEmail ? "cx-voie is-actif" : "cx-voie"}>
+                <input type="radio" name="voie" value="telephone" checked={!parEmail} onChange={() => setVoie((telephones[0] ?? "sms") as Voie)} />
+                <Icone nom="telephone" taille={21} />
+                {t("cx2.parTelephone")}
+              </label>
             </fieldset>
             {!parEmail && telephones.length > 1 ? (
               <fieldset className="cx-sous-voies">
@@ -227,7 +231,7 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
             {parEmail ? (
               <Champ id="cx-login" libelle={tx("cx.email")} aide={tx("cx.emailAide")}>
                 <div className="cx-champ">
-                  <Icone nom="contact" taille={20} className="cx-champ__icone" />
+                  <Icone nom="courriel" taille={20} className="cx-champ__icone" />
                   <input id="cx-login" type="email" autoComplete="email" placeholder="votre@email.com" value={login} onChange={(e) => setLogin(e.target.value)} required />
                 </div>
               </Champ>
@@ -249,15 +253,16 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
                 </div>
               </Champ>
             )}
+            {!parEmail && !telephones.length ? <p className="msg msg--info">{t("cx2.telIndispo")}</p> : null}
             <Retour erreur={action.erreur} succes={action.succes} />
-            <button className="bouton cx-carte__envoyer" type="submit" disabled={action.enCours || login.trim().length < 6}>
+            <button className="bouton cx-carte__envoyer" type="submit" disabled={action.enCours || (!parEmail && !telephones.length)}>
               {action.enCours ? tx("app.envoi") : tx("cx.envoyer")}
               <Icone nom="fleche" taille={18} />
             </button>
           </form>
         )}
         <p className="cx-carte__pied">
-          <Icone nom="bouclier" taille={16} />
+          <Icone nom="bouclier-plein" taille={15} />
           {t("cx2.protege")}
         </p>
       </section>
