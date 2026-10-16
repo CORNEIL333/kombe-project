@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -54,10 +56,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   title: Text(item.title),
                   subtitle: Text(KombeLabels.documentKind(item.kind)),
                   trailing: const Icon(Icons.open_in_new),
-                  onTap: () => launchUrl(
-                    item.downloadUri,
-                    mode: LaunchMode.externalApplication,
-                  ),
+                  onTap: () {
+                    if (item.downloadUri.scheme != 'https') return;
+                    unawaited(launchUrl(
+                      item.downloadUri,
+                      mode: LaunchMode.externalApplication,
+                    ));
+                  },
                 ),
               );
             },
@@ -111,10 +116,13 @@ class _ExportCenterScreenState extends State<ExportCenterScreen> {
                   title: Text(item.title),
                   subtitle: const Text('Export produit par le serveur'),
                   trailing: const Icon(Icons.open_in_new),
-                  onTap: () => launchUrl(
-                    item.downloadUri,
-                    mode: LaunchMode.externalApplication,
-                  ),
+                  onTap: () {
+                    if (item.downloadUri.scheme != 'https') return;
+                    unawaited(launchUrl(
+                      item.downloadUri,
+                      mode: LaunchMode.externalApplication,
+                    ));
+                  },
                 ),
               );
             },
