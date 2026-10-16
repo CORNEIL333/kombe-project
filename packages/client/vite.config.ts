@@ -31,7 +31,8 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    sourcemap: true,
+    // Pas de sourcemaps publiés : le site est public, le bundle suffit aux erreurs terrain.
+    sourcemap: false,
   },
   test: {
     environment: "jsdom",

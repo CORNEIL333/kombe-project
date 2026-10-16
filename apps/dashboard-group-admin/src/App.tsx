@@ -302,7 +302,7 @@ function Membres({ api, g }: P) {
               <KeyValue label="Code" value={<span className="k-code">{i.code}</span>} />
               <KeyValue label="Valable" value={`jusqu’au ${jour(i.expiresAt)} · ${i.usedCount}/${i.maxUses}`} />
               {i.revoked ? <StatusChip status="Révoqué" tone="neutral" /> : <div className="k-toolbar">
-                <a className="k-button k-button-primary" href={`https://wa.me/?text=${encodeURIComponent(i.whatsappText)}`} target="_blank" rel="noreferrer">WhatsApp</a>
+                <a className="k-button k-button-primary" href={`https://wa.me/?text=${encodeURIComponent(i.whatsappText)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
                 <button type="button" className="k-button k-button-secondary" onClick={() => void navigator.clipboard?.writeText(i.url)}>Copier le lien</button>
                 <button type="button" className="k-button k-button-secondary" onClick={() => void act(() => api.revokeInvitation(g.groupId, i.invitationId))}>Révoquer</button>
               </div>}

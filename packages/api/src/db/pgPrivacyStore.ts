@@ -24,6 +24,7 @@
  * qui relisait un point mémorisé en interne). La colonne
  * `rights_request.version` (monotone, contrat HTTP) est posée par 0020.
  */
+import { randomUUID } from "node:crypto";
 import type pg from "pg";
 import {
   DomainError,
@@ -164,7 +165,7 @@ export class PgPrivacyStore {
       `INSERT INTO processing_record (record_id, purpose, data_categories, legal_basis, recipients, country, retention_days)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [
-        `pr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        `pr_${randomUUID()}`,
         record.purpose,
         record.dataCategories,
         record.legalBasis,

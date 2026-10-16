@@ -288,3 +288,56 @@ par client, puis vérification manuelle de chaque finding (trust but verify).
 - `flutter analyze` : 0 erreur (109 infos de lint préexistantes) ; `flutter test` : **31/31** (fake aligné sur la nouvelle signature).
 - Preuve réelle `pgMetricsStore.proof.mjs` mise à jour (M-OPERATOR-ONLY étendu + en-tête) : à relancer sur la branche PREVIEW Neon au prochain passage — la lecture du `.env` est bloquée à cette session (garde-fou secrets), l'action porteur reste dans DEPLOY.md.
 - vitest client et dashboard-direction non relancés : aucun fichier TS/TSX modifié côté PWA/direction (configs JSON et `apps/dashboard-operations` seulement).
+
+## 8. Session du 2026-10-16 (nuit) — audit sécurité transverse
+
+Balayage défensif systématique : authN/authZ (codes de connexion, sessions,
+portes), injection, XSS, secrets, en-têtes de déploiement, dépendances,
+stockage client, manifeste Android. Trois inventaires (API, web, mobile) puis
+vérification manuelle de chaque finding.
+
+### 8.1 Corrigé
+
+| # | Sévérité | Trouvaille | Correctif |
+|---|----------|------------|-----------|
+| 1 | **P3→fait** | **Sourcemaps de production publiés** sur les 6 builds web (PWA, site, 4 tableaux) : le code source complet partait avec le bundle (`sourcemap:true` dur dans chaque `vite.config.ts`) | `sourcemap:false` partout — le site est public, le bundle minifié suffit aux erreurs terrain |
+| 2 | **P2→préparé** | **APK signés avec la clé debug** (`android/app/build.gradle.kts` : `signingConfig = debug`) : signature répandue et prévisible | `signingConfig release` lu depuis `android/key.properties` (déjà gitigné) avec repli debug si absent ; action porteur de création de clé documentée en DEPLOY.md **§7.12** |
+| 3 | **P3** | Android `allowBackup` non posé → défaut `true` : sauvegarde cloud du dossier app (brouillons SQLite de montants) | `android:allowBackup="false"` dans le manifeste main (le jeton était déjà hors de portée : flutter_secure_storage) |
+| 4 | **P3** | Mobile : `launchUrl(downloadUri)` sans validation de schéma — une API compromise pourrait faire ouvrir un schéma arbitraire | Garde `scheme != 'https'` avant ouverture (2 écrans documents/exports) |
+| 5 | **P3** | Liens WhatsApp `target="_blank"` avec `rel="noreferrer"` seul (PWA Membres, bureau App) | `rel="noopener noreferrer"` (2 endroits) |
+| 6 | **P3** | `pgPrivacyStore` : `record_id` = `pr_${Date.now()}_${Math.random()…}` (prévisible + collision théorique sur la PK) | `pr_${randomUUID()}` |
+
+### 8.2 Vérifié SAIN (contrôles passés)
+
+- **Codes de connexion** : 6 chiffres via `randomInt` (jamais Math.random), SHA-256 + `timingSafeEqual`, verrou après 5 essais, réponses uniformes anti-énumération, consommation unique en transaction (`domain/access.ts:44-197`).
+- **Sessions** : `randomUUID()` serveur, logout = `revoked_at` réel en base, révocation de génération après récupération de compte.
+- **devCode** : jamais renvoyé en production (double garde `sender.simulated && NODE_ENV !== "production"`, `tontine/auth.ts:261`).
+- **Injection SQL** : 100 % paramétré ; seule interpolation = noms de fonctions codés en dur.
+- **x-actor / x-server-date** : ignorés en mode réel partout (branches fictives seulement) + garde anti-fictif prod (§6).
+- **En-têtes** : HSTS 1 an, CSP stricte (`script-src 'self'`, `frame-ancestors 'none'`, `base-uri 'none'`), X-Frame-Options DENY, cache immutable assets, APK `Content-Disposition: attachment` (`vercel.json`).
+- **Dépendances** : `pnpm -r audit --prod` — 0 vulnérabilité connue.
+- **Secrets** : rien en dur dans api/src ; clés via env ; provisioning Docker local isolé (`provision/docker-init.sql`).
+- **SSRF** : sortants fixes uniquement (Resend, Africa's Talking, webhook SMS https depuis env) — aucune URL utilisateur fetchée.
+- **XSS web** : aucun `dangerouslySetInnerHTML`/`eval`/`javascript:` ; PV imprimés avec échappement `&<>` ; CSP bloque l'inline script ; aucune dépendance CDN.
+- **Stockage web** : localStorage limité à `kombe.session` (jeton), `kombe.langue`, `kombe.fileAttente` (voir 8.3) ; jeton jamais en URL ni console.
+- **Mobile** : permission INTERNET seule, pas de cleartext, pas de WebView, pas de deep link, jeton en flutter_secure_storage (jamais shared_preferences), zéro log, idempotence via `Random.secure()`.
+
+### 8.3 Documenté, NON corrigé (P2/P3 — à planifier)
+
+- **P2** — `token_hash` = SHA-256 **non salé** d'un code à 10⁶ (`domain/access.ts:49-51`) : une fuite de la table `access_token` permet un brute-force hors ligne des codes actifs. Correctif juste = HMAC avec clé serveur (env) — à faire avec la passe RLS/SECURITY DEFINER qui traitera aussi les `ses_*` en clair (§6.3), pour ne pas refaire la moitié d'un chantier.
+- **P3** — `kombe.fileAttente` (localStorage PWA) : payloads d'opérations en attente (montants, libellés) persistés sur l'appareil — fonctionnalité hors-ligne assumée, aucun vecteur XSS connu (CSP stricte), mais à purger à la déconnexion comme le fait déjà la session.
+- **P3** — `/v1/access/*` (registre/récupération/connexion) : pas de cooldown par identité (chaque demande évince le jeton précédent et repart un e-mail) — borné par 10/min/IP ; la voie tontine a déjà un cooldown 45 s.
+- **P3** — `session_id` en clair en base (at-rest), TTL session 720 h sans rotation — même chantier que `token_hash`.
+- **P3** — `/v1/health` divulgue `mode:"réel"|"fictif"` (informationnel).
+- **P3** — `window.open("","_blank")` same-origin pour l'impression des PV (sans noopener, fenêtre contrôlée par notre propre code).
+- **P3 (info)** — mobile : pas de FLAG_SECURE (captures d'écran possibles sur écrans sensibles) ; e-mail en paramètre d'URI interne go_router (jamais loggé).
+- **P2 structurel** — plateforme iOS absente (`packages/mobile/ios/` inexistant, bootstrap non exécuté) : rien à auditer, à créer si iOS est visé.
+
+### 8.4 Preuves
+
+- `pnpm --filter @kombe/api run typecheck` : exit 0 ; vitest api **245/245**.
+- `pnpm --filter @kombe/client run typecheck` : exit 0 ; vitest client **23/23**.
+- `pnpm --filter dashboard-group-admin run typecheck` : exit 0.
+- `flutter analyze` : 0 erreur ; `flutter test` : **31/31**.
+- `./gradlew help` (syntaxe Kotlin DSL du build Android) : BUILD SUCCESSFUL.
+- Gradle/signature : la construction d'un APK signé release reste une action porteur (§7.12) — key.properties et le .jks ne doivent JAMAIS être committés.
