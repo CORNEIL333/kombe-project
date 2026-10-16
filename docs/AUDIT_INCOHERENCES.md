@@ -245,3 +245,46 @@ sur un rapport non confirmé.
 - vitest : domain **428/428** (dont copie produit réparée), api **245/245**, client **23/23** (matrice PWA synchronisée).
 - Migration 0032 : déclarée dans `migrate.mjs`, jalon ops mis à jour, `down.sql` fourni, `opsMigration.test` vert.
 - Commits : 7c580ea (lot 1), 225a640 (lot 2), 0f640fb (lot 3), 5381c34 (lot 4), ce0bf20 (copie site), lot 5 = migration 0032 + le présent document.
+
+## 7. Session du 2026-10-16 (soir) — audit API ↔ communication des quatre clients
+
+Audit de la couche `/v1` et de son dialogue avec les quatre surfaces : app mobile
+Flutter, PWA membres, espace bureau (dashboard-group-admin) et les trois
+tableaux de bord ops / direction / engineering. Inventaire exhaustif des appels
+par client, puis vérification manuelle de chaque finding (trust but verify).
+
+### 7.1 Corrigé
+
+| # | Sévérité | Trouvaille | Correctif |
+|---|----------|------------|-----------|
+| 1 | **P2** | **Gating incohérent des métriques plateforme** : `GET /v1/metrics/analytics/funnel/:cohortId`, `POST /v1/metrics/cohorts` et `GET /v1/metrics/cohorts/:groupId` n'exigeaient qu'une session (`gateAuth`), alors que `economics`/`risks`/`extension-check` exigent l'opérateur (`assertRealOperator`). Un membre authentifié pouvait lire l'entonnoir de son groupe et réécrire `pilot_cohort` (member_count / rounds_completed) de son propre groupe — la RLS borne au groupe mais n'empêche pas la falsification | Portes `assertRealOperator` posées sur les trois routes (`server.ts:2795/2812/2825`) ; `POST /v1/metrics/analytics/events` reste session-only PAR DESIGN (télémétrie utilisateur authentifiée, jamais consultée) ; preuve réelle `pgMetricsStore.proof.mjs` réorganisée — M-OPERATOR-ONLY : 4×403 (funnel, cohorts, economics, risks) avec la session membre AVANT le grant, lectures opératrices ensuite |
+| 2 | **P3** | **Configs dev committées pointant le domaine périmé** `https://kombe-api.vercel.app` (ancienne architecture deux-projets, supersedée 2026-10-09) : tout `vite dev` local envoyait PWA et tableaux de bord vers une vieille API publique | Les 5 `public/kombe-dashboard-config.json` → `http://127.0.0.1:3000` (`environment:"local"`), alignés sur l'exemple engineering. La prod n'a JAMAIS été touchée : `scripts/build-web.mjs:56` supprime ces copies et `:62-66` écrit la config racine `apiBaseUrl:"/"` (chaîne vérifiée : `vercel.json` → `scripts/vercel-build.mjs` → `build-web.mjs`) |
+| 3 | **P3** | `OperationsApi` : deux méthodes mortes `perform()` et `getAccess()` (aucun usage dans `apps/dashboard-operations/src`) | Supprimées |
+| 4 | **P3** | **Mobile : motif de rejet de cotisation imposé en dur** (`tontine_repositories.dart:643`) — le trésorier ne pouvait pas expliquer son rejet alors que le serveur accepte un motif libre de 3 à 500 caractères (`tontine/routes.ts:35`) | Paramètre `reason` sur `decideValidation` (interface + implémentation réelle + indisponible + fake de test) ; champ « Motif du rejet » (500 car.) affiché dans l'écran de validation quand « Rejeter » est choisi, prérempli avec l'ancien motif par défaut |
+
+### 7.2 Vérifié SAIN (contrôles passés, faux positifs écartés)
+
+- **Config de production** : `apiBaseUrl:"/"` même origine, écrite à chaque build (`build-web.mjs`), priorité sur le fallback `VITE_KOMBE_API_BASE_URL` (`dashboard-core/runtime.ts`) ; smoke 2026-10-15 cohérent.
+- `packages/client/dist/kombe-dashboard-config.json` (localhost:5177) : artifact de build local NON committé (`git ls-files` : aucun `dist/`).
+- **Socle legacy `/v1/groups/*` : appelé par AUCUN client** (mobile, PWA, bureau, ops, direction, engineering) — les portes L-11 du §6 ne cassent aucun consommateur.
+- **Saisie des montants PWA** : champ borné à 10 chiffres = jusqu'au plafond serveur 1 000 000 000 XAF inclus ; au-delà, refus propre 400 `REQUEST_INVALID` / `MONEY_OVER_PER_AMOUNT_CEILING` (correctifs §6).
+- **Chaîne d'idempotence et de timeouts** : écritures mobile via `postOnce` (Idempotency-Key) → verrou advisory serveur (§6 lot 2) ; timeouts clients (mobile 15 s, PWA/tableaux 15-20 s) > timeouts SQL 9 s > kill plateforme : aucun chevauchement ambigu.
+- **Charge** : PWA ≈ 1 req/min au repos (poll 60 s + navigation), mobile sans poll, tableaux sans poll — très en dessous du quota 120/min/IP.
+- **CORS** : liste fermée + same-origin en prod (projet Vercel unique) → zéro requête cross-origin réelle.
+
+### 7.3 Documenté, NON corrigé (P3 — à planifier)
+
+- **Resoumission d'un brouillon de cotisation mobile = NOUVELLE Idempotency-Key à chaque essai** (`kombe_api_client.dart:88`) : un échec réseau ambigu (réponse perdue) suivi d'une resoumission peut créer un doublon de mouvement. Le correctif juste (clé générée à la création du brouillon et persistée jusqu'au succès, ou identité métier période+membre+montant) est une décision de design — à trancher avant implémentation.
+- 3 écritures mobile sans Idempotency-Key : logout, `PATCH /me`, `notifications/read` (non créatrices de ressources, doublon inoffensif).
+- Mobile : re-fetch des listes complètes après chaque écriture (N+1, acceptable à l'échelle d'un groupe < 300 membres).
+- Mobile : pas d'épinglage de certificat (TLS système) — à réévaluer si le modèle de menace évolue.
+- Passerelle engineering locale sans authentification mais liée à 127.0.0.1 uniquement, jamais exposée au build web.
+- Dettes §5.2/§6.3 inchangées (RLS, `openapi.yaml`, i18n mobile, etc.).
+
+### 7.4 Preuves
+
+- `pnpm --filter @kombe/api run typecheck` : exit 0 ; vitest api **245/245** (23 fichiers).
+- `pnpm --filter dashboard-operations run typecheck` : exit 0.
+- `flutter analyze` : 0 erreur (109 infos de lint préexistantes) ; `flutter test` : **31/31** (fake aligné sur la nouvelle signature).
+- Preuve réelle `pgMetricsStore.proof.mjs` mise à jour (M-OPERATOR-ONLY étendu + en-tête) : à relancer sur la branche PREVIEW Neon au prochain passage — la lecture du `.env` est bloquée à cette session (garde-fou secrets), l'action porteur reste dans DEPLOY.md.
+- vitest client et dashboard-direction non relancés : aucun fichier TS/TSX modifié côté PWA/direction (configs JSON et `apps/dashboard-operations` seulement).
