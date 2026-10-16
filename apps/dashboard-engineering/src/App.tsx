@@ -1,9 +1,10 @@
 import {useMemo,type ReactNode} from 'react';
-import {ActivityList,ApiClient,CapabilityNotice,DashboardBoot,DashboardShell,DataTable,JsonDisclosure,KeyValue,MetricCard,OperatorGate,PageHeader,Panel,RemoteState,StatCard,StatusChip,formatServerDate,safeText,useHashRoute,useRemote,type DashboardContext} from '@kombe/dashboard-core';
+import {ActivityList,ApiClient,CapabilityNotice,DashboardBoot,DashboardShell,DataTable,JsonDisclosure,KeyValue,OperatorGate,PageHeader,Panel,RemoteState,StatCard,StatusChip,formatServerDate,safeText,useHashRoute,useRemote,type DashboardContext} from '@kombe/dashboard-core';
 import {EngineeringApi} from './api';
+import {Integration} from './Integration';
 const messages={app:{fr:'Engineering',en:'Engineering'}} as const;
-const NAV_PROD=[{path:'/',label:'Production',icon:'◫'}] as const;
-const NAV=[{path:'/',label:'Production',icon:'◫'},{path:'/depot',label:'Dépôt (local)',icon:'⌁'},{path:'/lots',label:'Lots C00–C29',icon:'▦'},{path:'/h00',label:'G-CONSTRUCTION',icon:'◆'},{path:'/ci',label:'CI / workflows',icon:'⚙'},{path:'/migrations',label:'Migrations DB',icon:'▤'},{path:'/evidence',label:'Preuves',icon:'✓'},{path:'/repo',label:'Provenance dépôt',icon:'⌁'}] as const;
+const NAV_PROD=[{path:'/',label:'Production',icon:'◫'},{path:'/integration',label:'Intégration',icon:'⇥'}] as const;
+const NAV=[{path:'/',label:'Production',icon:'◫'},{path:'/integration',label:'Intégration',icon:'⇥'},{path:'/depot',label:'Dépôt (local)',icon:'⌁'},{path:'/lots',label:'Lots C00–C29',icon:'▦'},{path:'/h00',label:'G-CONSTRUCTION',icon:'◆'},{path:'/ci',label:'CI / workflows',icon:'⚙'},{path:'/migrations',label:'Migrations DB',icon:'▤'},{path:'/evidence',label:'Preuves',icon:'✓'},{path:'/repo',label:'Provenance dépôt',icon:'⌁'}] as const;
 function h00Tone(status:unknown):'ok'|'warn'|'danger'{return status==='PASS'?'ok':status==='BLOCKED'?'warn':'danger'}
 function RepoOverview({api}:{api:EngineeringApi}){
   const r=useRemote(s=>api.repo(s),[api]);
@@ -54,7 +55,7 @@ export interface EngineeringState{readonly postgresVersion?:string;readonly data
 export function taille(octets:number|undefined):string{if(octets===undefined)return '—';const u=['o','Ko','Mo','Go'];let v=octets,i=0;while(v>=1024&&i<u.length-1){v/=1024;i++}return `${v.toFixed(i?1:0)} ${u[i]}`}
 function Production({api}:{api:ApiClient}){
   const q=useRemote(s=>api.get<EngineeringState>('/v1/ops/engineering',undefined,s),[api],{isEmpty:()=>false});
-  return <><PageHeader title="Production" description="État réel de l’API et de la base de production, lu par l’API (opérateurs seulement)."/>
+  return <><PageHeader title="Production" description="État réel de l’API et de la base de production, lu par l’API (opérateurs seulement)." actions={<button type="button" className="k-button k-button-secondary" onClick={q.reload}>Actualiser</button>}/>
     <RemoteState state={q.state} onRetry={q.reload}>{e=>{const migs=e.migrations??[];const last=migs[migs.length-1];return <div className="k-grid">
       <div className="k-span-12"><div className="k-stats">
         <StatCard icon="▤" label="Schéma" value={e.schemaUpToDate?'À jour':'En retard'} tone={e.schemaUpToDate?'ok':'danger'} hint={e.schemaUpToDate?`${migs.length} jalons appliqués`:`attendu : ${e.expectedLatestMigration??'—'} — lancer migrate.mjs`}/>
@@ -76,7 +77,8 @@ function Console({ctx}:{ctx:DashboardContext}){
   const repo=useMemo(()=>gateway?new EngineeringApi(gateway):null,[gateway]);
   const{path,navigate}=useHashRoute();
   let page:ReactNode;
-  if(path==='/'||!repo)page=<Production api={ctx.api}/>;
+  if(path==='/integration')page=<Integration/>;
+  else if(path==='/'||!repo)page=<Production api={ctx.api}/>;
   else switch(path){case'/depot':page=<RepoOverview api={repo}/>;break;case'/lots':page=<Lots api={repo}/>;break;case'/h00':page=<H00 api={repo}/>;break;case'/ci':page=<Files api={repo} title="CI / workflows" kind="workflows"/>;break;case'/migrations':page=<Files api={repo} title="Migrations PostgreSQL" kind="migrations"/>;break;case'/evidence':page=<Files api={repo} title="Preuves Cxx" kind="evidence"/>;break;case'/repo':page=<Repo api={repo}/>;break;default:page=<Production api={ctx.api}/>;}
   const badge=<span className="k-hint">{ctx.session.phase.kind==='authenticated'?ctx.session.phase.identityId:''} <button type="button" className="k-button k-button-secondary" onClick={ctx.session.logout}>Se déconnecter</button></span>;
   return <DashboardShell product="Engineering" nav={repo?NAV:NAV_PROD} activePath={path} onNavigate={navigate} userBadge={badge} {...(ctx.config.environment?{environment:ctx.config.environment}:{})}><OperatorGate api={ctx.api}>{page}</OperatorGate>{!repo&&path!=='/'?<CapabilityNotice title="Passerelle dépôt non configurée">Les pages « dépôt » lisent le dépôt git local via apps/dashboard-engineering/gateway ; elles ne s’affichent qu’en poste de développement (engineeringGatewayBaseUrl).</CapabilityNotice>:null}</DashboardShell>;
