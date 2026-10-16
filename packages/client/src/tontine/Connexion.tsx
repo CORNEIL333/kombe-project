@@ -28,7 +28,7 @@ function PanneauMarque() {
       <img className="panneau-marque__photo" src={urlPhoto("hero-cercle")} alt="" aria-hidden="true" decoding="async" />
       <span className="panneau-marque__voile" aria-hidden="true" />
       <div className="panneau-marque__marque">
-        <LogoKombe hauteur={22} />
+        <LogoKombe hauteur={34} />
         <small>{t("marque.tagline")}</small>
       </div>
       <Orbite className="panneau-marque__orbite" total={8} courant={3} variante="marque" photo={urlPhoto("onboarding-portrait")} taille={340} />
@@ -133,7 +133,7 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
       <section className="panneau-formulaire" aria-labelledby="cx-titre">
         <div className="panneau-formulaire__interieur">
           <header className="panneau-formulaire__entete">
-            <LogoKombe hauteur={26} />
+            <LogoKombe hauteur={44} />
             <h2 id="cx-titre">
               {inscription ? tx("cx.inscriptionTitre") : (
                 <>
