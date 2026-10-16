@@ -438,7 +438,7 @@ final class FakeGovernanceRepository implements GovernanceRepository {
   }
 
   @override
-  Future<OperationResult<void>> decideValidation({required String contributionId, required int expectedVersion, required ValidationDecision decision}) async {
+  Future<OperationResult<void>> decideValidation({required String contributionId, required int expectedVersion, required ValidationDecision decision, String? reason}) async {
     await _lag(600);
     w.pending.removeWhere((ValidationItem v) => v.contributionId == contributionId);
     return const OperationSuccess<void>(null);

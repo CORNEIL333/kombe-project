@@ -4,7 +4,7 @@
  * soixante lignes, les plugins (helmet/cors/rate-limit) en ajouteraient dix
  * fois plus pour le même comportement observé.
  */
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 
 /** Liste fermée d'origines exactes (jamais « * » avec credentials). */
 function readOrigins(env: NodeJS.ProcessEnv): Set<string> {
@@ -42,6 +42,18 @@ class FixedWindow {
   }
 }
 
+/** Adresse client pour la limitation de débit. Derrière le proxy Vercel,
+ *  `request.ip` est l'adresse interne du sauteur : tous les clients se
+ *  partageraient un seul seau (429 collectifs, login verrouillable par un
+ *  tiers). On lit `x-real-ip` — posé par la plateforme, jamais transmis tel
+ *  quel par le client — et on retombe sur l'adresse socket en exécution
+ *  directe (dev, conteneur local). */
+function clientIp(request: FastifyRequest): string {
+  const real = request.headers["x-real-ip"];
+  if (typeof real === "string" && real.trim() !== "") return real.trim();
+  return request.ip;
+}
+
 export function registerHttpGuards(app: FastifyInstance, env: NodeJS.ProcessEnv = process.env): void {
   const origins = readOrigins(env);
   const globalLimit = new FixedWindow(readCap(env.KOMBE_RATE_LIMIT_GLOBAL, 120), 60_000);
@@ -71,7 +83,7 @@ export function registerHttpGuards(app: FastifyInstance, env: NodeJS.ProcessEnv 
     // routes d'accès (anti-force-brute : sessions, login, registration,
     // recovery sous /v1/access/*).
     const now = Date.now();
-    const ip = request.ip;
+    const ip = clientIp(request);
     const isAuthRoute = request.method === "POST" && /^\/v1\/(access|auth)\//.test(request.url);
     if (!globalLimit.allow(ip, now) || (isAuthRoute && !authLimit.allow(ip, now))) {
       await reply.code(429).header("retry-after", "60").send({

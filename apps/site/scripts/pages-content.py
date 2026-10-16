@@ -167,7 +167,7 @@ SECU = [
     ('Chaque groupe <em>dans son périmètre.</em>', 'Les données d’un groupe ne sont lisibles que par ses membres, selon leurs fonctions. Le cloisonnement est appliqué jusque dans la base de données, pas seulement à l’écran.'),
     ('Des numéros <em>masqués.</em>', 'Les numéros complets ne sont visibles que du bureau du groupe. Les autres membres voient un numéro masqué.'),
     ('Hors connexion, <em>en toute clarté.</em>', 'Sans réseau, vos saisies restent sur le téléphone et sont marquées «&nbsp;pas encore envoyé&nbsp;». Rien n’est affiché comme confirmé avant la réponse du serveur.'),
-    ('Chiffré <em>en transit.</em>', 'Les échanges passent par HTTPS, avec des en-têtes de sécurité stricts (HSTS, politique de contenu) qui bloquent les scripts étrangers.'),
+    ('Protégé <em>en transit.</em>', 'Les échanges passent par HTTPS, avec des en-têtes de sécurité stricts (HSTS, politique de contenu) qui bloquent les scripts étrangers.'),
     ('Procès-verbaux <em>vérifiables.</em>', 'Le procès-verbal d’une séance est généré depuis les événements enregistrés et porte une empreinte&nbsp;: il est approuvé à la séance suivante.'),
 ]
 principles = '\n'.join(f'          <div class="reveal"><b>{t}</b><p>{p}</p></div>' for t, p in SECU)
@@ -231,7 +231,7 @@ page('a-propos', 'À propos', 'KÓMBE rend les tontines, njangi et associations 
         <h2 id="h-values" class="title-lg">Ce qui guide <em>chaque décision.</em></h2>
         <div class="principles">
           <div class="reveal"><b>Le groupe <em>décide.</em></b><p>Les règles, l’ordre des tours et le bureau appartiennent au groupe. KÓMBE les applique, il ne les invente pas.</p></div>
-          <div class="reveal"><b>Pas d’argent <em>chez nous.</em></b><p>KÓMBE n’est ni une banque ni un portefeuille. Il tient le registre, sans jamais toucher aux fonds.</p></div>
+          <div class="reveal"><b>Pas d’argent <em>chez nous.</em></b><p>KÓMBE n’est ni une banque ni un établissement de paiement. Il tient le registre, sans jamais toucher aux fonds.</p></div>
           <div class="reveal"><b>Rien ne s’efface <em>en silence.</em></b><p>Une erreur se corrige par une nouvelle écriture&nbsp;; l’originale reste visible de tous.</p></div>
           <div class="reveal"><b>Pensé pour <em>le terrain.</em></b><p>Réseau irrégulier, téléphones modestes, séances en présentiel&nbsp;: l’application fonctionne hors connexion et reste légère.</p></div>
           <div class="reveal"><b>Des chiffres <em>vrais.</em></b><p>Aucun témoignage, aucun chiffre ni aucun utilisateur inventé&nbsp;: tout ce que vous voyez dans KÓMBE vient de votre groupe.</p></div>
@@ -338,7 +338,7 @@ legal('legal/confidentialite', 'Politique de confidentialité', 'Politique de <e
     ('transferts', 'Où sont-elles hébergées', '<p>Le service est hébergé par Vercel, avec des fonctions exécutées en Europe (Francfort), et la base de données par Neon. Ces prestataires peuvent être situés hors de votre pays&nbsp;; ils n’agissent que sur nos instructions.</p>'),
     ('conservation', 'Combien de temps', '<ul><li>Le registre d’un groupe est conservé tant que le groupe existe, car il fonde la confiance entre ses membres.</li><li>Votre identité peut être effacée sur demande&nbsp;: les écritures du groupe restent (pour que les comptes demeurent justes), mais ne vous désignent plus.</li><li>Les sessions expirent automatiquement&nbsp;; les codes de connexion ne sont valables que quelques minutes.</li></ul>'),
     ('droits', 'Vos droits', f'<p>Vous pouvez demander l’accès à vos données, leur rectification, leur export, l’effacement de votre identité ou vous opposer à un traitement. Une vérification d’identité proportionnée peut être demandée avant d’agir. Adressez votre demande à&nbsp;: {TODO}. Vous pouvez aussi saisir l’autorité de protection des données compétente.</p>'),
-    ('securite', 'Sécurité', '<p>Connexion par code à usage unique, échanges chiffrés (HTTPS), cloisonnement des groupes jusque dans la base de données, journal chaîné par empreintes. Le détail est sur la page <a href="/site/securite/">Sécurité et confiance</a>.</p>'),
+    ('securite', 'Sécurité', '<p>Code à usage unique pour la connexion, échanges sous HTTPS, cloisonnement des groupes jusque dans la base de données, journal chaîné par empreintes. Le détail est sur la page <a href="/site/securite/">Sécurité et confiance</a>.</p>'),
     ('modifications', 'Modifications', '<p>Cette politique peut évoluer avec le service&nbsp;; la date de mise à jour figure en tête de page.</p>'),
 ], 'tresoriere')
 

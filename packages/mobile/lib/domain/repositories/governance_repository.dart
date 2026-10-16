@@ -10,6 +10,7 @@ abstract interface class GovernanceRepository {
     required String contributionId,
     required int expectedVersion,
     required ValidationDecision decision,
+    String? reason,
   });
 
   Future<Resource<List<VoteSummary>>> listVotes();

@@ -19,8 +19,11 @@
 //                        usurpé « 2020 » est IGNORÉ), écrit en base.
 //   M-ANALYTICS-REJECT : propriété financière individuelle (montant) → 422
 //                        METRICS_CHAMPS_FINANCIER_INDIVIDUEL (domaine, avant écriture).
-//   M-FUNNEL           : GET /v1/metrics/analytics/funnel/:cohortId?groupId →
-//                        individualFinancialFields = 0 (C18-ANALYTICS), étapes relues.
+//   M-OPERATOR-ONLY    : funnel / cohorts / economics / risks avec la session
+//                        MEMBRE → 403 PRIVILEGE_NOT_GRANTED (analyse plateforme
+//                        réservée aux opérateurs, avant le grant is_operator).
+//   M-FUNNEL           : GET /v1/metrics/analytics/funnel/:cohortId?groupId (session
+//                        opératrice) → individualFinancialFields = 0 (C18-ANALYTICS).
 //   M-FUNNEL-NOGROUP   : même route SANS groupId → 422 METRICS_IDENTIFIANT_REQUIS
 //                        (le store RÉEL exige le groupe porteur ; RLS + FK NOT NULL).
 //   M-COHORT-UPSERT    : POST /v1/metrics/cohorts 10 membres / 30 tours → 3 cycles,
@@ -229,6 +232,25 @@ try {
     });
   }
 
+  // ── X-08 : analyse plateforme réservée aux opérateurs (funnel, cohorts,
+  //    economics, risks) : la session MEMBRE est refusée 403 partout ─────────
+  const funnelRefused = await inject({
+    method: "GET", url: "/v1/metrics/analytics/funnel/cM?groupId=grpM", headers: headers(sessionId),
+  });
+  const cohortRefused = await inject({
+    method: "POST", url: "/v1/metrics/cohorts", headers: headers(sessionId),
+    payload: { groupId: "grpM", memberCount: 10, roundsCompleted: 30 },
+  });
+  const econRefused = await inject({
+    method: "POST", url: "/v1/metrics/economics", headers: headers(sessionId),
+    payload: { exposedMembers: 10, paidCount: 2, promisedCount: 5, supportMinutes: 0, supportCostPerMinuteMinor: "0", infrastructureCostMinor: "0", cancellations: 0, taxesMinor: "0" },
+  });
+  const riskRefused = await inject({ method: "GET", url: "/v1/metrics/risks", headers: headers(sessionId) });
+  check("M-OPERATOR-ONLY", funnelRefused.statusCode === 403 && cohortRefused.statusCode === 403 && econRefused.statusCode === 403 && riskRefused.statusCode === 403, {
+    funnel: funnelRefused.statusCode, cohorts: cohortRefused.statusCode, economics: econRefused.statusCode, risks: riskRefused.statusCode,
+  });
+  await migrator.query(`UPDATE identity_access SET is_operator = true WHERE identity_id = 'membre_m@example.test'`);
+
   // ── M-FUNNEL : entonnoir RELU depuis la base, sans champ individuel ───────
   const funnelRes = await inject({
     method: "GET", url: "/v1/metrics/analytics/funnel/cM?groupId=grpM", headers: headers(sessionId),
@@ -283,17 +305,6 @@ try {
     notFoundRes.statusCode === 404 && notFoundRes.json().code === "RESERVATION_INCOHERENTE",
     { status: notFoundRes.statusCode, body: notFoundRes.json() },
   );
-
-  // ── X-08 : indicateurs GLOBAUX réservés aux opérateurs de la plateforme ──
-  const econRefused = await inject({
-    method: "POST", url: "/v1/metrics/economics", headers: headers(sessionId),
-    payload: { exposedMembers: 10, paidCount: 2, promisedCount: 5, supportMinutes: 0, supportCostPerMinuteMinor: "0", infrastructureCostMinor: "0", cancellations: 0, taxesMinor: "0" },
-  });
-  const riskRefused = await inject({ method: "GET", url: "/v1/metrics/risks", headers: headers(sessionId) });
-  check("M-OPERATOR-ONLY", econRefused.statusCode === 403 && riskRefused.statusCode === 403, {
-    economics: econRefused.statusCode, risks: riskRefused.statusCode,
-  });
-  await migrator.query(`UPDATE identity_access SET is_operator = true WHERE identity_id = 'membre_m@example.test'`);
 
   // ── M-ECONOMICS : calcul RÉEL (2/10 = 20 % < 25 % ⇒ G2 non atteinte) ──────
   const econRes = await inject({

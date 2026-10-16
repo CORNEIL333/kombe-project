@@ -263,6 +263,15 @@ export class MoneyService {
   async declare(headers: Record<string, unknown>, groupId: string, input: DeclareMovementInput): Promise<MovementView> {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => {
+      // Sérialise TOUTES les déclarations du groupe : le « reste à verser »
+      // (computeDues), le solde pendent d'une dette et l'unicité du paiement
+      // d'une amende sont lus puis écrits dans la même transaction — sans
+      // verrou, deux déclarations simultanées lisaient la même borne et
+      // passaient toutes deux. Verrou de transaction (libéré au
+      // COMMIT/ROLLBACK) ; volume = quelques opérations par séance, aucune
+      // contention réaliste. La constante fixe sépare l'espace des clés du
+      // verrou d'idempotence de routes.ts.
+      await db.query("SELECT pg_advisory_xact_lock(hashtext($1), 1701)", [groupId]);
       const actor = await this.actor(db, headers, groupId, nowMs);
       requireAct(actor, "movement.declare");
       const group = await loadGroup(db, groupId);

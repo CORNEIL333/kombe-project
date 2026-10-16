@@ -626,6 +626,7 @@ final class TontineGovernanceRepository implements GovernanceRepository {
     required String contributionId,
     required int expectedVersion,
     required ValidationDecision decision,
+    String? reason,
   }) async {
     if (!_known.containsKey(contributionId)) await listPendingValidations();
     final ({String groupId, bool control})? k = _known[contributionId];
@@ -640,8 +641,11 @@ final class TontineGovernanceRepository implements GovernanceRepository {
             await _api.postOnce('$base/confirmations', <String, dynamic>{'movementIds': <String>[contributionId]});
           }
         case ValidationDecision.reject:
+          final String motif = (reason ?? '').trim();
           await _api.postOnce('$base/${Uri.encodeComponent(contributionId)}/rejection', <String, dynamic>{
-            'reason': 'Paiement non retrouvé par la trésorerie (rejet depuis l’application mobile)',
+            'reason': motif.isNotEmpty
+                ? motif
+                : 'Paiement non retrouvé par la trésorerie (rejet depuis l’application mobile)',
           });
         case ValidationDecision.requestInformation:
           throw const ApiFailure(statusCode: 422, code: 'VALIDATION', message: 'Demandez la précision en séance ou par WhatsApp, puis confirmez ou rejetez.');
