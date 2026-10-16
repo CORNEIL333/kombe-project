@@ -166,3 +166,34 @@ body{font-feature-settings:"tnum" 1;-webkit-font-smoothing:antialiased}
 .k-boot--immersive .k-boot-card .k-grid .k-button{width:100%;min-height:50px}
 .k-sidebar nav button>span.k-nav-node[aria-hidden]{width:9px;height:9px;margin:0 5px;opacity:1}
 @media(max-width:760px){.k-topbar{flex-wrap:wrap;padding:10px 16px;min-height:0}.k-topbar-right{margin-left:auto}.k-topbar-right .k-hint{font-size:0;display:flex}.k-topbar-right .k-hint .k-button{font-size:14px;min-height:40px;padding:6px 14px}}
+
+
+/* ── Charte visuelle (oct. 2026) : identité claire et lumineuse ─────────
+   Logo de la charte, Fraunces pour les titres, barre latérale vert forêt de
+   la marque (et non noire), connexion et en-têtes de page clairs avec photo
+   visible ; statuts aux couleurs sémantiques de la charte. */
+.k-brand-logo{display:block;width:200px;height:52px}
+.k-brand-logo svg{width:100%;height:100%}
+.k-sidebar{background:linear-gradient(180deg,#123f34 0%,var(--k-green-900) 60%,#0c3229 100%)}
+.k-sidebar nav button.active{background:var(--k-sand-50);color:var(--k-green-900);box-shadow:inset 3px 0 0 var(--k-gold-500)}
+.k-sidebar nav button.active .k-nav-node{background:var(--k-gold-500);border-color:var(--k-gold-500)}
+.k-page-head h1,.k-panel-head h2,.k-boot-title{font-family:var(--k-font-expressive)}
+.k-boot-hero{color:var(--k-green-900);background:var(--k-sand-100)}
+.k-boot-veil{background:linear-gradient(180deg,rgba(251,248,241,.2) 0%,rgba(251,248,241,.7) 50%,rgba(251,248,241,.97) 100%)}
+.k-boot-orbits{stroke:rgba(199,146,46,.35)}
+.k-boot--immersive .k-boot-title{color:var(--k-green-900);font-weight:700;letter-spacing:-.02em}
+.k-boot-title em{font-family:var(--k-font-expressive);font-style:normal;font-weight:700;color:var(--k-green-800)}
+.k-boot-lead{color:var(--k-ink)}
+.k-eyebrow{color:var(--k-ink)}
+.k-eyebrow::before{background:var(--k-gold-500)}
+.k-boot-hero .k-brand-logo{width:230px;height:60px}
+.k-page-head{color:var(--k-green-900);background:var(--k-sand-100);box-shadow:var(--k-shadow)}
+.k-page-head__art img{opacity:1;-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.95) 70%);mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,.95) 70%)}
+.k-page-head__orbits{stroke:rgba(199,146,46,.35)}
+.k-page-head h1{color:var(--k-green-900);font-weight:700}
+.k-page-head p{color:var(--k-ink)}
+.k-page-head .k-button-secondary{color:var(--k-green-900);border-color:var(--k-green-900);background:rgba(255,255,255,.85)}
+.k-page-head .k-button-primary{background:var(--k-green-900);color:#fff}
+@media(max-width:760px){.k-page-head__art img{opacity:.3}}
+.k-button{border-radius:12px}
+.k-chip-ok{background:#e2f3ea;color:#147a54}.k-chip-warn{background:#fbeed8;color:#a15c00}.k-chip-danger{background:#fdebe7;color:#b42318}

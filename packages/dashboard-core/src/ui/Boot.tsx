@@ -59,7 +59,7 @@ function Gate(p: { readonly product: string; readonly config: RuntimeConfig; rea
             <circle cx="200" cy="200" r="196" />
             <circle className="k-boot-orbits__node" cx="200" cy="50" r="7" />
           </svg>
-          <BrandMark />
+          <BrandMark variante="couleur" />
           <div className="k-boot-hero-body">
             <p className="k-eyebrow">{p.product}</p>
             <h1 className="k-boot-title">{hero.title} <em>{hero.accent}</em></h1>

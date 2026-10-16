@@ -1,7 +1,11 @@
+import { logoSvg } from '@kombe/brand/logo';
 import type {PropsWithChildren,ReactNode} from 'react';import {useLocale} from '../i18n/locale';
 export interface NavItem{readonly path:string;readonly label:string;readonly icon?:string}
 /** Logotype « L'Orbite » : le Ó est un cercle, son accent (or) désigne la personne concernée. */
-export function BrandMark(){return <div className="k-brand"><span><strong className="k-brand-logo" role="img" aria-label="KÓMBE"><span aria-hidden="true">K</span><svg width="22" height="22" viewBox="0 0 40 40" aria-hidden="true" focusable="false"><circle cx="20" cy="22" r="13" fill="none" stroke="currentColor" strokeWidth="4.5"/><path d="M23.5 3.5 L30 1" stroke="var(--k-gold-500)" strokeWidth="4.5" strokeLinecap="round"/></svg><span aria-hidden="true">MBE</span></strong><small>Votre tontine, plus claire.</small></span></div>}
+/* Logo de la charte (anneau à 4 nœuds + nom + signature), tracé depuis la
+   géométrie partagée @kombe/brand/logo. `variante` : clair sur fond forêt
+   (barre latérale) ou couleur sur fond sable (connexion). */
+export function BrandMark(p:{variante?:'couleur'|'inverse'}={}){return <div className="k-brand"><span className="k-brand-logo" dangerouslySetInnerHTML={{__html:logoSvg({variante:p.variante??'inverse',signature:true})}}/></div>}
 export function Panel(p:PropsWithChildren<{title?:string;action?:ReactNode;className?:string}>){return <section className={`k-panel ${p.className??''}`.trim()}>{(p.title||p.action)&&<header className="k-panel-head">{p.title?<h2>{p.title}</h2>:<span/>}{p.action}</header>}{p.children}</section>}
 /* En-tête de page « scène » : bande forêt de nuit, photo d'ambiance
    décorative (choisie de façon stable d'après le titre), orbite en filigrane.
