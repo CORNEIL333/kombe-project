@@ -52,7 +52,7 @@ export function initChrome(): void {
 
 /** Révélations à l'entrée dans le viewport (une seule fois). */
 export function initReveals(reduce: boolean): void {
-  const targets = Array.prototype.slice.call(document.querySelectorAll('.reveal')) as Element[];
+  const targets = Array.prototype.slice.call(document.querySelectorAll('.reveal, .revele')) as Element[];
   if (reduce || !('IntersectionObserver' in window)) { targets.forEach((t) => t.classList.add('is-in')); return; }
   const io = new IntersectionObserver((entries) => {
     entries.forEach((e) => {

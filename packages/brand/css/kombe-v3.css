@@ -1,0 +1,132 @@
+/* KÓMBE — fondation v3 commune (site, PWA, tableaux de bord), conforme à la
+   CHARTE VISUELLE du projet (pages 01 à 04) :
+     · Couleurs — vert forêt #103C32, vert actif #176B52, vert soutien #2A8A68,
+       or chaud #C7922E, sable clair #FBF8F1, sable doux #F3ECDD, encre #13211C,
+       texte secondaire #66746E ; sémantiques succès #147A54, attention #A15C00,
+       erreur #B42318, information #1D4ED8.
+     · Règles d'usage — la couleur de marque n'est pas une couleur de statut ;
+       l'or est un accent (jamais de texte doré sur fond blanc) ; un statut =
+       couleur + icône + libellé.
+     · Typographie — Manrope (interface et produit), Fraunces (titres
+       éditoriaux uniquement), police système en repli.
+     · Mouvement — press 100, fast 150, standard 220, spatial 300, brand 420,
+       success 560 ms ; mouvement réduit : 0 à 120 ms.
+   Interfaces CLAIRES et lumineuses : fonds sable, cartes blanches, photos. */
+
+@font-face { font-family: "Manrope"; src: url("../fonts/Manrope-Variable.woff2") format("woff2"); font-weight: 200 800; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0300-0301, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Manrope"; src: url("../fonts/Manrope-Variable-ext.woff2") format("woff2"); font-weight: 200 800; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Fraunces"; src: url("../fonts/Fraunces-Variable.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Fraunces"; src: url("../fonts/Fraunces-Variable-Italic.woff2") format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
+
+:root {
+  /* Palette principale */
+  --c-foret: #103c32;
+  --c-foret-nuit: #0a2a22;
+  --c-actif: #176b52;
+  --c-soutien: #2a8a68;
+  --c-menthe: #e3f1ea;
+  --c-or: #c7922e;
+  --c-or-clair: #e6b866;
+  --c-or-pale: #f8ecd2;
+  --c-sable-clair: #fbf8f1;
+  --c-sable-doux: #f3ecdd;
+  --c-sable-trait: #e7dcc6;
+  --c-blanc: #ffffff;
+  --c-encre: #13211c;
+  --c-texte-2: #66746e;
+  --c-trait: rgba(19, 33, 28, 0.1);
+  /* Sémantiques (statut = couleur + icône + libellé) */
+  --c-succes: #147a54;
+  --c-succes-fond: #e2f3ea;
+  --c-attention: #a15c00;
+  --c-attention-fond: #fbeed8;
+  --c-erreur: #b42318;
+  --c-erreur-fond: #fdebe7;
+  --c-info: #1d4ed8;
+  --c-info-fond: #e6edfd;
+  --c-neutre: #56645e;
+  --c-neutre-fond: #eeefec;
+
+  --f-ui: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-titre: "Fraunces", Georgia, "Times New Roman", serif;
+
+  --r-s: 10px;
+  --r-m: 14px;
+  --r-l: 20px;
+  --r-xl: 28px;
+  --ombre-1: 0 1px 2px rgba(16, 60, 50, 0.06), 0 2px 8px rgba(16, 60, 50, 0.05);
+  --ombre-2: 0 12px 32px -12px rgba(16, 60, 50, 0.22), 0 2px 6px rgba(16, 60, 50, 0.05);
+  --ombre-3: 0 30px 70px -28px rgba(16, 60, 50, 0.35);
+
+  --t-press: 100ms;
+  --t-fast: 150ms;
+  --t-std: 220ms;
+  --t-spatial: 300ms;
+  --t-brand: 420ms;
+  --t-success: 560ms;
+  --e-std: cubic-bezier(0.2, 0, 0, 1);
+  --e-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --e-ressort: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-press: 0ms; --t-fast: 60ms; --t-std: 100ms; --t-spatial: 120ms; --t-brand: 120ms; --t-success: 120ms; }
+}
+
+/* ── Icônes (trait arrondi) et pastilles sable de la charte ─────────── */
+.k-icon { display: inline-block; flex: none; width: 1.25em; height: 1.25em; vertical-align: -0.22em; }
+.k-pastille { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 48px; height: 48px; border-radius: 50%; background: var(--c-sable-doux); color: var(--c-foret); }
+.k-pastille .k-icon { width: 22px; height: 22px; }
+.k-pastille--or { background: var(--c-or-pale); color: var(--c-attention); }
+.k-pastille--vert { background: var(--c-menthe); color: var(--c-actif); }
+
+/* ── Logo animé : les arcs se tracent, les nœuds (les membres) arrivent
+   avec un ressort, puis le nom et la signature (marque, 420 ms par phase). */
+.k-logo, .k-symbole { display: block; overflow: visible; }
+.k-arc { transition: stroke var(--t-std) var(--e-std); }
+.k-noeud { transform-box: fill-box; transform-origin: 50% 50%; }
+.k-anime .k-arc { stroke-dasharray: 1; stroke-dashoffset: 1; animation: k-trace var(--t-brand) var(--e-out) forwards; animation-delay: calc(var(--i) * 110ms + 260ms); }
+.k-anime .k-noeud { animation: k-pop var(--t-success) var(--e-ressort) both; animation-delay: calc(var(--i) * 90ms); }
+.k-anime .k-logo__mot { animation: k-entree var(--t-success) var(--e-out) both 760ms; }
+.k-anime .k-logo__signature { animation: k-entree var(--t-success) var(--e-out) both 900ms; }
+@keyframes k-trace { to { stroke-dashoffset: 0; } }
+@keyframes k-pop { from { transform: scale(0); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes k-entree { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+/* Attente (chargement) : les nœuds « respirent » à tour de rôle. */
+.k-attente .k-noeud { animation: k-respire 1.4s var(--e-std) infinite; animation-delay: calc(var(--i) * 175ms); }
+@keyframes k-respire { 0%, 100% { transform: none; } 35% { transform: scale(1.28); } }
+
+/* ── Orbite de données (cercle = groupe, arc = progression, nœud = membre) */
+.k-orbite { display: block; overflow: visible; }
+.k-orbite__piste { fill: none; stroke: var(--c-sable-trait); stroke-width: 2.2; }
+.k-orbite__arc { fill: none; stroke: var(--c-actif); stroke-width: 3.4; stroke-linecap: round; transition: stroke-dashoffset var(--t-success) var(--e-out); }
+.k-on { transform-box: fill-box; transform-origin: 50% 50%; transition: transform var(--t-brand) var(--e-ressort), fill var(--t-std) var(--e-std), stroke var(--t-std); stroke-width: 1.6; }
+.k-on--fait { fill: var(--c-actif); stroke: var(--c-blanc); }
+.k-on--avenir { fill: var(--c-blanc); stroke: var(--c-sable-trait); }
+.k-on--courant { fill: var(--c-or); stroke: var(--c-blanc); transform: scale(1.5); }
+.k-on--photo { transform: none; }
+.k-on--photo .k-on__halo { fill: var(--c-blanc); stroke: var(--c-sable-trait); stroke-width: 0.8; }
+.k-on--photo.k-on--fait .k-on__halo { stroke: var(--c-actif); stroke-width: 1.6; }
+.k-on--photo.k-on--courant .k-on__halo { stroke: var(--c-or); stroke-width: 2.4; }
+.k-orbite--nuit .k-orbite__piste { stroke: rgba(251, 248, 241, 0.28); }
+.k-orbite--nuit .k-orbite__arc { stroke: #6fd1a6; }
+.k-orbite--nuit .k-on--avenir { fill: var(--c-foret); stroke: rgba(251, 248, 241, 0.55); }
+.k-orbite--nuit .k-on--fait { fill: #6fd1a6; stroke: var(--c-foret); }
+.k-orbite--nuit .k-on--courant { stroke: var(--c-foret); }
+.k-orbite--trace .k-orbite__arc { animation: k-arc var(--t-success) var(--e-out) both 200ms; }
+.k-orbite--trace .k-on { animation: k-pop var(--t-brand) var(--e-ressort) both; animation-delay: calc(var(--i) * 45ms); }
+@keyframes k-arc { from { stroke-dashoffset: var(--c); } }
+
+/* ── Puces de statut (charte 04/08 : Payée / En attente / En retard / Annulée) */
+.k-statut { display: inline-flex; align-items: center; padding: 5px 11px 5px 9px; border-radius: 999px; font: 700 12.5px/1.2 var(--f-ui); white-space: nowrap; }
+.k-statut::before { content: ""; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: currentColor; }
+.k-statut--ok { background: var(--c-succes-fond); color: var(--c-succes); }
+.k-statut--attente { background: var(--c-attention-fond); color: var(--c-attention); }
+.k-statut--attente::before { background: none; box-shadow: inset 0 0 0 2px currentColor; }
+.k-statut--erreur { background: var(--c-erreur-fond); color: var(--c-erreur); }
+.k-statut--neutre { background: var(--c-neutre-fond); color: var(--c-neutre); }
+.k-statut--info { background: var(--c-info-fond); color: var(--c-info); }
+
+@media (prefers-reduced-motion: reduce) {
+  .k-anime .k-arc { stroke-dashoffset: 0; animation: none; }
+  .k-anime .k-noeud, .k-anime .k-logo__mot, .k-anime .k-logo__signature, .k-attente .k-noeud, .k-orbite--trace .k-orbite__arc, .k-orbite--trace .k-on { animation: none; }
+}

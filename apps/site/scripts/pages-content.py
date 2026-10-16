@@ -10,6 +10,22 @@ TODO = '<span class="todo">à compléter par l’éditeur</span>'
 MAJ = 'Version pilote — mise à jour le 15 octobre 2026'
 
 
+import re
+
+
+def suisse(body):
+    """Traduit le balisage des pages vers les composants de la charte v3."""
+    body = re.sub(r'<p class="eyebrow eyebrow--light"><span class="eyebrow__num">(\d+)</span>', r'<p class="sect sect--clair"><span>\1</span>', body)
+    body = re.sub(r'<p class="eyebrow"><span class="eyebrow__num">(\d+)</span>', r'<p class="sect"><span>\1</span>', body)
+    body = body.replace('class="title-lg title--light"', 'class="titre titre--clair"').replace('class="title-lg"', 'class="titre"')
+    body = body.replace('class="body body--light"', 'class="lede lede--clair"').replace('class="body"', 'class="lede"')
+    body = body.replace('btn btn--gold', 'btn btn--primaire').replace('btn btn--line', 'btn btn--secondaire')
+    body = body.replace('btn btn--forest', 'btn btn--primaire').replace('btn btn--sand', 'btn btn--secondaire')
+    body = body.replace('sec sec--sand', 'sec sec--doux').replace('sec sec--night', 'sec sec--foret')
+    body = body.replace('class="reveal"', 'class="revele"').replace(' reveal"', ' revele"')
+    return body
+
+
 def page(path, title, desc, body, photo='cercle-vue-dessus'):
     html = f'''<!doctype html>
 <html lang="fr">
@@ -23,7 +39,7 @@ def page(path, title, desc, body, photo='cercle-vue-dessus'):
 <body class="page">
   <!--@header-->
   <main id="contenu">
-{body.replace('%PHOTO%', photo)}
+{suisse(body).replace('%PHOTO%', photo)}
   </main>
   <!--@footer-->
   <script type="module" src="/src/page.ts"></script>
@@ -38,13 +54,15 @@ def page(path, title, desc, body, photo='cercle-vue-dessus'):
 
 def hero(crumbs, title, lead, extra=''):
     c = ''.join(f'<a href="{h}">{t}</a><span aria-hidden="true">/</span>' for t, h in crumbs[:-1]) + f'<span aria-current="page">{crumbs[-1][0]}</span>'
+    # Héros clair de la charte : photo en arrière-plan, voile sable à gauche,
+    # titre Fraunces, motif d'anneau pâle dans l'angle.
     return f'''    <section class="phero">
       <div class="phero__photo" aria-hidden="true"><img src="/brand/photos/%PHOTO%.webp" alt="" decoding="async" /></div>
-      <div class="phero__orbit" aria-hidden="true"></div>
+      <div class="hero__deco" aria-hidden="true"><span></span><span></span></div>
       <div class="wrap">
         <nav class="crumbs" aria-label="Fil d’Ariane">{c}</nav>
-        <h1 class="title-xl">{title}</h1>
-        <p class="lead">{lead}</p>
+        <h1 class="phero__titre">{title}</h1>
+        <p class="phero__lead">{lead}</p>
 {extra}
       </div>
     </section>'''

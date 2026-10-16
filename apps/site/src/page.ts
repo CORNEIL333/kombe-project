@@ -1,13 +1,12 @@
 /* Pages secondaires du site (aide, sécurité, à propos, télécharger, légal). */
-import '@kombe/brand/kombe.css';
+import '@kombe/brand/v3.css';
 import './site.css';
 import './pages.css';
 import { initChrome, initReveals } from './chrome';
-import { reducedMotion } from './orbit';
 
 document.documentElement.classList.add('js');
 initChrome();
-initReveals(reducedMotion());
+initReveals(typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 window.requestAnimationFrame(() => document.documentElement.classList.add('is-ready'));
 
 /* Sommaire des pages légales : met en évidence la section lue. */
