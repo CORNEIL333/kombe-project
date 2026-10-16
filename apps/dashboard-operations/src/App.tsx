@@ -23,6 +23,13 @@ const ETAT: Record<string, string> = { configuration: 'En préparation', active:
 const date = (v: string | null | undefined) => (v ? formatServerDate(v) : '—');
 const heures = (v: string | null | undefined) => (v ? Math.round((Date.now() - new Date(v).getTime()) / 3_600_000) : 0);
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const TTL_ACCES: readonly { readonly valeur: number; readonly label: string }[] = [
+  { valeur: 1800, label: '30 minutes' },
+  { valeur: 3600, label: '1 heure' },
+  { valeur: 7200, label: '2 heures' },
+  { valeur: 14400, label: '4 heures' },
+];
+const labelTtl = (v: number) => TTL_ACCES.find((t) => t.valeur === v)?.label ?? `${Math.round(v / 60)} min`;
 
 export function App() {
   return <DashboardBoot product="Opérations & Support" messages={messages}>{(ctx) => <Console ctx={ctx} />}</DashboardBoot>;
@@ -31,10 +38,12 @@ export function App() {
 function Console({ ctx }: { readonly ctx: DashboardContext }) {
   const api = useMemo(() => new OperationsApi(ctx.api), [ctx.api]);
   const { path, navigate } = useHashRoute();
+  const [jitGid, setJitGid] = useState('');
+  const demanderJit = (gid: string) => { setJitGid(gid); navigate('/support'); };
   let page: ReactNode;
   switch (path) {
-    case '/groupes': page = <Groupes api={api} />; break;
-    case '/support': page = <Support api={api} />; break;
+    case '/groupes': page = <Groupes api={api} onJit={demanderJit} />; break;
+    case '/support': page = <Support api={api} initialGid={jitGid} />; break;
     case '/sante': page = <Sante api={api} />; break;
     case '/runbooks': page = <Runbooks />; break;
     default: page = <Overview api={api} onNavigate={navigate} />;
@@ -51,7 +60,10 @@ export function alertes(o: OpsOverview): { niveau: 'danger' | 'warn'; texte: str
   const a: { niveau: 'danger' | 'warn'; texte: string }[] = [];
   if (o.outboxDead > 0) a.push({ niveau: 'danger', texte: `${o.outboxDead} notification(s) en échec définitif dans l’outbox : voir runbook S3.` });
   if (o.outboxPending > 0 && heures(o.outboxOldestPendingAt) >= 1) a.push({ niveau: 'warn', texte: `Outbox : ${o.outboxPending} en attente, la plus ancienne depuis ${heures(o.outboxOldestPendingAt)} h (worker arrêté ?).` });
-  if (o.movementsDeclaredOver72h > 0) a.push({ niveau: 'warn', texte: `${o.movementsDeclaredOver72h} déclaration(s) attendent leur confirmation depuis plus de 72 h : relancer les trésoriers concernés (page Groupes).` });
+  if (o.movementsDeclaredOver72h > 0) {
+    const age = heures(o.oldestDeclaredAt);
+    a.push({ niveau: 'warn', texte: `${o.movementsDeclaredOver72h} déclaration(s) attendent leur confirmation depuis plus de 72 h${age ? ` — la plus ancienne depuis ${age} h` : ''} : relancer les trésoriers concernés (page Groupes).` });
+  }
   if (o.payoutsAwaitingReceipt > 0) a.push({ niveau: 'warn', texte: `${o.payoutsAwaitingReceipt} remise(s) sans accusé de réception du bénéficiaire.` });
   if (o.finesContested > 0) a.push({ niveau: 'warn', texte: `${o.finesContested} amende(s) contestée(s) en attente de décision du bureau.` });
   if (o.supportRequestsPending > 0) a.push({ niveau: 'warn', texte: `${o.supportRequestsPending} demande(s) d’accès support attendent une seconde approbation.` });
@@ -96,9 +108,10 @@ function Overview({ api, onNavigate }: { readonly api: OperationsApi; readonly o
   );
 }
 
-function Groupes({ api }: { readonly api: OperationsApi }) {
+function Groupes({ api, onJit }: { readonly api: OperationsApi; readonly onJit: (gid: string) => void }) {
   const q = useRemote((s) => api.groups(s), [api]);
   const [filtre, setFiltre] = useState('');
+  const [selection, setSelection] = useState<OpsGroupRow | null>(null);
   return (
     <>
       <PageHeader title="Groupes" description="Santé de chaque groupe : adhésions, séances, confirmations en retard, dettes. Le contenu d’un groupe (noms, montants) n’est accessible qu’avec un accès support JIT approuvé." />
@@ -113,16 +126,41 @@ function Groupes({ api }: { readonly api: OperationsApi }) {
             { header: 'À confirmer', render: (g) => g.movementsDeclaredPending ? <StatusChip status={`${g.movementsDeclaredPending} · ${heures(g.oldestPendingAt)} h`} tone={heures(g.oldestPendingAt) > 72 ? 'danger' : 'warn'} /> : '0' },
             { header: 'Dettes', render: (g) => String(g.openDebts) },
             { header: 'Dernière activité', render: (g) => date(g.lastActivityAt) },
+            { header: '', render: (g) => <button type="button" className="k-button k-button-secondary" onClick={() => setSelection(g)}>Détail</button> },
           ]} />
         )}</RemoteState>
       </Panel>
+      {selection ? (
+        <Panel title={`Détail — ${selection.name ?? selection.groupId}`}>
+          <div className="k-grid">
+            <div className="k-span-6">
+              <KeyValue label="Identifiant" value={<span className="k-code">{selection.groupId}</span>} />
+              <KeyValue label="État" value={ETAT[selection.state] ?? selection.state} />
+              <KeyValue label="Créé le" value={date(selection.createdAt)} />
+              <KeyValue label="Membres" value={`${selection.membersActive} actif(s)${selection.membersPending ? `, ${selection.membersPending} en attente d’admission` : ''}`} />
+              <KeyValue label="Séances" value={`${selection.meetingsClosed} close(s) sur ${selection.meetingsTotal}`} />
+            </div>
+            <div className="k-span-6">
+              <KeyValue label="À confirmer" value={selection.movementsDeclaredPending ? `${selection.movementsDeclaredPending} depuis ${heures(selection.oldestPendingAt)} h` : 'Rien en attente'} />
+              <KeyValue label="Dettes ouvertes" value={String(selection.openDebts)} />
+              <KeyValue label="Dernière activité" value={date(selection.lastActivityAt)} />
+              <div className="k-toolbar">
+                <button type="button" className="k-button k-button-primary" onClick={() => onJit(selection.groupId)}>Demander un accès JIT</button>
+                <button type="button" className="k-button k-button-secondary" onClick={() => setSelection(null)}>Fermer</button>
+              </div>
+            </div>
+          </div>
+          <p className="k-hint">Le bouton ci-dessus préremplit une demande d’accès sur la page Support JIT : motivez-la, puis deux opérateurs distincts de vous doivent l’approuver.</p>
+        </Panel>
+      ) : null}
     </>
   );
 }
 
-function Support({ api }: { readonly api: OperationsApi }) {
+function Support({ api, initialGid = '' }: { readonly api: OperationsApi; readonly initialGid?: string }) {
   const q = useRemote((s) => api.supportQueue(s), [api]);
   const [msg, setMsg] = useState<string | null>(null);
+  const [ttl, setTtl] = useState(3600);
   const act = async (fn: () => Promise<unknown>) => { setMsg(null); try { await fn(); q.reload(); } catch (e) { setMsg(errText(e)); } };
   return (
     <>
@@ -130,6 +168,7 @@ function Support({ api }: { readonly api: OperationsApi }) {
       {msg ? <p className="k-field-error" role="alert">{msg}</p> : null}
       <div className="k-grid">
         <div className="k-span-8"><Panel title="File des demandes">
+          <div className="k-toolbar"><label>Durée accordée à l’approbation <select className="k-select-group" value={ttl} onChange={(e) => setTtl(Number(e.target.value))}>{TTL_ACCES.map((t) => <option key={t.valeur} value={t.valeur}>{t.label}</option>)}</select></label></div>
           <RemoteState state={q.state} onRetry={q.reload} emptyTitle="Aucune demande">{(rows: readonly SupportQueueRow[]) => (
             <DataTable rows={rows} rowKey={(r) => r.requestId} caption="Demandes d’accès support" columns={[
               { header: 'Demande', render: (r) => <><span className="k-code">{r.requestId}</span><br /><span className="k-hint">{r.applicantIdentityId}</span></> },
@@ -138,30 +177,34 @@ function Support({ api }: { readonly api: OperationsApi }) {
               { header: 'Approbations', render: (r) => `${r.approverCount}/${r.requiredApprovals}` },
               { header: 'État', render: (r) => <StatusChip status={{ pending_approval: 'En attente', granted: `Accordé jusqu’au ${date(r.expiresAt)}`, expired: 'Expiré', revoked: 'Révoqué' }[r.status] ?? r.status} tone={r.status === 'granted' ? 'ok' : r.status === 'pending_approval' ? 'warn' : 'neutral'} /> },
               { header: '', render: (r) => r.status === 'pending_approval'
-                ? <button type="button" className="k-button k-button-primary" onClick={() => void act(() => api.approve(r.requestId, 3600, r.version))}>Approuver (1 h)</button>
+                ? <button type="button" className="k-button k-button-primary" onClick={() => void act(() => api.approve(r.requestId, ttl, r.version))}>Approuver ({labelTtl(ttl)})</button>
                 : r.status === 'granted' ? <button type="button" className="k-button k-button-secondary" onClick={() => void act(() => api.revoke(r.requestId, r.version))}>Révoquer</button> : null },
             ]} />
           )}</RemoteState>
         </Panel></div>
-        <div className="k-span-4"><NouvelleDemande api={api} onFini={q.reload} /></div>
+        <div className="k-span-4"><NouvelleDemande key={initialGid} api={api} onFini={q.reload} initialGid={initialGid} /></div>
       </div>
     </>
   );
 }
 
-function NouvelleDemande({ api, onFini }: { readonly api: OperationsApi; readonly onFini: () => void }) {
-  const [gid, setGid] = useState('');
+function NouvelleDemande({ api, onFini, initialGid = '' }: { readonly api: OperationsApi; readonly onFini: () => void; readonly initialGid?: string }) {
+  const [gid, setGid] = useState(initialGid);
   const [motif, setMotif] = useState('');
   const [permission, setPermission] = useState('view_trace');
-  const m = useMutation(() => api.createAccess({ requestId: `sup_${Date.now().toString(36)}`, targetGroupId: gid.trim(), motif: motif.trim(), permissions: [permission], ttlSeconds: 3600 }));
+  const [ttl, setTtl] = useState(3600);
+  const m = useMutation(() => api.createAccess({ requestId: `sup_${Date.now().toString(36)}`, targetGroupId: gid.trim(), motif: motif.trim(), permissions: [permission], ttlSeconds: ttl }));
   const submit = (e: FormEvent) => { e.preventDefault(); void m.run(undefined).then(onFini, () => undefined); };
   return (
     <Panel title="Nouvelle demande">
       <form onSubmit={submit}>
-        <Field label="Identifiant du groupe" hint="Copiez-le depuis la page Groupes." inputProps={{ value: gid, onChange: (e) => setGid(e.target.value), required: true, maxLength: 120 }} />
+        <Field label="Identifiant du groupe" hint="Prérempli depuis la page Groupes, sinon copiez l’identifiant." inputProps={{ value: gid, onChange: (e) => setGid(e.target.value), required: true, maxLength: 120 }} />
         <TextAreaField label="Motif (visible des approbateurs)" textareaProps={{ value: motif, onChange: (e) => setMotif(e.target.value), required: true, maxLength: 500 }} />
         <SelectField label="Permission" selectProps={{ value: permission, onChange: (e) => setPermission(e.target.value) }}>
           <option value="view_trace">Voir la trace</option><option value="restore_access">Restaurer un accès</option><option value="explain_journal">Expliquer le registre</option>
+        </SelectField>
+        <SelectField label="Durée demandée" selectProps={{ value: ttl, onChange: (e) => setTtl(Number(e.target.value)) }}>
+          {TTL_ACCES.map((t) => <option key={t.valeur} value={t.valeur}>{t.label}</option>)}
         </SelectField>
         <SubmitButton busy={m.state.kind === 'submitting'}>Demander l’accès</SubmitButton>
       </form>
