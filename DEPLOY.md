@@ -355,3 +355,21 @@ Puis smoke : `GET /v1/health/ready` en `mode:"réel"` +
 (l'APK actuellement servi, ≈ 20,7 Mo, date d'avant le démarrage de cycle).
 Alternative durable : poser les 5 secrets GitHub (§7.6.2) — chaque push master
 déploie alors seul, machine éteinte.
+
+### 7.11 Actions porteur — correctifs de l'audit serveur (2026-10-16)
+
+Six commits poussés sur `design/immersif-v3` (49fb7e0 → f51a4a4) corrigent
+les défauts serveur confirmés par l'audit profond (détail et preuves :
+`docs/AUDIT_INCOHERENCES.md` §6) : portes de rôle L-11 sur le socle,
+idempotence sérialisée, verrou anti-course sur les déclarations, rate limit
+à l'IP réelle, refus du mode fictif en production. Deux saisies porteur :
+
+- [ ] **Appliquer la migration 0032 sur Neon (additive, ~1 s)** — sans elle,
+  la console ops affichera `schemaUpToDate:false` après redéploiement (signal
+  honnête voulu) :
+  `KOMBE_DATABASE_URL="$KOMBE_PROD_DATABASE_URL" node packages/db/scripts/migrate.mjs`
+  (idempotent par table de jalons ; ou exécuter directement
+  `packages/db/migrations/0032_audit_indexes.sql` — `CREATE INDEX IF NOT EXISTS`).
+- [ ] **Redéployer** (même mécanique que §7.10) — le build embarque alors les
+  6 commits. Re-smoke §7.7 : `/v1/health/ready` en `mode:"réel"` +
+  `expectedLatestMigration` doit valoir `migrations/0032_audit_indexes.sql`.
