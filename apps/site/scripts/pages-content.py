@@ -254,7 +254,7 @@ page('telecharger', 'Télécharger l’application', 'Téléchargez KÓMBE pour 
     'KÓMBE dans votre poche, <em>même sans réseau.</em>',
     'L’application Android s’installe directement depuis ce site. Sur iPhone ou ordinateur, l’application web fait tout dans le navigateur.',
     '''        <div class="dlx">
-          <a class="is-main" href="/telecharger/kombe-arm64.apk" download><span class="dlx__icon" aria-hidden="true">↓</span><span><b>Android — recommandé</b><small>La plupart des téléphones · version 0.4.0</small></span></a>
+          <a class="is-main" href="/telecharger/kombe-arm64.apk" download><span class="dlx__icon" aria-hidden="true">↓</span><span><b>Android — recommandé</b><small>La plupart des téléphones · version 0.5.0</small></span></a>
           <a href="/telecharger/kombe-armv7.apk" download><span class="dlx__icon" aria-hidden="true">↓</span><span><b>Android — téléphones anciens</b><small>Appareils 32 bits ou d’entrée de gamme</small></span></a>
           <a href="/"><span class="dlx__icon" aria-hidden="true">◯</span><span><b>Application web</b><small>iPhone, ordinateur, tout navigateur récent</small></span></a>
           <a href="/bureau/"><span class="dlx__icon" aria-hidden="true">▦</span><span><b>Espace bureau</b><small>Pour le bureau du groupe, sur ordinateur</small></span></a>
