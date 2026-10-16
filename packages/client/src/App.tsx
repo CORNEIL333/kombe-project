@@ -3,7 +3,7 @@
    écran, même après la connexion. La session est gardée sur l'appareil. */
 
 import { useCallback, useEffect, useState } from "react";
-import { BasculeLangue } from "./i18n/ContexteLangue.js";
+import { BasculeLangue, SelecteurLangue, useLangue } from "./i18n/ContexteLangue.js";
 import { LogoKombe } from "./composants/Marque.js";
 import { acces, memoriserSession, sessionMemorisee, type Session } from "./tontine/api.js";
 import { ConnexionTelephone } from "./tontine/Connexion.js";
@@ -65,6 +65,7 @@ function useEnLigne(): boolean {
 
 export function App() {
   const { tx } = useTextes();
+  const { t } = useLangue();
   const [session, setSession] = useState<Session | null>(() => sessionMemorisee());
   const [route, setRoute] = useState<Route>(() => lireRoute(window.location.hash));
   const [nonLues, setNonLues] = useState(0);
@@ -112,16 +113,26 @@ export function App() {
   };
 
   return (
-    <div className="app app-tontine">
+    <div className={session ? "app app-tontine" : "app app-tontine app--accueil"}>
       <a href="#contenu" className="evitement" onClick={(e) => (e.preventDefault(), document.getElementById("contenu")?.focus())}>
         {tx("app.accueil")}
       </a>
       <header className="entete">
         <div className="entete-marque">
           <button type="button" className="lien-logo" onClick={() => aller({ ecran: "accueil" })} aria-label={tx("app.accueil")}>
-            <LogoKombe hauteur={34} />
+            <LogoKombe hauteur={session ? 34 : 46} signature={!session} />
           </button>
         </div>
+        {session ? null : (
+          // Avant connexion : la navigation du site (maquette « Connectez-vous »).
+          <nav className="entete-site" aria-label={t("cx2.accueil")}>
+            <a href="#/" aria-current="page">{t("cx2.accueil")}</a>
+            <a href="/site/a-propos/">{t("cx2.aPropos")}</a>
+            <a href="/site/#gestes">{t("cx2.fonctionnalites")}</a>
+            <a href="/site/securite/">{t("cx2.securite")}</a>
+            <a href="/site/#questions">{t("cx2.faq")}</a>
+          </nav>
+        )}
         {session ? (
           <div className="entete-session">
             <button
@@ -144,9 +155,7 @@ export function App() {
             </button>
           </div>
         ) : null}
-        <div className="entete-actions">
-          <BasculeLangue />
-        </div>
+        <div className="entete-actions">{session ? <BasculeLangue /> : <SelecteurLangue />}</div>
       </header>
       {enLigne ? null : (
         <p className="bandeau bandeau--horsLigne" role="status">

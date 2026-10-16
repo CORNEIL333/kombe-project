@@ -1,0 +1,121 @@
+/* KÓMBE — écran de connexion de la PWA, d'après la maquette « Connectez-vous »
+   (oct. 2026) : en-tête du site, promesse sur photo lumineuse fondue dans le
+   sable, six atouts en cartes blanches, carte de connexion à droite ; arcs
+   pâles de la charte dans les angles. Compatible Chrome 67 / Safari 14 (pas
+   d'inset ni d'aspect-ratio, pas de gap en flex). */
+
+.app.app--accueil { max-width: 1480px; padding-top: 0; }
+
+/* ── En-tête (avant connexion) ─────────────────────────────────────── */
+.app--accueil .entete { width: 100vw; margin: 0 0 0 calc(50% - 50vw); padding: 14px max(32px, calc(50vw - 708px)); background: rgba(255, 255, 255, 0.86); box-shadow: 0 1px 0 rgba(19, 33, 28, 0.06); }
+.app--accueil .entete-marque { flex: none; }
+.entete-site { display: none; }
+@media (min-width: 1000px) {
+  .entete-site { display: flex; align-items: center; flex: 1 1 auto; justify-content: center; }
+}
+.entete-site a { position: relative; margin: 0 18px; padding: 10px 2px; color: var(--c-encre); font-weight: 600; font-size: 15px; text-decoration: none; transition: color var(--t-fast) var(--e-std); }
+.entete-site a:hover { color: var(--c-actif); }
+.entete-site a[aria-current="page"] { color: var(--c-foret); font-weight: 700; }
+.entete-site a[aria-current="page"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--c-actif); }
+.selecteur-langue { position: relative; display: inline-flex; align-items: center; height: 46px; padding: 0 14px; border-radius: 999px; background: var(--c-blanc); box-shadow: 0 0 0 1px var(--c-trait), var(--ombre-1); color: var(--c-foret); cursor: pointer; }
+.selecteur-langue__globe { flex: none; margin-right: 8px; pointer-events: none; }
+.selecteur-langue select { -webkit-appearance: none; -moz-appearance: none; appearance: none; border: 0; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23103C32' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right center; padding: 0 22px 0 0; font: 600 15px/1 var(--f-ui); color: var(--c-foret); cursor: pointer; }
+.selecteur-langue:focus-within { box-shadow: 0 0 0 3px var(--c-or); }
+.selecteur-langue select:focus { outline: none; }
+
+/* ── Scène ──────────────────────────────────────────────────────────── */
+.ecran-cx { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "promesse" "carte" "bas"; grid-row-gap: 28px; padding: 28px 0 48px; }
+@media (min-width: 1000px) {
+  .ecran-cx { grid-template-columns: minmax(0, 1fr) minmax(0, 470px); grid-template-areas: "promesse carte" "bas carte"; grid-column-gap: 56px; grid-row-gap: 30px; align-items: center; min-height: calc(100vh - 92px); padding: 40px 32px 60px; }
+}
+.cx-promesse { grid-area: promesse; align-self: end; }
+.cx-bas { grid-area: bas; align-self: start; }
+.cx-carte { grid-area: carte; }
+
+/* Photo lumineuse (portrait de la maquette), fondue dans le sable */
+.ecran-cx__photo { position: absolute; z-index: -2; top: 0; left: 0; right: 0; height: 380px; overflow: hidden; }
+.ecran-cx__photo img { width: 100%; height: 100%; object-fit: cover; object-position: 62% 22%; opacity: 0; transform: scale(1.05); animation: cx-photo 1.6s var(--e-out) 0.2s forwards; -webkit-mask-image: linear-gradient(180deg, #000 45%, transparent 100%); mask-image: linear-gradient(180deg, #000 45%, transparent 100%); }
+.ecran-cx::before { content: ""; position: absolute; z-index: -1; top: 0; left: 0; right: 0; height: 380px; background: linear-gradient(180deg, rgba(251, 248, 241, 0.35) 0%, rgba(251, 248, 241, 0.82) 62%, var(--c-sable-clair) 100%); pointer-events: none; }
+@media (min-width: 1000px) {
+  /* Ancrée contre la carte de connexion, comme sur la maquette. */
+  .ecran-cx__photo { top: 0; left: auto; right: 502px; width: 430px; height: 460px; }
+  .ecran-cx__photo img { -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 38%, #000 86%, transparent 100%), linear-gradient(180deg, #000 70%, transparent 100%); -webkit-mask-composite: source-in; mask-image: linear-gradient(90deg, transparent 0%, #000 38%, #000 86%, transparent 100%), linear-gradient(180deg, #000 70%, transparent 100%); mask-composite: intersect; }
+  .ecran-cx::before { display: none; }
+}
+@keyframes cx-photo { to { opacity: 1; transform: none; } }
+/* Arcs pâles de la charte, aux angles */
+.ecran-cx__arc { position: absolute; z-index: -1; border-radius: 50%; pointer-events: none; }
+.ecran-cx__arc--g { width: 260px; height: 260px; left: -170px; bottom: -40px; border: 38px solid rgba(42, 138, 104, 0.18); border-top-color: rgba(199, 146, 46, 0.2); }
+.ecran-cx__arc--d { width: 300px; height: 300px; right: -200px; bottom: 30px; border: 40px solid rgba(42, 138, 104, 0.16); border-left-color: rgba(239, 227, 204, 0.9); }
+
+/* ── Promesse ───────────────────────────────────────────────────────── */
+.cx-promesse__surtitre { margin: 0 0 18px; font-size: 13px; font-weight: 600; letter-spacing: 0.32em; text-transform: uppercase; color: var(--c-texte-2); }
+.cx-promesse__titre { margin: 0 0 22px; font-family: var(--f-ui); font-weight: 800; font-size: 46px; font-size: clamp(42px, 5.4vw, 84px); line-height: 0.98; letter-spacing: -0.035em; color: var(--c-foret); }
+.cx-promesse__titre span, .cx-promesse__titre em { display: block; }
+.cx-promesse__titre em { font-style: normal; color: #8b8a22; }
+.cx-promesse__lead { max-width: 30em; font-size: 18px; line-height: 1.6; color: var(--c-texte-2); }
+.cx-promesse > * { animation: apparition var(--t-success) var(--e-out) both; }
+.cx-promesse__titre { animation-delay: 80ms; }
+.cx-promesse__lead { animation-delay: 160ms; }
+
+/* ── Atouts ─────────────────────────────────────────────────────────── */
+.cx-atouts { list-style: none; display: grid; grid-template-columns: 1fr; grid-gap: 14px; margin: 0; padding: 0; }
+@media (min-width: 600px) { .cx-atouts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1200px) { .cx-atouts { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.cx-atouts li { animation: apparition var(--t-success) var(--e-out) both; }
+.cx-atouts a { position: relative; display: block; height: 100%; padding: 18px 20px 20px; border-radius: 18px; background: rgba(255, 255, 255, 0.94); box-shadow: 0 0 0 1px rgba(19, 33, 28, 0.05), 0 10px 26px -18px rgba(16, 60, 50, 0.35); text-decoration: none; color: var(--c-encre); transition: transform var(--t-spatial) var(--e-out), box-shadow var(--t-spatial) var(--e-out); }
+.cx-atouts a:hover { transform: translateY(-3px); box-shadow: 0 0 0 1px rgba(19, 33, 28, 0.05), 0 22px 40px -22px rgba(16, 60, 50, 0.45); }
+.cx-atouts a:focus-visible { outline: 3px solid var(--c-or); outline-offset: 2px; }
+.cx-atouts__icone { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-bottom: 12px; border-radius: 50%; background: var(--c-sable-doux); color: var(--c-foret); }
+.cx-atouts strong { display: block; margin-bottom: 4px; font-size: 16.5px; font-weight: 700; color: var(--c-foret); }
+.cx-atouts__texte { display: block; padding-right: 22px; font-size: 13.5px; line-height: 1.45; color: var(--c-texte-2); }
+.cx-atouts__fleche { position: absolute; right: 16px; bottom: 16px; color: var(--c-foret); transition: transform var(--t-std) var(--e-std); }
+.cx-atouts a:hover .cx-atouts__fleche { transform: translateX(3px); }
+.cx-promesse__signature { display: flex; align-items: center; margin: 30px 0 0; font-size: 12px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase; color: var(--c-texte-2); }
+.cx-promesse__signature::before { content: ""; width: 64px; height: 1.5px; margin-right: 16px; background: var(--c-actif); }
+
+/* ── Carte de connexion ─────────────────────────────────────────────── */
+.cx-carte { position: relative; padding: 36px 26px 26px; border-radius: 24px; background: var(--c-blanc); box-shadow: 0 0 0 1px rgba(19, 33, 28, 0.04), 0 40px 80px -36px rgba(16, 60, 50, 0.35); animation: apparition var(--t-success) var(--e-out) both 120ms; }
+@media (min-width: 600px) { .cx-carte { padding: 48px 46px 34px; } }
+.cx-carte__logo { margin: 0 0 30px 0; }
+.cx-carte__titre { margin: 0 0 8px; font-family: var(--f-ui); font-weight: 800; font-size: 34px; line-height: 1.1; letter-spacing: -0.025em; color: var(--c-foret); }
+.cx-carte__sous-titre { margin: 0 0 26px; font-size: 16px; line-height: 1.55; color: var(--c-texte-2); }
+.cx-carte__note { margin: -14px 0 22px; font-size: 14px; color: var(--c-actif); font-weight: 600; }
+.cx-carte .pile { gap: 0; }
+.cx-carte .pile > * + * { margin-top: 16px; }
+.cx-voies { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 4px; border: 0; border-radius: 999px; background: var(--c-blanc); box-shadow: inset 0 0 0 1.5px var(--c-trait); }
+.cx-voies:has(> label:only-of-type) { grid-template-columns: 1fr; }
+.cx-voie { position: relative; display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 12px; border-radius: 999px; color: var(--c-foret); font-weight: 600; font-size: 15.5px; cursor: pointer; transition: background-color var(--t-std) var(--e-std), color var(--t-std) var(--e-std); }
+.cx-voie .icone-kombe { margin-right: 10px; }
+.cx-voie input { position: absolute; opacity: 0; pointer-events: none; }
+.cx-voie.is-actif { background: var(--c-foret); color: var(--c-blanc); box-shadow: 0 10px 22px -12px rgba(16, 60, 50, 0.7); }
+.cx-voie:focus-within { outline: 3px solid var(--c-or); outline-offset: 2px; }
+.cx-sous-voies { display: flex; margin: 0; padding: 0; border: 0; }
+.cx-sous-voie { position: relative; display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; margin-right: 8px; border-radius: 999px; background: var(--c-sable-clair); box-shadow: inset 0 0 0 1px var(--c-trait); color: var(--c-foret); font-weight: 600; font-size: 14px; cursor: pointer; }
+.cx-sous-voie input { position: absolute; opacity: 0; pointer-events: none; }
+.cx-sous-voie.is-actif { background: var(--c-menthe); color: var(--c-actif); box-shadow: inset 0 0 0 1.5px var(--c-actif); }
+.cx-sous-voie:focus-within { outline: 3px solid var(--c-or); outline-offset: 2px; }
+.cx-carte .champ label { font-size: 15px; font-weight: 600; color: var(--c-foret); }
+.cx-carte .champ .aide-champ { font-size: 13.5px; }
+.cx-champ { position: relative; }
+.cx-champ__icone { position: absolute; left: 18px; top: 50%; margin-top: -10px; color: var(--c-foret); pointer-events: none; }
+.cx-carte .cx-champ input { width: 100%; min-height: 58px; padding-left: 52px; border-radius: 16px; border: 1.5px solid var(--c-trait); font-weight: 500; }
+.cx-carte .cx-champ input::placeholder { color: #9aa39f; }
+.cx-champ--tel input { padding-left: 82px; }
+.cx-champ__prefixe { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); padding-right: 12px; border-right: 1.5px solid var(--c-trait); color: var(--c-foret); font-weight: 700; }
+.cx-carte .cx-code { font-size: 1.5rem; letter-spacing: 0.4em; text-align: center; font-weight: 800; }
+.bouton.cx-carte__envoyer { width: 100%; min-height: 56px; border-radius: 999px; font-size: 16px; }
+.cx-carte__envoyer .icone-kombe { margin-left: 10px; transition: transform var(--t-std) var(--e-std); }
+.cx-carte__envoyer:hover:not(:disabled) .icone-kombe { transform: translateX(3px); }
+.cx-carte .bouton-secondaire { border-radius: 999px; }
+.cx-carte__pied { display: flex; align-items: center; margin: 26px 0 0; font-size: 13px; color: var(--c-texte-2); }
+.cx-carte__pied .icone-kombe { margin-right: 10px; color: var(--c-actif); }
+
+/* Le pied de l'application reste discret sous l'écran de connexion. */
+.app--accueil .pied-page { margin-top: 0; }
+
+/* Les arcs décoratifs et l'en-tête pleine largeur ne doivent jamais créer
+   de défilement horizontal. */
+.ecran-cx { overflow: hidden; }
+html, body { overflow-x: hidden; }
+@media (max-width: 999px) { .ecran-cx { margin: 0 calc(-1 * var(--espace-2)); padding-left: var(--espace-2); padding-right: var(--espace-2); } }

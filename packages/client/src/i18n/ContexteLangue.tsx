@@ -116,3 +116,23 @@ export function BasculeLangue() {
     </div>
   );
 }
+
+/** Sélecteur de langue compact (liste déroulante native, accessible),
+    utilisé sur l'écran de connexion — maquette « Connectez-vous ». */
+export function SelecteurLangue() {
+  const { langue, definirLangue, t } = useLangue();
+  return (
+    <label className="selecteur-langue">
+      <span className="visuellement-cache">{t("langue.bascule")}</span>
+      <svg className="selecteur-langue__globe" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M3.5 12h17M12 3.5c2.4 2.5 3.4 5.3 3.4 8.5s-1 6-3.4 8.5c-2.4-2.5-3.4-5.3-3.4-8.5s1-6 3.4-8.5z" />
+      </svg>
+      <select value={langue} onChange={(e) => definirLangue(e.target.value as Langue)}>
+        <option value="fr">{t("langue.fr")}</option>
+        <option value="en">{t("langue.en")}</option>
+        <option value="pcm">{t("langue.pcm")}</option>
+      </select>
+    </label>
+  );
+}
