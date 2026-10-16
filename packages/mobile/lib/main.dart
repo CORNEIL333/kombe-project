@@ -14,7 +14,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Polices OFL embarquées : leurs licences apparaissent dans « À propos ».
   LicenseRegistry.addLicense(() async* {
-    for (final (String family, String file) in <(String, String)>[('Manrope', 'OFL-Manrope.txt'), ('Newsreader', 'OFL-Newsreader.txt')]) {
+    for (final (String family, String file) in <(String, String)>[('Manrope', 'OFL-Manrope.txt'), ('Fraunces', 'OFL-Fraunces.txt')]) {
       yield LicenseEntryWithLineBreaks(<String>[family], await rootBundle.loadString('assets/fonts/$file'));
     }
   });

@@ -146,16 +146,19 @@ class PhotoBackdrop extends StatelessWidget {
         fit: StackFit.passthrough,
         children: <Widget>[
           Positioned.fill(child: ExcludeSemantics(child: Image.asset(asset, fit: BoxFit.cover, alignment: alignment))),
+          // Voile vert concentré en bas, derrière le texte : la photo reste
+          // vive (interfaces claires de la charte), le texte blanc lisible.
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const <double>[0, .45, 1],
                   colors: <Color>[
+                    KombeColors.forest.withValues(alpha: strength * .18),
+                    KombeColors.forest.withValues(alpha: strength * .55),
                     KombeColors.forestDark.withValues(alpha: strength),
-                    KombeColors.forest.withValues(alpha: strength - .12),
-                    KombeColors.forest.withValues(alpha: strength - .38),
                   ],
                 ),
               ),

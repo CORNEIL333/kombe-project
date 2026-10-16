@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/design/kombe_icons.g.dart';
+import '../../core/widgets/kombe_icon.dart';
 import '../../l10n/app_localizations.dart';
 
 class MainShell extends StatelessWidget {
@@ -30,7 +32,7 @@ class MainShell extends StatelessWidget {
                 leading: const CircleAvatar(
                   backgroundColor: KombeColors.mint,
                   foregroundColor: KombeColors.forest,
-                  child: Icon(Icons.upload_outlined),
+                  child: KombeIcon(KombeIconData.declarer, size: 22),
                 ),
                 title: const Text('Déclarer une cotisation'),
                 subtitle: const Text(
@@ -45,7 +47,7 @@ class MainShell extends StatelessWidget {
                 leading: const CircleAvatar(
                   backgroundColor: KombeColors.mint,
                   foregroundColor: KombeColors.forest,
-                  child: Icon(Icons.gavel_outlined),
+                  child: KombeIcon(KombeIconData.balance, size: 22),
                 ),
                 title: const Text('Ouvrir un litige'),
                 onTap: () {
@@ -73,7 +75,7 @@ class MainShell extends StatelessWidget {
         shape: const CircleBorder(),
         tooltip: 'Action rapide',
         onPressed: () => _showQuickActions(context),
-        child: const Icon(Icons.add_rounded, size: 28),
+        child: const KombeIcon(KombeIconData.plus, size: 28, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
@@ -90,8 +92,7 @@ class MainShell extends StatelessWidget {
             Expanded(
               child: _NavButton(
                 selected: navigationShell.currentIndex == 0,
-                icon: Icons.home_outlined,
-                selectedIcon: Icons.home_rounded,
+                icon: KombeIconData.accueil,
                 label: l10n.home,
                 onTap: () => _goBranch(0),
               ),
@@ -99,8 +100,7 @@ class MainShell extends StatelessWidget {
             Expanded(
               child: _NavButton(
                 selected: navigationShell.currentIndex == 1,
-                icon: Icons.groups_outlined,
-                selectedIcon: Icons.groups_rounded,
+                icon: KombeIconData.groupes,
                 label: l10n.groups,
                 onTap: () => _goBranch(1),
               ),
@@ -109,8 +109,7 @@ class MainShell extends StatelessWidget {
             Expanded(
               child: _NavButton(
                 selected: navigationShell.currentIndex == 2,
-                icon: Icons.notifications_none_rounded,
-                selectedIcon: Icons.notifications_rounded,
+                icon: KombeIconData.cloche,
                 label: l10n.notifications,
                 onTap: () => _goBranch(2),
               ),
@@ -118,8 +117,7 @@ class MainShell extends StatelessWidget {
             Expanded(
               child: _NavButton(
                 selected: navigationShell.currentIndex == 3,
-                icon: Icons.more_horiz,
-                selectedIcon: Icons.more_horiz_rounded,
+                icon: KombeIconData.grille,
                 label: l10n.more,
                 onTap: () => _goBranch(3),
               ),
@@ -135,14 +133,13 @@ class _NavButton extends StatelessWidget {
   const _NavButton({
     required this.selected,
     required this.icon,
-    required this.selectedIcon,
     required this.label,
     required this.onTap,
   });
 
   final bool selected;
-  final IconData icon;
-  final IconData selectedIcon;
+  /// Icône de la charte (`KombeIconData`).
+  final String icon;
   final String label;
   final VoidCallback onTap;
 
@@ -157,9 +154,11 @@ class _NavButton extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              Icon(
-                selected ? selectedIcon : icon,
-                color: selected ? KombeColors.forest : KombeColors.slate,
+              AnimatedScale(
+                scale: selected ? 1.1 : 1,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutBack,
+                child: KombeIcon(icon, size: 24, color: selected ? KombeColors.forest : KombeColors.slate),
               ),
               const SizedBox(height: 3),
               Text(

@@ -27,7 +27,7 @@ Future<void> _loadFonts() async {
   }
 
   await family('Manrope', <String>['Manrope-400.ttf', 'Manrope-500.ttf', 'Manrope-600.ttf', 'Manrope-700.ttf', 'Manrope-800.ttf']);
-  await family('Newsreader', <String>['Newsreader-500.ttf', 'Newsreader-Italic-500.ttf']);
+  await family('Fraunces', <String>['Fraunces-600.ttf', 'Fraunces-700.ttf']);
   final File icons = File('${Platform.environment['FLUTTER_ROOT'] ?? ''}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
   if (icons.existsSync()) {
     final FontLoader l = FontLoader('MaterialIcons')..addFont(Future<ByteData>.value(ByteData.sublistView(Uint8List.fromList(icons.readAsBytesSync()))));
@@ -80,6 +80,11 @@ void main() {
     addTearDown(tester.view.reset);
     final AppDependencies deps = fakeDependencies();
     await tester.pumpWidget(KombeApp(dependencies: deps));
+    // Ouverture animée de la marque, saisie en plein mouvement.
+    for (int i = 0; i < 9; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await expectLater(find.byType(KombeApp), matchesGoldenFile('tour/00a_ouverture.png'));
     for (int i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }

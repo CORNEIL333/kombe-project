@@ -1,7 +1,7 @@
 name: kombe_mobile
 description: KÓMBE — client mobile Flutter natif, sans données métier embarquées.
 publish_to: "none"
-version: 0.4.0+40
+version: 0.5.0+50
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
@@ -23,6 +23,7 @@ dependencies:
   file_picker: ^13.1.0
   url_launcher: ^6.3.2
   http: ^1.6.0
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -36,7 +37,7 @@ flutter:
   generate: true
   assets:
     - assets/fonts/OFL-Manrope.txt
-    - assets/fonts/OFL-Newsreader.txt
+    - assets/fonts/OFL-Fraunces.txt
     - assets/images/
   # Polices OFL auto-hébergées : instances statiques tirées des fichiers
   # variables Google Fonts (voir docs/design-system/KOMBE_DESIGN_SYSTEM.md).
@@ -53,10 +54,9 @@ flutter:
           weight: 700
         - asset: assets/fonts/Manrope-800.ttf
           weight: 800
-    - family: Newsreader
+    - family: Fraunces
       fonts:
-        - asset: assets/fonts/Newsreader-500.ttf
-          weight: 500
-        - asset: assets/fonts/Newsreader-Italic-500.ttf
-          weight: 500
-          style: italic
+        - asset: assets/fonts/Fraunces-600.ttf
+          weight: 600
+        - asset: assets/fonts/Fraunces-700.ttf
+          weight: 700

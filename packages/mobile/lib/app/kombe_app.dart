@@ -1,3 +1,4 @@
+import '../core/widgets/kombe_ouverture.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -85,6 +86,8 @@ class _KombeAppState extends State<KombeApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
           routerConfig: _router.router,
+          // Ouverture animée de la marque, au-dessus de l'app qui se charge dessous.
+          builder: (BuildContext context, Widget? child) => KombeOuverture(child: child ?? const SizedBox.shrink()),
         ),
       ),
     );

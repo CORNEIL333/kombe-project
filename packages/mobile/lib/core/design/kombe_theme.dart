@@ -4,18 +4,19 @@ import 'kombe_colors.dart';
 import 'kombe_spacing.dart';
 import 'kombe_tokens.g.dart';
 
-/// Phrase expressive (une seule par titre, règle de la charte) : Newsreader
-/// italique. Le reste de l'interface reste en Manrope.
+/// Typographie de la charte (02/08) : Fraunces pour les titres éditoriaux
+/// (H1–H3), Manrope pour tout le reste. `titre` : style d'un titre Fraunces ;
+/// `accent` : la partie mise en valeur d'un titre (vert actif, même graisse).
 abstract final class KombeType {
-  static TextStyle accent({double size = 28, Color color = KombeColors.goldDark, double height = 1.05}) => TextStyle(
+  static TextStyle titre({double size = 32, Color color = KombeColors.forest, double height = 1.08, FontWeight weight = FontWeight.w700}) => TextStyle(
         fontFamily: KombeTokens.fontDisplay,
-        fontStyle: FontStyle.italic,
-        fontWeight: FontWeight.w500,
+        fontWeight: weight,
         fontSize: size,
         height: height,
-        letterSpacing: -.2,
+        letterSpacing: -size * .012,
         color: color,
       );
+  static TextStyle accent({double size = 28, Color color = KombeColors.emerald, double height = 1.08}) => titre(size: size, color: color, height: height);
 }
 
 abstract final class KombeTheme {
@@ -48,22 +49,33 @@ abstract final class KombeTheme {
 
     return base.copyWith(
       textTheme: base.textTheme.copyWith(
+        // Titres éditoriaux en Fraunces (charte 02/08 : H1 40/48, H2 32/38, H3 24/30).
         displaySmall: base.textTheme.displaySmall?.copyWith(
-          color: KombeColors.ink,
-          fontWeight: FontWeight.w800,
+          fontFamily: KombeTokens.fontDisplay,
+          color: KombeColors.forest,
+          fontWeight: FontWeight.w700,
           height: 1.06,
+          letterSpacing: -.6,
         ),
         headlineLarge: base.textTheme.headlineLarge?.copyWith(
-          color: KombeColors.ink,
-          fontWeight: FontWeight.w800,
+          fontFamily: KombeTokens.fontDisplay,
+          color: KombeColors.forest,
+          fontWeight: FontWeight.w700,
         ),
         headlineMedium: base.textTheme.headlineMedium?.copyWith(
-          color: KombeColors.ink,
-          fontWeight: FontWeight.w800,
+          fontFamily: KombeTokens.fontDisplay,
+          color: KombeColors.forest,
+          fontWeight: FontWeight.w700,
+        ),
+        headlineSmall: base.textTheme.headlineSmall?.copyWith(
+          fontFamily: KombeTokens.fontDisplay,
+          color: KombeColors.forest,
+          fontWeight: FontWeight.w700,
         ),
         titleLarge: base.textTheme.titleLarge?.copyWith(
-          color: KombeColors.ink,
-          fontWeight: FontWeight.w800,
+          fontFamily: KombeTokens.fontDisplay,
+          color: KombeColors.forest,
+          fontWeight: FontWeight.w700,
         ),
         titleMedium: base.textTheme.titleMedium?.copyWith(
           color: KombeColors.ink,
