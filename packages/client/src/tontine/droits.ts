@@ -22,6 +22,7 @@ const TREASURY: readonly GroupRole[] = ["treasurer", "treasurer_deputy"];
 
 export const MATRICE: Readonly<Record<TontineAction, readonly GroupRole[]>> = {
   "group.read": EVERYONE,
+  "cycle.start": PRESIDENCY,
   "group.manage": ADMIN,
   "member.invite": ADMIN,
   "member.admit": PRESIDENCY,

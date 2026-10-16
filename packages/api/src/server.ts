@@ -13,7 +13,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import type pg from "pg";
 import { registerHttpGuards } from "./httpGuards.js";
-import { DISPLAY_TZ, DomainError, type DomainErrorCode } from "@kombe/domain";
+import { DISPLAY_TZ, DomainError, assertCanAct, type DomainErrorCode } from "@kombe/domain";
 import type { CycleSchedule, ContributionDeclaration } from "@kombe/domain";
 import { PgContributionStore } from "./db/pgContributionStore.js";
 import { PgAccessStore } from "./db/pgAccessStore.js";
@@ -1257,12 +1257,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   }
 
   // Privilège opérateur RECALCULÉ serveur, jamais depuis le jeton (C02-PRIVILEGE).
+  // Mode réel : la session est OBLIGATOIRE et le privilège consulté est celui
+  // de l'IDENTITÉ APPELANTE — l'URL ne désigne jamais une tierce identité
+  // (avant ce garde, un appel non authentifié sondait le statut opérateur de
+  // n'importe quelle identité). Le mode fictif (recette) garde la lecture directe.
   app.get("/v1/access/operators/:identityId/privilege", async (request, reply) => {
     const { identityId } = request.params as { identityId: string };
-    const out = realAccess
-      ? await realAccess.operatorAccess(identityId)
-      : access.operatorAccess(identityId);
-    return reply.code(200).send(out);
+    if (realAccess && pool) {
+      const caller = await realIdentityFrom(pool, request, now);
+      if (identityId !== caller) {
+        throw new DomainError("PRIVILEGE_NOT_GRANTED", "Privilège d'une autre identité non consultable");
+      }
+      return reply.code(200).send(await realAccess.operatorAccess(caller));
+    }
+    return reply.code(200).send(access.operatorAccess(identityId));
   });
 
   // --- Connexion RÉELLE (ADR-0024, Piste A3) : additive, active SEULEMENT
@@ -1309,22 +1317,25 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return reply.code(200).send(governance.readiness(groupId));
   });
 
-  // Démarrage du cycle — porte serveur (C03-BOOT : fondateur seul ⇒ 409).
+  // Démarrage du cycle — porte serveur (C03-BOOT) ET porte L-11 : la
+  // présidence seule (avant : tout membre actif pouvait démarrer le cycle).
   app.post("/v1/groups/:groupId/cycle-starts", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     if (pool && realGovernance) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "cycle.start");
       return reply.code(201).send(await realGovernance.startCycle(groupId));
     }
     return reply.code(201).send(governance.startCycle(groupId));
   });
 
-  // Transition d'état du groupe (2.7).
+  // Transition d'état du groupe (2.7) — bureau uniquement en mode réel.
   app.post("/v1/groups/:groupId/state-transitions", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = groupTransitionBody.parse(request.body);
     if (pool && realGovernance) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "group.manage");
       return reply.code(200).send(await realGovernance.transition(groupId, body.to));
     }
     return reply.code(200).send(governance.transition(groupId, body.to));
@@ -1345,12 +1356,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   // Invitation directe d'un handle connu (adhésion pending) — distincte du
-  // rachat d'invitation anonyme (4.1).
+  // rachat d'invitation anonyme (4.1). Bureau (member.invite) en mode réel.
   app.post("/v1/groups/:groupId/memberships", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = inviteMemberBody.parse(request.body);
     if (pool && realGovernance) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "member.invite");
       return reply.code(201).send(await realGovernance.inviteMember(groupId, body.handle));
     }
     return reply.code(201).send(governance.inviteMember(groupId, body.handle));
@@ -1358,11 +1370,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // Terminaison d'une adhésion (départ/révocation), avant la prochaine commande.
   // `body.identityId` est la CIBLE (objet métier légitime), pas l'acteur.
+  // Réservée à la présidence (member.remove) en mode réel — avant ce garde,
+  // tout membre actif pouvait EXCLURE n'importe qui.
   app.post("/v1/groups/:groupId/membership-terminations", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = membershipTerminationBody.parse(request.body);
     if (pool && realGovernance) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "member.remove");
       return reply.code(200).send(await realGovernance.terminateMembership(groupId, body.identityId));
     }
     return reply.code(200).send(governance.terminateMembership(groupId, body.identityId));
@@ -1517,11 +1532,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return reply.code(200).send(rules.evaluateChange(groupId, body.version, body.concerned));
   });
 
-  // Recalcul du cycle courant sous garde de non-rétroactivité (C04-RETRO).
+  // Recalcul du cycle courant sous garde de non-rétroactivité (C04-RETRO) —
+  // bureau (schedule.manage) en mode réel.
   app.post("/v1/groups/:groupId/cycle-recalculations", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     if (pool && realRules) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "schedule.manage");
       return reply.code(200).send(await realRules.recalculateCurrentCycle(groupId));
     }
     return reply.code(200).send(rules.recalculateCurrentCycle(groupId));
@@ -1578,7 +1595,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { groupId } = request.params as { groupId: string };
     const body = buildScheduleBody.parse(request.body);
     if (pool && realSchedule) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "schedule.manage");
       const s = await realSchedule.build(groupId, {
         ruleVersion: body.ruleVersion,
         members: body.members,
@@ -1612,11 +1630,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return reply.code(200).send(viewSchedule(schedule.get(groupId)));
   });
 
-  // Démarrage (gel) du calendrier — ordre des bénéficiaires figé (5.3).
+  // Démarrage (gel) du calendrier — ordre des bénéficiaires figé (5.3) —
+  // bureau (schedule.manage) en mode réel.
   app.post("/v1/groups/:groupId/schedule-starts", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     if (pool && realSchedule) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "schedule.manage");
       return reply.code(201).send(await realSchedule.start(groupId));
     }
     return reply.code(201).send(schedule.start(groupId));
@@ -1628,7 +1648,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { seq } = request.params as { seq: string };
     const body = beneficiaryReassignmentBody.parse(request.body);
     if (pool && realSchedule) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "schedule.manage");
       const s = await realSchedule.reassign(groupId, Number(seq), body.newBeneficiaryId);
       return reply.code(200).send({ seq: Number(seq), beneficiaryId: s.schedule[Number(seq) - 1]!.beneficiaryId });
     }
@@ -1637,23 +1658,28 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   // Départ d'un membre — la dette reste affectée, les tours non réduits.
-  // `body.identityId` désigne la CIBLE du départ ; l'acteur vient de la session.
+  // `body.identityId` désigne la CIBLE du départ ; l'acteur vient de la
+  // session. Départ de soi toujours permis ; exclure AUTRUI est réservé à la
+  // présidence (member.remove) en mode réel.
   app.post("/v1/groups/:groupId/departures", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = departureBody.parse(request.body);
     if (pool && realSchedule) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      if (body.identityId !== actor.identityId) assertCanAct(actor.roles, "member.remove");
       return reply.code(200).send(await realSchedule.depart(groupId, body.identityId));
     }
     return reply.code(200).send(schedule.depart(groupId, body.identityId));
   });
 
-  // Plan de renouvellement (5.5) — nouvelles acceptations si engagement changé.
+  // Plan de renouvellement (5.5) — nouvelles acceptations si engagement
+  // changé. Acte de la présidence (cycle.start) en mode réel.
   app.post("/v1/groups/:groupId/cycle-renewals", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = cycleRenewalBody.parse(request.body);
     if (pool && realSchedule) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "cycle.start");
       return reply
         .code(200)
         .send(await realSchedule.renew(groupId, { version: body.version, memberCount: body.memberCount, contribution: body.contribution, rounds: body.rounds }));
@@ -1696,14 +1722,19 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // Émission d'un checkpoint externe scellé — rôle tenant l'action
   // `journal.checkpoint` uniquement (auditor/secretary/treasurer) (9.2).
+  // Mode réel : l'auteur scellé est l'IDENTITÉ de session et la date est
+  // l'HORLOGE SERVEUR — le corps (validé en forme) n'est qu'indicatif,
+  // jamais une source d'attribution (§14 : le client ne choisit pas ses
+  // données métier).
   app.post("/v1/groups/:groupId/journal-checkpoints", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
-    const body = checkpointBody.parse(request.body);
+    checkpointBody.parse(request.body);
     if (pool && realJournal) {
       const actor = await realGroupActorFrom(pool, request, groupId, now);
-      return reply.code(201).send(await realJournal.checkpoint(groupId, actor.role, body.issuedBy, body.issuedAt));
+      return reply.code(201).send(await realJournal.checkpoint(groupId, actor.role, actor.identityId, new Date(now()).toISOString()));
     }
     const actor = actorFrom(request);
+    const body = checkpointBody.parse(request.body);
     return reply.code(201).send(journal.checkpoint(groupId, actor.role, body.issuedBy, body.issuedAt));
   });
 

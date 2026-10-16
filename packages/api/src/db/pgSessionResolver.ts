@@ -23,7 +23,9 @@ import type pg from "pg";
 import {
   DomainError,
   assertSessionUsable,
+  isGroupRole,
   type AccessAccount,
+  type GroupRole,
   type Session,
   type Role,
 } from "@kombe/domain";
@@ -86,6 +88,11 @@ export interface GroupActor {
   readonly identityId: string;
   readonly membershipId: string;
   readonly role: Role;
+  /** Toutes les fonctions L-11 acceptées (cumul possibles) — base des portes
+   *  `assertCanAct` des routes socle. Le rôle socle « founder » (hors matrice
+   *  L-11) est ramené à « animator » : dans le produit, le fondateur EST le
+   *  Président (tontine/groups.ts). Une valeur inconnue est ignorée. */
+  readonly roles: readonly GroupRole[];
 }
 
 /**
@@ -98,9 +105,9 @@ export interface GroupActor {
  * migration 0002_role_change.sql — encore tracé jusqu'au bout pour être sûr
  * qu'une telle contrainte ne casse rien), donc le choix est fait ICI, à la
  * lecture : la plus RÉCENTE acceptation fait foi (reflète le mieux une
- * réaffectation). Si plusieurs rôles acceptés coexistent pour le même
- * membership (cas que le schéma permettrait), les autres sont simplement
- * ignorés — ce n'est PAS une erreur remontée, juste un choix de résolution.
+ * réaffectation). Depuis L-11, TOUTES les fonctions acceptées sont collectées
+ * dans `roles` (un membre peut cumuler) ; seul `role` (compatibilité socle)
+ * conserve « la plus récente fait foi ».
  */
 export async function resolveGroupActor(
   client: pg.PoolClient,
@@ -113,8 +120,7 @@ export async function resolveGroupActor(
      JOIN role_assignment r USING (group_id, membership_id)
      WHERE m.group_id = $1 AND m.identity_id = $2 AND m.state = 'active'
        AND r.accepted_at IS NOT NULL
-     ORDER BY r.accepted_at DESC
-     LIMIT 1`,
+     ORDER BY r.accepted_at DESC`,
     [groupId, identityId],
   );
   // Anti-IDOR / non-divulgation : absence d'adhésion active (ou groupe
@@ -123,9 +129,16 @@ export async function resolveGroupActor(
   if (res.rows.length === 0) {
     throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Objet hors portée");
   }
+  const roles: GroupRole[] = [];
+  for (const row of res.rows) {
+    const g: GroupRole | null =
+      row.role === "founder" ? "animator" : isGroupRole(String(row.role)) ? (row.role as GroupRole) : null;
+    if (g !== null && !roles.includes(g)) roles.push(g);
+  }
   return {
     identityId,
     membershipId: String(res.rows[0].membership_id),
     role: res.rows[0].role as Role,
+    roles,
   };
 }
