@@ -89,6 +89,17 @@ class ValidationDetailScreen extends StatefulWidget {
 class _ValidationDetailScreenState extends State<ValidationDetailScreen> {
   Resource<ValidationItem> _state = const ResourceLoading<ValidationItem>();
 
+  static const String _motifParDefaut =
+      'Paiement non retrouvé par la trésorerie (rejet depuis l’application mobile)';
+
+  final TextEditingController _motif = TextEditingController(text: _motifParDefaut);
+
+  @override
+  void dispose() {
+    _motif.dispose();
+    super.dispose();
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -112,6 +123,7 @@ class _ValidationDetailScreenState extends State<ValidationDetailScreen> {
               contributionId: item.contributionId,
               expectedVersion: item.version,
               decision: decision,
+              reason: _motif.text,
             );
     if (!mounted) return;
     switch (result) {
@@ -224,6 +236,20 @@ class _ValidationDetailScreenState extends State<ValidationDetailScreen> {
                       selected: _choice == d,
                       onTap: () => setState(() => _choice = d),
                     ),
+                  if (_choice == ValidationDecision.reject) ...<Widget>[
+                    TextField(
+                      controller: _motif,
+                      maxLength: 500,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Motif du rejet (transmis au membre)',
+                        hintText: 'Expliquez pourquoi la cotisation est refusée',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   const SizedBox(height: 8),
                   FilledButton(
                     onPressed: _choice == null || _sending

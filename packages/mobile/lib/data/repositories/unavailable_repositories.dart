@@ -192,6 +192,7 @@ final class UnavailableGovernanceRepository implements GovernanceRepository {
     required String contributionId,
     required int expectedVersion,
     required ValidationDecision decision,
+    String? reason,
   }) async => const OperationBlocked<void>(_reason);
 
   @override
