@@ -373,3 +373,27 @@ idempotence sérialisée, verrou anti-course sur les déclarations, rate limit
 - [ ] **Redéployer** (même mécanique que §7.10) — le build embarque alors les
   6 commits. Re-smoke §7.7 : `/v1/health/ready` en `mode:"réel"` +
   `expectedLatestMigration` doit valoir `migrations/0032_audit_indexes.sql`.
+
+### 7.12 Action porteur — clé de signature Android release (audit sécurité 2026-10-16)
+
+Les APK publiés sous `/telecharger/` sont signés avec la **clé debug** (répandue
+et prévisible). Le build Gradle lit désormais `packages/mobile/android/key.properties`
+(gitigné, pattern Flutter standard) et bascule automatiquement sur la clé de
+release quand il existe — sinon il retombe sur debug (builds d'essai). Une fois,
+sur la machine du porteur (≈ 5 min, aucune dépense) :
+
+```bash
+keytool -genkeypair -v -keystore kombe-release.jks -keyalg RSA -keysize 4096 \
+  -validity 10000 -alias kombe
+# puis packages/mobile/android/key.properties :
+# storeFile=<chemin absolu vers kombe-release.jks>
+# storePassword=<mot de passe du magasin>
+# keyAlias=kombe
+# keyPassword=<mot de passe de la clé>
+```
+
+Conserver `kombe-release.jks` ET ses mots de passe hors du dépôt (Google Play
+exige la MÊME clé pour toutes les mises à jour). Puis reconstruire les APK
+(`packages/mobile/scripts/build-apk.sh`) et republier (§7.10) — la mise à jour
+sur les téléphones déjà installés demandera une désinstallation/réinstallation
+(changement de signature).
