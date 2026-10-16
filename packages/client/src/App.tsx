@@ -119,7 +119,7 @@ export function App() {
       <header className="entete">
         <div className="entete-marque">
           <button type="button" className="lien-logo" onClick={() => aller({ ecran: "accueil" })} aria-label={tx("app.accueil")}>
-            <LogoKombe hauteur={24} />
+            <LogoKombe hauteur={34} />
           </button>
         </div>
         {session ? (
@@ -197,6 +197,35 @@ export function App() {
           </a>
         </p>
       </footer>
+      {session ? (
+        <nav className="nav-basse" aria-label={tx("app.accueil")}>
+          {(
+            [
+              ["accueil", "accueil", tx("nav.accueil")],
+              ["creer", "plus", tx("nav.creer")],
+              ["rejoindre", "inviter", tx("nav.rejoindre")],
+              ["notifications", "cloche", tx("nav.activite")],
+            ] as const
+          ).map(([ecran, icone, libelle]) => {
+            const actif = route.ecran === ecran || (ecran === "accueil" && route.ecran === "groupe");
+            return (
+              <button
+                key={ecran}
+                type="button"
+                className={actif ? "nav-basse__item is-actif" : "nav-basse__item"}
+                aria-current={actif ? "page" : undefined}
+                onClick={() => aller({ ecran } as Route)}
+              >
+                <span className="nav-basse__icone">
+                  <Icone nom={icone} taille={22} />
+                  {ecran === "notifications" && nonLues > 0 ? <i className="nav-basse__pastille" aria-hidden="true" /> : null}
+                </span>
+                <span className="nav-basse__libelle">{libelle}</span>
+              </button>
+            );
+          })}
+        </nav>
+      ) : null}
     </div>
   );
 }

@@ -46,8 +46,9 @@ export function logoSvg(o: { readonly variante?: Variante; readonly anime?: bool
   return (
     `<svg class="k-logo${o.anime ? " k-anime" : ""} ${o.classe ?? ""}" viewBox="${vx} ${vy} ${width} ${h}" role="img" aria-label="${esc(o.titre ?? "KÓMBE — Votre tontine, plus claire.")}" focusable="false">` +
     `<g class="k-logo__symbole" transform="translate(0 ${w.symbolY}) scale(${s.toFixed(4)})">${symboleParties(v)}</g>` +
-    `<path class="k-logo__mot" transform="translate(${w.wordX} 0)" d="${w.d}" fill="${col.texte}"/>` +
-    (sig ? `<path class="k-logo__signature" transform="translate(${w.wordX} ${w.signatureY}) scale(${w.signatureScale})" d="${w.signature}" fill="${col.signature}"/>` : "") +
+    // Le groupe porte l'animation (transformation CSS) ; le tracé garde sa position.
+    `<g class="k-logo__mot"><path transform="translate(${w.wordX} 0)" d="${w.d}" fill="${col.texte}"/></g>` +
+    (sig ? `<g class="k-logo__signature"><path transform="translate(${w.wordX} ${w.signatureY}) scale(${w.signatureScale})" d="${w.signature}" fill="${col.signature}"/></g>` : "") +
     `</svg>`
   );
 }

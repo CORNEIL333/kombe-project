@@ -1,0 +1,221 @@
+/* KÓMBE — PWA : couche CHARTE VISUELLE (chargée en dernier).
+   Interface claire et lumineuse (fonds sable, cartes blanches, photos en
+   arrière-plan), logo anneau à quatre nœuds, Manrope + Fraunces (titres),
+   composants de la charte 04/08 : boutons primaire / secondaire /
+   tertiaire, cartes métier, puces de statut (couleur + icône + libellé),
+   navigation basse sur téléphone, cibles tactiles ≥ 48 px, mouvement
+   100–560 ms (coupé sous prefers-reduced-motion — règle de styles.css). */
+
+:root {
+  --couleur-fond: var(--c-sable-clair);
+  --couleur-sur-fond: var(--c-encre);
+  --couleur-sur-fond-affaibli: var(--c-texte-2);
+  --couleur-verre: rgba(255, 255, 255, 0.78);
+  --couleur-verre-bord: var(--c-trait);
+  --couleur-surface: var(--c-blanc);
+  --couleur-texte: var(--c-encre);
+  --couleur-texte-affaibli: var(--c-texte-2);
+  --couleur-bordure: var(--c-sable-trait);
+  --couleur-primaire: var(--c-foret);
+  --couleur-primaire-survol: var(--c-actif);
+  --couleur-alerte: var(--c-erreur);
+  --couleur-alerte-fond: var(--c-erreur-fond);
+  --couleur-valide: var(--c-succes);
+  --police-ui: var(--f-ui);
+  --police-expressive: var(--f-titre);
+  --rayon-s: 12px;
+  --rayon: 16px;
+  --rayon-l: 20px;
+  --rayon-xl: 28px;
+  --ombre-carte: var(--ombre-2);
+}
+
+html { color-scheme: light; background: var(--c-sable-clair); }
+body {
+  background:
+    radial-gradient(48rem 30rem at 100% -10%, rgba(199, 146, 46, 0.1), transparent 60%),
+    radial-gradient(40rem 30rem at -10% 20%, rgba(23, 107, 82, 0.07), transparent 60%),
+    var(--c-sable-clair);
+  color: var(--c-encre);
+}
+.chargement { padding: 40px 20px; color: var(--c-texte-2); }
+
+/* ── En-tête : verre clair, logo de la charte ────────────────────────── */
+.entete { position: -webkit-sticky; position: sticky; top: 0; z-index: 20; margin: 0 calc(-1 * var(--espace-3)) var(--espace-3); padding: 10px var(--espace-3); background: rgba(251, 248, 241, 0.86); -webkit-backdrop-filter: saturate(1.8) blur(18px); backdrop-filter: saturate(1.8) blur(18px); box-shadow: 0 1px 0 var(--c-trait); }
+.logo-kombe, .symbole-kombe, .icone-kombe { display: inline-block; flex: none; line-height: 0; }
+.logo-kombe svg, .symbole-kombe svg, .icone-kombe svg { width: 100%; height: 100%; }
+.lien-logo { padding: 2px; border-radius: 10px; }
+.entete .bouton.bouton-secondaire { background: var(--c-blanc); color: var(--c-foret); border-color: var(--c-sable-trait); box-shadow: var(--ombre-1); }
+.entete .bouton.bouton-secondaire:hover:not(:disabled) { background: var(--c-menthe); border-color: var(--c-actif); }
+.bouton-icone[aria-current="page"] { background: var(--c-menthe); border-color: var(--c-actif); color: var(--c-actif); }
+.compteur { background: var(--c-or); color: var(--c-encre); }
+.entete :focus-visible, .onglets-app :focus-visible, .barre-session :focus-visible { outline-color: var(--c-or); }
+
+/* Sélecteur de langue : segmenté clair */
+.saut-langue { background: var(--c-blanc); border-color: var(--c-sable-trait); box-shadow: var(--ombre-1); }
+.saut-langue button { color: var(--c-texte-2); }
+.saut-langue button[aria-pressed="true"] { background: var(--c-foret); color: var(--c-blanc); }
+
+/* ── Boutons (charte 04/08) ─────────────────────────────────────────── */
+.bouton { border-radius: 12px; min-height: 52px; background: var(--c-foret); border-color: var(--c-foret); color: var(--c-blanc); font-weight: 700; transition: transform var(--t-press) var(--e-std), background-color var(--t-std) var(--e-std), box-shadow var(--t-std) var(--e-std); }
+.bouton:hover:not(:disabled) { background: var(--c-actif); border-color: var(--c-actif); box-shadow: 0 12px 26px -14px rgba(16, 60, 50, 0.6); }
+.bouton-secondaire, .tcarte .bouton-secondaire, .carte-etape .bouton-secondaire, .panneau-formulaire .bouton-secondaire, .msg .bouton-secondaire, .liste-notifications .bouton-secondaire, .bandeau--file .bouton-secondaire, .etat-vide .bouton-secondaire {
+  background: var(--c-blanc); border-color: var(--c-foret); color: var(--c-foret);
+}
+.bouton.bouton-secondaire:hover:not(:disabled) { background: var(--c-menthe); border-color: var(--c-foret); box-shadow: none; }
+.bouton-compact { min-height: 44px; border-radius: 10px; }
+.bouton:disabled { background: #e6e3dc; border-color: #e6e3dc; color: #8b938f; opacity: 1; }
+.bouton.bouton-or { background: var(--c-or); border-color: var(--c-or); color: var(--c-encre); }
+.bouton.bouton-or:hover:not(:disabled) { background: var(--c-or-clair); border-color: var(--c-or-clair); }
+.bouton:focus-visible, .champ input:focus-visible, .champ select:focus-visible, a:focus-visible { outline: 3px solid var(--c-or); outline-offset: 2px; }
+
+/* ── Champs ─────────────────────────────────────────────────────────── */
+.champ label { color: var(--c-foret); }
+.champ input, .champ select, .champ textarea { border-radius: 12px; border-color: var(--c-sable-trait); background: var(--c-blanc); }
+.champ input:focus-visible, .champ select:focus-visible { border-color: var(--c-actif); box-shadow: 0 0 0 4px rgba(23, 107, 82, 0.14); }
+.champ input[aria-invalid="true"] { border-color: var(--c-erreur); background: var(--c-erreur-fond); }
+.segment { border-radius: 12px; background: var(--c-blanc); border-color: var(--c-sable-trait); }
+.segment--actif { background: var(--c-menthe); color: var(--c-actif); border-color: var(--c-actif); }
+
+/* ── Cartes, messages, pastilles (statut = couleur + forme + libellé) ── */
+.tcarte { background: var(--c-blanc); border-radius: var(--r-l); box-shadow: var(--ombre-1); }
+.tcarte__entete h3, .tcarte h3, .tcarte h4 { font-family: var(--f-titre); font-weight: 700; color: var(--c-foret); }
+.tcarte__entete h3 { font-size: 1.3rem; }
+.msg { border-radius: var(--r-m); background: var(--c-blanc); box-shadow: var(--ombre-1); color: var(--c-encre); }
+.msg--erreur { background: var(--c-erreur-fond); color: var(--c-erreur); border-left: 4px solid var(--c-erreur); box-shadow: none; }
+.msg--succes { background: var(--c-succes-fond); color: var(--c-succes); border-left: 4px solid var(--c-succes); box-shadow: none; }
+.msg--info { background: var(--c-info-fond); color: #1a3a99; border-left: 4px solid var(--c-info); box-shadow: none; }
+.msg--attente { background: var(--c-attention-fond); color: #6b3d00; border-left: 4px solid var(--c-attention); box-shadow: none; }
+.msg[aria-busy="true"], .msg--chargement { justify-content: flex-start; background: var(--c-blanc); color: var(--c-texte-2); border: 0; box-shadow: var(--ombre-1); }
+.msg--chargement .symbole-kombe { margin-right: 12px; }
+.msg[aria-busy="true"]::before { display: none; }
+.pastille { border-radius: 999px; padding: 4px 11px; font-weight: 700; }
+.pastille--ok { background: var(--c-succes-fond); color: var(--c-succes); }
+.pastille--attente { background: var(--c-attention-fond); color: var(--c-attention); }
+.pastille--alerte { background: var(--c-erreur-fond); color: var(--c-erreur); }
+.pastille--neutre { background: var(--c-neutre-fond); color: var(--c-neutre); }
+.badge[data-état="valide"] { color: var(--c-succes); background: var(--c-succes-fond); border-color: transparent; }
+.badge[data-état="en-cours"] { color: var(--c-attention); background: var(--c-attention-fond); border-color: transparent; }
+.bandeau--horsLigne { background: var(--c-attention-fond); color: #6b3d00; border: 0; border-left: 4px solid var(--c-attention); border-radius: var(--r-m); }
+.bandeau--file { background: var(--c-attention-fond); border-radius: var(--r-m); }
+.bandeau--succes { background: var(--c-succes-fond); border-left-color: var(--c-succes); color: var(--c-succes); border-radius: var(--r-m); }
+
+/* ── Titres et liens ────────────────────────────────────────────────── */
+.barre-titre h2, .entete-groupe h2 { font-family: var(--f-titre); font-weight: 700; color: var(--c-foret); }
+.lien-retour { color: var(--c-actif); }
+.lien-retour:hover { color: var(--c-foret); }
+.surtitre { color: var(--c-encre); font-weight: 800; letter-spacing: 0.2em; }
+.surtitre::before { background: var(--c-or); }
+
+/* ── Bandeaux photo : lumineux, photo visible, texte sur voile sable ──── */
+.bandeau-photo { color: var(--c-foret); background: var(--c-sable-doux); border: 0; border-radius: var(--r-xl); box-shadow: var(--ombre-2); }
+.bandeau-photo__voile { background: linear-gradient(90deg, rgba(251, 248, 241, 0.97) 0%, rgba(251, 248, 241, 0.9) 42%, rgba(251, 248, 241, 0.35) 75%, rgba(251, 248, 241, 0.05) 100%); }
+.bandeau-photo__orbites { stroke: rgba(199, 146, 46, 0.28); stroke-width: 1.2; }
+.bandeau-photo__titre { color: var(--c-foret); font-family: var(--f-titre); font-weight: 700; letter-spacing: -0.02em; text-shadow: none; }
+.bandeau-photo__titre em { font-family: var(--f-titre); font-style: normal; font-weight: 700; color: var(--c-actif); }
+.bandeau-photo__meta { color: var(--c-encre); }
+.bandeau-photo .surtitre { color: var(--c-encre); }
+.bandeau-photo__chiffres li, .pastille-verre { background: rgba(255, 255, 255, 0.88); border: 0; box-shadow: var(--ombre-1); color: var(--c-foret); }
+.bandeau-photo__chiffres li[data-ton="ok"]::before { color: var(--c-succes); }
+.bandeau-photo__orbite { filter: drop-shadow(0 14px 24px rgba(16, 60, 50, 0.22)); }
+.bandeau-photo .bouton-secondaire { background: rgba(255, 255, 255, 0.92); }
+@media (max-width: 720px) {
+  .bandeau-photo__voile { background: linear-gradient(180deg, rgba(251, 248, 241, 0.25) 0%, rgba(251, 248, 241, 0.86) 45%, rgba(251, 248, 241, 0.97) 100%); }
+  .bandeau-photo { min-height: 330px; }
+}
+
+/* Orbite (composant Orbite) : variante marque adaptée au fond clair */
+.orbite--marque .orbite__piste { stroke: rgba(16, 60, 50, 0.22); }
+.orbite--marque .orbite__arc { stroke: var(--c-actif); }
+.orbite--marque .orbite__noeud--fait { fill: var(--c-actif); stroke: var(--c-blanc); }
+.orbite--marque .orbite__noeud--avenir { fill: var(--c-blanc); stroke: var(--c-sable-trait); }
+.orbite--marque .orbite__noeud--courant { fill: var(--c-or); stroke: var(--c-blanc); }
+.orbite__accent { stroke: var(--c-or); }
+
+/* ── Tuiles des groupes (cartes métier) ─────────────────────────────── */
+.tuile-tontine { background: var(--c-blanc); border-radius: var(--r-l); box-shadow: var(--ombre-1); border: 1.5px solid transparent; }
+.tuile-tontine:hover:not(:disabled) { box-shadow: var(--ombre-3); border-color: transparent; }
+.tuile-tontine:focus-visible { border-color: var(--c-or); }
+.tuile-tontine__couverture { height: 128px; }
+.tuile-tontine__couverture::after { background: linear-gradient(180deg, rgba(16, 60, 50, 0) 40%, rgba(16, 60, 50, 0.45) 100%); }
+.tuile-tontine__monogramme { background: var(--c-foret); border: 3px solid var(--c-blanc); box-shadow: 0 0 0 2px var(--c-or); font-family: var(--f-titre); }
+.tuile-tontine__nom { font-family: var(--f-titre); font-weight: 700; font-size: 1.3rem; color: var(--c-foret); }
+.tuile-tontine__remise { color: var(--c-actif); }
+.accent-or { background: var(--c-or); }
+
+/* ── Notifications : cartes avec pastilles d'icône ──────────────────── */
+.liste-notifications .liste__ligne { background: var(--c-blanc); box-shadow: var(--ombre-1); border-radius: var(--r-m); }
+.liste-notifications .liste__ligne--nouveau { box-shadow: inset 4px 0 0 var(--c-or), var(--ombre-1); }
+.notif-icone { background: var(--c-menthe); border-color: transparent; }
+.notif-icone::after { background: var(--c-actif); border-color: var(--c-blanc); }
+.notif-icone[data-famille="argent"] { background: var(--c-or-pale); }
+.notif-icone[data-famille="argent"]::after { background: var(--c-or); }
+.notif-icone[data-famille="decision"] { background: var(--c-info-fond); }
+.notif-icone[data-famille="decision"]::after { background: var(--c-info); }
+
+/* ── Onglets du groupe : segmentés clairs, collants ─────────────────── */
+.onglets-groupe { background: rgba(251, 248, 241, 0.88); border-bottom: 1px solid var(--c-trait); }
+.onglet { border-radius: 12px; border: 1.5px solid var(--c-sable-trait); background: var(--c-blanc); color: var(--c-foret); }
+.onglet:hover:not(.onglet--actif) { background: var(--c-menthe); }
+.onglet--actif { background: var(--c-foret); border-color: var(--c-foret); color: var(--c-blanc); }
+
+/* Création : étapes */
+.etapes-creation li { border-radius: 999px; background: var(--c-sable-doux); color: var(--c-texte-2); }
+.etapes-creation li.fait { background: var(--c-menthe); color: var(--c-actif); }
+.etapes-creation li.courant { background: var(--c-foret); color: var(--c-blanc); }
+
+/* État vide */
+.etat-vide { border-radius: var(--r-l); box-shadow: var(--ombre-1); }
+.etat-vide__texte h3 { font-family: var(--f-titre); color: var(--c-foret); }
+
+/* ── Connexion : photo lumineuse + formulaire blanc ─────────────────── */
+.ecran-connexion { border: 0; box-shadow: var(--ombre-3); background: var(--c-blanc); }
+.panneau-marque { color: var(--c-foret); background: var(--c-sable-doux); }
+.panneau-marque__photo { opacity: 1; }
+.panneau-marque__voile { background: linear-gradient(180deg, rgba(251, 248, 241, 0.55) 0%, rgba(251, 248, 241, 0.7) 40%, rgba(251, 248, 241, 0.96) 100%); }
+.panneau-marque__marque, .panneau-marque__marque small { color: var(--c-foret); }
+.panneau-marque__corps h1 { color: var(--c-foret); font-family: var(--f-titre); font-weight: 700; letter-spacing: -0.02em; }
+.panneau-marque__corps h1 em { font-family: var(--f-titre); font-style: normal; font-weight: 700; color: var(--c-actif); }
+.panneau-marque__corps p { color: var(--c-encre); }
+.panneau-marque__atouts li { background: rgba(255, 255, 255, 0.85); border-color: transparent; box-shadow: var(--ombre-1); }
+.panneau-marque__atouts strong { color: var(--c-foret); }
+.panneau-marque__atouts span { color: var(--c-texte-2); }
+.panneau-marque__atouts .icone { background: var(--c-sable-doux); color: var(--c-foret); }
+.panneau-marque__signature { color: var(--c-actif); font-family: var(--f-titre); font-style: normal; }
+.panneau-formulaire { background: var(--c-blanc); }
+.panneau-formulaire__entete h2 { font-family: var(--f-titre); font-weight: 700; color: var(--c-foret); }
+.panneau-formulaire__entete h2 em { font-style: normal; color: var(--c-actif); }
+.panneau-formulaire__pied::before { background: var(--c-or); }
+.mode-inscription { background: var(--c-menthe); border-left-color: var(--c-actif); border-radius: var(--r-m); }
+.mode-inscription strong { color: var(--c-foret); font-family: var(--f-titre); }
+
+/* ── Pied de page ───────────────────────────────────────────────────── */
+.pied-page { border-top: 1px solid var(--c-trait); color: var(--c-texte-2); }
+.pied-page__promesse { font-family: var(--f-titre); font-style: normal; font-weight: 600; color: var(--c-foret); font-size: 1.2rem; }
+.pied-page__lien { color: var(--c-actif); border-bottom-color: rgba(23, 107, 82, 0.4); }
+
+/* ── Navigation basse (charte 04/08), téléphone uniquement ──────────── */
+.nav-basse { display: none; }
+@media (max-width: 899px) {
+  .app-tontine { padding-bottom: 96px; }
+  .entete-session { display: none; }
+  .nav-basse { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 6px 8px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); background: rgba(255, 255, 255, 0.92); -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px); box-shadow: 0 -1px 0 var(--c-trait), 0 -10px 30px -18px rgba(16, 60, 50, 0.3); }
+}
+.nav-basse__item { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 58px; padding: 6px 2px; border: 0; border-radius: 14px; background: none; color: var(--c-texte-2); font: 600 11.5px/1.2 var(--f-ui); cursor: pointer; transition: color var(--t-std) var(--e-std), background-color var(--t-std); }
+.nav-basse__item:active { transform: scale(0.96); }
+.nav-basse__icone { position: relative; display: inline-flex; margin-bottom: 4px; transition: transform var(--t-spatial) var(--e-ressort); }
+.nav-basse__item.is-actif { color: var(--c-foret); font-weight: 800; }
+.nav-basse__item.is-actif .nav-basse__icone { transform: translateY(-2px); }
+.nav-basse__item.is-actif::after { content: ""; position: absolute; bottom: 3px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--c-foret); }
+.nav-basse__pastille { position: absolute; top: -2px; right: -4px; width: 9px; height: 9px; border-radius: 50%; background: var(--c-or); box-shadow: 0 0 0 2px var(--c-blanc); }
+.nav-basse__libelle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* Sélecteur de langue : codes courts sur téléphone, logo et langues sur une ligne. */
+.saut-langue__court { display: none; }
+@media (max-width: 640px) {
+  .saut-langue__long { display: none; }
+  .saut-langue__court { display: inline; }
+  .saut-langue button { min-height: 40px; padding: 0 12px; font-size: 0.82rem; font-weight: 800; }
+  .entete { flex-wrap: nowrap; }
+  .entete-actions { flex: none; }
+}

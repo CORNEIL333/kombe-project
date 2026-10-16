@@ -103,9 +103,14 @@ export function BasculeLangue() {
           key={option.valeur}
           type="button"
           aria-pressed={langue === option.valeur}
+          aria-label={option.libelle}
           onClick={() => definirLangue(option.valeur)}
         >
-          {option.libelle}
+          {/* Libellé complet sur grand écran, code court sur téléphone. */}
+          <span className="saut-langue__long">{option.libelle}</span>
+          <span className="saut-langue__court" aria-hidden="true">
+            {option.valeur.toUpperCase()}
+          </span>
         </button>
       ))}
     </div>

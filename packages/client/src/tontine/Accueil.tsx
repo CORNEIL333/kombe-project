@@ -42,7 +42,7 @@ export function Accueil({
           </ul>
         ) : null}
         <div className="bandeau-photo__actions">
-          <button type="button" className="bouton bouton-or" onClick={onCreer}>
+          <button type="button" className="bouton" onClick={onCreer}>
             {tx("acc.creer")}
           </button>
           <button type="button" className="bouton bouton-secondaire" onClick={onRejoindre}>

@@ -1,6 +1,7 @@
 /* KÓMBE — briques d'interface de l'espace tontine : chargement avec reprise,
    action protégée contre le double appui, messages d'état accessibles. */
 
+import { SymboleKombe } from "../composants/Marque.js";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { estSessionExpiree, messageErreur } from "./api.js";
 import { EnFileAttente, estErreurReseau } from "./fileAttenteMoteur.js";
@@ -89,7 +90,8 @@ export function Charge<T>({ etat, recharger, children }: { readonly etat: Etat<T
   const { tx } = useTextes();
   if (etat.statut === "chargement") {
     return (
-      <p className="msg" role="status" aria-busy="true">
+      <p className="msg msg--chargement" role="status" aria-busy="true">
+        <SymboleKombe taille={30} attente />
         {tx("app.chargement")}
       </p>
     );
