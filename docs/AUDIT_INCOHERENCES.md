@@ -193,3 +193,55 @@ jamais rendus (code mort) ; `docs/openapi.yaml` = ancien contrat harness
   lancement de cycle + 2 tests du hook 401 du client HTTP).
 - `pnpm --filter @kombe/client run typecheck` : exit 0 ; vitest **23/23**.
 - `pnpm --filter @kombe/dashboard-group-admin run typecheck` : exit 0 ; vitest **3/3**.
+
+## 6. Audit profond SERVEUR — 2026-10-16 (packages/api, packages/domain, packages/db)
+
+Audit demandé (« simulations, travaux bâclés, incohérences, défauts »), mené
+en quatre axes parallèles (routes/idempotence, autorisation, cohérence
+données/contrats, résilience) puis **re-vérification manuelle de chaque
+finding critique dans le code avant correction** — aucun correctif appliqué
+sur un rapport non confirmé.
+
+### 6.1 Corrigé (chaque ligne re-vérifiée avant correctif)
+
+| # | Sévérité | Trouvaille (preuve) | Correctif |
+|---|----------|---------------------|-----------|
+| 1 | **P1** | **Exclusion arbitraire possible** : les routes socle C03/C05 en mode réel ne vérifiaient QUE l'adhésion active — tout membre actif pouvait `POST /membership-terminations` (exclure n'importe qui), changer l'état du groupe, inviter, démarrer cycle/calendrier (`server.ts:1312-1368,1576-1663` ; stores PG sans contrôle de rôle) | Portes L-11 : `resolveGroupActor` collecte toutes les fonctions acceptées (`roles[]`, « founder »→« animator »), nouvelle action `cycle.start` (présidence), `assertCanAct` sur les 10 routes d'écriture socle ; départ de soi toujours permis (`departures`) — 5381c34 |
+| 2 | **P1** | **Course d'idempotence** : `write()` enchaînait replay (SELECT) → run() → remember (INSERT) sans verrou — deux requêtes concurrentes portant la même `Idempotency-Key` exécutaient DEUX fois l'effet (`routes.ts:180-193`) | `pg_advisory_lock(route, clé)` sur session dédiée du pool (lock_timeout 5 s, RESET en sortie) autour de replay→run→remember ; ~25 routes d'écriture encore nues (séances, caisses, amendes, secours, dettes, décisions, statuts, tirages, clôtures de tour) passent désormais par `write()`, codes préservés — 225a640 |
+| 3 | **P1** | **Course RMW sur les cotisations** : `declare()` lit le « reste à verser » (`computeDues`) puis borne le montant — deux déclarations simultanées passaient toutes deux (`money.ts:334-346`) ; même course sur le solde pendent d'une dette et l'unicité du paiement d'amende | `pg_advisory_xact_lock(groupe)` en tête de transaction (libéré au COMMIT/ROLLBACK ; volume séance = quelques opérations) — 0f640fb |
+| 4 | **P1** | **Rate limit à l'IP du proxy** : clé = `request.ip` (socket interne derrière Vercel) → un seul seau partagé par TOUS les clients : 429 collectifs, login 10/min verrouillable par un tiers (`httpGuards.ts:74`) | Clé = `x-real-ip` (posé par la plateforme, non transmis tel quel par le client), socket en repli exécution directe — 7c580ea |
+| 5 | **P1** | **Repli fictif possible en production** : sans `KOMBE_API_DATABASE_URL`, `main.ts`/`serverless.ts` démarraient en mode fictif (données inventées derrière des 200 ; le smoke ne rattrape qu'après coup) | Throw au chargement si `VERCEL_ENV`/`NODE_ENV` = production sans base : échec visible, jamais de mensonge silencieux — 7c580ea |
+| 6 | **P2** | **IDOR privilège opérateur** : `GET /v1/access/operators/:id/privilege` sans session — sondage du statut opérateur de N'IMPORTE quelle identité (`server.ts:1259-1265`) | Session obligatoire, seule l'identité APPELANTE est consultable (403 sinon) — 5381c34 |
+| 7 | **P2** | **Checkpoint scellé depuis le corps** : `issuedBy`/`issuedAt` fournis par le client entraient dans le scellement (attribution falsifiable) (`server.ts:1698-1707`) | Auteur = identité de session, date = horloge serveur ; le corps reste validé en forme — 5381c34 |
+| 8 | **P2** | Identifiant mal formé (22P02, ex. UUID invalide dans un chemin) = **500 brut** | Traduit `REQUEST_INVALID` 400 (code nouveau, mappé) — 7c580ea |
+| 9 | **P2** | **Montants** : zod acceptait 10 chiffres (> plafond `kombe_money` 1e9 → échec tardif en STATE_CONFLICT générique) ; imports d'historique acceptaient flottants et négatifs (`routes.ts:26,132,135`) | Plafond 1e9 vérifié tôt (zod + `money()` → `MONEY_OVER_PER_AMOUNT_CEILING` 422) ; imports entiers ≥ 0 bornés — 7c580ea |
+| 10 | **P2** | Timeouts de transaction 15 s **> kill plateforme ~10 s** : une requête lente finissait en 500 sans réponse plutôt qu'en erreur métier propre (`infra.ts:76-78`) | 9 s (statement + idle_in_transaction) — 7c580ea |
+| 11 | **P3** | **Index manquants** : `role_assignment(group_id, membership_id)` (FK jamais indexée, lue à CHAQUE route socle en mode réel), `fund_movement(group_id, membership_id)` (mes cotisations), `fund_movement(declared_at)` (agrégats console 0029) | Migration additive **0032_audit_indexes** (+ down.sql, + runner, + jalon ops) — lot 5 |
+| 12 | **P3** | **Garde de copie produit en échec** (I-01/I-08) : « portefeuille » (a-propos) et « chiffrés » (confidentialité) introduits avec les pages site — la suite domain rougissait depuis | Reformulation factuelle (« établissement de paiement », « échanges sous HTTPS ») — ce0bf20 |
+
+### 6.2 Vérifié SAIN (contrôles passés, faux positifs écartés)
+
+- `journal.checkpoint` : le rôle est bien imposé DANS le store (`assertAllowed(role, "journal.checkpoint")`, `pgJournalStore.ts:165`).
+- CORS : liste fermée d'origines exactes, credentials renvoyés seulement pour une origine autorisée, jamais « * » (`httpGuards.ts`).
+- `requestPenalty` : fonction pure, aucune écriture — pas de porte nécessaire.
+- CHECK `role_assignment.role` : bien supprimé en 0026 (les rôles L-11 sont légitimes).
+- Matrice PWA `droits.ts` : copie synchronisée du domaine, test dédié vert.
+- Détermination réel/fictif décidée UNE fois au cold start (`main.ts:57`, `serverless.ts:18`), aucun repli runtime — l'architecture était saine, seul le cas « prod sans base » manquait de garde (corrigé, #5).
+
+### 6.3 Documenté, NON corrigé (P2/P3 — à planifier, aucun masque appliqué)
+
+- **RLS** : ~7 tables sensibles sans RLS (`restore_point`, `data_erasure_tombstone`, `personal_consent`, `processing_record`, `legal_notice`, `pilot_risk`, `command`) — SELECT multi-groupes ouvert à `kombe_app` ; passe SECURITY DEFINER à prévoir (travail de fond, migration dédiée).
+- `confirm()`/`control()` : double confirmation concurrente d'un même mouvement non verrouillée (effet limité : re-UPDATE du même état) — à aligner sur le modèle `declare()` lors d'une prochaine passe.
+- Deux séances « ouvertes » simultanées restent possibles (pas d'index unique partiel) ; témoins d'une autre séance non filtrés à l'affichage.
+- Notifications hors-ligne non rejouées à la reconnexion ; `newcomersLast` (reprise d'historique) non borné.
+- Jetons de session (`ses_*`) stockés en clair côté base (at-rest).
+- `docs/openapi.yaml` : ancien contrat harness, divergent du réel (201 sur `code-verifications`/`draws`, `notifications/read` renvoie `{updated}`, 410 sur invitations épuisées) — à archiver au profit de `docs/API_TONTINE.md`.
+- Mobile (inchangé depuis §5.2) : ~225 chaînes FR en dur, motif de rejet imposé en dur, majorité réinventée côté client.
+
+### 6.4 Preuves
+
+- `pnpm --filter @kombe/domain run typecheck` + build : exit 0.
+- `pnpm --filter @kombe/api run typecheck` : exit 0.
+- vitest : domain **428/428** (dont copie produit réparée), api **245/245**, client **23/23** (matrice PWA synchronisée).
+- Migration 0032 : déclarée dans `migrate.mjs`, jalon ops mis à jour, `down.sql` fourni, `opsMigration.test` vert.
+- Commits : 7c580ea (lot 1), 225a640 (lot 2), 0f640fb (lot 3), 5381c34 (lot 4), ce0bf20 (copie site), lot 5 = migration 0032 + le présent document.
