@@ -1,8 +1,12 @@
-import {useMemo,useState,type ReactNode} from 'react';
-import {ActivityList,CapabilityNotice,DashboardBoot,DashboardShell,DataTable,Field,JsonDisclosure,MetricCard,OperatorGate,PageHeader,Panel,RemoteState,StatCard,SubmitButton,formatXaf,useHashRoute,useMutation,useRemote,type DashboardContext} from '@kombe/dashboard-core';
-import {DirectionApi,type Economics,type WeeklyKpi} from './api';
+import {useMemo,useState,type FormEvent,type ReactNode} from 'react';
+import {ActivityList,CapabilityNotice,DashboardBoot,DashboardShell,DataTable,Field,JsonDisclosure,MetricCard,OperatorGate,PageHeader,Panel,RemoteState,SelectField,StatCard,StatusChip,SubmitButton,TextAreaField,formatXaf,useHashRoute,useMutation,useRemote,type DashboardContext} from '@kombe/dashboard-core';
+import {DirectionApi,type Economics,type RiskRecord,type WeeklyKpi} from './api';
 const messages={app:{fr:'Direction & Analytics',en:'Direction & Analytics'}} as const;
 const NAV=[{path:'/',label:'Activité de la plateforme',icon:'◫'},{path:'/pilote',label:'Pilote (C18)',icon:'◆'},{path:'/funnel',label:'Funnel',icon:'↘'},{path:'/cohorts',label:'Cohortes',icon:'◎'},{path:'/economics',label:'Économie unitaire',icon:'¤'},{path:'/risks',label:'Risques',icon:'!'},{path:'/gates',label:'Gates d’extension',icon:'◆'}] as const;
+const TONE_SEVERITE:Record<RiskRecord['severity'],'neutral'|'warn'|'danger'>={faible:'neutral',moyen:'warn',eleve:'danger',critique:'danger'};
+const LIBELLE_SEVERITE:Record<RiskRecord['severity'],string>={faible:'Faible',moyen:'Moyen',eleve:'Élevé',critique:'Critique'};
+function controleEffectif(r:RiskRecord):boolean{return r.control!==''&&r.evidenceRef!==''&&r.owner!==''}
+const LIBELLES_ECO:Record<string,string>={exposedMembers:'Membres exposés',paidCount:'Payeurs réels',promisedCount:'Promesses non tenues',supportMinutes:'Minutes de support',supportCostPerMinuteMinor:'Coût support / minute (XAF)',infrastructureCostMinor:'Coût infrastructure (XAF)',cancellations:'Annulations',taxesMinor:'Taxes (XAF)'};
 function PilotOverview({api}:{api:DirectionApi}){
   const r=useRemote(s=>api.risks(s),[api],{isEmpty:d=>d.length===0});
   const g=useRemote(s=>api.extensionCheck(s),[api]);
@@ -10,14 +14,12 @@ function PilotOverview({api}:{api:DirectionApi}){
     <div className="k-grid">
       <div className="k-span-12">
         <div className="k-stats">
-          <RemoteState state={g.state} onRetry={g.reload}>{d=>{
-            const allowed=(d as {extensionAllowed?:boolean}).extensionAllowed;
-            const critical=(d as {criticalWithoutControl?:readonly string[]}).criticalWithoutControl??[];
-            return <>
-              <StatCard icon="◆" label="Extension pilote" value={allowed?'Autorisée':'Bloquée'} tone={allowed?'ok':'danger'}/>
-              <StatCard icon="!" label="Risques critiques sans contrôle" value={String(critical.length)} tone={critical.length>0?'danger':'ok'}/>
-            </>;
-          }}</RemoteState>
+          <RemoteState state={g.state} onRetry={g.reload}>{d=>
+            <>
+              <StatCard icon="◆" label="Extension pilote" value={d.extensionAllowed?'Autorisée':'Bloquée'} tone={d.extensionAllowed?'ok':'danger'}/>
+              <StatCard icon="!" label="Risques critiques sans contrôle" value={String(d.criticalWithoutControl.length)} tone={d.criticalWithoutControl.length>0?'danger':'ok'}/>
+            </>
+          }</RemoteState>
           <RemoteState state={r.state} onRetry={r.reload} emptyTitle="Aucun risque retourné">{d=>
             <StatCard icon="▦" label="Risques enregistrés" value={String(d.length)}/>
           }</RemoteState>
@@ -26,10 +28,9 @@ function PilotOverview({api}:{api:DirectionApi}){
       <div className="k-span-12">
         <Panel>
           <RemoteState state={r.state} onRetry={r.reload} emptyTitle="Aucun risque retourné">{rows=>
-            <ActivityList title="Registre des risques" empty="Aucun risque enregistré." items={rows.map((row,i)=>{
-              const x=row as {riskId?:unknown;severity?:unknown;control?:unknown};
-              return {id:String(x.riskId??i),text:`${String(x.riskId??'—')} — sévérité ${String(x.severity??'—')}`,meta:x.control?'Contrôlé':'Sans contrôle',tone:x.control?'ok':x.severity==='critique'?'danger':'warn'};
-            })}/>
+            <ActivityList title="Registre des risques" empty="Aucun risque enregistré." items={rows.map(r=>({
+              id:r.riskId,text:`${r.riskId} — sévérité ${LIBELLE_SEVERITE[r.severity]}`,meta:controleEffectif(r)?'Contrôlé':'Sans contrôle',tone:controleEffectif(r)?'ok':r.severity==='critique'?'danger':'warn',
+            }))}/>
           }</RemoteState>
         </Panel>
       </div>
@@ -39,9 +40,55 @@ function PilotOverview({api}:{api:DirectionApi}){
 function FunnelPage({api}:{api:DirectionApi}){const[id,setId]=useState('');const[gid,setGid]=useState('');const[selected,setSelected]=useState('');const[selGroup,setSelGroup]=useState('');const q=useRemote(s=>api.funnel(selected,selGroup,s),[api,selected,selGroup],{enabled:!!selected&&!!selGroup});return <><PageHeader title="Funnel d’adoption" description="Comptes agrégés ; individualFinancialFields doit rester 0. En mode réel, le groupe porteur scope la lecture (RLS)."/><Panel><form onSubmit={e=>{e.preventDefault();setSelected(id.trim());setSelGroup(gid.trim())}}><Field label="Cohort ID" inputProps={{value:id,onChange:e=>setId(e.target.value),required:true}}/><Field label="Group ID" inputProps={{value:gid,onChange:e=>setGid(e.target.value),required:true}}/><button className="k-button k-button-primary">Charger</button></form></Panel><div style={{height:16}}/><Panel><RemoteState state={q.state} onRetry={q.reload}>{d=><><div className="k-metrics"><MetricCard label="Champs financiers individuels" value={String(d.individualFinancialFields)} hint="Garde structurelle : 0"/></div><DataTable rows={d.steps} rowKey={r=>r.step} columns={[{header:'Étape',render:r=>r.step},{header:'Compte',render:r=>String(r.count)}]}/></>}</RemoteState></Panel></>}
 function Cohorts({api}:{api:DirectionApi}){const[id,setId]=useState('');const[selected,setSelected]=useState('');const q=useRemote(s=>api.cohort(selected,s),[api,selected],{enabled:!!selected});return <><PageHeader title="Cohortes" description="Un cycle correspond à une rotation complète."/><Panel><form onSubmit={e=>{e.preventDefault();setSelected(id.trim())}}><Field label="Group ID" inputProps={{value:id,onChange:e=>setId(e.target.value),required:true}}/><button className="k-button k-button-primary">Consulter</button></form></Panel><div style={{height:16}}/><Panel><RemoteState state={q.state} onRetry={q.reload}>{d=><div className="k-metrics"><MetricCard label="Membres" value={String(d.memberCount)}/><MetricCard label="Tours terminés" value={String(d.roundsCompleted)}/><MetricCard label="Cycles complets" value={String(d.completedCycles)}/><MetricCard label="Rétention 3 cycles" value={d.eligibleThreeCycleRetention?'Éligible':'Non éligible'}/></div>}</RemoteState></Panel></>}
 function EconomicsResult({data}:{data:Economics}){return <><div className="k-metrics" style={{marginTop:20}}><MetricCard label="Payeurs réels" value={String(data.realPayers)}/><MetricCard label="Taux réel" value={`${data.paymentRealPercent}%`}/><MetricCard label="Coût total" value={formatXaf(data.totalCostMinor)}/><MetricCard label="Gate G2" value={data.gateG2Met?'Atteinte':'Non atteinte'}/></div><JsonDisclosure value={data}/></>}
-function EconomicsPage({api}:{api:DirectionApi}){const[form,setForm]=useState({exposedMembers:'',paidCount:'',promisedCount:'',supportMinutes:'',supportCostPerMinuteMinor:'',infrastructureCostMinor:'',cancellations:'',taxesMinor:''});const update=(k:keyof typeof form,v:string)=>setForm(f=>({...f,[k]:v}));const m=useMutation(()=>api.createEconomics(Object.fromEntries(Object.entries(form).map(([k,v])=>[k,k.endsWith('Minor')?v:Number(v)]))));return <><PageHeader title="Économie unitaire" description="Les coûts XAF restent des entiers ; le serveur calcule le snapshot."/><Panel><form onSubmit={e=>{e.preventDefault();m.run(undefined)}} className="k-grid">{Object.entries(form).map(([k,v])=><div className="k-span-4" key={k}><Field label={k} inputProps={{value:v,onChange:e=>update(k as keyof typeof form,e.target.value),required:true,inputMode:'numeric'}}/></div>)}<div className="k-span-12"><SubmitButton busy={m.state.kind==='submitting'}>Calculer et enregistrer côté serveur</SubmitButton></div></form>{m.state.kind==='success'&&<EconomicsResult data={m.state.data}/>}</Panel></>}
-function Risks({api}:{api:DirectionApi}){const q=useRemote(s=>api.risks(s),[api],{isEmpty:d=>d.length===0});return <><PageHeader title="Registre des risques" description="Les risques critiques sans contrôle effectif bloquent l’extension."/><Panel><RemoteState state={q.state} onRetry={q.reload} emptyTitle="Aucun risque retourné">{rows=><DataTable rows={rows} rowKey={(_,i)=>String(i)} columns={[{header:'Risque',render:r=><JsonDisclosure value={r}/>} ]}/>}</RemoteState></Panel></>}
-function Gates({api}:{api:DirectionApi}){const q=useRemote(s=>api.extensionCheck(s),[api]);return <><PageHeader title="Gates d’extension" description="Décision serveur uniquement ; aucun verdict local n’est fabriqué."/><Panel><RemoteState state={q.state} onRetry={q.reload}>{d=><JsonDisclosure value={d}/>}</RemoteState></Panel></>}
+function EconomicsPage({api}:{api:DirectionApi}){const[form,setForm]=useState({exposedMembers:'',paidCount:'',promisedCount:'',supportMinutes:'',supportCostPerMinuteMinor:'',infrastructureCostMinor:'',cancellations:'',taxesMinor:''});const update=(k:keyof typeof form,v:string)=>setForm(f=>({...f,[k]:v}));const m=useMutation(()=>api.createEconomics(Object.fromEntries(Object.entries(form).map(([k,v])=>[k,k.endsWith('Minor')?v:Number(v)]))));return <><PageHeader title="Économie unitaire" description="Les coûts XAF restent des entiers ; le serveur calcule le snapshot."/><Panel><form onSubmit={e=>{e.preventDefault();m.run(undefined)}} className="k-grid">{Object.entries(form).map(([k,v])=><div className="k-span-4" key={k}><Field label={LIBELLES_ECO[k]??k} inputProps={{value:v,onChange:e=>update(k as keyof typeof form,e.target.value),required:true,inputMode:'numeric'}}/></div>)}<div className="k-span-12"><SubmitButton busy={m.state.kind==='submitting'}>Calculer et enregistrer côté serveur</SubmitButton></div></form>{m.state.kind==='success'&&<EconomicsResult data={m.state.data}/>}</Panel></>}
+function Risks({api}:{api:DirectionApi}){const q=useRemote(s=>api.risks(s),[api],{isEmpty:d=>d.length===0});return <><PageHeader title="Registre des risques" description="Les risques critiques sans contrôle effectif bloquent l’extension du pilote (contrôle effectif : mesure + preuve + responsable renseignés)."/><div className="k-grid">
+  <div className="k-span-8"><Panel title="Risques enregistrés"><RemoteState state={q.state} onRetry={q.reload} emptyTitle="Aucun risque enregistré">{rows=>
+    <DataTable rows={rows} rowKey={r=>r.riskId} caption="Registre des risques" columns={[
+      {header:'Risque',render:r=><><strong>{r.riskId}</strong><br/><span className="k-hint">Revue {r.reviewedAt}{r.residual?` · ${r.residual}`:''}</span></>},
+      {header:'Sévérité',render:r=><StatusChip status={LIBELLE_SEVERITE[r.severity]} tone={TONE_SEVERITE[r.severity]}/>},
+      {header:'Prob. / Impact',render:r=>`${r.probabilityPercent} % / ${r.impactPercent} %`},
+      {header:'Contrôle',render:r=>controleEffectif(r)?<StatusChip status="Effectif" tone="ok"/>:<StatusChip status="Absent" tone={r.severity==='critique'||r.severity==='eleve'?'danger':'warn'}/>},
+      {header:'Responsable',render:r=>r.owner||'—'},
+    ]}/>}</RemoteState></Panel></div>
+  <div className="k-span-4"><NouveauRisque api={api} onFini={q.reload}/></div>
+</div></>}
+function NouveauRisque({api,onFini}:{api:DirectionApi;onFini:()=>void}){
+  const[f,setF]=useState({riskId:'',severity:'moyen',probabilityPercent:'',impactPercent:'',control:'',evidenceRef:'',owner:'',reviewedAt:'',residual:''});
+  const u=(k:keyof typeof f,v:string)=>setF(s=>({...s,[k]:v}));
+  const m=useMutation(()=>api.createRisk({riskId:f.riskId.trim(),severity:f.severity as RiskRecord['severity'],probabilityPercent:Number(f.probabilityPercent),impactPercent:Number(f.impactPercent),control:f.control.trim(),evidenceRef:f.evidenceRef.trim(),owner:f.owner.trim(),reviewedAt:f.reviewedAt,residual:f.residual.trim()}));
+  const submit=(e:FormEvent)=>{e.preventDefault();void m.run(undefined).then(onFini,()=>undefined)};
+  return <Panel title="Déclarer un risque">
+    <form onSubmit={submit}>
+      <Field label="Identifiant du risque" hint="Clé unique, ex. R-PILOTE-07 (120 car. max)." inputProps={{value:f.riskId,onChange:e=>u('riskId',e.target.value),required:true,maxLength:120}}/>
+      <SelectField label="Sévérité" selectProps={{value:f.severity,onChange:e=>u('severity',e.target.value)}}>
+        <option value="faible">Faible</option><option value="moyen">Moyen</option><option value="eleve">Élevé</option><option value="critique">Critique</option>
+      </SelectField>
+      <Field label="Probabilité (%)" inputProps={{value:f.probabilityPercent,onChange:e=>u('probabilityPercent',e.target.value),required:true,inputMode:'numeric',min:0,max:100}}/>
+      <Field label="Impact (%)" inputProps={{value:f.impactPercent,onChange:e=>u('impactPercent',e.target.value),required:true,inputMode:'numeric',min:0,max:100}}/>
+      <TextAreaField label="Mesure de contrôle" hint="Laisser vide si aucune mesure (bloque l’extension si critique)." textareaProps={{value:f.control,onChange:e=>u('control',e.target.value),maxLength:500}}/>
+      <Field label="Preuve du contrôle (réf.)" inputProps={{value:f.evidenceRef,onChange:e=>u('evidenceRef',e.target.value),maxLength:300}}/>
+      <Field label="Responsable" inputProps={{value:f.owner,onChange:e=>u('owner',e.target.value),maxLength:120}}/>
+      <Field label="Dernière revue (AAAA-MM-JJ)" inputProps={{value:f.reviewedAt,onChange:e=>u('reviewedAt',e.target.value),required:true,placeholder:'2026-10-16',pattern:'\\d{4}-\\d{2}-\\d{2}'}}/>
+      <Field label="Risque résiduel" inputProps={{value:f.residual,onChange:e=>u('residual',e.target.value),maxLength:500}}/>
+      <SubmitButton busy={m.state.kind==='submitting'}>Enregistrer au registre</SubmitButton>
+    </form>
+    {m.state.kind==='error'?<p className="k-field-error" role="alert">{String(m.state.error)}</p>:null}
+    {m.state.kind==='success'?<p className="k-hint" role="status">Risque enregistré dans le registre serveur.</p>:null}
+  </Panel>;
+}
+function Gates({api}:{api:DirectionApi}){const q=useRemote(s=>api.extensionCheck(s),[api]);return <><PageHeader title="Gates d’extension" description="Décision serveur uniquement ; aucun verdict local n’est fabriqué. Un risque critique sans contrôle effectif bloque l’extension du pilote."/>
+  <div className="k-grid">
+    <div className="k-span-12"><div className="k-stats"><RemoteState state={q.state} onRetry={q.reload}>{d=>
+      <>
+        <StatCard icon="◆" label="Extension du pilote" value={d.extensionAllowed?'Autorisée':'Bloquée'} tone={d.extensionAllowed?'ok':'danger'} hint={d.extensionAllowed?'Aucun blocage au registre':'Résoudre les risques listés ci-dessous'}/>
+        <StatCard icon="!" label="Risques critiques sans contrôle" value={String(d.criticalWithoutControl.length)} tone={d.criticalWithoutControl.length?'danger':'ok'}/>
+      </>
+    }</RemoteState></div></div>
+    <div className="k-span-12"><Panel title="Blocages"><RemoteState state={q.state} onRetry={q.reload}>{d=>
+      d.criticalWithoutControl.length===0?<StatusChip status="Aucun blocage" tone="ok"/>:<ul>{d.criticalWithoutControl.map(id=><li key={id}><code>{id}</code></li>)}</ul>
+    }</RemoteState></Panel></div>
+    <div className="k-span-12"><Panel title="Réponse serveur brute"><RemoteState state={q.state} onRetry={q.reload}>{d=><JsonDisclosure value={d}/>}</RemoteState></Panel></div>
+  </div></>}
 export function sommeXaf(xs:readonly string[]):string{return xs.reduce((a,x)=>a+BigInt(/^\d+$/.test(x)?x:'0'),0n).toString()}
 export function tauxConfirmation(k:readonly WeeklyKpi[]):number|null{const d=k.reduce((a,x)=>a+x.movementsDeclared,0);const c=k.reduce((a,x)=>a+x.movementsConfirmed,0);return d===0?null:Math.round(Math.min(100,(c*100)/d))}
 function Barres({valeurs,libelle}:{valeurs:readonly number[];libelle:string}){const max=Math.max(1,...valeurs);return <figure aria-label={libelle} style={{margin:0}}><div className="k-bars">{valeurs.map((v,i)=><div key={i} className="k-bar" data-zero={v===0?'true':'false'} style={{height:`${Math.max(2,(v/max)*100)}%`}} title={String(v)}/>)}</div><figcaption className="k-bars-legend"><span>il y a {valeurs.length} sem.</span><span>{libelle}</span><span>cette semaine</span></figcaption></figure>}
