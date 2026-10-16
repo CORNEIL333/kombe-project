@@ -23,7 +23,13 @@ import { cadenceSchema, settingsSchema } from "./settings.js";
 import { EmailCodeSender, codeSenderFromEnv, type CodeSender } from "./sms.js";
 
 const id = z.string().min(3).max(200);
-const moneyStr = z.string().regex(/^\d{1,10}$/);
+// Plafond aligné sur le domaine base `kombe_money` (bigint ≤ 1e9, 0001_init) :
+// au-delà, l'insertion échouait en STATE_CONFLICT générique — ici le refus est
+// précoce et porte le bon message.
+const moneyStr = z
+  .string()
+  .regex(/^\d{1,10}$/)
+  .refine((s) => BigInt(s) <= 1_000_000_000n, "Montant au-delà du plafond XAF (1 000 000 000)");
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const reason = z.object({ reason: z.string().trim().min(3).max(500) });
 const channelFields = {
@@ -129,10 +135,10 @@ const S = {
         id: z.string().min(1).max(200),
         name: z.string().min(1).max(200),
         members: z.array(z.object({ uid: z.string().max(200), name: z.string().max(120), phone: z.string().max(40).optional(), email: z.string().max(200).optional(), role: z.string().max(40).optional() })).max(1000),
-        contributions: z.array(z.object({ id: z.string().max(200), uid: z.string().max(200), amount: z.number(), date: z.string().max(40), status: z.string().max(40).optional() })).max(5000),
+        contributions: z.array(z.object({ id: z.string().max(200), uid: z.string().max(200), amount: z.number().int().min(0).max(1_000_000_000), date: z.string().max(40), status: z.string().max(40).optional() })).max(5000),
       })
       .optional(),
-    rows: z.array(z.object({ memberName: z.string().max(120), date: z.string().max(40), amount: z.number() })).max(5000).optional(),
+    rows: z.array(z.object({ memberName: z.string().max(120), date: z.string().max(40), amount: z.number().int().min(0).max(1_000_000_000) })).max(5000).optional(),
   }),
   notificationsRead: z.object({ ids: z.union([z.array(z.string().max(20)).max(500), z.literal("all")]) }),
   reason,

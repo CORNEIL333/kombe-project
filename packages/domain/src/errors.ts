@@ -126,6 +126,8 @@ export type DomainErrorCode =
   /* API produit (0026). */
   | "STATE_CONFLICT"
   | "AUTH_THROTTLED"
+  /* Traduction d'une erreur PG (22P02 : texte non convertible — id mal formé). */
+  | "REQUEST_INVALID"
   /* Amorçage tontine (C03 §2.1-2.3, C05 §5.3, C21, parrainage). */
   | "TONTINE_MODEL_UNKNOWN"
   | "ROTATION_TYPE_UNKNOWN"

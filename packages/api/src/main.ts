@@ -55,6 +55,12 @@ async function main(): Promise<void> {
   // BuildAppOptions.pool, server.ts) ; toute route sans store PG réel répond
   // 404 en mode réel plutôt que de servir des données fictives.
   const databaseUrl = readApiDatabaseUrl();
+  // Garde anti-fictif : en production, démarrer sans base signifierait servir
+  // des données inventées derrière un 200 — on refuse de démarrer plutôt que
+  // de mentir (l'honnêteté des UI commence par celle du serveur).
+  if (!databaseUrl && (process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production")) {
+    throw new Error("KOMBE_API_DATABASE_URL absente : démarrage en mode fictif refusé en production");
+  }
   const pool = databaseUrl ? createApiPool({ connectionString: databaseUrl }) : undefined;
   const app = buildApp(pool ? { pool } : {});
   // Site web à la même origine (scripts/build-web.mjs → dist-web) : optionnel.

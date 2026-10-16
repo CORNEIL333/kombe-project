@@ -16,6 +16,12 @@ import { buildApp } from "./server.js";
 import { createApiPool, readApiDatabaseUrl } from "./db/pgPool.js";
 
 const databaseUrl = readApiDatabaseUrl();
+// Garde anti-fictif : en production Vercel, une base absente doit faire
+// ÉCHOUER le cold start (500 visibles) plutôt que servir du fictif derrière
+// des 200 — le smoke §22 ne peut pas rattraper un mensonge silencieux.
+if (!databaseUrl && (process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production")) {
+  throw new Error("KOMBE_API_DATABASE_URL absente : démarrage en mode fictif refusé en production");
+}
 const pool = databaseUrl ? createApiPool({ connectionString: databaseUrl }) : undefined;
 const app = buildApp(pool ? { pool } : {});
 const ready = app.ready();

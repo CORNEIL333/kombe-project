@@ -29,7 +29,9 @@ export function newId(prefix: string): string {
   return `${prefix}_${randomUUID().replace(/-/g, "")}`;
 }
 
-/** Montant XAF reçu en chaîne d'entier → bigint (jamais de flottant). */
+/** Montant XAF reçu en chaîne d'entier → bigint (jamais de flottant). Plafond
+ *  `kombe_money` (bigint ≤ 1e9, migration 0001) : le refus est précoce et
+ *  porte le bon code, pas un STATE_CONFLICT venu du CHECK. */
 export function money(value: string | number | bigint | null | undefined, field = "montant"): bigint {
   if (value === null || value === undefined) return 0n;
   if (typeof value === "bigint") return value;
@@ -37,7 +39,11 @@ export function money(value: string | number | bigint | null | undefined, field 
   if (!/^\d{1,13}$/.test(s)) {
     throw new DomainError("MONEY_NOT_INTEGER", `${field} : entier XAF attendu`);
   }
-  return BigInt(s);
+  const v = BigInt(s);
+  if (v > 1_000_000_000n) {
+    throw new DomainError("MONEY_OVER_PER_AMOUNT_CEILING", `${field} : au-delà du plafond XAF (1 000 000 000)`);
+  }
+  return v;
 }
 
 export function m(value: bigint): string {
@@ -73,9 +79,11 @@ export async function inTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promis
   const db = await pool.connect();
   try {
     await db.query("BEGIN");
-    await db.query("SET LOCAL idle_in_transaction_session_timeout = '15s'");
+    await db.query("SET LOCAL idle_in_transaction_session_timeout = '9s'");
     await db.query("SET LOCAL lock_timeout = '3s'");
-    await db.query("SET LOCAL statement_timeout = '15s'");
+    // 9 s < 10 s : en serverless la plateforme tue la fonction à 10 s — mieux
+    // vaut un échec métier propre (translatePgError) qu'un 500 sans réponse.
+    await db.query("SET LOCAL statement_timeout = '9s'");
     const out = await fn(db);
     await db.query("COMMIT");
     return out;
@@ -99,6 +107,7 @@ export function translatePgError(error: unknown): unknown {
     process.stderr.write(`[tontine pg] ${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
   }
   if (code === "23505") return new DomainError("STATE_CONFLICT", "Déjà enregistré");
+  if (code === "22P02") return new DomainError("REQUEST_INVALID", "Identifiant ou valeur mal formée");
   if (code === "23514" || code === "23503" || code === "23502") {
     return new DomainError("STATE_CONFLICT", "Opération refusée par les règles du registre");
   }
