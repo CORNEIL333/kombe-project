@@ -200,7 +200,7 @@ function Invitations({ ctx }: { readonly ctx: ContexteGroupe }) {
                   </div>
                   {inv.revoked ? null : (
                     <div className="liste__actions">
-                      <a className="bouton bouton-compact" href={`https://wa.me/?text=${encodeURIComponent(inv.whatsappText)}`} target="_blank" rel="noreferrer">
+                      <a className="bouton bouton-compact" href={`https://wa.me/?text=${encodeURIComponent(inv.whatsappText)}`} target="_blank" rel="noopener noreferrer">
                         {tx("mb.partagerWhatsapp")}
                       </a>
                       <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => void copier(inv)}>

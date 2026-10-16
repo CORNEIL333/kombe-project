@@ -49,7 +49,7 @@ export default defineConfig({
   plugins: [chrome()],
   build: {
     target: ['es2020', 'chrome67', 'safari14', 'firefox68', 'edge79'],
-    sourcemap: true,
+    sourcemap: false, // site public : les sources ne partent pas avec le bundle
     cssCodeSplit: false,
     rollupOptions: { input: pages(root) },
   },
