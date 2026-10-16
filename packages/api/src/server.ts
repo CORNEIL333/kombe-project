@@ -2790,6 +2790,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const query = request.query as { groupId?: string };
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
+      // Analyse plateforme : même porte opérateur que economics/risks (un
+      // membre ne consulte pas les entonnoirs, fussent ceux de son groupe).
+      await assertRealOperator(pool, identityId);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.analyticsFunnel(ctx, cohortId, query.groupId));
     }
@@ -2804,6 +2807,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const body = cohortBody.parse(request.body);
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
+      // Écriture d'une cohorte pilote : réservée aux opérateurs (RLS ou non,
+      // un membre ne façonne pas les métriques de son propre groupe).
+      await assertRealOperator(pool, identityId);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(201).send(await realMetrics.upsertCohort(ctx, body));
     }
@@ -2816,6 +2822,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { groupId } = request.params as { groupId: string };
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
+      await assertRealOperator(pool, identityId);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.getCohort(ctx, groupId));
     }
