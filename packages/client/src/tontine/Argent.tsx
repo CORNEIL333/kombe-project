@@ -11,6 +11,7 @@ import { peut } from "./droits.js";
 import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
+import { useNomCaisse } from "./Caisses.js";
 
 export const CANAUX: readonly PaymentChannel[] = ["cash", "orange_money", "mtn_momo", "bank", "international_transfer", "other"];
 
@@ -32,6 +33,7 @@ export function FormulaireDeclaration({
   readonly onFini: () => void;
 }) {
   const { tx, dyn } = useTextes();
+  const nomCaisse = useNomCaisse();
   const g = ctx.groupe;
   const caissesCotisation = g.funds.filter((f) => f.state === "active" && f.kind !== "loan" && f.kind !== "collector");
   const [fundId, setFundId] = useState(echeance?.fundId ?? caissesCotisation.find((f) => f.kind === "rotation")?.fundId ?? caissesCotisation[0]?.fundId ?? "");
@@ -79,7 +81,7 @@ export function FormulaireDeclaration({
           <select id="dec-caisse" value={fundId} onChange={(e) => setFundId(e.target.value)}>
             {caissesCotisation.map((f) => (
               <option key={f.fundId} value={f.fundId}>
-                {dyn(`caisse.${f.kind}`)}
+                {nomCaisse(f)}
               </option>
             ))}
           </select>
@@ -120,6 +122,7 @@ export function FormulaireDeclaration({
 
 export function LigneMouvement({ m, actions }: { readonly m: MovementView; readonly actions?: ReactNode }) {
   const { tx, dyn, xaf, date } = useTextes();
+  const nomCaisse = useNomCaisse();
   const pourCompte = m.declaredByName && m.memberName && m.declaredByName !== m.memberName;
   return (
     <li className="liste__ligne liste__ligne--haute">
@@ -128,7 +131,7 @@ export function LigneMouvement({ m, actions }: { readonly m: MovementView; reado
           {dyn(`ar.type.${m.kind}`)} · {xaf(m.amount)}
         </strong>
         <span className="aide-champ">
-          {m.memberName ?? ""}
+          {nomCaisse({ kind: m.fundKind, name: m.fundName ?? "" })} · {m.memberName ?? ""}
           {m.roundSeq ? ` · ${tx("ar.tour")} ${m.roundSeq}` : ""} · {dyn(`ar.canal.${m.channel}`)}
           {m.reference ? ` · ${m.reference}` : ""} · {date(m.declaredAt)}
         </span>

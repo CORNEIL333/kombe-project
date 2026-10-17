@@ -82,6 +82,8 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 ## Caisses et mouvements
 
 | GET | `/v1/tontines/:id/funds` | membre | → `FundView[]` |
+| POST | `/v1/tontines/:id/funds` | Président / VP / Trésorier | `CreateFundInput` `{ name, mode: each_meeting\|one_time\|free, amount?, from?, purpose?, target? }` → `FundView[]` (201 ; caisse ou cotisation propre à la tontine ; date d'effet ≥ aujourd'hui, jamais rétroactive) |
+| PATCH | `/v1/tontines/:id/funds/:fid` | Président / VP / Trésorier | `UpdateFundInput` `{ name?, purpose?, target?, amount?, from?, close? }` → `FundView[]` (caisses personnalisées seulement ; un nouveau montant ne vaut que pour l'avenir ; la clôture garde les échéances antérieures) |
 | GET | `/v1/tontines/:id/movements` | membre | `?fundId=&roundSeq=&state=&meetingId=&mine=1` → `MovementView[]` |
 | POST | `/v1/tontines/:id/movements` | membre | `DeclareMovementInput` → `MovementView` (déclaré) |
 | POST | `/v1/tontines/:id/movements/confirmations` | Trésorier / adjoint | `{ movementIds: string[] }` → `MovementView[]` (collecte en lot ; jamais sa propre déclaration) |

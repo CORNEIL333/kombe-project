@@ -139,6 +139,34 @@ export interface FundView {
   /** Déclaré en attente de confirmation (entrées). */
   readonly pendingIn: Money;
   readonly perMeeting: Money;
+  /** Caisse créée par la tontine elle-même : ses règles propres. */
+  readonly custom?: {
+    readonly mode: "each_meeting" | "one_time" | "free";
+    readonly purpose: string | null;
+    readonly target: string | null;
+    /** Montant dû aujourd'hui (0 pour une caisse libre). */
+    readonly currentAmount: Money;
+    readonly schedule: readonly { readonly from: IsoDate; readonly amount: Money }[];
+    readonly closedOn: IsoDate | null;
+  };
+}
+
+export interface CreateFundInput {
+  readonly name: string;
+  readonly mode: "each_meeting" | "one_time" | "free";
+  readonly amount?: Money | undefined;
+  readonly from?: IsoDate | undefined;
+  readonly purpose?: string | null | undefined;
+  readonly target?: Money | null | undefined;
+}
+
+export interface UpdateFundInput {
+  readonly name?: string | undefined;
+  readonly purpose?: string | null | undefined;
+  readonly target?: Money | null | undefined;
+  readonly amount?: Money | undefined;
+  readonly from?: IsoDate | undefined;
+  readonly close?: boolean | undefined;
 }
 
 export interface MemberView {
@@ -254,6 +282,8 @@ export interface MovementView {
   readonly movementId: string;
   readonly fundId: string;
   readonly fundKind: FundKind;
+  /** Nom de la caisse (celui choisi par la tontine pour une caisse personnalisée). */
+  readonly fundName: string;
   readonly kind: MovementKind;
   readonly amount: Money;
   readonly membershipId: string | null;

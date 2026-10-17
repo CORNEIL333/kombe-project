@@ -109,7 +109,7 @@ body{font-feature-settings:"tnum" 1;-webkit-font-smoothing:antialiased}
 .k-eyebrow{display:inline-flex;align-items:center;margin:0 0 14px;color:var(--k-gold-300);font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
 .k-eyebrow::before{content:"";width:22px;height:3px;border-radius:3px;background:var(--k-gold-500);margin-right:10px}
 .k-boot--immersive .k-boot-title{margin:0;font-size:44px;font-size:clamp(2.2rem,3.8vw,3.8rem);font-weight:800;line-height:1.03;letter-spacing:-.04em;color:var(--k-sand-50)}
-.k-boot-title em{display:block;font-family:var(--k-font-expressive);font-style:italic;font-weight:400;color:var(--k-gold-300);letter-spacing:-.02em}
+.k-boot-title em{display:block;font-family:var(--k-font-expressive);font-style:normal;font-weight:800;color:var(--k-gold-300);letter-spacing:-.02em}
 .k-boot-lead{color:rgba(243,236,221,.84);font-size:1.05rem;line-height:1.6;max-width:32rem;margin:18px 0 0}
 .k-boot--immersive .k-boot-card{width:100%;max-width:540px;align-self:center;justify-self:center;padding:40px 32px;animation:k-rise .6s var(--k-ease) both .15s}
 .k-boot--immersive .k-boot-card .k-panel{padding:28px;border-radius:28px;box-shadow:0 40px 80px -48px rgba(8,44,38,.55)}
@@ -142,7 +142,7 @@ body{font-feature-settings:"tnum" 1;-webkit-font-smoothing:antialiased}
 .k-sidebar-art{margin:0;position:relative;height:118px;border-radius:18px;overflow:hidden;border:1px solid rgba(243,236,221,.12)}
 .k-sidebar-art img{width:100%;height:100%;object-fit:cover;display:block;opacity:.85}
 .k-sidebar-art::after{content:"";position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(180deg,rgba(6,31,27,.1),rgba(6,31,27,.85))}
-.k-sidebar-art figcaption{position:absolute;z-index:1;left:12px;right:12px;bottom:10px;font-family:var(--k-font-expressive);font-style:italic;font-size:15px;line-height:1.25;color:var(--k-gold-300)}
+.k-sidebar-art figcaption{position:absolute;z-index:1;left:12px;right:12px;bottom:10px;font-family:var(--k-font-expressive);font-style:normal;font-weight:700;font-size:15px;line-height:1.25;color:var(--k-gold-300)}
 @media(max-height:780px){.k-sidebar-art{display:none}}
 @media(max-width:760px){.k-sidebar::before{display:none}}
 
@@ -177,12 +177,12 @@ body{font-feature-settings:"tnum" 1;-webkit-font-smoothing:antialiased}
 .k-sidebar{background:linear-gradient(180deg,#123f34 0%,var(--k-green-900) 60%,#0c3229 100%)}
 .k-sidebar nav button.active{background:var(--k-sand-50);color:var(--k-green-900);box-shadow:inset 3px 0 0 var(--k-gold-500)}
 .k-sidebar nav button.active .k-nav-node{background:var(--k-gold-500);border-color:var(--k-gold-500)}
-.k-page-head h1,.k-panel-head h2,.k-boot-title{font-family:var(--k-font-expressive)}
+.k-page-head h1,.k-panel-head h2,.k-boot-title{font-family:var(--k-font-expressive);font-weight:800;letter-spacing:-.03em}
 .k-boot-hero{color:var(--k-green-900);background:var(--k-sand-100)}
 .k-boot-veil{background:linear-gradient(180deg,rgba(251,248,241,.2) 0%,rgba(251,248,241,.7) 50%,rgba(251,248,241,.97) 100%)}
 .k-boot-orbits{stroke:rgba(199,146,46,.35)}
 .k-boot--immersive .k-boot-title{color:var(--k-green-900);font-weight:700;letter-spacing:-.02em}
-.k-boot-title em{font-family:var(--k-font-expressive);font-style:normal;font-weight:700;color:var(--k-green-800)}
+.k-boot-title em{font-family:var(--k-font-expressive);font-style:normal;font-weight:800;color:#a8ad3b}
 .k-boot-lead{color:var(--k-ink)}
 .k-eyebrow{color:var(--k-ink)}
 .k-eyebrow::before{background:var(--k-gold-500)}

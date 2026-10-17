@@ -79,7 +79,7 @@ body {
 
 /* ── Cartes, messages, pastilles (statut = couleur + forme + libellé) ── */
 .tcarte { background: var(--c-blanc); border-radius: var(--r-l); box-shadow: var(--ombre-1); }
-.tcarte__entete h3, .tcarte h3, .tcarte h4 { font-family: var(--f-titre); font-weight: 700; color: var(--c-foret); }
+.tcarte__entete h3, .tcarte h3, .tcarte h4 { font-family: var(--f-titre); font-weight: 800; letter-spacing: -0.02em; color: var(--c-foret); }
 .tcarte__entete h3 { font-size: 1.3rem; }
 .msg { border-radius: var(--r-m); background: var(--c-blanc); box-shadow: var(--ombre-1); color: var(--c-encre); }
 .msg--erreur { background: var(--c-erreur-fond); color: var(--c-erreur); border-left: 4px solid var(--c-erreur); box-shadow: none; }
@@ -101,7 +101,7 @@ body {
 .bandeau--succes { background: var(--c-succes-fond); border-left-color: var(--c-succes); color: var(--c-succes); border-radius: var(--r-m); }
 
 /* ── Titres et liens ────────────────────────────────────────────────── */
-.barre-titre h2, .entete-groupe h2 { font-family: var(--f-titre); font-weight: 700; color: var(--c-foret); }
+.barre-titre h2, .entete-groupe h2 { font-family: var(--f-titre); font-weight: 800; letter-spacing: -0.02em; color: var(--c-foret); }
 .lien-retour { color: var(--c-actif); }
 .lien-retour:hover { color: var(--c-foret); }
 .surtitre { color: var(--c-encre); font-weight: 800; letter-spacing: 0.2em; }
@@ -111,8 +111,8 @@ body {
 .bandeau-photo { color: var(--c-foret); background: var(--c-sable-doux); border: 0; border-radius: var(--r-xl); box-shadow: var(--ombre-2); }
 .bandeau-photo__voile { background: linear-gradient(90deg, rgba(251, 248, 241, 0.97) 0%, rgba(251, 248, 241, 0.9) 42%, rgba(251, 248, 241, 0.35) 75%, rgba(251, 248, 241, 0.05) 100%); }
 .bandeau-photo__orbites { stroke: rgba(199, 146, 46, 0.28); stroke-width: 1.2; }
-.bandeau-photo__titre { color: var(--c-foret); font-family: var(--f-titre); font-weight: 700; letter-spacing: -0.02em; text-shadow: none; }
-.bandeau-photo__titre em { font-family: var(--f-titre); font-style: normal; font-weight: 700; color: var(--c-actif); }
+.bandeau-photo__titre { color: var(--c-foret); font-family: var(--f-titre); font-weight: 800; letter-spacing: -0.032em; text-shadow: none; }
+.bandeau-photo__titre em { font-family: var(--f-titre); font-style: normal; font-weight: 800; letter-spacing: -0.02em; color: var(--c-olive); }
 .bandeau-photo__meta { color: var(--c-encre); }
 .bandeau-photo .surtitre { color: var(--c-encre); }
 .bandeau-photo__chiffres li, .pastille-verre { background: rgba(255, 255, 255, 0.88); border: 0; box-shadow: var(--ombre-1); color: var(--c-foret); }
@@ -138,8 +138,8 @@ body {
 .tuile-tontine:focus-visible { border-color: var(--c-or); }
 .tuile-tontine__couverture { height: 128px; }
 .tuile-tontine__couverture::after { background: linear-gradient(180deg, rgba(16, 60, 50, 0) 40%, rgba(16, 60, 50, 0.45) 100%); }
-.tuile-tontine__monogramme { background: var(--c-foret); border: 3px solid var(--c-blanc); box-shadow: 0 0 0 2px var(--c-or); font-family: var(--f-titre); }
-.tuile-tontine__nom { font-family: var(--f-titre); font-weight: 700; font-size: 1.3rem; color: var(--c-foret); }
+.tuile-tontine__monogramme { background: var(--c-foret); border: 3px solid var(--c-blanc); box-shadow: 0 0 0 2px var(--c-or); font-family: var(--f-titre); font-weight: 800; letter-spacing: -0.02em; }
+.tuile-tontine__nom { font-family: var(--f-titre); font-weight: 800; letter-spacing: -0.02em; font-size: 1.3rem; color: var(--c-foret); }
 .tuile-tontine__remise { color: var(--c-actif); }
 .accent-or { background: var(--c-or); }
 
@@ -166,7 +166,7 @@ body {
 
 /* État vide */
 .etat-vide { border-radius: var(--r-l); box-shadow: var(--ombre-1); }
-.etat-vide__texte h3 { font-family: var(--f-titre); color: var(--c-foret); }
+.etat-vide__texte h3 { font-family: var(--f-titre); font-weight: 800; letter-spacing: -0.02em; color: var(--c-foret); }
 
 /* ── Connexion : photo lumineuse + formulaire blanc ─────────────────── */
 .ecran-connexion { border: 0; box-shadow: var(--ombre-3); background: var(--c-blanc); }
@@ -174,31 +174,32 @@ body {
 .panneau-marque__photo { opacity: 1; }
 .panneau-marque__voile { background: linear-gradient(180deg, rgba(251, 248, 241, 0.55) 0%, rgba(251, 248, 241, 0.7) 40%, rgba(251, 248, 241, 0.96) 100%); }
 .panneau-marque__marque, .panneau-marque__marque small { color: var(--c-foret); }
-.panneau-marque__corps h1 { color: var(--c-foret); font-family: var(--f-titre); font-weight: 700; letter-spacing: -0.02em; }
-.panneau-marque__corps h1 em { font-family: var(--f-titre); font-style: normal; font-weight: 700; color: var(--c-actif); }
+.panneau-marque__corps h1 { color: var(--c-foret); font-family: var(--f-titre); font-weight: 800; letter-spacing: -0.032em; }
+.panneau-marque__corps h1 em { font-family: var(--f-titre); font-style: normal; font-weight: 800; letter-spacing: -0.02em; color: var(--c-olive); }
 .panneau-marque__corps p { color: var(--c-encre); }
 .panneau-marque__atouts li { background: rgba(255, 255, 255, 0.85); border-color: transparent; box-shadow: var(--ombre-1); }
 .panneau-marque__atouts strong { color: var(--c-foret); }
 .panneau-marque__atouts span { color: var(--c-texte-2); }
 .panneau-marque__atouts .icone { background: var(--c-sable-doux); color: var(--c-foret); }
-.panneau-marque__signature { color: var(--c-actif); font-family: var(--f-titre); font-style: normal; }
+.panneau-marque__signature { color: var(--c-actif); font-family: var(--f-titre); font-weight: 800; letter-spacing: -0.02em; font-style: normal; }
 .panneau-formulaire { background: var(--c-blanc); }
-.panneau-formulaire__entete h2 { font-family: var(--f-titre); font-weight: 700; color: var(--c-foret); }
+.panneau-formulaire__entete h2 { font-family: var(--f-titre); font-weight: 800; letter-spacing: -0.02em; color: var(--c-foret); }
 .panneau-formulaire__entete h2 em { font-style: normal; color: var(--c-actif); }
 .panneau-formulaire__pied::before { background: var(--c-or); }
 .mode-inscription { background: var(--c-menthe); border-left-color: var(--c-actif); border-radius: var(--r-m); }
-.mode-inscription strong { color: var(--c-foret); font-family: var(--f-titre); }
+.mode-inscription strong { color: var(--c-foret); font-family: var(--f-titre); font-weight: 800; letter-spacing: -0.02em; }
 
 /* ── Pied de page ───────────────────────────────────────────────────── */
 .pied-page { border-top: 1px solid var(--c-trait); color: var(--c-texte-2); }
-.pied-page__promesse { font-family: var(--f-titre); font-style: normal; font-weight: 600; color: var(--c-foret); font-size: 1.2rem; }
+.pied-page__promesse { font-family: var(--f-titre); font-style: normal; font-weight: 800; letter-spacing: -0.02em; color: var(--c-foret); font-size: 1.2rem; }
 .pied-page__lien { color: var(--c-actif); border-bottom-color: rgba(23, 107, 82, 0.4); }
 
 /* ── Navigation basse (charte 04/08), téléphone uniquement ──────────── */
 .nav-basse { display: none; }
 @media (max-width: 899px) {
   .app-tontine { padding-bottom: 96px; }
-  .entete-session { display: none; }
+  /* Téléphone : l'activité vit dans la barre du bas ; la déconnexion reste visible en haut. */
+  .entete-session .bouton-notif { display: none; }
   .nav-basse { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 6px 8px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); background: rgba(255, 255, 255, 0.92); -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px); box-shadow: 0 -1px 0 var(--c-trait), 0 -10px 30px -18px rgba(16, 60, 50, 0.3); }
 }
 .nav-basse__item { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 58px; padding: 6px 2px; border: 0; border-radius: 14px; background: none; color: var(--c-texte-2); font: 600 11.5px/1.2 var(--f-ui); cursor: pointer; transition: color var(--t-std) var(--e-std), background-color var(--t-std); }
@@ -219,3 +220,44 @@ body {
   .entete { flex-wrap: nowrap; }
   .entete-actions { flex: none; }
 }
+
+/* ── Caisses et cotisations propres à la tontine ─────────────────────── */
+.choix-regle { margin: 0; padding: 0; border: 0; min-width: 0; }
+.choix-regle legend { margin-bottom: 8px; font-weight: 600; color: var(--c-encre); }
+.choix-regle__option { position: relative; display: block; margin-top: 8px; padding: 12px 14px 12px 44px; border: 1px solid var(--c-sable-trait); border-radius: 14px; background: #fff; cursor: pointer; transition: border-color 150ms ease, background-color 150ms ease; }
+.choix-regle__option:first-of-type { margin-top: 0; }
+.choix-regle__option input { position: absolute; left: 16px; top: 15px; margin: 0; accent-color: var(--c-actif); }
+.choix-regle__option strong { display: block; color: var(--c-encre); }
+.choix-regle__option--actif { border-color: var(--c-actif); background: var(--c-menthe); }
+.choix-regle__option:focus-within { outline: 2px solid var(--c-actif); outline-offset: 2px; }
+.caisse-objectif { margin-top: 6px; max-width: 360px; }
+.caisse-objectif__barre { position: relative; height: 8px; overflow: hidden; border-radius: 4px; background: var(--c-sable-doux); }
+.caisse-objectif__barre span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--c-actif); transition: width 420ms cubic-bezier(.2,.7,.2,1); }
+.zone-cloture { margin-top: 4px; padding-top: 12px; border-top: 1px dashed var(--c-sable-trait); }
+.zone-cloture .bouton { margin-top: 8px; }
+.bouton.bouton-danger { background: var(--c-erreur); border-color: var(--c-erreur); color: #fff; }
+.bouton.bouton-danger:hover:not(:disabled) { background: #921C13; border-color: #921C13; }
+
+/* ── Déconnexion : toujours visible, toujours confirmée ──────────────── */
+@media (max-width: 899px) {
+  .entete-session { display: flex; align-items: center; margin-left: auto; }
+  .bouton.bouton-icone.bouton-sortie { width: auto; min-width: 46px; padding: 0 14px 0 12px; }
+  .bouton-sortie .libelle-bouton { position: static; width: auto; height: auto; overflow: visible; clip: auto; margin-left: 6px; font-size: 13.5px; }
+}
+@media (max-width: 520px) {
+  .bouton.bouton-icone.bouton-sortie { width: 46px; padding: 0; }
+  .bouton-sortie .libelle-bouton { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); margin: 0; }
+}
+.pied-page__sortie { display: inline-flex; align-items: center; padding: 8px 0; border: 0; background: none; color: var(--c-erreur); font: 600 15px/1.2 var(--f-ui); cursor: pointer; }
+.pied-page__sortie svg { margin-right: 8px; }
+.pied-page__sortie:hover { text-decoration: underline; }
+.voile-dialogue { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(10, 42, 34, 0.48); animation: kombe-fondu 150ms ease-out; }
+.dialogue-sortie { width: 100%; max-width: 420px; padding: 28px 24px 22px; border-radius: 22px; background: var(--c-blanc); box-shadow: 0 24px 60px -20px rgba(10, 42, 34, 0.55); text-align: left; animation: kombe-monte 220ms cubic-bezier(.2,.7,.2,1); }
+.dialogue-sortie h2 { margin: 14px 0 8px; font-family: var(--f-titre); font-weight: 800; letter-spacing: -0.02em; font-size: 1.45rem; color: var(--c-foret); }
+.dialogue-sortie p { margin: 0 0 12px; color: var(--c-texte-2); line-height: 1.5; }
+.dialogue-sortie__icone { display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 16px; background: var(--c-erreur-fond); color: var(--c-erreur); }
+.dialogue-sortie__alerte { padding: 10px 12px; border-radius: 12px; background: var(--c-attention-fond); color: var(--c-attention) !important; }
+.dialogue-sortie .actions-formulaire { margin-top: 18px; }
+@keyframes kombe-fondu { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kombe-monte { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .voile-dialogue, .dialogue-sortie { animation: none; } }

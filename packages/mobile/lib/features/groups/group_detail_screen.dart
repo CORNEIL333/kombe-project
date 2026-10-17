@@ -63,6 +63,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             _Action(icon: Icons.calendar_month_outlined, label: 'Cycle', onTap: () => context.push('/app/groups/$id/cycle')),
                             _Action(icon: Icons.settings_outlined, label: 'Paramètres', onTap: () => context.push('/app/groups/$id/settings')),
                             _Action(icon: Icons.rule_rounded, label: 'Règles', onTap: () => context.push('/app/groups/$id/rules')),
+                            _Action(icon: Icons.account_balance_wallet_outlined, label: 'Caisses', onTap: () => context.push('/app/groups/$id/funds')),
                           ],
                         ),
                         const SizedBox(height: 16),

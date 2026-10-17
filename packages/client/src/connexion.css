@@ -23,7 +23,7 @@
 /* ── En-tête ─────────────────────────────────────────────────────────── */
 .app--accueil .entete { position: relative; z-index: 5; display: flex; align-items: center; justify-content: space-between; height: 90px; margin: 0; padding: 0 max(16px, calc(50% - 733px)); background: rgba(252, 253, 251, 0.92); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 .app--accueil .entete-marque { flex: none; }
-.app--accueil .lien-logo { display: block; padding: 0; margin-left: 9px; margin-top: 26px; }
+.app--accueil .lien-logo { display: block; padding: 0; margin-left: 5px; margin-top: 26px; }
 .entete-site { display: none; }
 @media (min-width: 1000px) { .entete-site { position: absolute; left: 50%; top: 0; height: 90px; display: flex; align-items: center; transform: translateX(-313px); } }
 .entete-site a { position: relative; margin-right: 38px; padding: 0; line-height: 94px; color: #3e5f56; font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; }
@@ -77,7 +77,7 @@
 /* ── Atouts (cartes 263 px, gouttière 16 px) ────────────────────────── */
 .cx-atouts { list-style: none; display: grid; grid-template-columns: 1fr; grid-gap: 16px 16px; margin: 0; padding: 0; }
 @media (min-width: 600px) { .cx-atouts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1200px) { .cx-atouts { grid-template-columns: repeat(3, 263px); grid-row-gap: 15px; margin-top: 30px; } }
+@media (min-width: 1200px) { .cx-atouts { grid-template-columns: repeat(3, 263px); grid-row-gap: 19px; grid-column-gap: 17px; margin-top: 33px; } }
 @media (min-width: 1200px) { .cx-bas { margin-top: -7px; } }
 .cx-atouts li { animation: apparition var(--t-success) var(--e-out) both; }
 .cx-atouts a { position: relative; display: block; height: 100%; min-height: 151px; padding: 12px 22px 15px 19px; border-radius: 16px; background: rgba(252, 252, 249, 0.96); box-shadow: 0 0 0 1px rgba(19, 33, 28, 0.045), 0 8px 22px -14px rgba(16, 60, 50, 0.22); text-decoration: none; transition: transform var(--t-spatial) var(--e-out), box-shadow var(--t-spatial) var(--e-out); }
@@ -156,4 +156,12 @@ html, body { overflow-x: hidden; }
   .app--accueil .lien-logo { margin-top: 0; transform: scale(0.74); transform-origin: 0 50%; }
   .app--accueil .entete { height: 72px; }
   .cx-carte .cx-carte__logo { margin-left: 0; }
+}
+
+/* Recalage sur la maquette « Connectez-vous » (image du 2026-10-17, 1671 px) :
+   colonne +4 px, sélecteur de langue +3 px. */
+@media (min-width: 1200px) {
+  .ecran-cx { left: 4px; }
+  .app--accueil .entete-actions { margin-right: -3px; }
+  .cx-promesse__signature { margin-top: 30px; }
 }

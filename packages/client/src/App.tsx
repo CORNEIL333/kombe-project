@@ -13,6 +13,7 @@ import { Rejoindre } from "./tontine/Rejoindre.js";
 import { Groupe } from "./tontine/Groupe.js";
 import { useTextes } from "./tontine/textes.js";
 import { FileAttente } from "./tontine/FileAttente.js";
+import { lireFile } from "./tontine/fileAttenteMoteur.js";
 import { BandeauPhoto } from "./composants/Scene.js";
 import { Icone } from "./composants/Icones.js";
 
@@ -105,12 +106,26 @@ export function App() {
     };
   }, [session, route]);
 
+  // Déconnexion en deux temps : on confirme, et l'on prévient si des
+  // opérations attendent encore le réseau sur ce téléphone.
+  const [quitter, setQuitter] = useState(false);
+  const enAttente = quitter ? lireFile().length : 0;
   const deconnecter = () => {
     if (session) void acces.deconnexion(session).catch(() => undefined);
     memoriserSession(null);
     setSession(null);
+    setQuitter(false);
     aller({ ecran: "accueil" });
   };
+  useEffect(() => {
+    if (!quitter) return;
+    const echap = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setQuitter(false);
+    };
+    window.addEventListener("keydown", echap);
+    document.getElementById("quitter-annuler")?.focus();
+    return () => window.removeEventListener("keydown", echap);
+  }, [quitter]);
 
   return (
     <div className={session ? "app app-tontine" : "app app-tontine app--accueil"}>
@@ -137,7 +152,7 @@ export function App() {
           <div className="entete-session">
             <button
               type="button"
-              className="bouton bouton-secondaire bouton-compact bouton-icone"
+              className="bouton bouton-secondaire bouton-compact bouton-icone bouton-notif"
               aria-current={route.ecran === "notifications" ? "page" : undefined}
               onClick={() => aller({ ecran: "notifications" })}
             >
@@ -149,7 +164,7 @@ export function App() {
                 </span>
               ) : null}
             </button>
-            <button type="button" className="bouton bouton-secondaire bouton-compact bouton-icone" onClick={deconnecter}>
+            <button type="button" className="bouton bouton-secondaire bouton-compact bouton-icone bouton-sortie" onClick={() => setQuitter(true)}>
               <Icone nom="sortie" />
               <span className="libelle-bouton">{tx("app.deconnexion")}</span>
             </button>
@@ -205,7 +220,39 @@ export function App() {
             {tx("imm.decouvrir")} →
           </a>
         </p>
+        {session ? (
+          <p>
+            <button type="button" className="pied-page__sortie" onClick={() => setQuitter(true)}>
+              <Icone nom="sortie" taille={18} />
+              {tx("app.deconnexion")}
+            </button>
+          </p>
+        ) : null}
       </footer>
+      {quitter ? (
+        <div className="voile-dialogue" onClick={(e) => e.target === e.currentTarget && setQuitter(false)}>
+          <div className="dialogue dialogue-sortie" role="dialog" aria-modal="true" aria-labelledby="quitter-titre" aria-describedby="quitter-texte">
+            <span className="dialogue-sortie__icone" aria-hidden="true">
+              <Icone nom="sortie" taille={26} />
+            </span>
+            <h2 id="quitter-titre">{tx("app.deconnexionTitre")}</h2>
+            <p id="quitter-texte">{tx("app.deconnexionTexte")}</p>
+            {enAttente > 0 ? (
+              <p className="dialogue-sortie__alerte" role="alert">
+                {tx("app.deconnexionAttente", { n: enAttente })}
+              </p>
+            ) : null}
+            <div className="actions-formulaire">
+              <button id="quitter-annuler" type="button" className="bouton bouton-secondaire" onClick={() => setQuitter(false)}>
+                {tx("app.annuler")}
+              </button>
+              <button type="button" className="bouton bouton-danger" onClick={deconnecter}>
+                {tx("app.deconnexion")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {session ? (
         <nav className="nav-basse" aria-label={tx("app.accueil")}>
           {(

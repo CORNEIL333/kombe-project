@@ -10,6 +10,7 @@ import type {
   AidView,
   AuthCodeRequestResult,
   AuthSessionResult,
+  CreateFundInput,
   CreateTontineInput,
   DebtView,
   DeclareMovementInput,
@@ -33,6 +34,7 @@ import type {
   TontineDetail,
   TontineSettings,
   TontineSummary,
+  UpdateFundInput,
   DecisionView,
   SanctionView,
   HistoryImportResult,
@@ -46,6 +48,8 @@ import { EnFileAttente, envoyerFile, estErreurReseau, mettreEnFile } from "./fil
 export { ApiError };
 export type {
   AidView,
+  CreateFundInput,
+  UpdateFundInput,
   DebtView,
   DecisionView,
   HistoryImportResult,
@@ -292,6 +296,11 @@ export const seances = {
 
 export const argent = {
   caisses: (s: Session, id: string) => appel<FundView[]>(s, "GET", `${t(id)}/funds`),
+  /** Caisse ou cotisation propre à la tontine (bureau). */
+  creerCaisse: (s: Session, id: string, input: CreateFundInput) => appel<FundView[]>(s, "POST", `${t(id)}/funds`, input),
+  /** Nom, objet, objectif, nouveau montant pour l'avenir, clôture. */
+  modifierCaisse: (s: Session, id: string, fid: string, input: UpdateFundInput) =>
+    appel<FundView[]>(s, "PATCH", `${t(id)}/funds/${encodeURIComponent(fid)}`, input),
   mouvements: (s: Session, id: string, filtre: { fundId?: string; roundSeq?: number; state?: string; meetingId?: string; mine?: boolean } = {}) =>
     appel<MovementView[]>(s, "GET", `${t(id)}/movements`, undefined, {
       fundId: filtre.fundId,

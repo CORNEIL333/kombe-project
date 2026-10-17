@@ -6,6 +6,7 @@ import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_tokens.g.dart';
 import '../../core/formatters/labels.dart';
 import '../../core/state/resource.dart';
+import '../../core/widgets/kombe_sign_out.dart';
 import '../../core/widgets/kombe_visuals.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
@@ -106,6 +107,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _Row(icon: Icons.help_outline_rounded, title: 'Centre d’aide', subtitle: 'FAQ et guides d’utilisation', onTap: () => context.push('/app/help')),
                   _Row(icon: Icons.headset_mic_outlined, title: 'Nous contacter', subtitle: 'Assistance', onTap: () => context.push('/app/support'), last: true),
                 ]),
+                const SizedBox(height: 22),
+                const KombeBoutonDeconnexion(),
                 FutureBuilder<Resource<List<KombeNotification>>>(
                   future: _notifications,
                   builder: (BuildContext context, AsyncSnapshot<Resource<List<KombeNotification>>> snap) {

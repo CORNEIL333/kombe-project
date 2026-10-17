@@ -32,7 +32,7 @@ export const ETAT_MVT: Record<string, [string, 'ok' | 'warn' | 'danger' | 'neutr
   declared: ['Déclaré', 'warn'], confirmed: ['Confirmé par le trésorier', 'ok'], validated: ['Validé', 'ok'], rejected: ['Rejeté', 'danger'], compensated: ['Corrigé', 'neutral'],
 };
 const CAISSE: Record<string, string> = {
-  rotation: 'Cagnotte (njangi)', solidarity: 'Secours', year_end_reserve: 'Réserve de fin d’année', operating: 'Fonctionnement', fines: 'Amendes', loan: 'Prêts', collector: 'Collecte journalière',
+  rotation: 'Cagnotte (njangi)', solidarity: 'Secours', year_end_reserve: 'Réserve de fin d’année', operating: 'Fonctionnement', fines: 'Amendes', loan: 'Prêts', collector: 'Collecte journalière', custom: 'Caisse personnalisée',
 };
 const TYPE: Record<string, string> = {
   contribution: 'Cotisation', payout: 'Remise', fine_payment: 'Amende payée', advance: 'Avance de caisse', advance_repayment: 'Remboursement d’avance',
@@ -202,7 +202,7 @@ function AConfirmer({ api, g }: P) {
             <DataTable rows={rows} rowKey={(m) => m.movementId} caption="Déclarations à confirmer" columns={[
               { header: '', render: (m) => m.can.confirm ? <input type="checkbox" aria-label={`Sélectionner ${m.memberName ?? ''}`} checked={sel.has(m.movementId)} onChange={(e) => setSel((s) => { const n = new Set(s); if (e.target.checked) n.add(m.movementId); else n.delete(m.movementId); return n; })} /> : null, width: '36px' },
               { header: 'Membre', render: (m) => m.memberName ?? '—' },
-              { header: 'Caisse', render: (m) => CAISSE[m.fundKind] ?? m.fundKind },
+              { header: 'Caisse', render: (m) => (m.fundKind === 'custom' ? m.fundName : CAISSE[m.fundKind] ?? m.fundKind) },
               { header: 'Montant', render: (m) => xaf(m.amount) },
               { header: 'Moyen', render: (m) => `${CANAL[m.channel] ?? m.channel}${m.reference ? ` · ${m.reference}` : ''}` },
             ]} />
@@ -224,7 +224,7 @@ function Mouvements({ api, g }: P) {
   const q = useRemote((s) => api.movements(g.groupId, state ? { state } : {}, s), [api, g.groupId, state]);
   const exporter = (rows: readonly MovementView[]) => downloadCsv(`kombe-mouvements-${g.name.replace(/\W+/g, '-')}.csv`, toCsv(
     ['Date', 'Type', 'Caisse', 'Membre', 'Tour', 'Montant (XAF)', 'Moyen', 'Référence', 'État', 'Déclaré par', 'Confirmé par', 'Contrôlé par'],
-    rows.map((m) => [m.declaredAt.slice(0, 10), TYPE[m.kind] ?? m.kind, CAISSE[m.fundKind] ?? m.fundKind, m.memberName, m.roundSeq, m.amount, CANAL[m.channel] ?? m.channel, m.reference, ETAT_MVT[m.state]?.[0] ?? m.state, m.declaredByName, m.confirmedByName, m.controlledByName]),
+    rows.map((m) => [m.declaredAt.slice(0, 10), TYPE[m.kind] ?? m.kind, m.fundKind === 'custom' ? m.fundName : CAISSE[m.fundKind] ?? m.fundKind, m.memberName, m.roundSeq, m.amount, CANAL[m.channel] ?? m.channel, m.reference, ETAT_MVT[m.state]?.[0] ?? m.state, m.declaredByName, m.confirmedByName, m.controlledByName]),
   ));
   return (
     <>
@@ -241,7 +241,7 @@ function Mouvements({ api, g }: P) {
             <DataTable rows={rows} rowKey={(m) => m.movementId} caption="Mouvements" columns={[
               { header: 'Date', render: (m) => jour(m.declaredAt) },
               { header: 'Type', render: (m) => TYPE[m.kind] ?? m.kind },
-              { header: 'Caisse', render: (m) => CAISSE[m.fundKind] ?? m.fundKind },
+              { header: 'Caisse', render: (m) => (m.fundKind === 'custom' ? m.fundName : CAISSE[m.fundKind] ?? m.fundKind) },
               { header: 'Membre', render: (m) => m.memberName ?? '—' },
               { header: 'Montant', render: (m) => xaf(m.amount) },
               { header: 'Moyen', render: (m) => `${CANAL[m.channel] ?? m.channel}${m.reference ? ` · ${m.reference}` : ''}` },

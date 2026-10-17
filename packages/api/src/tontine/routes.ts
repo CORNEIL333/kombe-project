@@ -39,7 +39,26 @@ const channelFields = {
   justification: z.string().trim().min(1).max(500).optional(),
 };
 
+const fundMode = z.enum(["each_meeting", "one_time", "free"]);
+const fundText = z.string().trim().max(280).nullable().optional();
+
 const S = {
+  fundCreate: z.object({
+    name: z.string().trim().min(2).max(80),
+    mode: fundMode,
+    amount: moneyStr.optional(),
+    from: isoDate.optional(),
+    purpose: fundText,
+    target: moneyStr.nullable().optional(),
+  }),
+  fundUpdate: z.object({
+    name: z.string().trim().min(2).max(80).optional(),
+    purpose: fundText,
+    target: moneyStr.nullable().optional(),
+    amount: moneyStr.optional(),
+    from: isoDate.optional(),
+    close: z.literal(true).optional(),
+  }),
   codeRequest: z.object({ login: z.string().min(3).max(120), channel: z.enum(["sms", "whatsapp", "email"]).optional() }),
   neonExchange: z.object({ token: z.string().min(20).max(8000) }),
   codeVerify: z.object({ login: z.string().min(3).max(120), code: z.string().regex(/^\d{6}$/) }),
@@ -348,6 +367,13 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
 
   /* ── Caisses et mouvements ─────────────────────────────────────────── */
   app.get("/v1/tontines/:id/funds", async (req) => money.funds(H(req), (req.params as P).id as string));
+  app.post("/v1/tontines/:id/funds", async (req, reply) =>
+    write(req, reply, 201, () => money.createFund(H(req), (req.params as P).id as string, S.fundCreate.parse(req.body))),
+  );
+  app.patch("/v1/tontines/:id/funds/:fid", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => money.updateFund(H(req), p.id as string, p.fid as string, S.fundUpdate.parse(req.body ?? {})));
+  });
   app.get("/v1/tontines/:id/movements", async (req) => {
     const q = req.query as Q;
     return money.movements(H(req), (req.params as P).id as string, {

@@ -11,6 +11,10 @@
 import type pg from "pg";
 import {
   DomainError,
+  newCustomFundRules,
+  updateCustomFundRules,
+  type CreateFundInput,
+  type UpdateFundInput,
   planReserveDistribution,
   type PaymentChannel,
   assertChannelReference,
@@ -26,6 +30,7 @@ import {
 import {
   type Actor,
   type Db,
+  activeMemberIdentities,
   appendEvent,
   groupActor,
   identitiesWithRoles,
@@ -66,7 +71,9 @@ export interface ReserveDistributionView {
   readonly waiting: readonly { readonly membershipId: string; readonly name: string | null; readonly amount: string; readonly reason: string }[];
 }
 
-const SIDE_FUND_KINDS = ["rotation", "solidarity", "operating", "year_end_reserve"];
+const SIDE_FUND_KINDS = ["rotation", "solidarity", "operating", "year_end_reserve", "custom"];
+/** Au plus 20 caisses personnalisées actives par tontine : lisible en séance. */
+const MAX_CUSTOM_FUNDS = 20;
 
 /** Le contrôle par un commissaire est exigé dès qu'un commissaire est en fonction. */
 export async function controlRequired(db: Db, groupId: string): Promise<boolean> {
@@ -221,7 +228,62 @@ export class MoneyService {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => {
       await this.actor(db, headers, groupId, nowMs);
-      return loadFunds(db, groupId);
+      return loadFunds(db, groupId, todayDouala(nowMs));
+    });
+  }
+
+  /**
+   * Nouvelle caisse ou cotisation propre à la tontine (projet, fête, achat
+   * groupé, urgences…). Bureau seulement (`fund.manage`) ; prend effet au plus
+   * tôt aujourd'hui : rien n'est réclamé pour les séances passées.
+   */
+  async createFund(headers: Record<string, unknown>, groupId: string, input: CreateFundInput): Promise<FundView[]> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await this.actor(db, headers, groupId, nowMs);
+      requireAct(actor, "fund.manage");
+      const today = todayDouala(nowMs);
+      const rules = newCustomFundRules(input, today);
+      const name = input.name.trim().replace(/\s+/g, " ");
+      const funds = await loadFundRows(db, groupId);
+      if (funds.filter((f) => f.custom && f.state === "active").length >= MAX_CUSTOM_FUNDS) {
+        throw new DomainError("FUND_INVALID", `Au plus ${MAX_CUSTOM_FUNDS} caisses personnalisées actives`);
+      }
+      if (funds.some((f) => f.state === "active" && f.name.toLocaleLowerCase("fr") === name.toLocaleLowerCase("fr"))) {
+        throw new DomainError("FUND_INVALID", "Une caisse active porte déjà ce nom");
+      }
+      const fundId = newId("fnd");
+      await db.query(
+        `INSERT INTO fund (fund_id, group_id, kind, name, rules, created_by_identity_id) VALUES ($1,$2,'custom',$3,$4::jsonb,$5)`,
+        [fundId, groupId, name, JSON.stringify(rules), actor.identityId],
+      );
+      await appendEvent(db, actor, "fund.created", { fundId, name, rules }, nowMs);
+      const members = await activeMemberIdentities(db, groupId);
+      await notify(db, groupId, members.filter((i) => i !== actor.identityId), "general", `/tontines/${groupId}/argent`, `fund:${fundId}:created`);
+      return loadFunds(db, groupId, today);
+    });
+  }
+
+  /** Modifie une caisse personnalisée : nom, objet, objectif, montant futur, clôture. */
+  async updateFund(headers: Record<string, unknown>, groupId: string, fundId: string, input: UpdateFundInput): Promise<FundView[]> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await this.actor(db, headers, groupId, nowMs);
+      requireAct(actor, "fund.manage");
+      const today = todayDouala(nowMs);
+      const lock = await db.query(`SELECT 1 FROM fund WHERE group_id = $1 AND fund_id = $2 FOR UPDATE`, [groupId, fundId]);
+      if (lock.rows.length === 0) throw new DomainError("OBJET_INTROUVABLE", "Caisse introuvable");
+      const fund = (await loadFundRows(db, groupId)).find((f) => f.fundId === fundId);
+      if (!fund?.custom) throw new DomainError("FUND_INVALID", "Seules les caisses créées par la tontine se modifient ici ; les autres suivent le règlement");
+      const rules = updateCustomFundRules(fund.custom, input, today);
+      const name = input.name === undefined ? fund.name : input.name.trim().replace(/\s+/g, " ");
+      if (name.length < 2 || name.length > 80) throw new DomainError("FUND_INVALID", "Nom de caisse de 2 à 80 caractères");
+      await db.query(
+        `UPDATE fund SET name = $3, rules = $4::jsonb, state = $5, version = version + 1 WHERE group_id = $1 AND fund_id = $2`,
+        [groupId, fundId, name, JSON.stringify(rules), rules.closedOn ? "closed" : "active"],
+      );
+      await appendEvent(db, actor, input.close ? "fund.closed" : "fund.updated", { fundId, name, rules, previous: { name: fund.name, rules: fund.custom } }, nowMs);
+      return loadFunds(db, groupId, today);
     });
   }
 
@@ -320,7 +382,9 @@ export class MoneyService {
 
       const funds = await loadFundRows(db, groupId);
       const fund = funds.find((f) => f.fundId === fundId);
-      if (!fund || fund.state !== "active") throw new DomainError("FUND_INVALID", "Caisse introuvable ou fermée");
+      // Une caisse personnalisée close reçoit encore ce qui était dû avant sa clôture.
+      const lateOnClosed = fund?.custom !== null && fund?.custom !== undefined && kind === "contribution" && relatedKind !== "debt";
+      if (!fund || (fund.state !== "active" && !lateOnClosed)) throw new DomainError("FUND_INVALID", "Caisse introuvable ou fermée");
       if (fund.kind === "loan" || fund.kind === "collector") throw new DomainError("FUND_INVALID", "Cette caisse n'est pas ouverte");
 
       if (kind === "fine_payment") {
@@ -342,7 +406,11 @@ export class MoneyService {
         amount = BigInt(String(fine.amount));
       } else if (kind === "contribution") {
         if (!SIDE_FUND_KINDS.includes(fund.kind)) throw new DomainError("FUND_INVALID", "Cette caisse ne reçoit pas de cotisation");
-        if (relatedKind !== "debt") {
+        if (fund.custom?.mode === "free" && relatedKind !== "debt") {
+          // Contribution volontaire : montant libre, rattachée au tour indiqué s'il y en a un.
+          if (fund.state !== "active") throw new DomainError("FUND_INVALID", "Caisse clôturée");
+          relatedKind = null;
+        } else if (relatedKind !== "debt") {
           relatedKind = null;
           const open = await computeDues(db, group, memberId, todayDouala(nowMs), { onlyOpen: true });
           const mine = open.filter((d) => d.fundId === fund.fundId && (roundSeq === null || d.roundSeq === roundSeq));

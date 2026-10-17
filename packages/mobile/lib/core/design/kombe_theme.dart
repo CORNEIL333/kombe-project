@@ -4,19 +4,19 @@ import 'kombe_colors.dart';
 import 'kombe_spacing.dart';
 import 'kombe_tokens.g.dart';
 
-/// Typographie de la charte (02/08) : Fraunces pour les titres éditoriaux
-/// (H1–H3), Manrope pour tout le reste. `titre` : style d'un titre Fraunces ;
-/// `accent` : la partie mise en valeur d'un titre (vert actif, même graisse).
+/// Typographie : Manrope partout ; titres en ExtraBold à approche serrée,
+/// accent olive (maquette « Connectez-vous »). `titre` : style d'un grand titre ;
+/// `accent` : la partie mise en valeur d'un titre (olive, même graisse).
 abstract final class KombeType {
-  static TextStyle titre({double size = 32, Color color = KombeColors.forest, double height = 1.08, FontWeight weight = FontWeight.w700}) => TextStyle(
-        fontFamily: KombeTokens.fontDisplay,
+  static TextStyle titre({double size = 32, Color color = KombeColors.forest, double height = 1.08, FontWeight weight = FontWeight.w800}) => TextStyle(
+        fontFamily: KombeTokens.fontUi,
         fontWeight: weight,
         fontSize: size,
         height: height,
-        letterSpacing: -size * .012,
+        letterSpacing: -size * .032,
         color: color,
       );
-  static TextStyle accent({double size = 28, Color color = KombeColors.emerald, double height = 1.08}) => titre(size: size, color: color, height: height);
+  static TextStyle accent({double size = 28, Color color = KombeColors.olive, double height = 1.08}) => titre(size: size, color: color, height: height);
 }
 
 abstract final class KombeTheme {
@@ -49,33 +49,37 @@ abstract final class KombeTheme {
 
     return base.copyWith(
       textTheme: base.textTheme.copyWith(
-        // Titres éditoriaux en Fraunces (charte 02/08 : H1 40/48, H2 32/38, H3 24/30).
+        // Titres en Manrope ExtraBold, approche serrée (maquette « Connectez-vous »).
         displaySmall: base.textTheme.displaySmall?.copyWith(
           fontFamily: KombeTokens.fontDisplay,
           color: KombeColors.forest,
-          fontWeight: FontWeight.w700,
-          height: 1.06,
-          letterSpacing: -.6,
+          fontWeight: FontWeight.w800,
+          height: 1.0,
+          letterSpacing: -1.2,
         ),
         headlineLarge: base.textTheme.headlineLarge?.copyWith(
           fontFamily: KombeTokens.fontDisplay,
           color: KombeColors.forest,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.5,
         ),
         headlineMedium: base.textTheme.headlineMedium?.copyWith(
           fontFamily: KombeTokens.fontDisplay,
           color: KombeColors.forest,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.5,
         ),
         headlineSmall: base.textTheme.headlineSmall?.copyWith(
           fontFamily: KombeTokens.fontDisplay,
           color: KombeColors.forest,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.5,
         ),
         titleLarge: base.textTheme.titleLarge?.copyWith(
           fontFamily: KombeTokens.fontDisplay,
           color: KombeColors.forest,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.5,
         ),
         titleMedium: base.textTheme.titleMedium?.copyWith(
           color: KombeColors.ink,

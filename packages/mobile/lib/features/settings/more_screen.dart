@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/kombe_sign_out.dart';
 import '../../core/widgets/list_row.dart';
 import '../../core/widgets/section_card.dart';
 
@@ -90,6 +91,8 @@ class MoreScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 22),
+          const KombeBoutonDeconnexion(),
         ],
       );
 }

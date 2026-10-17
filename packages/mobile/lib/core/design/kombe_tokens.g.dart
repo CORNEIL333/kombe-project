@@ -80,7 +80,7 @@ abstract final class KombeTokens {
   static const Color orbitBeneficiary = Color(0xFFC7922E);
   static const List<Color> dataviz = <Color>[Color(0xFF176B52), Color(0xFFC7922E), Color(0xFF2A8A68), Color(0xFF865C18), Color(0xFF7FB59C), Color(0xFF46413A)];
   static const String fontUi = 'Manrope';
-  static const String fontDisplay = 'Fraunces';
+  static const String fontDisplay = 'Manrope';
   static const double space0 = 0;
   static const double space1 = 4;
   static const double space2 = 8;

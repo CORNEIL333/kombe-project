@@ -12,6 +12,7 @@ import '../domain/repositories/dispute_repository.dart';
 import '../domain/repositories/document_repository.dart';
 import '../domain/repositories/draft_repository.dart';
 import '../domain/repositories/governance_repository.dart';
+import '../domain/repositories/fund_repository.dart';
 import '../domain/repositories/group_repository.dart';
 import '../domain/repositories/notification_repository.dart';
 import '../domain/repositories/profile_repository.dart';
@@ -59,6 +60,7 @@ class _KombeAppState extends State<KombeApp> {
         Provider<AuthRepository>.value(value: widget.dependencies.authRepository),
         Provider<ProfileRepository>.value(value: widget.dependencies.profileRepository),
         Provider<GroupRepository>.value(value: widget.dependencies.groupRepository),
+        Provider<FundRepository>.value(value: widget.dependencies.fundRepository),
         Provider<ContributionRepository>.value(value: widget.dependencies.contributionRepository),
         Provider<GovernanceRepository>.value(value: widget.dependencies.governanceRepository),
         Provider<DisputeRepository>.value(value: widget.dependencies.disputeRepository),

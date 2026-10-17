@@ -48,7 +48,9 @@
   --c-neutre-fond: #eeefec;
 
   --f-ui: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --f-titre: "Fraunces", Georgia, "Times New Roman", serif;
+  --f-titre: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Accent des grands titres (maquette « Connectez-vous ») */
+  --c-olive: #a8ad3b;
 
   --r-s: 10px;
   --r-m: 14px;

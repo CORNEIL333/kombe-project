@@ -5189,6 +5189,128 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TontineError'
+    post:
+      tags:
+      - tontine
+      operationId: postTontinesByIdFunds
+      summary: FundView[]
+      description: 'Rôle requis : bureau (fund.manage : président, vice-président, trésorier). Corps → réponse : CreateFundInput → FundView[] (201 ; caisse ou cotisation propre à la tontine, jamais rétroactive). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFundInput'
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FundView'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/funds/{fid}:
+    patch:
+      tags:
+      - tontine
+      operationId: patchTontinesByIdFundsByFid
+      summary: FundView[]
+      description: 'Rôle requis : bureau (fund.manage). Corps → réponse : UpdateFundInput → FundView[] (caisse personnalisée : nom, objet, objectif, nouveau montant à date d''effet ≥ aujourd''hui, clôture). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: fid
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFundInput'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FundView'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
   /tontines/{id}/movements:
     get:
       tags:
@@ -7174,6 +7296,10 @@ components:
       type: object
       additionalProperties: true
       description: Type `DebtView` de packages/domain/src/tontine/dto.ts (montants en chaînes d’entiers XAF, dates AAAA-MM-JJ).
+    CreateFundInput:
+      type: object
+      additionalProperties: true
+      description: Type `CreateFundInput` de packages/domain/src/tontine/dto.ts (montants en chaînes d’entiers XAF, dates AAAA-MM-JJ).
     DeclareMovementInput:
       type: object
       additionalProperties: true
@@ -7528,6 +7654,10 @@ components:
         subjectRef: { type: string, maxLength: 120 }
         reason: { type: string, minLength: 1, maxLength: 500 }
         durationSeconds: { type: integer, minimum: 1, maximum: 31536000 }
+    UpdateFundInput:
+      type: object
+      additionalProperties: true
+      description: Type `UpdateFundInput` de packages/domain/src/tontine/dto.ts (montants en chaînes d’entiers XAF, dates AAAA-MM-JJ).
     Vote:
       type: object
       required: [voteId, groupId, electorateSize, state]

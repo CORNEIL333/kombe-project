@@ -32,6 +32,7 @@ import '../../features/home/dashboard_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/offline/offline_status_screen.dart';
 import '../../features/offline/server_required_screen.dart';
+import '../../features/groups/funds_screen.dart';
 import '../../features/profile/edit_profile_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/settings/about_screen.dart';
@@ -158,6 +159,11 @@ final class AppRouter {
           path: '/app/groups/:groupId/beneficiaries',
           builder: (_, state) =>
               BeneficiariesScreen(groupId: state.pathParameters['groupId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/funds',
+          builder: (_, state) =>
+              FundsScreen(groupId: state.pathParameters['groupId']!),
         ),
         GoRoute(
           path: '/app/groups/:groupId/rules',

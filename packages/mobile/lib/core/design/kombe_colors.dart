@@ -12,6 +12,8 @@ abstract final class KombeColors {
   static const Color emerald = Color(0xFF176B52);
   static const Color leaf = Color(0xFF2A8A68);
   static const Color gold = Color(0xFFC7922E);
+  /// Accent des grands titres (maquette « Connectez-vous »).
+  static const Color olive = Color(0xFFA8AD3B);
   static const Color goldLight = Color(0xFFE2B868);
   static const Color goldDark = Color(0xFF8A5F14);
   static const Color clay = Color(0xFFB5603D);

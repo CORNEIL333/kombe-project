@@ -25,7 +25,7 @@ export function buildCss(tk) {
   for (const [k, v] of Object.entries(tk.semantic)) L.push(`  --k-${k}: ${v};`);
   tk.dataviz.forEach((v, i) => L.push(`  --k-dataviz-${i + 1}: ${v};`));
   L.push(`  --k-font-ui: "${tk.font["family-ui"]}", ${tk.font.fallback};`);
-  L.push(`  --k-font-display: "${tk.font["family-display"]}", ui-serif, Georgia, serif;`);
+  L.push(`  --k-font-display: "${tk.font["family-display"]}", system-ui, sans-serif;`);
   for (const [k, s] of Object.entries(tk.type)) {
     L.push(`  --k-type-${k}-size: ${s.size / 16}rem;`);
     L.push(`  --k-type-${k}-line: ${s.line / 16}rem;`);

@@ -24,6 +24,10 @@ const tours = noms.map((n, i) => ({
 const funds = [
   { fundId: "f1", kind: "rotation", name: "Tontine", state: "active", confirmedBalance: "225000", pendingIn: "50000", perMeeting: "25000" },
   { fundId: "f2", kind: "solidarity", name: "Caisse de secours", state: "active", confirmedBalance: "38000", pendingIn: "0", perMeeting: "1000" },
+  { fundId: "f3", kind: "custom", name: "Fête de fin d'année", state: "active", confirmedBalance: "42000", pendingIn: "6000", perMeeting: "2000",
+    custom: { mode: "each_meeting", purpose: "Repas et cadeaux de décembre", target: "120000", currentAmount: "2000", schedule: [{ from: "2026-10-01", amount: "2000" }, { from: "2026-12-01", amount: "3000" }], closedOn: null } },
+  { fundId: "f4", kind: "custom", name: "Urgences", state: "active", confirmedBalance: "15500", pendingIn: "0", perMeeting: "0",
+    custom: { mode: "free", purpose: "Coups durs des membres", target: null, currentAmount: "0", schedule: [], closedOn: null } },
 ];
 const detail = {
   groupId: G, name: "Les Étoiles de Yaoundé", state: "active", settings, me: { membershipId: "m1", state: "active", roles: ["animator"] }, memberCount: 12, pendingCount: 1, funds,

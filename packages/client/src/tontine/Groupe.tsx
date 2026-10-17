@@ -27,6 +27,7 @@ import { useTextes, type CleTexte } from "./textes.js";
 import { Membres } from "./Membres.js";
 import { Seances } from "./Seances.js";
 import { Argent, CANAUX, FormulaireDeclaration } from "./Argent.js";
+import { Caisses, useNomCaisse } from "./Caisses.js";
 import { Tours } from "./Tours.js";
 import { Discipline } from "./Discipline.js";
 import { Decisions } from "./Decisions.js";
@@ -137,6 +138,7 @@ export function Groupe({ session, groupId, onRetour }: { readonly session: Sessi
 
 function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA: (o: Onglet) => void }) {
   const { tx, dyn, xaf, date } = useTextes();
+  const nomCaisse = useNomCaisse();
   const g = ctx.groupe;
   const echeances = useDonnees(() => acces.mesEcheances(ctx.session, g.groupId), [g.groupId, ctx.session.sessionId]);
   const [aDeclarer, setADeclarer] = useState<DueView | null>(null);
@@ -206,7 +208,7 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
                 {liste.map((d) => (
                   <li key={`${d.fundId}-${d.roundSeq}`} className="liste__ligne">
                     <div>
-                      <strong>{dyn(`caisse.${d.fundKind}`)}</strong>
+                      <strong>{nomCaisse(d)}</strong>
                       <span className="aide-champ">
                         {tx("ar.tour")} {d.roundSeq} · {date(d.date)} · {tx("ar.reste", { montant: xaf(d.remaining) })}
                         {BigInt(d.declared) > 0n ? ` · ${tx("td.enAttente")} ${xaf(d.declared)}` : ""}
@@ -238,26 +240,13 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
         ) : null}
       </Carte>
 
-      <Carte titre={tx("td.caisses")}>
-        <p className="aide-champ">{tx("td.caisseTenue")}</p>
-        <ul className="liste">
-          {g.funds.map((f) => (
-            <li key={f.fundId} className="liste__ligne">
-              <div>
-                <strong>{dyn(`caisse.${f.kind}`)}</strong>
-                <span className="aide-champ">
-                  {tx("td.confirme")} : {xaf(f.confirmedBalance)}
-                  {BigInt(f.pendingIn) > 0n ? ` · ${tx("td.enAttente")} : ${xaf(f.pendingIn)}` : ""}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-        {g.funds.some((f) => f.kind === "year_end_reserve" && BigInt(f.confirmedBalance) > 0n) &&
-        (peut(ctx.roles, "movement.confirm") || ctx.roles.includes("animator") || ctx.roles.includes("vice_president")) ? (
+      <Caisses ctx={ctx} />
+      {g.funds.some((f) => f.kind === "year_end_reserve" && BigInt(f.confirmedBalance) > 0n) &&
+      (peut(ctx.roles, "movement.confirm") || ctx.roles.includes("animator") || ctx.roles.includes("vice_president")) ? (
+        <Carte>
           <RendreReserve ctx={ctx} />
-        ) : null}
-      </Carte>
+        </Carte>
+      ) : null}
 
       {g.cycleStarted ? <Regularite ctx={ctx} /> : null}
     </div>

@@ -8,6 +8,7 @@ import '../../data/local/contribution_draft_database.dart';
 import '../../data/local/preferences_repository_impl.dart';
 import '../../data/remote/kombe_api_client.dart';
 import '../../data/remote/stored_session_codec.dart';
+import '../../data/remote/tontine_fund_repository.dart';
 import '../../data/remote/tontine_repositories.dart';
 import '../../data/repositories/unavailable_repositories.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -17,6 +18,7 @@ import '../../domain/repositories/dispute_repository.dart';
 import '../../domain/repositories/document_repository.dart';
 import '../../domain/repositories/draft_repository.dart';
 import '../../domain/repositories/governance_repository.dart';
+import '../../domain/repositories/fund_repository.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/repositories/preferences_repository.dart';
@@ -37,6 +39,7 @@ final class AppDependencies {
     required this.preferencesRepository,
     required this.biometricService,
     required this.secureSessionStore,
+    this.fundRepository = const UnavailableFundRepository(),
   });
 
   factory AppDependencies.unconfigured() {
@@ -95,6 +98,7 @@ final class AppDependencies {
       authRepository: authRepository,
       profileRepository: TontineProfileRepository(api: api),
       groupRepository: TontineGroupRepository(api: api),
+      fundRepository: TontineFundRepository(api: api),
       contributionRepository: TontineContributionRepository(api: api),
       governanceRepository: TontineGovernanceRepository(api: api),
       disputeRepository: const TontineDisputeRepository(),
@@ -113,6 +117,7 @@ final class AppDependencies {
   final AuthRepository authRepository;
   final ProfileRepository profileRepository;
   final GroupRepository groupRepository;
+  final FundRepository fundRepository;
   final ContributionRepository contributionRepository;
   final GovernanceRepository governanceRepository;
   final DisputeRepository disputeRepository;

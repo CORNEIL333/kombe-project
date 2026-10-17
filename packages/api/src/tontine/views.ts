@@ -5,6 +5,9 @@
  */
 import {
   DomainError,
+  customFundDue,
+  parseCustomFundRules,
+  type CustomFundRules,
   lateness,
   memberDueForRound,
   movementSign,
@@ -200,6 +203,8 @@ export interface FundRow {
   readonly name: string;
   readonly state: "active" | "closed";
   readonly perMeeting: bigint;
+  /** Règles propres d'une caisse personnalisée (null pour les caisses du règlement). */
+  readonly custom: CustomFundRules | null;
 }
 
 export async function loadFundRows(db: Db, groupId: string): Promise<FundRow[]> {
@@ -210,6 +215,7 @@ export async function loadFundRows(db: Db, groupId: string): Promise<FundRow[]> 
     name: String(row.name),
     state: row.state as "active" | "closed",
     perMeeting: BigInt(String(row.rules?.perMeeting ?? "0")),
+    custom: row.kind === "custom" ? parseCustomFundRules(row.rules) : null,
   }));
 }
 
@@ -230,7 +236,15 @@ export async function fundConfirmedBalance(db: Db, groupId: string, fundId: stri
   return BigInt(String(r.rows[0]?.bal ?? "0"));
 }
 
-export async function loadFunds(db: Db, groupId: string): Promise<FundView[]> {
+/** Montant dû aujourd'hui sur une caisse personnalisée (dernier palier en vigueur). */
+export function customCurrentAmount(rules: CustomFundRules, today: string): bigint {
+  if (rules.mode === "free" || (rules.closedOn && today > rules.closedOn)) return 0n;
+  let cur = 0n;
+  for (const st of rules.schedule) if (st.from <= today) cur = BigInt(st.amount);
+  return cur === 0n && rules.schedule[0] ? BigInt(rules.schedule[0].amount) : cur;
+}
+
+export async function loadFunds(db: Db, groupId: string, today: string = new Date().toISOString().slice(0, 10)): Promise<FundView[]> {
   const funds = await loadFundRows(db, groupId);
   const r = await db.query(
     `SELECT fund_id,
@@ -247,7 +261,19 @@ export async function loadFunds(db: Db, groupId: string): Promise<FundView[]> {
     state: f.state,
     confirmedBalance: sums.get(f.fundId)?.c ?? "0",
     pendingIn: sums.get(f.fundId)?.p ?? "0",
-    perMeeting: m(f.perMeeting),
+    perMeeting: m(f.custom ? (f.custom.mode === "each_meeting" ? customCurrentAmount(f.custom, today) : 0n) : f.perMeeting),
+    ...(f.custom
+      ? {
+          custom: {
+            mode: f.custom.mode,
+            purpose: f.custom.purpose,
+            target: f.custom.target,
+            currentAmount: m(customCurrentAmount(f.custom, today)),
+            schedule: f.custom.schedule.map((st) => ({ from: st.from, amount: st.amount })),
+            closedOn: f.custom.closedOn,
+          },
+        }
+      : {}),
   }));
 }
 
@@ -343,7 +369,7 @@ export async function computeDues(
 ): Promise<DueView[]> {
   const rounds = await loadRoundRows(db, group.groupId);
   if (rounds.length === 0) return [];
-  const funds = (await loadFundRows(db, group.groupId)).filter((f) => f.state === "active");
+  const funds = (await loadFundRows(db, group.groupId)).filter((f) => f.state === "active" || f.custom !== null);
   const holdings = await loadShareHoldings(db, group.groupId);
   const perShare = BigInt(group.settings.contributionPerShare);
   const rotationDueAt = (seq: number): bigint => {
@@ -389,7 +415,13 @@ export async function computeDues(
     for (const f of funds) {
       let due = 0n;
       if (f.kind === "rotation") due = rotationDueAt(r.seq);
-      else if (f.perMeeting > 0n && r.date >= joined) due = f.perMeeting;
+      else if (f.custom) {
+        if (r.date >= joined) {
+          const start = f.custom.schedule[0]?.from;
+          const first = start ? (rounds.find((x) => x.date >= start)?.date ?? null) : null;
+          due = customFundDue(f.custom, r.date, first);
+        }
+      } else if (f.perMeeting > 0n && r.date >= joined) due = f.perMeeting;
       if (due === 0n) continue;
       const p = paid.get(`${f.fundId}|${r.seq}`) ?? { confirmed: 0n, declared: 0n };
       const moved = f.kind === "rotation" ? (transferred.get(r.seq) ?? 0n) : 0n;
@@ -448,7 +480,7 @@ export async function movementViews(
     where.push(`mv.membership_id = $${args.length}`);
   }
   const r = await db.query(
-    `SELECT mv.*, f.kind AS fund_kind FROM fund_movement mv
+    `SELECT mv.*, f.kind AS fund_kind, f.name AS fund_name FROM fund_movement mv
        JOIN fund f ON f.group_id = mv.group_id AND f.fund_id = mv.fund_id
       WHERE ${where.join(" AND ")}
       ORDER BY mv.declared_at DESC, mv.movement_id LIMIT 500`,
@@ -483,6 +515,7 @@ export async function movementViews(
       movementId: String(row.movement_id),
       fundId: String(row.fund_id),
       fundKind: row.fund_kind as FundKind,
+      fundName: String(row.fund_name),
       kind,
       amount: String(row.amount),
       membershipId: memberId,

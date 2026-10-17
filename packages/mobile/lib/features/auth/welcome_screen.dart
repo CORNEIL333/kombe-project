@@ -13,7 +13,7 @@ import '../../l10n/app_localizations.dart';
 
 /// Accueil / onboarding, conforme à la charte : interface claire, photo
 /// lumineuse en tête (illustration décorative), logo de la marque, titre
-/// Fraunces, bénéfices en pastilles sable, bouton primaire vert forêt et
+/// Manrope ExtraBold, bénéfices en pastilles sable, bouton primaire vert forêt et
 /// bouton secondaire. Entrées en cascade ; aucune donnée affichée.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -77,20 +77,37 @@ class WelcomeScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        KombeEntrance(index: 1, child: Text('Ensemble pour', style: KombeType.titre(size: 38, height: 1.05))),
-                        KombeEntrance(index: 2, child: Text('aller plus loin.', style: KombeType.accent(size: 38, height: 1.05))),
+                        KombeEntrance(
+                          index: 0,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: KombeColors.mint,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: KombeColors.emerald.withValues(alpha: .28)),
+                            ),
+                            child: Text(
+                              'TONTINE NUMÉRIQUE',
+                              style: t.labelMedium?.copyWith(color: KombeColors.emerald, fontWeight: FontWeight.w700, letterSpacing: 1.6),
+                            ),
+                          ),
+                        ),
+                        KombeEntrance(index: 1, child: Text('Votre tontine,', style: KombeType.titre(size: 36, height: 1.0))),
+                        KombeEntrance(index: 2, child: Text('plus claire.', style: KombeType.accent(size: 36, height: 1.0))),
                         const SizedBox(height: 12),
                         KombeEntrance(
                           index: 3,
                           child: Text(
-                            'La solution de tontine moderne et transparente pour vos communautés en Afrique.',
+                            'Cotisations, tours, caisses et séances de votre tontine ou association, dans un registre que chaque membre vérifie. '
+                            'L’argent reste entre vos mains.',
                             style: t.bodyLarge?.copyWith(color: KombeColors.ink),
                           ),
                         ),
                         const SizedBox(height: 20),
-                        const KombeEntrance(index: 4, child: _Benefit(icon: KombeIconData.groupes, title: 'Cotisez en groupe')),
-                        const KombeEntrance(index: 5, child: _Benefit(icon: KombeIconData.confirmer, title: 'Suivez chaque cotisation')),
-                        const KombeEntrance(index: 6, child: _Benefit(icon: KombeIconData.tableau, title: 'Construisez vos projets ensemble')),
+                        const KombeEntrance(index: 4, child: _Benefit(icon: KombeIconData.groupes, title: 'Cotisations et tours au registre')),
+                        const KombeEntrance(index: 5, child: _Benefit(icon: KombeIconData.confirmer, title: 'Vos caisses, avec vos propres règles')),
+                        const KombeEntrance(index: 6, child: _Benefit(icon: KombeIconData.tableau, title: 'Séances, votes et procès-verbaux')),
                       ],
                     ),
                   ),
