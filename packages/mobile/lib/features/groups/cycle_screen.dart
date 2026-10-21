@@ -11,6 +11,7 @@ import '../../core/state/resource.dart';
 import '../../core/widgets/group_hero_card.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/kombe_visuals.dart';
+import '../../core/widgets/operation_feedback.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/cycle.dart';
 import '../../domain/entities/group.dart';
@@ -59,10 +60,8 @@ class _CycleScreenState extends State<CycleScreen> {
       case OperationSuccess<void>():
         _recharger();
         return null;
-      case OperationBlocked<void>(:final reason):
-        return reason;
-      case OperationFailure<void>(:final error):
-        return error.toString();
+      case OperationBlocked<void>() || OperationFailure<void>():
+        return outcomeMessage(r);
     }
   }
 
@@ -84,7 +83,7 @@ class _CycleScreenState extends State<CycleScreen> {
                 ResourceReady<GroupDetails>(:final GroupDetails data) => data.summary,
                 _ => null,
               };
-              final bool bureau = group?.role == GroupRole.administrator || group?.role == GroupRole.secretary;
+              final bool bureau = group?.can(TontineAct.startCycle) ?? false;
               return switch (_vm!.state) {
                 ResourceLoading<CycleDetails>() => const Center(child: CircularProgressIndicator()),
                 ResourceUnavailable<CycleDetails>() => ListView(
@@ -176,7 +175,7 @@ class _PanneauLancementCycleState extends State<_PanneauLancementCycle> {
               Text(
                 widget.renouvellement
                     ? 'Tous les tours de cette saison ont été servis. Pour la saison suivante, le bureau choisit à nouveau l’ordre de passage : les tours continuent (T13, T14…) et le calendrier est affiché à tous.'
-                    : 'Aucun tour n’est programmé : personne ne reçoit encore. Le bureau lance le cycle une fois les conditions réunies — au moins deux membres actifs, un trésorier désigné, et les statuts acceptés par tous.',
+                    : 'Aucun tour n’est programmé : personne ne reçoit encore. Pour lancer le cycle, il faut au moins deux membres admis, un trésorier qui a accepté sa fonction, et les statuts acceptés par chaque membre.',
                 style: t.bodyMedium,
               ),
             ],

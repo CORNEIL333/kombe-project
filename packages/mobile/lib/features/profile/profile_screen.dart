@@ -15,6 +15,7 @@ import '../../domain/entities/profile.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
+import '../notifications/notification_actions.dart';
 import 'profile_view_model.dart';
 
 /// Profil & notifications (maquette « Compte, sécurité et paramètres »).
@@ -72,7 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             icon: Icons.groups_rounded,
                             iconColor: KombeColors.emerald,
                             label: 'Mon rôle',
-                            value: groups == null || groups.isEmpty ? '—' : KombeLabels.role(groups.first.role),
+                            value: groups == null || groups.isEmpty ? '—' : _roleOf(groups.first),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -99,7 +100,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _Card(children: <Widget>[
                   _Row(icon: Icons.language_rounded, title: 'Langue', trailing: profile.localeCode == 'en' ? 'English' : 'Français',
                       onTap: () => context.push('/app/settings/language')),
-                  _Row(icon: Icons.notifications_none_rounded, title: 'Notifications', subtitle: 'Gérer mes alertes',
+                  _Row(icon: Icons.notifications_none_rounded, title: 'Notifications', subtitle: 'Ce que KÓMBE vous rappelle',
                       onTap: () => context.push('/app/settings/notifications'), last: true),
                 ]),
                 const _SectionTitle('Aide & support'),
@@ -129,7 +130,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ]),
                         for (final KombeNotification n in items)
-                          Padding(
+                          InkWell(
+                            onTap: () => openNotification(context, n),
+                            child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Row(
                               children: <Widget>[
@@ -148,6 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   Container(width: 8, height: 8, decoration: const BoxDecoration(color: KombeColors.forest, shape: BoxShape.circle)),
                               ],
                             ),
+                          ),
                           ),
                       ],
                     );
@@ -292,3 +296,6 @@ class _Row extends StatelessWidget {
     );
   }
 }
+
+String _roleOf(GroupSummary g) =>
+    g.apiRoles.isEmpty ? KombeLabels.role(g.role) : g.apiRoles.map(apiRoleLabel).join(', ');

@@ -8,8 +8,4 @@ abstract interface class ProfileRepository {
     required String displayName,
     required String localeCode,
   });
-  Future<OperationResult<void>> changePin({
-    required String currentPin,
-    required String newPin,
-  });
 }

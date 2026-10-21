@@ -8,9 +8,9 @@ import '../core/design/kombe_theme.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/contribution_repository.dart';
 import '../domain/repositories/dashboard_repository.dart';
-import '../domain/repositories/dispute_repository.dart';
 import '../domain/repositories/document_repository.dart';
 import '../domain/repositories/draft_repository.dart';
+import '../domain/repositories/fine_repository.dart';
 import '../domain/repositories/governance_repository.dart';
 import '../domain/repositories/fund_repository.dart';
 import '../domain/repositories/group_repository.dart';
@@ -40,7 +40,10 @@ class _KombeAppState extends State<KombeApp> {
   void initState() {
     super.initState();
     _settings = AppSettingsController(widget.dependencies.preferencesRepository);
-    _session = SessionController(widget.dependencies.authRepository)..start();
+    _session = SessionController(
+      widget.dependencies.authRepository,
+      profileRepository: widget.dependencies.profileRepository,
+    )..start();
     _router = AppRouter(sessionController: _session);
     _settings.initialize();
   }
@@ -63,7 +66,7 @@ class _KombeAppState extends State<KombeApp> {
         Provider<FundRepository>.value(value: widget.dependencies.fundRepository),
         Provider<ContributionRepository>.value(value: widget.dependencies.contributionRepository),
         Provider<GovernanceRepository>.value(value: widget.dependencies.governanceRepository),
-        Provider<DisputeRepository>.value(value: widget.dependencies.disputeRepository),
+        Provider<FineRepository>.value(value: widget.dependencies.fineRepository),
         Provider<NotificationRepository>.value(value: widget.dependencies.notificationRepository),
         Provider<DocumentRepository>.value(value: widget.dependencies.documentRepository),
         Provider<DashboardRepository>.value(value: widget.dependencies.dashboardRepository),

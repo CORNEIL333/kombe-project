@@ -48,8 +48,8 @@ const List<(String, String)> _routes = <(String, String)>[
   ('10_validation', '/app/validations/essai-val-1'),
   ('11_votes', '/app/votes'),
   ('12_vote', '/app/votes/essai-vote-1'),
-  ('13_litiges', '/app/disputes'),
-  ('14_litige', '/app/disputes/essai-lit-1'),
+  ('13_amendes', '/app/fines'),
+  ('14_statuts', '/app/groups/essai-etoiles/rules'),
   ('15_notifications', '/app/notifications'),
   ('16_profil', '/app/profile'),
   ('17_plus', '/app/more'),
@@ -91,7 +91,7 @@ void main() {
     await expectLater(find.byType(KombeApp), matchesGoldenFile('tour/00_bienvenue.png'));
 
     // L'horloge du test n'avance qu'avec les frames : on fait tourner le temps pendant la connexion.
-    final Future<Object?> login = deps.authRepository.completeLogin(identityId: 'essai@kombe.app', code: '000000');
+    final Future<Object?> login = deps.authRepository.verifyCode(login: 'essai@kombe.app', code: '000000');
     await tester.pump(const Duration(seconds: 1));
     await login;
     for (int i = 0; i < 10; i++) {

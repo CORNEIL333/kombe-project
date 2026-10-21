@@ -14,6 +14,7 @@ import '../../domain/entities/dashboard.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
 import '../../l10n/app_localizations.dart';
+import '../notifications/notification_actions.dart';
 
 /// Tableau de bord (maquette « Vue principale après connexion ») :
 /// salutation → groupe principal → échéance et déclaré du mois → 4 actions →
@@ -505,7 +506,9 @@ class _ActivityRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextTheme t = Theme.of(context).textTheme;
-    return Container(
+    return InkWell(
+      onTap: () => openNotification(context, item),
+      child: Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: KombeColors.line)),
@@ -532,6 +535,8 @@ class _ActivityRow extends StatelessWidget {
                     fontWeight: item.read ? FontWeight.w600 : FontWeight.w800,
                   ),
                 ),
+                if (item.body.isNotEmpty)
+                  Text(item.body, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodySmall),
                 const SizedBox(height: 2),
                 Text(_ago(item.createdAtUtc), style: t.bodySmall),
               ],
@@ -547,6 +552,7 @@ class _ActivityRow extends StatelessWidget {
               ),
             ),
         ],
+      ),
       ),
     );
   }

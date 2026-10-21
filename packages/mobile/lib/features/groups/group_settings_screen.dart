@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/widgets/list_row.dart';
 import '../../core/widgets/section_card.dart';
-import '../../core/widgets/server_action_guard.dart';
 
 class GroupSettingsScreen extends StatelessWidget {
   const GroupSettingsScreen({required this.groupId, super.key});
@@ -20,21 +19,22 @@ class GroupSettingsScreen extends StatelessWidget {
                 children: <Widget>[
                   KombeListRow(
                     icon: Icons.people_outline,
-                    title: 'Membres',
+                    title: 'Membres et demandes d’adhésion',
                     onTap: () => context.push('/app/groups/$groupId/members'),
                   ),
                   const Divider(),
                   KombeListRow(
                     icon: Icons.rule_outlined,
-                    title: 'Règles',
+                    title: 'Statuts',
+                    subtitle: 'Lire, accepter ; publier et relancer pour le bureau',
                     onTap: () => context.push('/app/groups/$groupId/rules'),
                   ),
                   const Divider(),
                   KombeListRow(
                     icon: Icons.manage_accounts_outlined,
                     title: 'Rôles et responsabilités',
-                    subtitle: 'Modification uniquement après validation serveur',
-                    onTap: () => showServerAuthorityRequired(context),
+                    subtitle: 'Touchez un membre pour lui proposer une fonction ; la personne doit l’accepter',
+                    onTap: () => context.push('/app/groups/$groupId/members'),
                   ),
                 ],
               ),

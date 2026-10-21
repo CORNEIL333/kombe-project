@@ -205,7 +205,7 @@ void main() {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: const <Widget>[
-          StepIndicator(current: 2, labels: <String>['Informations', 'Justificatif', 'Relecture']),
+          StepIndicator(current: 1, labels: <String>['Informations', 'Relecture']),
           SizedBox(height: 24),
           TransparencyCard(
             leading: KombeStatusRing(status: KombeStatus.draft, label: 'Brouillon sur cet appareil'),

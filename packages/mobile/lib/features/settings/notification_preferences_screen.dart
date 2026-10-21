@@ -7,34 +7,31 @@ class NotificationPreferencesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Préférences de notifications')),
+        appBar: AppBar(title: const Text('Notifications')),
         body: ListView(
           padding: const EdgeInsets.all(20),
-          children: <Widget>[
-            const SectionCard(
+          children: const <Widget>[
+            SectionCard(
               child: Column(
                 children: <Widget>[
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(Icons.notifications_active_outlined),
-                    title: Text('Notifications internes KÓMBE'),
+                    title: Text('Dans l’application'),
                     subtitle: Text(
-                      'Les préférences seront chargées et enregistrées par le serveur.',
+                      'Échéances de cotisation, séances, statuts à accepter, votes, demandes d’adhésion : '
+                      'tout arrive dans l’onglet Notifications. Touchez une notification pour ouvrir l’écran concerné.',
                     ),
                   ),
                   Divider(),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.sms_outlined),
-                    title: Text('SMS'),
-                    subtitle: Text('Canal futur soumis au consentement et au gate G1.'),
-                  ),
-                  Divider(),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.chat_outlined),
-                    title: Text('WhatsApp'),
-                    subtitle: Text('Canal futur soumis au consentement et au gate G1.'),
+                    leading: Icon(Icons.schedule_outlined),
+                    title: Text('Rappels avant échéance'),
+                    subtitle: Text(
+                      'KÓMBE vous relance de plus en plus près de l’échéance (cotisation, séance, statuts, vote). '
+                      'Ces rappels ne se désactivent pas : ils protègent votre place dans le groupe.',
+                    ),
                   ),
                 ],
               ),

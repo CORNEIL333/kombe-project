@@ -57,7 +57,7 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const CircleAvatar(child: Icon(Icons.edit_note)),
                     title: Text(Xaf.format(draft.amountXaf)),
-                    subtitle: const Text('Non soumis au serveur'),
+                    subtitle: const Text('Pas encore envoyé'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => context.push(
                       '/app/groups/${draft.groupId}/contributions/new?draft=${draft.localId}',
@@ -65,7 +65,7 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
                   ),
                 const SizedBox(height: 22),
               ],
-              Text('Historique serveur', style: Theme.of(context).textTheme.titleLarge),
+              Text('Mes déclarations', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 10),
               ResourceView<List<Contribution>>(
                 resource: _remote,

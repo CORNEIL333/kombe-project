@@ -14,8 +14,8 @@ import '../../data/repositories/unavailable_repositories.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
-import '../../domain/repositories/dispute_repository.dart';
 import '../../domain/repositories/document_repository.dart';
+import '../../domain/repositories/fine_repository.dart';
 import '../../domain/repositories/draft_repository.dart';
 import '../../domain/repositories/governance_repository.dart';
 import '../../domain/repositories/fund_repository.dart';
@@ -31,7 +31,7 @@ final class AppDependencies {
     required this.groupRepository,
     required this.contributionRepository,
     required this.governanceRepository,
-    required this.disputeRepository,
+    required this.fineRepository,
     required this.notificationRepository,
     required this.documentRepository,
     required this.dashboardRepository,
@@ -50,7 +50,7 @@ final class AppDependencies {
       groupRepository: const UnavailableGroupRepository(),
       contributionRepository: const UnavailableContributionRepository(),
       governanceRepository: const UnavailableGovernanceRepository(),
-      disputeRepository: const UnavailableDisputeRepository(),
+      fineRepository: const UnavailableFineRepository(),
       notificationRepository: const UnavailableNotificationRepository(),
       documentRepository: const UnavailableDocumentRepository(),
       dashboardRepository: const UnavailableDashboardRepository(),
@@ -101,7 +101,7 @@ final class AppDependencies {
       fundRepository: TontineFundRepository(api: api),
       contributionRepository: TontineContributionRepository(api: api),
       governanceRepository: TontineGovernanceRepository(api: api),
-      disputeRepository: const TontineDisputeRepository(),
+      fineRepository: TontineFineRepository(api: api),
       notificationRepository: TontineNotificationRepository(api: api),
       documentRepository: TontineDocumentRepository(api: api, webBase: webBase),
       dashboardRepository: TontineDashboardRepository(api: api),
@@ -120,7 +120,7 @@ final class AppDependencies {
   final FundRepository fundRepository;
   final ContributionRepository contributionRepository;
   final GovernanceRepository governanceRepository;
-  final DisputeRepository disputeRepository;
+  final FineRepository fineRepository;
   final NotificationRepository notificationRepository;
   final DocumentRepository documentRepository;
   final DashboardRepository dashboardRepository;

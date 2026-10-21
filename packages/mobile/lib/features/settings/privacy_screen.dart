@@ -23,7 +23,7 @@ class PrivacyScreen extends StatelessWidget {
                     leading: Icon(Icons.storage_outlined),
                     title: Text('Minimisation locale'),
                     subtitle: Text(
-                      'Aucune donnée métier n’est embarquée. Seuls les brouillons explicitement créés par l’utilisateur peuvent être conservés localement.',
+                      'Seuls vos brouillons de déclaration sont gardés sur ce téléphone ; le reste est lu depuis KÓMBE à chaque ouverture.',
                     ),
                   ),
                   Divider(),
@@ -37,9 +37,9 @@ class PrivacyScreen extends StatelessWidget {
                   Divider(),
                   ListTile(
                     leading: Icon(Icons.verified_user_outlined),
-                    title: Text('Autorité serveur'),
+                    title: Text('Ce qui fait foi'),
                     subtitle: Text(
-                      'Validation, vote, rôle, règle et décaissement ne peuvent pas devenir officiels hors serveur.',
+                      'Confirmations, votes, fonctions et statuts ne comptent qu’une fois enregistrés par KÓMBE, jamais depuis un téléphone hors ligne.',
                     ),
                   ),
                 ],

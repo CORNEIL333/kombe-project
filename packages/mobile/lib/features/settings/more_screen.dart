@@ -43,8 +43,8 @@ class MoreScreen extends StatelessWidget {
                 const Divider(),
                 KombeListRow(
                   icon: Icons.gavel_outlined,
-                  title: 'Litiges',
-                  onTap: () => context.push('/app/disputes'),
+                  title: 'Mes amendes',
+                  onTap: () => context.push('/app/fines'),
                 ),
               ],
             ),
@@ -57,12 +57,6 @@ class MoreScreen extends StatelessWidget {
                   icon: Icons.description_outlined,
                   title: 'Documents',
                   onTap: () => context.push('/app/documents'),
-                ),
-                const Divider(),
-                KombeListRow(
-                  icon: Icons.download_outlined,
-                  title: 'Exports',
-                  onTap: () => context.push('/app/exports'),
                 ),
                 const Divider(),
                 KombeListRow(

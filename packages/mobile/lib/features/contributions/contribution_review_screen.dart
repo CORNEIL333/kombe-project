@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/widgets/screen_states.dart';
-import '../../core/widgets/server_action_guard.dart';
+import '../../core/widgets/operation_feedback.dart';
 import '../../core/widgets/step_indicator.dart';
 import '../../core/widgets/transparency_card.dart';
 import '../../domain/entities/contribution.dart';
@@ -65,11 +65,9 @@ class _ContributionReviewScreenState extends State<ContributionReviewScreen> {
         unawaited(HapticFeedback.lightImpact());
         await showContributionSentSheet(context);
         if (mounted) Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
-      case OperationBlocked<Contribution>():
-        await showServerAuthorityRequired(context);
-      case OperationFailure<Contribution>(:final error):
+      case OperationBlocked<Contribution>() || OperationFailure<Contribution>():
         unawaited(HapticFeedback.heavyImpact());
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+        reportOutcome(context, result);
     }
   }
 
@@ -96,8 +94,8 @@ class _ContributionReviewScreenState extends State<ContributionReviewScreen> {
           padding: const EdgeInsets.all(20),
           children: <Widget>[
             StepIndicator(
-              current: 2,
-              labels: <String>[l10n.information, l10n.evidence, l10n.review],
+              current: 1,
+              labels: <String>[l10n.information, l10n.review],
             ),
             const SizedBox(height: 28),
             ListTile(
@@ -117,8 +115,11 @@ class _ContributionReviewScreenState extends State<ContributionReviewScreen> {
             const Divider(),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(l10n.evidence),
-              trailing: Text(draft.evidencePath == null ? 'Aucun' : 'Joint'),
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: const Text('Gardez votre reçu'),
+              subtitle: const Text(
+                'Le reçu ou la référence de transaction n’est pas envoyé par l’application : le trésorier peut vous le demander.',
+              ),
             ),
             if (draft.note != null) ...<Widget>[
               const Divider(),
@@ -131,8 +132,8 @@ class _ContributionReviewScreenState extends State<ContributionReviewScreen> {
             const SizedBox(height: 24),
             const TransparencyCard(
               rows: <(String, String)>[
-                ('Ce qui va se passer', 'Votre déclaration est envoyée au groupe. Tant que le serveur ne l’a pas acceptée, elle reste un brouillon sur cet appareil.'),
-                ('Qui doit valider', 'Un membre autorisé du groupe. Jusque-là, elle apparaît « en attente ».'),
+                ('Ce qui va se passer', 'Votre déclaration est envoyée au groupe. Sans connexion, elle reste en brouillon sur cet appareil.'),
+                ('Qui doit valider', 'Le trésorier, quand il a bien reçu votre versement. Jusque-là, elle apparaît « en attente ».'),
                 ('Où elle restera', 'Dans l’historique du groupe, avec sa date et son statut.'),
               ],
             ),

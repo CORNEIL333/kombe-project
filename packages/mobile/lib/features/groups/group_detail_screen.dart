@@ -59,13 +59,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       children: <Widget>[
                         Row(
                           children: <Widget>[
-                            _Action(icon: Icons.person_add_alt_1_outlined, label: 'Inviter', onTap: () => context.push('/app/groups/$id/invite')),
+                            if (details.summary.can(TontineAct.invite))
+                              _Action(icon: Icons.person_add_alt_1_outlined, label: 'Inviter', onTap: () => context.push('/app/groups/$id/invite')),
                             _Action(icon: Icons.calendar_month_outlined, label: 'Cycle', onTap: () => context.push('/app/groups/$id/cycle')),
-                            _Action(icon: Icons.settings_outlined, label: 'Paramètres', onTap: () => context.push('/app/groups/$id/settings')),
-                            _Action(icon: Icons.rule_rounded, label: 'Règles', onTap: () => context.push('/app/groups/$id/rules')),
+                            _Action(icon: Icons.settings_outlined, label: 'Gérer', onTap: () => context.push('/app/groups/$id/settings')),
+                            _Action(icon: Icons.rule_rounded, label: 'Statuts', onTap: () => context.push('/app/groups/$id/rules')),
                             _Action(icon: Icons.account_balance_wallet_outlined, label: 'Caisses', onTap: () => context.push('/app/groups/$id/funds')),
                           ],
                         ),
+                        if (details.pendingCount > 0 && details.summary.can(TontineAct.admit)) ...<Widget>[
+                          const SizedBox(height: 16),
+                          _Banner(
+                            icon: Icons.how_to_reg_outlined,
+                            text: details.pendingCount == 1
+                                ? '1 demande d’adhésion à examiner'
+                                : '${details.pendingCount} demandes d’adhésion à examiner',
+                            onTap: () => context.push('/app/groups/$id/members'),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         _StatsCard(group: details.summary),
                         const SizedBox(height: 18),
@@ -91,7 +102,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           emptyWhen: (List<GroupMember> members) => members.isEmpty,
                           builder: (BuildContext context, List<GroupMember> members) => Column(
                             children: <Widget>[
-                              for (final GroupMember m in members.take(5)) MemberRow(member: m, groupId: id),
+                              for (final GroupMember m in members.where((GroupMember m) => !m.pending).take(5))
+                                MemberRow(member: m, groupId: id),
                             ],
                           ),
                         ),
@@ -297,7 +309,7 @@ class _Tabs extends StatelessWidget {
       children: <Widget>[
         tab('Membres', active: true),
         tab('Cycle', onTap: () => context.push('/app/groups/$groupId/cycle')),
-        tab('Règles', onTap: () => context.push('/app/groups/$groupId/rules')),
+        tab('Statuts', onTap: () => context.push('/app/groups/$groupId/rules')),
       ],
     );
   }
@@ -332,7 +344,8 @@ class MemberRow extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: <Widget>[
                       Text(member.displayName, style: t.titleMedium),
-                      RoleChip(role: member.role),
+                      if (member.apiRoles.isEmpty) RoleChip(role: member.role) else
+                        for (final String r in member.apiRoles) KombeChip(label: apiRoleLabel(r), tone: ChipTone.gold, icon: Icons.star_rounded),
                     ],
                   ),
                   const SizedBox(height: 3),
@@ -381,6 +394,34 @@ class _Action extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ),
+        ),
+      );
+}
+
+class _Banner extends StatelessWidget {
+  const _Banner({required this.icon, required this.text, required this.onTap});
+  final IconData icon;
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: KombeColors.mint,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: <Widget>[
+                Icon(icon, color: KombeColors.forest),
+                const SizedBox(width: 12),
+                Expanded(child: Text(text, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: KombeColors.forest))),
+                const Icon(Icons.chevron_right_rounded, color: KombeColors.forest),
+              ],
             ),
           ),
         ),

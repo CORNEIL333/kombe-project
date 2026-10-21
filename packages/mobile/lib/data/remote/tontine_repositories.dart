@@ -8,8 +8,8 @@ import '../../domain/entities/auth.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/entities/cycle.dart';
 import '../../domain/entities/dashboard.dart';
-import '../../domain/entities/dispute.dart';
 import '../../domain/entities/document.dart';
+import '../../domain/entities/fine.dart';
 import '../../domain/entities/governance.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
@@ -17,13 +17,14 @@ import '../../domain/entities/profile.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
-import '../../domain/repositories/dispute_repository.dart';
 import '../../domain/repositories/document_repository.dart';
+import '../../domain/repositories/fine_repository.dart';
 import '../../domain/repositories/governance_repository.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
 import 'kombe_api_client.dart';
+import 'notification_mapping.dart';
 import 'stored_session_codec.dart';
 
 // ── Adaptateurs de l'application mobile vers l'API « tontine réelle »
@@ -52,6 +53,8 @@ Future<Resource<T>> _read<T>(Future<T> Function() run) async {
     return ResourceReady<T>(await run());
   } on ApiFailure catch (e) {
     return ResourceFailure<T>(e);
+  } on ClientFailure catch (e) {
+    return ResourceFailure<T>(e);
   }
 }
 
@@ -59,6 +62,8 @@ Future<OperationResult<T>> _write<T>(Future<T> Function() run) async {
   try {
     return OperationSuccess<T>(await run());
   } on ApiFailure catch (e) {
+    return OperationFailure<T>(e);
+  } on ClientFailure catch (e) {
     return OperationFailure<T>(e);
   }
 }
@@ -103,9 +108,15 @@ ContributionStatus statusFrom(Object? v) => switch ('$v') {
 
 // ── Connexion ────────────────────────────────────────────────────────────
 
-/// Connexion par téléphone (+237) ou e-mail, code à 6 chiffres (ADR-0025).
-/// Le premier code vérifié crée le compte : inscription, connexion et
-/// récupération sont le même geste côté serveur.
+/// `GET /v1/auth/channels` → voies ouvertes (e-mail seulement en production
+/// tant que le SMS ou WhatsApp ne sont pas ouverts).
+AuthChannels authChannelsFrom(Map<String, dynamic> b) =>
+    AuthChannels(email: b['email'] == true, sms: b['sms'] == true, whatsapp: b['whatsapp'] == true);
+
+/// Connexion par code à 6 chiffres (ADR-0025) envoyé par la voie choisie
+/// parmi celles que le serveur a ouvertes. Le premier code vérifié crée le
+/// compte : inscription, connexion et récupération sont le même geste côté
+/// serveur, et chaque vérification réussie OUVRE une session.
 final class TontineAuthRepository implements AuthRepository {
   TontineAuthRepository({required KombeApiClient api, required SecureSessionStore sessionStore})
       : _api = api,
@@ -140,12 +151,20 @@ final class TontineAuthRepository implements AuthRepository {
         controller.onCancel = sub.cancel;
       });
 
-  Future<OperationResult<void>> _request(String login) => _write<void>(() async {
-        final ApiResponse res = await _api.postOnce('/auth/code-requests', <String, dynamic>{'login': login.trim()});
+  @override
+  Future<Resource<AuthChannels>> loadChannels() => _read(() async => authChannelsFrom((await _api.get('/auth/channels')).body));
+
+  @override
+  Future<OperationResult<void>> requestCode({required String login, required LoginChannel channel}) => _write<void>(() async {
+        final ApiResponse res = await _api.postOnce(
+          '/auth/code-requests',
+          <String, dynamic>{'login': login.trim(), 'channel': channel.apiName},
+        );
         _lastLogin = (res.body['login'] as String?) ?? login.trim();
       });
 
-  Future<OperationResult<AuthSession>> _verify(String login, String code) => _write<AuthSession>(() async {
+  @override
+  Future<OperationResult<AuthSession>> verifyCode({required String login, required String code}) => _write<AuthSession>(() async {
         final ApiResponse res = await _api.postOnce(
           '/auth/code-verifications',
           <String, dynamic>{'login': _lastLogin ?? login.trim(), 'code': code.trim()},
@@ -164,38 +183,6 @@ final class TontineAuthRepository implements AuthRepository {
         _publish(ResourceReady<AuthSession?>(session));
         return session;
       });
-
-  @override
-  Future<OperationResult<void>> requestRegistration(String identityId) => _request(identityId);
-
-  @override
-  Future<OperationResult<AccountStatus>> verifyRegistration({required String identityId, required String code}) async {
-    final OperationResult<AuthSession> r = await _verify(identityId, code);
-    return switch (r) {
-      OperationSuccess<AuthSession>() => const OperationSuccess<AccountStatus>(AccountStatus.active),
-      OperationFailure<AuthSession>(:final Object error) => OperationFailure<AccountStatus>(error),
-      OperationBlocked<AuthSession>(:final String reason) => OperationBlocked<AccountStatus>(reason),
-    };
-  }
-
-  @override
-  Future<OperationResult<void>> requestLogin(String identityId) => _request(identityId);
-
-  @override
-  Future<OperationResult<AuthSession>> completeLogin({required String identityId, required String code}) => _verify(identityId, code);
-
-  @override
-  Future<OperationResult<void>> requestRecovery(String identityId) => _request(identityId);
-
-  @override
-  Future<OperationResult<void>> completeRecovery({required String identityId, required String code}) async {
-    final OperationResult<AuthSession> r = await _verify(identityId, code);
-    return switch (r) {
-      OperationSuccess<AuthSession>() => const OperationSuccess<void>(null),
-      OperationFailure<AuthSession>(:final Object error) => OperationFailure<void>(error),
-      OperationBlocked<AuthSession>(:final String reason) => OperationBlocked<void>(reason),
-    };
-  }
 
   @override
   Future<OperationResult<void>> signOut() async {
@@ -246,17 +233,88 @@ final class TontineProfileRepository implements ProfileRepository {
             if (displayName.trim().isNotEmpty) 'displayName': displayName.trim(),
             'language': localeCode == 'en' ? 'en' : 'fr',
           })).body));
-
-  @override
-  Future<OperationResult<void>> changePin({required String currentPin, required String newPin}) async =>
-      const OperationBlocked<void>('Pas de code secret à changer : chaque connexion se fait par un code à usage unique.');
 }
 
 // ── Groupes ──────────────────────────────────────────────────────────────
 
+Set<String> _roleSet(Object? roles) =>
+    ((roles as List<dynamic>?) ?? const <dynamic>[]).map((dynamic r) => '$r').where((String r) => r != 'member').toSet();
+
+/// `MemberView` → [GroupMember] (membres actifs et demandes en attente).
+GroupMember memberFrom(Map<String, dynamic> m) => GroupMember(
+      identityId: '${m['membershipId']}',
+      displayName: '${m['displayName'] ?? ''}',
+      role: roleFrom((m['roles'] as List<dynamic>?) ?? const <dynamic>[]),
+      joinedAtUtc: _date(m['joinedAt']),
+      state: '${m['state'] ?? 'active'}',
+      apiRoles: _roleSet(m['roles']).toList(),
+      pendingRoles: ((m['pendingRoles'] as List<dynamic>?) ?? const <dynamic>[]).map((dynamic r) => '$r').toList(),
+      isMe: m['isMe'] == true,
+      offline: m['offline'] == true,
+    );
+
+/// `InvitationView` → [GroupInvitation] : rien n'est jeté (code, lien, texte).
+GroupInvitation invitationFrom(Map<String, dynamic> b) => GroupInvitation(
+      invitationId: '${b['invitationId'] ?? ''}',
+      code: '${b['code'] ?? ''}',
+      url: '${b['url'] ?? ''}',
+      whatsappText: '${b['whatsappText'] ?? ''}',
+      expiresAtUtc: _date(b['expiresAt']),
+      maxUses: (b['maxUses'] as num?)?.toInt() ?? 0,
+      usedCount: (b['usedCount'] as num?)?.toInt() ?? 0,
+    );
+
+/// `StatutesView` → [TontineStatutes].
+TontineStatutes statutesFrom(Map<String, dynamic> b) {
+  final Map<String, dynamic>? d = b['deadline'] as Map<String, dynamic>?;
+  DateTime? at(Object? v) => v == null ? null : DateTime.tryParse('$v')?.toUtc();
+  return TontineStatutes(
+    version: (b['version'] as num?)?.toInt() ?? 0,
+    title: '${b['title'] ?? ''}',
+    body: '${b['body'] ?? ''}',
+    hash: '${b['hash'] ?? ''}',
+    publishedAtUtc: _date(b['publishedAt']),
+    acceptedByMe: b['acceptedByMe'] == true,
+    acceptedCount: (b['acceptedCount'] as num?)?.toInt() ?? 0,
+    expectedCount: (b['expectedCount'] as num?)?.toInt() ?? 0,
+    deadline: d == null || at(d['deadlineAt']) == null
+        ? null
+        : StatutesDeadline(
+            deadlineAtUtc: at(d['deadlineAt'])!,
+            acceptanceDays: (d['acceptanceDays'] as num?)?.toInt() ?? 0,
+            onExpiry: statutesOnExpiryFrom(d['onExpiry']),
+          ),
+    myDeadlineAtUtc: at(b['myDeadlineAt']),
+    pending: ((b['pending'] as List<dynamic>?) ?? const <dynamic>[])
+        .cast<Map<String, dynamic>>()
+        .map((Map<String, dynamic> p) => StatutesPendingSigner(
+              membershipId: '${p['membershipId']}',
+              name: '${p['name'] ?? ''}',
+              state: '${p['state'] ?? 'active'}',
+              deadlineAtUtc: at(p['deadlineAt']),
+            ))
+        .toList(),
+  );
+}
+
+/// Nom de la personne connectée (`GET /v1/me`) : exigé pour créer ou
+/// rejoindre un groupe — jamais remplacé par un nom inventé.
+Future<String> _myName(KombeApiClient api) async {
+  final String name = '${(await api.get('/me')).body['displayName'] ?? ''}'.trim();
+  if (name.isEmpty) {
+    throw const ClientFailure('Indiquez d’abord votre nom dans « Mon profil » : c’est lui que les membres verront.');
+  }
+  return name;
+}
+
 final class TontineGroupRepository implements GroupRepository {
-  const TontineGroupRepository({required KombeApiClient api}) : _api = api;
+  TontineGroupRepository({required KombeApiClient api}) : _api = api;
   final KombeApiClient _api;
+
+  /// Tirage scellé en attente de démarrage, par groupe : en cas d'échec du
+  /// démarrage (statuts pas encore acceptés…), la nouvelle tentative réutilise
+  /// le même tirage au lieu d'en sceller un nouveau à chaque essai.
+  final Map<String, String> _pendingDraws = <String, String>{};
 
   String _t(String id) => '/tontines/${Uri.encodeComponent(id)}';
 
@@ -271,6 +329,7 @@ final class TontineGroupRepository implements GroupRepository {
         cycleTotal: cycleTotal,
         contributionAmountXaf: _xaf(g['contributionPerShare']),
         nextDueAtUtc: _date(g['nextMeetingDate']),
+        apiRoles: _roleSet(g['roles']),
       );
 
   @override
@@ -309,29 +368,26 @@ final class TontineGroupRepository implements GroupRepository {
             'contributionPerShare': settings['contributionPerShare'],
             'nextMeetingDate': next?['date'] ?? round?['date'],
           }, cycleIndex: (round?['seq'] as num?)?.toInt() ?? 0, cycleTotal: (d['memberCount'] as num?)?.toInt() ?? 0),
-          description: 'Argent tenu par le trésorier, pas par KÓMBE. $caisses',
+          description: caisses.isEmpty ? 'L’argent est tenu par le trésorier, pas par KÓMBE.' : 'L’argent est tenu par le trésorier, pas par KÓMBE. $caisses',
           currentRulesVersion: (statutes?['version'] as num?)?.toInt() ?? 0,
+          pendingCount: (d['pendingCount'] as num?)?.toInt() ?? 0,
+          cycleStarted: d['cycleStarted'] == true,
         );
       });
 
-  static GroupMember _member(Map<String, dynamic> m) => GroupMember(
-        identityId: '${m['membershipId']}',
-        displayName: '${m['displayName']}',
-        role: roleFrom((m['roles'] as List<dynamic>?) ?? const <dynamic>[]),
-        joinedAtUtc: _date(m['joinedAt']),
-      );
-
   @override
-  Future<Resource<List<GroupMember>>> listMembers(String groupId) => _read(() async =>
-      _items(await _api.get('${_t(groupId)}/members')).where((Map<String, dynamic> m) => m['state'] == 'active').map(_member).toList());
+  Future<Resource<List<GroupMember>>> listMembers(String groupId) => _read(() async => _items(await _api.get('${_t(groupId)}/members'))
+      .where((Map<String, dynamic> m) => m['state'] == 'active' || m['state'] == 'pending')
+      .map(memberFrom)
+      .toList());
 
   @override
   Future<Resource<GroupMember>> getMember(String groupId, String identityId) => _read(() async {
         final Map<String, dynamic> m = _items(await _api.get('${_t(groupId)}/members')).firstWhere(
               (Map<String, dynamic> x) => x['membershipId'] == identityId,
-              orElse: () => throw const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE'),
+              orElse: () => throw const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE', message: 'Membre introuvable'),
             );
-        return _member(m);
+        return memberFrom(m);
       });
 
   @override
@@ -384,27 +440,24 @@ final class TontineGroupRepository implements GroupRepository {
         final Map<String, dynamic> preview = (await _api.get('/invitations/${Uri.encodeComponent(code)}')).body;
         if (preview['alreadyMember'] == true) return;
         if (preview['usable'] != true) throw const ApiFailure(statusCode: 409, code: 'STATE_CONFLICT', message: 'Ce code n’est plus valable');
-        final String name = '${(await _api.get('/me')).body['displayName'] ?? ''}'.trim();
-        await _api.postOnce('/invitations/${Uri.encodeComponent(code)}/join', <String, dynamic>{
-          'displayName': name.isEmpty ? 'Membre' : name,
-        });
+        final String name = await _myName(_api);
+        await _api.postOnce('/invitations/${Uri.encodeComponent(code)}/join', <String, dynamic>{'displayName': name});
       });
 
-  /// Le bureau crée un lien d'invitation (partagé ensuite par WhatsApp) ; le
-  /// numéro saisi n'est pas transmis : la personne rejoint avec le code.
+  /// Lien d'invitation du bureau (réglages par défaut du serveur : 30
+  /// utilisations, 14 jours). Le code et le lien sont rendus pour être
+  /// partagés ; aucun numéro de téléphone n'est demandé.
   @override
-  Future<OperationResult<void>> inviteMember({required String groupId, required String phoneE164}) =>
-      _write<void>(() async {
-        await _api.postOnce('${_t(groupId)}/invitations', <String, dynamic>{'maxUses': 1, 'days': 14});
-      });
+  Future<OperationResult<GroupInvitation>> createInvitation(String groupId) => _write<GroupInvitation>(
+        () async => invitationFrom((await _api.postOnce('${_t(groupId)}/invitations', const <String, dynamic>{})).body),
+      );
 
   @override
-  Future<OperationResult<String>> createGroup(TontineCreation draft) =>
-      _write<String>(() async {
-        final String founder = '${(await _api.get('/me')).body['displayName'] ?? ''}'.trim();
+  Future<OperationResult<String>> createGroup(TontineCreation draft) => _write<String>(() async {
+        final String founder = await _myName(_api);
         final Map<String, dynamic> created = (await _api.postOnce('/tontines', <String, dynamic>{
           'name': draft.name.trim(),
-          'founderDisplayName': founder.isEmpty ? 'Président' : founder,
+          'founderDisplayName': founder,
           'settings': settingsForDraft(draft),
         }))
             .body;
@@ -419,38 +472,105 @@ final class TontineGroupRepository implements GroupRepository {
   Future<OperationResult<void>> renewCycle(String groupId, CycleOrderKind order) =>
       _write<void>(() => _demarrerCycle(groupId, 'cycle-renewals', order));
 
-  /// Tirage vérifiable : d'abord l'engagement scellé (`POST /draws`), puis
-  /// le démarrage qui révèle la graine, journalise les deux et plante le
-  /// calendrier. Le serveur reste seul autorité sur l'ordre final.
+  /// Tirage vérifiable : d'abord l'engagement scellé (`POST /draws`), une
+  /// seule fois tant que le démarrage n'a pas abouti, puis le démarrage qui
+  /// révèle la graine, journalise les deux et plante le calendrier. Le
+  /// serveur reste seul autorité sur l'ordre final.
   Future<void> _demarrerCycle(String groupId, String action, CycleOrderKind order) async {
     final Map<String, dynamic> body = <String, dynamic>{
       'order': switch (order) { CycleOrderKind.draw => 'draw', CycleOrderKind.joinOrder => 'join_order' },
     };
     if (order == CycleOrderKind.draw) {
-      final Map<String, dynamic> tirage = (await _api.postOnce('${_t(groupId)}/draws', const <String, dynamic>{})).body;
-      body['drawId'] = '${tirage['drawId']}';
+      String? drawId = _pendingDraws[groupId];
+      if (drawId == null) {
+        final Map<String, dynamic> tirage = (await _api.postOnce('${_t(groupId)}/draws', const <String, dynamic>{})).body;
+        drawId = '${tirage['drawId']}';
+        _pendingDraws[groupId] = drawId;
+      }
+      body['drawId'] = drawId;
     }
-    await _api.postOnce('${_t(groupId)}/$action', body);
+    try {
+      await _api.postOnce('${_t(groupId)}/$action', body);
+      _pendingDraws.remove(groupId);
+    } on ApiFailure catch (e) {
+      // Tirage déjà révélé ou inconnu : le prochain essai en scelle un neuf.
+      if (e.code == 'DRAW_INVALID') _pendingDraws.remove(groupId);
+      rethrow;
+    }
   }
 
-  /// Les groupes ne sont pas publiés dans un annuaire : on rejoint par invitation.
   @override
-  Future<Resource<List<DiscoverableGroup>>> listDiscoverable() async => const ResourceReady<List<DiscoverableGroup>>(<DiscoverableGroup>[]);
+  Future<OperationResult<void>> decideAdmission({required String groupId, required String membershipId, required bool admit}) =>
+      _write<void>(() async {
+        await _api.postOnce('${_t(groupId)}/members/${Uri.encodeComponent(membershipId)}/admission', <String, dynamic>{
+          'decision': admit ? 'admit' : 'reject',
+        });
+      });
 
   @override
-  Future<OperationResult<void>> requestSponsorship({
+  Future<OperationResult<void>> proposeRole({required String groupId, required String membershipId, required String role}) =>
+      _write<void>(() async {
+        await _api.postOnce('${_t(groupId)}/roles', <String, dynamic>{'membershipId': membershipId, 'role': role});
+      });
+
+  @override
+  Future<OperationResult<void>> acceptRole({required String groupId, required String role}) => _write<void>(() async {
+        await _api.postOnce('${_t(groupId)}/roles/acceptance', <String, dynamic>{'role': role});
+      });
+
+  @override
+  Future<Resource<TontineStatutes?>> getStatutes(String groupId) async {
+    try {
+      return ResourceReady<TontineStatutes?>(statutesFrom((await _api.get('${_t(groupId)}/statutes')).body));
+    } on ApiFailure catch (e) {
+      if (e.statusCode == 404) return const ResourceReady<TontineStatutes?>(null);
+      return ResourceFailure<TontineStatutes?>(e);
+    }
+  }
+
+  @override
+  Future<OperationResult<TontineStatutes>> acceptStatutes({required String groupId, required String hash}) => _write<TontineStatutes>(
+        () async => statutesFrom((await _api.postOnce('${_t(groupId)}/statutes/acceptance', <String, dynamic>{'hash': hash})).body),
+      );
+
+  @override
+  Future<OperationResult<TontineStatutes>> publishStatutes({
     required String groupId,
-    required String sponsorshipId,
-    required String candidateId,
-    required String sponsorId,
-  }) async =>
-      const OperationBlocked<void>('On rejoint un groupe avec le code d’invitation envoyé par son bureau.');
+    required int acceptanceDays,
+    required StatutesOnExpiry onExpiry,
+  }) =>
+      _write<TontineStatutes>(() async => statutesFrom((await _api.postOnce('${_t(groupId)}/statutes', <String, dynamic>{
+            'acceptanceDays': acceptanceDays,
+            'onExpiry': onExpiry.apiName,
+          }))
+              .body));
+
+  @override
+  Future<OperationResult<TontineStatutes>> extendStatutesDeadline({
+    required String groupId,
+    required int extendDays,
+    StatutesOnExpiry? onExpiry,
+  }) =>
+      _write<TontineStatutes>(() async {
+        final ApiResponse res = await _api.patch('${_t(groupId)}/statutes/deadline', <String, dynamic>{
+          'extendDays': extendDays,
+          if (onExpiry != null) 'onExpiry': onExpiry.apiName,
+        }, headers: <String, String>{'idempotency-key': newIdempotencyKey()});
+        return statutesFrom(res.body);
+      });
+
+  @override
+  Future<OperationResult<int>> remindStatutes(String groupId) => _write<int>(() async {
+        final Map<String, dynamic> b = (await _api.postOnce('${_t(groupId)}/statutes/reminders', const <String, dynamic>{})).body;
+        return (b['reminded'] as num?)?.toInt() ?? 0;
+      });
 }
 
 /// Règlement envoyé à `POST /v1/tontines` : montant, rythme, date, heure
-/// limite et plafond de membres viennent du formulaire du bureau (jamais
-/// pré-remplis à sa place) ; le reste reprend les par défauts éditables
-/// ensuite (mêmes valeurs que l'assistant PWA et `defaultSettings` serveur).
+/// limite, plafond de membres et caisses annexes viennent du formulaire du
+/// bureau. Les caisses de secours et de fonctionnement ne sont ouvertes que
+/// si le bureau a tapé un montant (jamais de montant qu'il n'a pas vu) ; les
+/// autres règles sont celles que l'écran de création affiche en clair.
 Map<String, dynamic> settingsForDraft(TontineCreation draft) => <String, dynamic>{
       'contributionPerShare': draft.contributionPerShare,
       'cadence': draft.cadenceJson,
@@ -473,8 +593,15 @@ Map<String, dynamic> settingsForDraft(TontineCreation draft) => <String, dynamic
         'indisciplineCap': '0',
         'graceDays': 2,
       },
-      'solidarity': <String, dynamic>{'enabled': true, 'perMeeting': '1000', 'scale': <dynamic>[]},
-      'operating': <String, dynamic>{'enabled': true, 'perMeeting': '500'},
+      'solidarity': <String, dynamic>{
+        'enabled': (draft.solidarityPerMeeting ?? 0) > 0,
+        'perMeeting': '${(draft.solidarityPerMeeting ?? 0) > 0 ? draft.solidarityPerMeeting : 0}',
+        'scale': <dynamic>[],
+      },
+      'operating': <String, dynamic>{
+        'enabled': (draft.operatingPerMeeting ?? 0) > 0,
+        'perMeeting': '${(draft.operatingPerMeeting ?? 0) > 0 ? draft.operatingPerMeeting : 0}',
+      },
       'yearEndReserve': <String, dynamic>{'enabled': false, 'perMeeting': '0'},
     };
 
@@ -647,8 +774,6 @@ final class TontineGovernanceRepository implements GovernanceRepository {
                 ? motif
                 : 'Paiement non retrouvé par la trésorerie (rejet depuis l’application mobile)',
           });
-        case ValidationDecision.requestInformation:
-          throw const ApiFailure(statusCode: 422, code: 'VALIDATION', message: 'Demandez la précision en séance ou par WhatsApp, puis confirmez ou rejetez.');
       }
       _known.remove(contributionId);
     });
@@ -744,31 +869,8 @@ final class TontineNotificationRepository implements NotificationRepository {
   const TontineNotificationRepository({required KombeApiClient api}) : _api = api;
   final KombeApiClient _api;
 
-  static ({NotificationKind kind, String title}) _label(String k) => switch (k) {
-        'due_reminder' => (kind: NotificationKind.contribution, title: 'Une cotisation arrive à échéance'),
-        'meeting_reminder' => (kind: NotificationKind.meeting, title: 'Rappel : séance demain'),
-        'validation_waiting' => (kind: NotificationKind.validation, title: 'Des paiements attendent votre contrôle'),
-        'payout_recorded' => (kind: NotificationKind.contribution, title: 'Remise déclarée : confirmez la réception'),
-        'fine_issued' => (kind: NotificationKind.dispute, title: 'Une amende vous a été notifiée'),
-        'aid_decided' => (kind: NotificationKind.system, title: 'Décision sur une demande de secours'),
-        'order_change' => (kind: NotificationKind.vote, title: 'Demande d’échange de tour'),
-        'membership' => (kind: NotificationKind.system, title: 'Nouvelle demande d’adhésion'),
-        'minutes_ready' => (kind: NotificationKind.meeting, title: 'Procès-verbal disponible'),
-        'decision' => (kind: NotificationKind.vote, title: 'Un vote de l’association vous concerne'),
-        _ => (kind: NotificationKind.system, title: 'Information du groupe'),
-      };
-
-  static KombeNotification notification(Map<String, dynamic> n) {
-    final ({NotificationKind kind, String title}) l = _label('${n['kind']}');
-    return KombeNotification(
-      id: '${n['notificationId']}',
-      kind: l.kind,
-      title: l.title,
-      body: '${n['groupName'] ?? ''}',
-      createdAtUtc: _date(n['createdAt']),
-      read: n['read'] == true,
-    );
-  }
+  /// `NotificationView` → [KombeNotification] (voir notification_mapping.dart).
+  static KombeNotification notification(Map<String, dynamic> n) => notificationFromApi(n);
 
   @override
   Future<Resource<List<KombeNotification>>> listNotifications() =>
@@ -808,9 +910,6 @@ final class TontineDocumentRepository implements DocumentRepository {
         }
         return out;
       });
-
-  @override
-  Future<Resource<List<KombeDocument>>> listExports() async => const ResourceReady<List<KombeDocument>>(<KombeDocument>[]);
 }
 
 // ── Tableau de bord ──────────────────────────────────────────────────────
@@ -869,26 +968,49 @@ final class TontineDashboardRepository implements DashboardRepository {
       });
 }
 
-// ── Litiges ──────────────────────────────────────────────────────────────
+// ── Amendes (contestation) ───────────────────────────────────────────────
 
-/// Les désaccords passent par la contestation d'une amende ou le commissaire
-/// aux comptes (registre consultable) ; il n'existe pas de dossier de litige
-/// séparé dans l'API tontine. Les écrans le disent au lieu d'inventer.
-final class TontineDisputeRepository implements DisputeRepository {
-  const TontineDisputeRepository();
+/// `FineView` → [MyFine].
+MyFine fineFrom(String groupId, String groupName, Map<String, dynamic> f) => MyFine(
+      fineId: '${f['fineId']}',
+      groupId: groupId,
+      groupName: groupName,
+      kind: '${f['kind'] ?? ''}',
+      amountXaf: _xaf(f['amount']),
+      reason: '${f['reason'] ?? ''}',
+      state: fineStateFrom(f['state']),
+      issuedAtUtc: _date(f['issuedAt']),
+      issuedByName: f['issuedByName'] as String?,
+    );
+
+/// Les désaccords sur une amende passent par sa contestation
+/// (`POST /v1/tontines/:id/fines/:fid/contest`) ; la présidence tranche.
+final class TontineFineRepository implements FineRepository {
+  const TontineFineRepository({required KombeApiClient api}) : _api = api;
+  final KombeApiClient _api;
 
   @override
-  Future<Resource<List<DisputeSummary>>> listDisputes() async => const ResourceReady<List<DisputeSummary>>(<DisputeSummary>[]);
+  Future<Resource<List<MyFine>>> listMyFines() => _read(() async {
+        final List<MyFine> out = <MyFine>[];
+        for (final Map<String, dynamic> g in _items(await _api.get('/me/tontines'))) {
+          if (g['membershipState'] != 'active') continue;
+          final String gid = '${g['groupId']}';
+          final String mine = '${g['membershipId']}';
+          for (final Map<String, dynamic> f in _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/fines'))) {
+            if ('${f['membershipId']}' == mine) out.add(fineFrom(gid, '${g['name']}', f));
+          }
+        }
+        out.sort((MyFine a, MyFine b) => b.issuedAtUtc.compareTo(a.issuedAtUtc));
+        return out;
+      });
 
   @override
-  Future<Resource<DisputeDetails>> getDispute(String disputeId) async => const ResourceUnavailable<DisputeDetails>();
-
-  @override
-  Future<OperationResult<DisputeSummary>> openDispute({
-    required String groupId,
-    required String subject,
-    required String description,
-    String? relatedOperationId,
-  }) async =>
-      const OperationBlocked<DisputeSummary>('Contestez une amende depuis l’application web, ou saisissez le commissaire aux comptes en séance.');
+  Future<OperationResult<MyFine>> contestFine({required MyFine fine, required String reason}) => _write<MyFine>(() async {
+        final Map<String, dynamic> b = (await _api.postOnce(
+          '/tontines/${Uri.encodeComponent(fine.groupId)}/fines/${Uri.encodeComponent(fine.fineId)}/contest',
+          <String, dynamic>{'reason': reason.trim()},
+        ))
+            .body;
+        return fineFrom(fine.groupId, fine.groupName, b);
+      });
 }

@@ -98,8 +98,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 20),
-            // Amorçage complet (C03) : créer / rejoindre par code / découvrir
-            // (avec parrainage). Le parcours ne proposait que « rejoindre ».
+            // Amorçage : créer une tontine, ou la rejoindre avec le code
+            // d'invitation reçu du bureau (pas d'annuaire public).
             _OnboardingAction(
               icon: Icons.add_circle_outline,
               label: 'Créer une tontine',
@@ -111,13 +111,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
               onTap: () => context.push('/app/groups/join'),
             ),
             _OnboardingAction(
-              icon: Icons.explore_outlined,
-              label: 'Découvrir des tontines',
-              onTap: () => context.push('/app/groups/discover'),
-            ),
-            _OnboardingAction(
               icon: Icons.groups_rounded,
-              label: 'Mes tontines (multi-adhésion)',
+              label: 'Toutes mes adhésions (y compris en attente)',
               onTap: () => context.push('/app/groups/mine'),
             ),
             const SizedBox(height: 16),

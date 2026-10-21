@@ -34,7 +34,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Le terminal est compatible. L’activation finale sera liée à une session serveur valide.',
+            'Biométrie disponible : activez-la dans « Mon profil › Authentification biométrique ».',
           ),
         ),
       );
@@ -79,7 +79,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
             ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () => context.go('/login'),
+            onPressed: () => context.go('/app'),
             child: const Text('Plus tard'),
           ),
         ],

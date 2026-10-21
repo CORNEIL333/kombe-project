@@ -23,23 +23,24 @@ class HelpCenterScreen extends StatelessWidget {
                     leading: Icon(Icons.info_outline),
                     title: Text('Comprendre une cotisation'),
                     subtitle: Text(
-                      'Une déclaration locale ou un brouillon ne vaut jamais validation.',
+                      'Vous payez le trésorier comme d’habitude (espèces, Mobile Money…), puis vous déclarez le versement. '
+                      'Il compte quand le trésorier l’a confirmé. KÓMBE ne garde jamais l’argent.',
                     ),
                   ),
                   Divider(),
                   ListTile(
                     leading: Icon(Icons.gavel_outlined),
-                    title: Text('Contester une opération'),
+                    title: Text('Contester une amende'),
                     subtitle: Text(
-                      'L’ouverture et le suivi d’un litige passent par le serveur KÓMBE.',
+                      'Dans « Plus › Mes amendes », contestez une amende avec un motif : la présidence l’annule ou la maintient.',
                     ),
                   ),
                   Divider(),
                   ListTile(
                     leading: Icon(Icons.offline_bolt_outlined),
-                    title: Text('Utiliser KÓMBE hors connexion'),
+                    title: Text('Sans réseau'),
                     subtitle: Text(
-                      'Seuls les brouillons locaux et certaines lectures autorisées peuvent rester disponibles.',
+                      'Vous pouvez préparer une déclaration ; elle est envoyée quand la connexion revient.',
                     ),
                   ),
                 ],
@@ -62,10 +63,11 @@ class ContactSupportScreen extends StatelessWidget {
             const SectionCard(
               child: ListTile(
                 leading: Icon(Icons.support_agent_outlined),
-                title: Text('Canal de support'),
+                title: Text('Besoin d’aide ?'),
                 subtitle: Text(
-                  'Le canal officiel sera injecté par configuration serveur. '
-                  'Aucun numéro, email ou lien n’est codé en dur.',
+                  'Pour une question sur votre groupe (cotisation, tour, amende), adressez-vous d’abord à son bureau : '
+                  'président, secrétaire général ou trésorier. Pour un problème avec l’application, parlez-en à votre bureau, '
+                  'qui le signalera à l’équipe KÓMBE.',
                 ),
               ),
             ),

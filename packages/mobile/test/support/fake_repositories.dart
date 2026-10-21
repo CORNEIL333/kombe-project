@@ -18,8 +18,8 @@ import 'package:kombe_mobile/domain/entities/auth.dart';
 import 'package:kombe_mobile/domain/entities/contribution.dart';
 import 'package:kombe_mobile/domain/entities/cycle.dart';
 import 'package:kombe_mobile/domain/entities/dashboard.dart';
-import 'package:kombe_mobile/domain/entities/dispute.dart';
 import 'package:kombe_mobile/domain/entities/document.dart';
+import 'package:kombe_mobile/domain/entities/fine.dart';
 import 'package:kombe_mobile/domain/entities/governance.dart';
 import 'package:kombe_mobile/domain/entities/group.dart';
 import 'package:kombe_mobile/domain/entities/notification.dart';
@@ -27,8 +27,8 @@ import 'package:kombe_mobile/domain/entities/profile.dart';
 import 'package:kombe_mobile/domain/repositories/auth_repository.dart';
 import 'package:kombe_mobile/domain/repositories/contribution_repository.dart';
 import 'package:kombe_mobile/domain/repositories/dashboard_repository.dart';
-import 'package:kombe_mobile/domain/repositories/dispute_repository.dart';
 import 'package:kombe_mobile/domain/repositories/document_repository.dart';
+import 'package:kombe_mobile/domain/repositories/fine_repository.dart';
 import 'package:kombe_mobile/domain/repositories/governance_repository.dart';
 import 'package:kombe_mobile/domain/repositories/group_repository.dart';
 import 'package:kombe_mobile/domain/repositories/notification_repository.dart';
@@ -93,8 +93,8 @@ final class FakeWorld {
       KombeNotification(id: 'n3', kind: NotificationKind.vote, title: 'Nouveau vote ouvert', body: 'Passer la cotisation à 30 000 XAF', createdAtUtc: now.subtract(const Duration(days: 2)), read: true),
       KombeNotification(id: 'n4', kind: NotificationKind.meeting, title: 'Réunion du groupe samedi', body: 'Chez Amina, 16 h', createdAtUtc: now.subtract(const Duration(days: 4)), read: true),
     ];
-    disputes = <DisputeSummary>[
-      DisputeSummary(id: 'essai-lit-1', groupId: 'essai-etoiles', subject: 'Cotisation de mars non retrouvée', status: DisputeStatus.underReview, openedAtUtc: now.subtract(const Duration(days: 6))),
+    fines = <MyFine>[
+      MyFine(fineId: 'essai-amende-1', groupId: 'essai-etoiles', groupName: 'Les Étoiles de Yaoundé', kind: 'meeting_late', amountXaf: 500, reason: 'Arrivée après l’appel', state: FineState.issued, issuedAtUtc: now.subtract(const Duration(days: 6)), issuedByName: 'Éric Kamga'),
     ];
   }
 
@@ -111,7 +111,7 @@ final class FakeWorld {
   late final List<ValidationItem> pending;
   late final List<VoteSummary> votes;
   late final List<KombeNotification> notifications;
-  late final List<DisputeSummary> disputes;
+  late final List<MyFine> fines;
   int _seq = 100;
   String nextId(String prefix) => 'essai-$prefix-${_seq++}';
 }
@@ -128,29 +128,21 @@ final class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<OperationResult<void>> requestRegistration(String identityId) async {
+  Future<Resource<AuthChannels>> loadChannels() async =>
+      const ResourceReady<AuthChannels>(AuthChannels(email: true, sms: false, whatsapp: false));
+
+  @override
+  Future<OperationResult<void>> requestCode({required String login, required LoginChannel channel}) async {
     await _lag();
     return const OperationSuccess<void>(null);
   }
 
+  /// En essai, n'importe quel code est accepté (aucun message n'est envoyé).
   @override
-  Future<OperationResult<AccountStatus>> verifyRegistration({required String identityId, required String code}) async {
-    await _lag();
-    return const OperationSuccess<AccountStatus>(AccountStatus.active);
-  }
-
-  @override
-  Future<OperationResult<void>> requestLogin(String identityId) async {
-    await _lag();
-    return const OperationSuccess<void>(null);
-  }
-
-  /// En essai, n'importe quel code est accepté (aucun email n'est envoyé).
-  @override
-  Future<OperationResult<AuthSession>> completeLogin({required String identityId, required String code}) async {
+  Future<OperationResult<AuthSession>> verifyCode({required String login, required String code}) async {
     await _lag();
     final AuthSession s = AuthSession(
-      identityId: identityId.isEmpty ? 'essai@kombe.app' : identityId,
+      identityId: login.isEmpty ? 'essai@kombe.app' : login,
       accountStatus: AccountStatus.active,
       expiresAtUtc: DateTime.now().toUtc().add(const Duration(days: 30)),
     );
@@ -158,13 +150,6 @@ final class FakeAuthRepository implements AuthRepository {
     _ctrl.add(ResourceReady<AuthSession?>(s));
     return OperationSuccess<AuthSession>(s);
   }
-
-  @override
-  Future<OperationResult<void>> requestRecovery(String identityId) async => const OperationSuccess<void>(null);
-
-  @override
-  Future<OperationResult<void>> completeRecovery({required String identityId, required String code}) async =>
-      const OperationSuccess<void>(null);
 
   @override
   Future<OperationResult<void>> signOut() async {
@@ -188,12 +173,6 @@ final class FakeProfileRepository implements ProfileRepository {
     await _lag();
     _p = UserProfile(identityId: _p.identityId, displayName: displayName, phoneE164: _p.phoneE164, localeCode: localeCode);
     return OperationSuccess<UserProfile>(_p);
-  }
-
-  @override
-  Future<OperationResult<void>> changePin({required String currentPin, required String newPin}) async {
-    await _lag();
-    return const OperationSuccess<void>(null);
   }
 }
 
@@ -279,9 +258,86 @@ final class FakeGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<OperationResult<void>> inviteMember({required String groupId, required String phoneE164}) async {
+  Future<OperationResult<GroupInvitation>> createInvitation(String groupId) async {
+    await _lag();
+    return OperationSuccess<GroupInvitation>(GroupInvitation(
+      invitationId: 'essai-inv-1',
+      code: 'ESSAI234',
+      url: 'https://kombe.example/#/rejoindre/ESSAI234',
+      whatsappText: 'Rejoins notre tontine sur KÓMBE : https://kombe.example/#/rejoindre/ESSAI234 (code ESSAI234).',
+      expiresAtUtc: DateTime.now().toUtc().add(const Duration(days: 14)),
+      maxUses: 30,
+      usedCount: 0,
+    ));
+  }
+
+  @override
+  Future<OperationResult<void>> decideAdmission({required String groupId, required String membershipId, required bool admit}) async {
     await _lag();
     return const OperationSuccess<void>(null);
+  }
+
+  @override
+  Future<OperationResult<void>> proposeRole({required String groupId, required String membershipId, required String role}) async {
+    await _lag();
+    return const OperationSuccess<void>(null);
+  }
+
+  @override
+  Future<OperationResult<void>> acceptRole({required String groupId, required String role}) async {
+    await _lag();
+    return const OperationSuccess<void>(null);
+  }
+
+  TontineStatutes _statutes() => TontineStatutes(
+        version: 1,
+        title: 'Statuts du groupe (fictifs)',
+        body: 'Article 1 — Objet.\nArticle 2 — Cotisations.',
+        hash: List<String>.filled(64, 'a').join(),
+        publishedAtUtc: w.nextDue.subtract(const Duration(days: 10)),
+        acceptedByMe: false,
+        acceptedCount: 3,
+        expectedCount: 12,
+        deadline: StatutesDeadline(deadlineAtUtc: w.nextDue, acceptanceDays: 7, onExpiry: StatutesOnExpiry.exclude),
+        myDeadlineAtUtc: w.nextDue,
+      );
+
+  @override
+  Future<Resource<TontineStatutes?>> getStatutes(String groupId) async {
+    await _lag();
+    return ResourceReady<TontineStatutes?>(_statutes());
+  }
+
+  @override
+  Future<OperationResult<TontineStatutes>> acceptStatutes({required String groupId, required String hash}) async {
+    await _lag();
+    return OperationSuccess<TontineStatutes>(_statutes());
+  }
+
+  @override
+  Future<OperationResult<TontineStatutes>> publishStatutes({
+    required String groupId,
+    required int acceptanceDays,
+    required StatutesOnExpiry onExpiry,
+  }) async {
+    await _lag();
+    return OperationSuccess<TontineStatutes>(_statutes());
+  }
+
+  @override
+  Future<OperationResult<TontineStatutes>> extendStatutesDeadline({
+    required String groupId,
+    required int extendDays,
+    StatutesOnExpiry? onExpiry,
+  }) async {
+    await _lag();
+    return OperationSuccess<TontineStatutes>(_statutes());
+  }
+
+  @override
+  Future<OperationResult<int>> remindStatutes(String groupId) async {
+    await _lag();
+    return const OperationSuccess<int>(9);
   }
 
   @override
@@ -338,15 +394,6 @@ final class FakeGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<Resource<List<DiscoverableGroup>>> listDiscoverable() async {
-    await _lag();
-    return const ResourceReady<List<DiscoverableGroup>>(<DiscoverableGroup>[
-      DiscoverableGroup(groupId: 'decouvrir-1', name: 'Tontine des artisans'),
-      DiscoverableGroup(groupId: 'decouvrir-2', name: 'Épargne construction'),
-    ]);
-  }
-
-  @override
   Future<Resource<List<MemberGroup>>> listMyGroups() async {
     await _lag();
     return ResourceReady<List<MemberGroup>>(<MemberGroup>[
@@ -358,17 +405,6 @@ final class FakeGroupRepository implements GroupRepository {
           membershipState: 'active',
         ),
     ]);
-  }
-
-  @override
-  Future<OperationResult<void>> requestSponsorship({
-    required String groupId,
-    required String sponsorshipId,
-    required String candidateId,
-    required String sponsorId,
-  }) async {
-    await _lag();
-    return const OperationSuccess<void>(null);
   }
 }
 
@@ -478,41 +514,32 @@ final class FakeGovernanceRepository implements GovernanceRepository {
   }
 }
 
-final class FakeDisputeRepository implements DisputeRepository {
-  FakeDisputeRepository(this.w);
+final class FakeFineRepository implements FineRepository {
+  FakeFineRepository(this.w);
   final FakeWorld w;
 
   @override
-  Future<Resource<List<DisputeSummary>>> listDisputes() async {
+  Future<Resource<List<MyFine>>> listMyFines() async {
     await _lag();
-    return ResourceReady<List<DisputeSummary>>(List<DisputeSummary>.unmodifiable(w.disputes));
+    return ResourceReady<List<MyFine>>(List<MyFine>.unmodifiable(w.fines));
   }
 
   @override
-  Future<Resource<DisputeDetails>> getDispute(String disputeId) async {
-    await _lag(250);
-    for (final DisputeSummary d in w.disputes) {
-      if (d.id == disputeId) {
-        return ResourceReady<DisputeDetails>(DisputeDetails(
-          summary: d,
-          description: 'La cotisation de mars n’apparaît pas dans l’historique alors que le membre affirme l’avoir versée.',
-          timeline: <DisputeTimelineEntry>[
-            DisputeTimelineEntry(label: 'Litige ouvert', atUtc: d.openedAtUtc),
-            DisputeTimelineEntry(label: 'Justificatif demandé au membre', atUtc: d.openedAtUtc.add(const Duration(days: 1))),
-            DisputeTimelineEntry(label: 'Examen par le contrôleur', atUtc: d.openedAtUtc.add(const Duration(days: 3))),
-          ],
-        ));
-      }
-    }
-    return const ResourceUnavailable<DisputeDetails>();
-  }
-
-  @override
-  Future<OperationResult<DisputeSummary>> openDispute({required String groupId, required String subject, required String description, String? relatedOperationId}) async {
+  Future<OperationResult<MyFine>> contestFine({required MyFine fine, required String reason}) async {
     await _lag(600);
-    final DisputeSummary d = DisputeSummary(id: w.nextId('lit'), groupId: groupId, subject: subject, status: DisputeStatus.open, openedAtUtc: DateTime.now().toUtc());
-    w.disputes.insert(0, d);
-    return OperationSuccess<DisputeSummary>(d);
+    final MyFine c = MyFine(
+      fineId: fine.fineId,
+      groupId: fine.groupId,
+      groupName: fine.groupName,
+      kind: fine.kind,
+      amountXaf: fine.amountXaf,
+      reason: fine.reason,
+      state: FineState.contested,
+      issuedAtUtc: fine.issuedAtUtc,
+      issuedByName: fine.issuedByName,
+    );
+    w.fines[w.fines.indexWhere((MyFine f) => f.fineId == fine.fineId)] = c;
+    return OperationSuccess<MyFine>(c);
   }
 }
 
@@ -531,7 +558,7 @@ final class FakeNotificationRepository implements NotificationRepository {
     final int i = w.notifications.indexWhere((KombeNotification n) => n.id == notificationId);
     if (i >= 0) {
       final KombeNotification n = w.notifications[i];
-      w.notifications[i] = KombeNotification(id: n.id, kind: n.kind, title: n.title, body: n.body, createdAtUtc: n.createdAtUtc, read: true);
+      w.notifications[i] = n.copyWith(read: true);
     }
     return const OperationSuccess<void>(null);
   }
@@ -546,12 +573,6 @@ final class FakeDocumentRepository implements DocumentRepository {
       KombeDocument(id: 'd1', kind: DocumentKind.rules, title: 'Règles du groupe — version 3', createdAtUtc: now.subtract(const Duration(days: 40)), downloadUri: Uri.parse('about:blank')),
       KombeDocument(id: 'd2', kind: DocumentKind.cycleReport, title: 'Relevé du cycle — tours 1 à 3', createdAtUtc: now.subtract(const Duration(days: 8)), downloadUri: Uri.parse('about:blank')),
     ]);
-  }
-
-  @override
-  Future<Resource<List<KombeDocument>>> listExports() async {
-    await _lag();
-    return const ResourceReady<List<KombeDocument>>(<KombeDocument>[]);
   }
 }
 
@@ -584,7 +605,7 @@ AppDependencies fakeDependencies() {
     groupRepository: FakeGroupRepository(world),
     contributionRepository: FakeContributionRepository(world),
     governanceRepository: FakeGovernanceRepository(world),
-    disputeRepository: FakeDisputeRepository(world),
+    fineRepository: FakeFineRepository(world),
     notificationRepository: FakeNotificationRepository(world),
     documentRepository: FakeDocumentRepository(),
     dashboardRepository: FakeDashboardRepository(world),

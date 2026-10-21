@@ -42,7 +42,7 @@ class _OfflineStatusScreenState extends State<OfflineStatusScreen> {
                     leading: Icon(Icons.edit_note_outlined),
                     title: Text('Brouillons locaux'),
                     subtitle: Text(
-                      'Autorisés. Ils ne deviennent jamais des opérations officielles sans serveur.',
+                      'Autorisés. Ils sont envoyés quand la connexion revient.',
                     ),
                   ),
                   const Divider(),
@@ -113,7 +113,7 @@ class _CapabilityRow extends StatelessWidget {
           // d'écran annonce le verdict en toutes lettres (a11y seniors).
           semanticLabel: allowed
               ? 'Autorisé hors connexion'
-              : 'Non autorisé : validation du serveur requise',
+              : 'Connexion nécessaire',
         ),
       );
 }

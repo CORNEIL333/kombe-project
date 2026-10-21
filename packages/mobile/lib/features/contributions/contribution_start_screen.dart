@@ -80,7 +80,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
       return;
     }
     context.push(
-      '/app/groups/${widget.groupId}/contributions/${draft.localId}/evidence',
+      '/app/groups/${widget.groupId}/contributions/${draft.localId}/review',
     );
   }
 
@@ -99,7 +99,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
           children: <Widget>[
             StepIndicator(
               current: 0,
-              labels: <String>[l10n.information, l10n.evidence, 'Confirmation'],
+              labels: <String>[l10n.information, 'Confirmation'],
             ),
             const SizedBox(height: 20),
             FutureBuilder<Resource<GroupDetails>>(

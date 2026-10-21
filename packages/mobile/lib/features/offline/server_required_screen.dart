@@ -26,14 +26,14 @@ class ServerRequiredScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      'Serveur KÓMBE requis',
+                      'Version non reliée à KÓMBE',
                       style: Theme.of(context).textTheme.headlineMedium,
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'Ce client mobile ne simule aucune donnée métier. '
-                      'Connectez le backend KÓMBE pour authentifier un compte et charger les données réelles autorisées.',
+                      'Cette version de l’application n’est reliée à aucun serveur KÓMBE : rien ne peut s’afficher. '
+                      'Installez la version officielle de KÓMBE pour vous connecter.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),

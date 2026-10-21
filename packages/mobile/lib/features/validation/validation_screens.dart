@@ -15,7 +15,7 @@ import '../../core/widgets/kombe_orbit_band.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/kombe_visuals.dart';
 import '../../core/widgets/screen_states.dart';
-import '../../core/widgets/server_action_guard.dart';
+import '../../core/widgets/operation_feedback.dart';
 import '../../core/widgets/section_card.dart';
 import '../../domain/entities/governance.dart';
 import '../../domain/repositories/governance_repository.dart';
@@ -134,13 +134,9 @@ class _ValidationDetailScreenState extends State<ValidationDetailScreen> {
           const SnackBar(content: Text('Décision enregistrée dans l’historique du groupe.')),
         );
         await _load();
-      case OperationBlocked<void>():
-        await showServerAuthorityRequired(context);
-      case OperationFailure<void>(:final error):
+      case OperationBlocked<void>() || OperationFailure<void>():
         unawaited(HapticFeedback.heavyImpact());
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
+        reportOutcome(context, result);
     }
   }
 
@@ -215,19 +211,18 @@ class _ValidationDetailScreenState extends State<ValidationDetailScreen> {
                           label: 'Date de déclaration',
                           value: DateFormat.yMMMd(locale).add_Hm().format(item.declaredAtUtc.toLocal()),
                         ),
-                        _Fact(icon: Icons.description_outlined, label: 'Preuve de paiement', value: item.evidenceName ?? 'Non fournie', last: true),
+                        _Fact(icon: Icons.description_outlined, label: 'Référence de transaction', value: item.evidenceName ?? 'Aucune (espèces ?)', last: true),
                       ],
                     ),
                   ),
                   const SizedBox(height: 22),
                   Text('Votre décision', style: t.titleLarge),
                   const SizedBox(height: 4),
-                  Text('Choisissez une option, puis confirmez.', style: t.bodyMedium),
+                  Text('En cas de doute, demandez au membre en séance ou par WhatsApp avant de décider.', style: t.bodyMedium),
                   const SizedBox(height: 12),
                   for (final (ValidationDecision d, IconData icon, String title, String hint) in <(ValidationDecision, IconData, String, String)>[
-                    (ValidationDecision.validate, Icons.check_rounded, 'Valider la cotisation', 'Confirme que le membre a bien payé.'),
-                    (ValidationDecision.reject, Icons.close_rounded, 'Rejeter la cotisation', 'Il manque une preuve ou le montant est incorrect.'),
-                    (ValidationDecision.requestInformation, Icons.schedule_rounded, 'Demander plus d’informations', 'Poser une question au membre.'),
+                    (ValidationDecision.validate, Icons.check_rounded, 'Valider la cotisation', 'Vous avez bien reçu ce versement.'),
+                    (ValidationDecision.reject, Icons.close_rounded, 'Rejeter la cotisation', 'Versement introuvable ou montant différent : le motif est transmis au membre.'),
                   ])
                     _DecisionOption(
                       icon: icon,
@@ -268,7 +263,7 @@ class _ValidationDetailScreenState extends State<ValidationDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Votre décision est enregistrée dans l’historique du groupe uniquement après acceptation du serveur.',
+                    'Votre décision est inscrite dans l’historique du groupe, visible par les membres.',
                     style: t.bodySmall,
                   ),
                 ],

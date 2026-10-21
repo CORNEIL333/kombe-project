@@ -1,59 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
-import '../../core/state/operation_result.dart';
 import '../../core/widgets/kombe_orbit_band.dart';
 import '../../core/widgets/kombe_logo.dart';
-import '../../core/widgets/server_action_guard.dart';
-import '../../domain/repositories/auth_repository.dart';
 import '../../l10n/app_localizations.dart';
-import 'auth_validators.dart';
+import 'code_request_form.dart';
 import 'verify_code_screen.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
-
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _email = TextEditingController();
-  bool _submitting = false;
-
-  @override
-  void dispose() {
-    _email.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _submitting = true);
-    final OperationResult<void> result = await context
-        .read<AuthRepository>()
-        .requestLogin(_email.text.trim());
-    if (!mounted) return;
-    setState(() => _submitting = false);
-    switch (result) {
-      case OperationSuccess<void>():
-        context.go(
-          VerifyCodeScreen.routeFor(
-            purpose: VerifyCodePurpose.login,
-            identityId: _email.text.trim(),
-          ),
-        );
-      case OperationBlocked<void>():
-        await showServerAuthorityRequired(context);
-      case OperationFailure<void>(:final error):
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,9 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
+                child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       IconButton(
@@ -84,47 +38,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Retrouvez votre espace et continuez à faire grandir votre communauté.',
+                        'Indiquez où recevoir votre code : vous retrouvez vos groupes juste après.',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: KombeColors.slate),
                       ),
                       const SizedBox(height: 28),
-                      TextFormField(
-                        controller: _email,
-                        keyboardType: TextInputType.text,
-                        autofillHints: const <String>[AutofillHints.telephoneNumber, AutofillHints.email],
-                        decoration: InputDecoration(
-                          labelText: l10n.email,
-                          prefixIcon: const Icon(Icons.phone_android_rounded),
-                        ),
-                        validator: (String? value) =>
-                            AuthValidators.isLogin(value ?? '')
-                            ? null
-                            : l10n.invalidEmail,
-                      ),
-                      const SizedBox(height: 20),
-                      FilledButton(
-                        onPressed: _submitting ? null : _submit,
-                        child: _submitting
-                            ? const SizedBox.square(
-                                dimension: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: <Widget>[
-                                  Text(l10n.sendCode),
-                                  const SizedBox(width: 10),
-                                  const Icon(Icons.arrow_forward_rounded),
-                                ],
-                              ),
-                      ),
+                      const CodeRequestForm(purpose: VerifyCodePurpose.login, submitLabel: 'Recevoir mon code'),
                       const SizedBox(height: 10),
                       Center(
                         child: TextButton(
+                          onPressed: () => context.go('/register'),
+                          child: const Text('Première fois ? Votre premier code crée votre compte.', textAlign: TextAlign.center),
+                        ),
+                      ),
+                      Center(
+                        child: TextButton(
                           onPressed: () => context.go('/recovery-request'),
-                          child: Text(l10n.forgotCode),
+                          child: Text(l10n.forgotCode, textAlign: TextAlign.center),
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -144,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   Text('Connexion sans mot de passe', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: KombeColors.forest)),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Un code à usage unique est envoyé à votre adresse email. Il n''est valable qu''une fois.',
+                                    'Un code à 6 chiffres vous est envoyé à chaque connexion. Il n’est valable qu’une fois et pendant 10 minutes.',
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(color: KombeColors.ink),
                                   ),
                                 ],
@@ -155,7 +84,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-                ),
               ),
             ),
             const KombeOrbitBand(height: 42),

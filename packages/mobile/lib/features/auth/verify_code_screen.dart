@@ -1,40 +1,54 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/design/kombe_colors.dart';
 import '../../core/state/operation_result.dart';
-import '../../core/widgets/server_action_guard.dart';
+import '../../core/widgets/operation_feedback.dart';
+import '../../domain/entities/auth.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../l10n/app_localizations.dart';
 import 'auth_validators.dart';
 
-/// Les TROIS finalités (ADR-0024) partagent le même mécanisme code+hash :
-/// un seul écran de saisie de code, paramétré par la finalité — jamais trois
-/// copies quasi identiques du même formulaire.
+/// Les TROIS entrées (créer un compte, se connecter, accès perdu) aboutissent
+/// au même geste serveur : un code vérifié OUVRE la session. Un seul écran de
+/// saisie, dont seuls les textes changent selon l'entrée.
 enum VerifyCodePurpose { registration, login, recovery }
+
+/// Délai avant de pouvoir redemander un code (aligné sur le serveur, 45 s).
+const Duration resendCooldown = Duration(seconds: 45);
 
 class VerifyCodeScreen extends StatefulWidget {
   const VerifyCodeScreen({
     super.key,
     required this.purpose,
     required this.identityId,
+    this.channel = LoginChannel.email,
   });
 
   final VerifyCodePurpose purpose;
-  final String identityId;
 
-  /// Construit l'URL de route pour cette finalité — `identityId` (une adresse
-  /// email) est encodé via `Uri` plutôt que par concaténation manuelle.
+  /// Adresse e-mail ou numéro saisi.
+  final String identityId;
+  final LoginChannel channel;
+
+  /// URL de route ; l'identifiant est encodé via `Uri`.
   static String routeFor({
     required VerifyCodePurpose purpose,
     required String identityId,
-  }) => Uri(
-    path: '/verify-code',
-    queryParameters: <String, String>{
-      'purpose': purpose.name,
-      'identityId': identityId,
-    },
-  ).toString();
+    LoginChannel channel = LoginChannel.email,
+  }) =>
+      Uri(
+        path: '/verify-code',
+        queryParameters: <String, String>{
+          'purpose': purpose.name,
+          'identityId': identityId,
+          'channel': channel.apiName,
+        },
+      ).toString();
 
   @override
   State<VerifyCodeScreen> createState() => _VerifyCodeScreenState();
@@ -42,102 +56,153 @@ class VerifyCodeScreen extends StatefulWidget {
 
 class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   final TextEditingController _code = TextEditingController();
+  Timer? _timer;
+  int _wait = resendCooldown.inSeconds;
   bool _submitting = false;
+  bool _resending = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCountdown();
+  }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _code.dispose();
     super.dispose();
   }
 
-  Future<void> _verify() async {
-    if (!AuthValidators.isChallengeCode(_code.text)) return;
-    setState(() => _submitting = true);
-    final AuthRepository repo = context.read<AuthRepository>();
-    final OperationResult<Object?> result = switch (widget.purpose) {
-      VerifyCodePurpose.registration => await repo.verifyRegistration(
-        identityId: widget.identityId,
-        code: _code.text,
-      ),
-      VerifyCodePurpose.login => await repo.completeLogin(
-        identityId: widget.identityId,
-        code: _code.text,
-      ),
-      VerifyCodePurpose.recovery => await repo.completeRecovery(
-        identityId: widget.identityId,
-        code: _code.text,
-      ),
-    };
+  void _startCountdown() {
+    _timer?.cancel();
+    setState(() => _wait = resendCooldown.inSeconds);
+    _timer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() => _wait = _wait > 0 ? _wait - 1 : 0);
+      if (_wait == 0) t.cancel();
+    });
+  }
+
+  Future<void> _resend() async {
+    setState(() => _resending = true);
+    final OperationResult<void> r =
+        await context.read<AuthRepository>().requestCode(login: widget.identityId, channel: widget.channel);
     if (!mounted) return;
-    setState(() => _submitting = false);
-    switch (result) {
-      case OperationSuccess<Object?>():
-        _onVerified();
-      case OperationBlocked<Object?>():
-        await showServerAuthorityRequired(context);
-      case OperationFailure<Object?>(:final error):
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+    setState(() => _resending = false);
+    if (reportOutcome(context, r)) {
+      showKombeMessage(context, 'Nouveau code envoyé ${widget.channel.viaLabel}.');
+      _startCountdown();
     }
   }
 
-  void _onVerified() {
-    switch (widget.purpose) {
-      case VerifyCodePurpose.registration:
-        // Inscription achevée ≠ session ouverte (ADR-0024) : une connexion
-        // normale reste nécessaire, jamais une session fabriquée ici.
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context).accountActivated),
-          ),
-        );
-        context.go('/login');
-      case VerifyCodePurpose.login:
-        // La session est déjà posée par le dépôt (watchSession) : le routeur
-        // redirige automatiquement vers /app (voir AppRouter._redirect).
-        context.go('/app');
-      case VerifyCodePurpose.recovery:
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context).recoveryComplete),
-          ),
-        );
-        context.go('/login');
+  Future<void> _verify() async {
+    if (_submitting) return;
+    if (!AuthValidators.isChallengeCode(_code.text)) {
+      setState(() => _error = 'Le code comporte 6 chiffres.');
+      return;
     }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    final OperationResult<AuthSession> result =
+        await context.read<AuthRepository>().verifyCode(login: widget.identityId, code: _code.text.trim());
+    if (!mounted) return;
+    setState(() => _submitting = false);
+    final String? problem = outcomeMessage(result);
+    if (problem != null) {
+      setState(() => _error = problem);
+      return;
+    }
+    // La session est ouverte par le serveur : on entre dans l'application
+    // (le routeur demande d'abord le nom si le compte n'en a pas encore).
+    if (widget.purpose == VerifyCodePurpose.registration) {
+      showKombeMessage(context, AppLocalizations.of(context).accountActivated);
+    } else if (widget.purpose == VerifyCodePurpose.recovery) {
+      showKombeMessage(context, AppLocalizations.of(context).recoveryComplete);
+    }
+    context.go('/app');
   }
 
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
+    final TextTheme t = Theme.of(context).textTheme;
+    final String back = widget.purpose == VerifyCodePurpose.registration
+        ? '/register'
+        : widget.purpose == VerifyCodePurpose.recovery
+            ? '/recovery-request'
+            : '/login';
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.verifyCodeTitle)),
+      appBar: AppBar(
+        title: Text(l10n.verifyCodeTitle),
+        leading: BackButton(onPressed: () => context.go(back)),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: <Widget>[
             Text(
-              l10n.verifyCodeTitle,
-              style: Theme.of(context).textTheme.headlineLarge,
+              widget.purpose == VerifyCodePurpose.registration ? 'Dernière étape' : l10n.verifyCodeTitle,
+              style: t.headlineLarge,
             ),
             const SizedBox(height: 10),
-            Text(l10n.codeSent, style: Theme.of(context).textTheme.bodyLarge),
+            Text(
+              'Saisissez le code à 6 chiffres envoyé ${widget.channel.viaLabel} à ${widget.identityId}.',
+              style: t.bodyLarge,
+            ),
+            if (widget.purpose == VerifyCodePurpose.registration) ...<Widget>[
+              const SizedBox(height: 6),
+              Text('Ce premier code crée votre compte.', style: t.bodyMedium?.copyWith(color: KombeColors.slate)),
+            ],
             const SizedBox(height: 26),
             TextField(
               controller: _code,
+              autofocus: true,
               keyboardType: TextInputType.number,
+              maxLength: 6,
+              inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
               autofillHints: const <String>[AutofillHints.oneTimeCode],
-              decoration: InputDecoration(labelText: l10n.code),
+              textInputAction: TextInputAction.done,
+              onChanged: (String v) {
+                if (_error != null) setState(() => _error = null);
+                if (v.length == 6) _verify();
+              },
+              onSubmitted: (_) => _verify(),
+              style: t.headlineSmall?.copyWith(letterSpacing: 8),
+              decoration: InputDecoration(labelText: 'Code à 6 chiffres', errorText: _error, errorMaxLines: 4),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             FilledButton(
               onPressed: _submitting ? null : _verify,
               child: _submitting
-                  ? const SizedBox.square(
-                      dimension: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l10n.confirm),
+                  ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Valider le code'),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: TextButton.icon(
+                onPressed: _wait > 0 || _resending ? null : _resend,
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(_wait > 0 ? 'Renvoyer le code (dans $_wait s)' : 'Renvoyer le code'),
+              ),
+            ),
+            Center(
+              child: TextButton(
+                onPressed: () => context.go(back),
+                child: Text(widget.channel.isPhone ? 'Changer de numéro' : 'Changer d’adresse e-mail'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Le code expire au bout de 10 minutes. Pensez à regarder vos courriers indésirables.',
+              textAlign: TextAlign.center,
+              style: t.bodySmall?.copyWith(color: KombeColors.slate),
             ),
           ],
         ),

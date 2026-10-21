@@ -35,9 +35,7 @@ class MainShell extends StatelessWidget {
                   child: KombeIcon(KombeIconData.declarer, size: 22),
                 ),
                 title: const Text('Déclarer une cotisation'),
-                subtitle: const Text(
-                  'Sélectionnez d’abord un groupe réel chargé depuis le serveur.',
-                ),
+                subtitle: const Text('Choisissez le groupe concerné.'),
                 onTap: () {
                   Navigator.of(context).pop();
                   context.go('/app/groups');
@@ -47,12 +45,25 @@ class MainShell extends StatelessWidget {
                 leading: const CircleAvatar(
                   backgroundColor: KombeColors.mint,
                   foregroundColor: KombeColors.forest,
-                  child: KombeIcon(KombeIconData.balance, size: 22),
+                  child: Icon(Icons.vpn_key_outlined, size: 22),
                 ),
-                title: const Text('Ouvrir un litige'),
+                title: const Text('Rejoindre un groupe'),
+                subtitle: const Text('Avec le code reçu du bureau.'),
                 onTap: () {
                   Navigator.of(context).pop();
-                  context.push('/app/disputes/new');
+                  context.push('/app/groups/join');
+                },
+              ),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: KombeColors.mint,
+                  foregroundColor: KombeColors.forest,
+                  child: Icon(Icons.add_circle_outline, size: 22),
+                ),
+                title: const Text('Créer une tontine'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  context.push('/app/groups/create');
                 },
               ),
             ],

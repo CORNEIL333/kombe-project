@@ -3,9 +3,8 @@ enum BeneficiaryStatus { received, current, upcoming }
 /// Ordre de passage d'un cycle : se choisit à CHAQUE démarrage de cycle
 /// (saison), jamais à la création de la tontine. Le tirage est vérifiable :
 /// le serveur publie un engagement scellé, révèle la graine au démarrage et
-/// journalise les deux — nul ne peut l'avoir truqué. L'ordre décidé par le
-/// bureau (manuel, part par part) reste dans la PWA, seul écran à manipuler
-/// la liste complète des parts.
+/// journalise les deux — nul ne peut l'avoir truqué. L'application mobile
+/// propose ces deux ordres ; elle n'annonce aucun autre mode.
 enum CycleOrderKind { draw, joinOrder }
 
 extension CycleOrderKindLabel on CycleOrderKind {

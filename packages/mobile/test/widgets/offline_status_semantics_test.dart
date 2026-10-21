@@ -42,7 +42,7 @@ void main() {
       for (final Element e in blocked.evaluate()) {
         expect(
           (e.widget as Icon).semanticLabel,
-          'Non autorisé : validation du serveur requise',
+          'Connexion nécessaire',
         );
       }
       // Aucune capacité n'est autorisée hors connexion => pas d'icône "ok".

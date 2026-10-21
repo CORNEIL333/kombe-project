@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/screen_states.dart';
-import '../../core/widgets/server_action_guard.dart';
+import '../../core/widgets/operation_feedback.dart';
 import '../../core/widgets/section_card.dart';
 import '../../domain/entities/governance.dart';
 import '../../l10n/app_localizations.dart';
@@ -103,15 +103,9 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
               choice: choice,
             );
     if (!mounted) return;
-    switch (result) {
-      case OperationSuccess<void>():
-        await _load();
-      case OperationBlocked<void>():
-        await showServerAuthorityRequired(context);
-      case OperationFailure<void>(:final error):
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
+    if (reportOutcome(context, result)) {
+      showKombeMessage(context, 'Votre bulletin est enregistré (vote secret).');
+      await _load();
     }
   }
 
@@ -178,7 +172,7 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Le vote est enregistré uniquement par le serveur. Le client ne crée aucun vote local.',
+                'Votre bulletin est secret : personne ne voit ce que vous avez voté, seulement le résultat.',
               ),
             ],
           ),

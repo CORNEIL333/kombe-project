@@ -6,7 +6,7 @@ root = Path(__file__).resolve().parents[1]
 manifest = root / 'lib/app/router/screen_manifest.dart'
 text = manifest.read_text(encoding='utf-8')
 items = re.findall(r"'([a-z0-9_]+)'", text)
-expected = 47
+expected = 43
 if len(items) != expected:
     raise SystemExit(f'FAIL — screen manifest has {len(items)} entries, expected {expected}')
 if len(set(items)) != len(items):

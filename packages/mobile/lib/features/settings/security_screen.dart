@@ -73,7 +73,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                   const SizedBox(height: 12),
                   const Text(
                     'KÓMBE ne lit ni ne stocke les gabarits biométriques. '
-                    'La biométrie ne remplace pas l’autorisation serveur.',
+                    'La biométrie protège l’ouverture de l’application sur ce téléphone.',
                   ),
                 ],
               ),

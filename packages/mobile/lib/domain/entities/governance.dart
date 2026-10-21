@@ -1,4 +1,4 @@
-enum ValidationDecision { validate, reject, requestInformation }
+enum ValidationDecision { validate, reject }
 
 final class ValidationItem {
   const ValidationItem({
