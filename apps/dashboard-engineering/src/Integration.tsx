@@ -48,8 +48,9 @@ export function Integration(){
         <Panel title="Familles d’endpoints">
           <DataTable rows={[
             {famille:'/v1/health', acces:'Public', usage:'Sondes de vie et de préparation (mode, schéma attendu)'},
-            {famille:'/v1/auth', acces:'Public', usage:'Connexion par code (SMS / e-mail)'},
-            {famille:'/v1/groups', acces:'Session membre', usage:'Le produit : groupes, cycles, séances, cotisations, amendes, décisions, parts, rôles'},
+            {famille:'/v1/auth', acces:'Public', usage:'Connexion par code (e-mail ; SMS et WhatsApp quand ils sont ouverts — voir /v1/auth/channels)'},
+            {famille:'/v1/me', acces:'Session membre', usage:'Mes tontines, mes échéances, mes notifications'},
+            {famille:'/v1/tontines', acces:'Session membre', usage:'Le produit : tontines, statuts, cycles, séances, cotisations, caisses, amendes, secours, décisions, parts, rôles, registre'},
             {famille:'/v1/support', acces:'Opérateurs', usage:'Accès justifié à double approbation, TTL, révocation'},
             {famille:'/v1/ops', acces:'Opérateurs', usage:'Vue d’ensemble, groupes, KPI, santé d’ingénierie'},
             {famille:'/v1/metrics', acces:'Opérateurs', usage:'Analyse pilote : entonnoir, cohortes, économie, risques'},
@@ -68,16 +69,17 @@ export function Integration(){
           `  -H 'content-type: application/json' \\`,
           `  -d '{"login":"tresorier@groupe.cm","code":"123456"}'`,
           ``,
-          `# 3. Lire le registre du groupe avec la session`,
-          `curl ${BASE}/groups/<groupId>/timeline \\`,
+          `# 3. Mes tontines, puis le registre chaîné d'une tontine`,
+          `curl ${BASE}/me/tontines -H 'Authorization: Bearer <sessionId>'`,
+          `curl ${BASE}/tontines/<groupId>/journal \\`,
           `  -H 'Authorization: Bearer <sessionId>'`,
           ``,
-          `# 4. Déclarer une cotisation (répétable en sécurité)`,
-          `curl -X POST ${BASE}/groups/<groupId>/contributions \\`,
+          `# 4. Déclarer une cotisation (rejouable sans doublon grâce à la clé)`,
+          `curl -X POST ${BASE}/tontines/<groupId>/movements \\`,
           `  -H 'Authorization: Bearer <sessionId>' \\`,
           `  -H 'idempotency-key: <uuid unique>' \\`,
           `  -H 'content-type: application/json' \\`,
-          `  -d '{"obligationId":"<obligationId>","amount":"5000"}'`,
+          `  -d '{"fundId":"<fundId>","kind":"contribution","amount":"5000","roundSeq":1,"channel":"cash"}'`,
         ]}/>
       </div>
       <div className="k-span-12">

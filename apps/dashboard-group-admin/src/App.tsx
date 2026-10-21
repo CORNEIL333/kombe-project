@@ -178,7 +178,7 @@ function Collecte({ api, g }: P) {
             </>
           )}</RemoteState>
         </Panel></div>
-        <div className="k-span-5"><AConfirmer api={api} g={g} /></div>
+        <div className="k-span-5"><AConfirmer api={api} g={g} /><AValider api={api} g={g} /></div>
       </div>
     </>
   );
@@ -205,12 +205,43 @@ function AConfirmer({ api, g }: P) {
               { header: 'Caisse', render: (m) => (m.fundKind === 'custom' ? m.fundName : CAISSE[m.fundKind] ?? m.fundKind) },
               { header: 'Montant', render: (m) => xaf(m.amount) },
               { header: 'Moyen', render: (m) => `${CANAL[m.channel] ?? m.channel}${m.reference ? ` · ${m.reference}` : ''}` },
+              { header: '', render: (m) => m.can.reject ? <button type="button" className="k-button k-button-secondary" disabled={busy} onClick={() => { const motif = window.prompt('Motif du rejet (visible par le membre) :'); if (motif && motif.trim().length >= 3) void run(() => api.reject(g.groupId, m.movementId, motif.trim()), 'Déclaration rejetée.'); }}>Rejeter</button> : null },
             ]} />
             <div className="k-toolbar">
               <button type="button" className="k-button k-button-secondary" disabled={!ok.length} onClick={() => setSel(new Set(ok.map((m) => m.movementId)))}>Tout sélectionner ({ok.length})</button>
               <button type="button" className="k-button k-button-primary" disabled={busy || sel.size === 0} onClick={() => void run(() => api.confirm(g.groupId, [...sel]), 'Lot confirmé.')}>Confirmer la sélection ({sel.size})</button>
             </div>
             {ok.length < rows.length ? <p className="k-hint">Les lignes sans case vous concernent (votre propre déclaration) ou dépassent vos fonctions : une autre personne du bureau les confirme.</p> : null}
+            {msg ? <p className="k-hint" role="status">{msg}</p> : null}
+          </>
+        );
+      }}</RemoteState>
+    </Panel>
+  );
+}
+
+/** Commissaire aux comptes : valide après contrôle les versements confirmés (jamais les siens). */
+function AValider({ api, g }: P) {
+  const q = useRemote((s) => api.movements(g.groupId, { state: 'confirmed' }, s), [api, g.groupId]);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const run = async (fn: () => Promise<unknown>, ok: string) => {
+    setBusy(true); setMsg(null);
+    try { await fn(); setMsg(ok); q.reload(); } catch (e) { setMsg(errText(e)); } finally { setBusy(false); }
+  };
+  return (
+    <Panel title="À valider (commissaire aux comptes)">
+      <RemoteState state={q.state} onRetry={q.reload} emptyTitle="Rien à valider">{(all) => {
+        const rows = all.filter((m) => m.can.control);
+        if (rows.length === 0) return <p className="k-hint">Rien à valider pour vous : les versements confirmés le sont par le commissaire aux comptes, jamais sur ses propres versements.</p>;
+        return (
+          <>
+            <DataTable rows={rows} rowKey={(m) => m.movementId} caption="Versements confirmés à valider" columns={[
+              { header: 'Membre', render: (m) => m.memberName ?? '—' },
+              { header: 'Montant', render: (m) => xaf(m.amount) },
+              { header: 'Confirmé par', render: (m) => m.confirmedByName ?? '—' },
+              { header: '', render: (m) => <button type="button" className="k-button k-button-primary" disabled={busy} onClick={() => void run(() => api.control(g.groupId, m.movementId), 'Versement validé.')}>Valider</button> },
+            ]} />
             {msg ? <p className="k-hint" role="status">{msg}</p> : null}
           </>
         );
@@ -472,10 +503,11 @@ function Registre({ api, g }: P) {
 
 function Reglement({ api, g }: P) {
   const d = useRemote((s) => api.detail(g.groupId, s), [api, g.groupId], { isEmpty: () => false });
-  const st = useRemote((s) => api.statutes(g.groupId, s), [api, g.groupId], { isEmpty: () => false });
+  // Avant publication, l'API répond 404 : ce n'est pas une panne, juste « pas encore ».
+  const st = useRemote((s) => api.statutes(g.groupId, s).catch((e: unknown) => { if (e && typeof e === 'object' && (e as { status?: number }).status === 404) return null; throw e; }), [api, g.groupId], { isEmpty: () => false });
   return (
     <>
-      <PageHeader title="Règlement & statuts" description="Le règlement se modifie dans l’application tant que le cycle n’a pas démarré ; les règles ne sont jamais rétroactives." />
+      <PageHeader title="Règlement & statuts" description="Le règlement se modifie dans l’application avant le premier cycle et entre deux saisons ; les règles ne sont jamais rétroactives." />
       <div className="k-grid">
         <div className="k-span-5"><Panel title="Règlement"><RemoteState state={d.state} onRetry={d.reload}>{(t) => (
           <>
@@ -492,9 +524,12 @@ function Reglement({ api, g }: P) {
             <KeyValue label="Jours de grâce" value={String(t.settings.fines.graceDays)} />
           </>
         )}</RemoteState></Panel></div>
-        <div className="k-span-7"><Panel title="Statuts et règlement intérieur"><RemoteState state={st.state} onRetry={st.reload}>{(s) => (
+        <div className="k-span-7"><Panel title="Statuts et règlement intérieur"><RemoteState state={st.state} onRetry={st.reload}>{(s) => s === null ? (
+          <p className="k-hint">Statuts pas encore publiés. Le président les publie depuis l’application (onglet Statuts), avec une date limite d’acceptation.</p>
+        ) : (
           <>
-            <p className="k-hint">Version {s.version} · acceptée par {s.acceptedCount} membre(s) · empreinte <span className="k-code">{s.hash.slice(0, 16)}</span></p>
+            <p className="k-hint">Version {s.version} · acceptée par {s.acceptedCount} sur {s.expectedCount}{s.deadline ? ` · échéance ${new Date(s.deadline.deadlineAt).toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'medium', timeStyle: 'short' })} (${s.deadline.onExpiry === 'exclude' ? 'retardataires exclus' : 'bureau prévenu'})` : ''} · empreinte <span className="k-code">{s.hash.slice(0, 16)}</span></p>
+            {s.pending.length ? <p className="k-hint">Pas encore accepté : {s.pending.map((p) => p.name).join(', ')}</p> : null}
             <pre className="k-minutes">{s.body}</pre>
             <p className="k-hint">Document indicatif inspiré de la loi n° 90/053 sur la liberté d’association ; sans valeur juridique par lui-même.</p>
           </>

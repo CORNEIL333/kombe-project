@@ -232,7 +232,11 @@ export const tontines = {
 
 export const reglement = {
   statuts: (s: Session, id: string) => appel<StatutesView>(s, "GET", `${t(id)}/statutes`),
-  publier: (s: Session, id: string) => appel<StatutesView>(s, "POST", `${t(id)}/statutes`),
+  publier: (s: Session, id: string, opts: { acceptanceDays?: number; onExpiry?: "exclude" | "keep" } = {}) =>
+    appel<StatutesView>(s, "POST", `${t(id)}/statutes`, opts),
+  echeance: (s: Session, id: string, body: { extendDays?: number; onExpiry?: "exclude" | "keep" }) =>
+    appel<StatutesView>(s, "PATCH", `${t(id)}/statutes/deadline`, body),
+  relancer: (s: Session, id: string) => appel<{ reminded: number }>(s, "POST", `${t(id)}/statutes/reminders`),
   accepter: (s: Session, id: string, hash: string) => appel<StatutesView>(s, "POST", `${t(id)}/statutes/acceptance`, { hash }),
 };
 

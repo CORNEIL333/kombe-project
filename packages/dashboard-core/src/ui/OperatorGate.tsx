@@ -13,9 +13,8 @@ export function OperatorGate(p: { readonly api: ApiClient; readonly children: Re
     <RemoteState state={me.state} onRetry={me.reload}>
       {(m) => m.operator ? <>{p.children}</> : (
         <CapabilityNotice title="Accès réservé aux opérateurs de la plateforme">
-          Le compte <span className="k-code">{m.identityId}</span> est bien connecté, mais il n’a pas la fonction d’opérateur.
-          Elle s’accorde par un acte d’administration sur la base de production :{' '}
-          <code>node packages/db/scripts/grant-operator.mjs {m.identityId}</code> (voir DEPLOY.md). Rechargez ensuite la page.
+          Votre compte (<span className="k-code">{m.identityId}</span>) est bien connecté, mais il n’a pas la fonction d’opérateur de la plateforme.
+          Cette console sert à l’équipe KÓMBE ; les responsables d’une tontine utilisent l’Espace bureau. Si vous faites partie de l’équipe, demandez à un administrateur d’activer votre accès, puis rechargez la page.
         </CapabilityNotice>
       )}
     </RemoteState>

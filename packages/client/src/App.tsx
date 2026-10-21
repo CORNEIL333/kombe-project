@@ -22,15 +22,15 @@ export type Route =
   | { readonly ecran: "creer" }
   | { readonly ecran: "notifications" }
   | { readonly ecran: "rejoindre"; readonly code?: string }
-  | { readonly ecran: "groupe"; readonly groupId: string };
+  | { readonly ecran: "groupe"; readonly groupId: string; readonly onglet?: string };
 
 export function lireRoute(hash: string): Route {
   const parties = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
-  const [tete, arg] = parties;
+  const [tete, arg, sous] = parties;
   if (tete === "rejoindre") return arg ? { ecran: "rejoindre", code: arg.toUpperCase() } : { ecran: "rejoindre" };
   if (tete === "creer") return { ecran: "creer" };
   if (tete === "notifications") return { ecran: "notifications" };
-  if (tete === "groupe" && arg) return { ecran: "groupe", groupId: arg };
+  if (tete === "groupe" && arg) return sous ? { ecran: "groupe", groupId: arg, onglet: sous } : { ecran: "groupe", groupId: arg };
   return { ecran: "accueil" };
 }
 
@@ -45,7 +45,7 @@ export function ecrireRoute(r: Route): string {
     case "rejoindre":
       return r.code ? `#/rejoindre/${encodeURIComponent(r.code)}` : "#/rejoindre";
     case "groupe":
-      return `#/groupe/${encodeURIComponent(r.groupId)}`;
+      return `#/groupe/${encodeURIComponent(r.groupId)}${r.onglet ? `/${encodeURIComponent(r.onglet)}` : ""}`;
   }
 }
 
@@ -200,9 +200,21 @@ export function App() {
             <Rejoindre session={session} {...(route.code ? { codeInitial: route.code } : {})} onFini={() => aller({ ecran: "accueil" })} />
           </div>
         ) : route.ecran === "notifications" ? (
-          <Notifications key="notifications" session={session} onOuvrir={(groupId) => aller({ ecran: "groupe", groupId })} />
+          <Notifications
+            key="notifications"
+            session={session}
+            onOuvrir={(groupId, onglet) => aller(onglet ? { ecran: "groupe", groupId, onglet } : { ecran: "groupe", groupId })}
+            onLu={() => setNonLues((n) => Math.max(0, n - 1))}
+          />
         ) : route.ecran === "groupe" ? (
-          <Groupe key={route.groupId} session={session} groupId={route.groupId} onRetour={() => aller({ ecran: "accueil" })} />
+          <Groupe
+            key={route.groupId}
+            session={session}
+            groupId={route.groupId}
+            onglet={route.onglet}
+            onOnglet={(onglet) => aller({ ecran: "groupe", groupId: route.groupId, onglet })}
+            onRetour={() => aller({ ecran: "accueil" })}
+          />
         ) : (
           <Accueil
             key="accueil"

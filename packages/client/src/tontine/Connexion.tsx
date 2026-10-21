@@ -100,14 +100,25 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
     };
   }, []);
 
+  // Renvoi du code : le serveur n'en renvoie pas un nouveau avant 45 s.
+  const [renvoiDans, setRenvoiDans] = useState(0);
+  useEffect(() => {
+    if (renvoiDans <= 0) return;
+    const t = window.setTimeout(() => setRenvoiDans((n) => n - 1), 1000);
+    return () => window.clearTimeout(t);
+  }, [renvoiDans]);
+  const invite = typeof window !== "undefined" && window.location.hash.indexOf("#/rejoindre") === 0;
+
   const envoyer = async (e: FormEvent) => {
     e.preventDefault();
     const r = await action.lancer(() => acces.demanderCode(login.trim(), voie));
     if (r) {
+      setRenvoiDans(45);
       setLoginEnvoye(r.login);
-      // Double garde-fou : le serveur n'envoie devCode qu'en développement,
-      // l'UI refuse de l'afficher dans un build de production.
-      setCodeTest(import.meta.env.DEV ? (r.devCode ?? null) : null);
+      // Le serveur n'envoie devCode qu'avec le simulateur hors production
+      // (NODE_ENV≠production) : jamais en ligne, mais indispensable aux
+      // recettes locales et E2E qui servent le build réel.
+      setCodeTest(r.devCode ?? null);
       setCode("");
     }
   };
@@ -161,6 +172,8 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
         </h2>
         <p className="cx-carte__sous-titre">{inscription ? tx("cx.inscriptionAide") : t("cx2.sousTitre")}</p>
         {inscription && !session ? <p className="cx-carte__note">{tx("cx.dejaCompte")}</p> : null}
+        {!inscription && !session && !loginEnvoye ? <p className="cx-carte__note">{tx("cx.premiereFois")}</p> : null}
+        {invite && !session ? <p className="msg msg--info">{tx("cx.invite")}</p> : null}
 
         {session ? (
           <form onSubmit={enregistrerNom} className="pile">
@@ -196,12 +209,21 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
               {action.enCours ? tx("app.envoi") : tx("cx.valider")}
               <Icone nom="fleche" taille={18} />
             </button>
+            <button
+              type="button"
+              className="bouton bouton-secondaire"
+              disabled={action.enCours || renvoiDans > 0}
+              onClick={() => void action.lancer(() => acces.demanderCode(loginEnvoye, voie), tx("cx.renvoye")).then((r) => r && (setRenvoiDans(45), setCodeTest(r.devCode ?? null)))}
+            >
+              {renvoiDans > 0 ? tx("cx.renvoyerDans", { s: renvoiDans }) : tx("cx.renvoyer")}
+            </button>
             <button type="button" className="bouton bouton-secondaire" onClick={() => (setLoginEnvoye(null), action.effacer())}>
-              {tx("cx.changer")}
+              {parEmail ? tx("cx.changerEmail") : tx("cx.changer")}
             </button>
           </form>
         ) : (
           <form onSubmit={envoyer} className="pile">
+            {canaux.includes("email") && telephones.length > 0 ? (
             <fieldset className="cx-voies">
               <legend className="visuellement-cache">{tx("cx.titre")}</legend>
               {canaux.includes("email") ? (
@@ -217,6 +239,7 @@ export function ConnexionTelephone({ onConnecte }: { readonly onConnecte: (s: Se
                 {t("cx2.parTelephone")}
               </label>
             </fieldset>
+            ) : null}
             {!parEmail && telephones.length > 1 ? (
               <fieldset className="cx-sous-voies">
                 <legend className="visuellement-cache">{t("cx2.parTelephone")}</legend>

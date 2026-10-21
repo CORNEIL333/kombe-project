@@ -3,7 +3,7 @@
 
 import { SymboleKombe } from "../composants/Marque.js";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { estSessionExpiree, messageErreur } from "./api.js";
+import { estSessionExpiree, memoriserSession, messageErreur } from "./api.js";
 import { EnFileAttente, estErreurReseau } from "./fileAttenteMoteur.js";
 import { useTextes } from "./textes.js";
 
@@ -66,7 +66,7 @@ export function useAction() {
       setEnCours(false);
     }
   }, []);
-  return { enCours, erreur, succes, lancer, effacer: () => (setErreur(null), setSucces(null)) };
+  return { enCours, erreur, succes, lancer, effacer: () => (setErreur(null), setSucces(null)), signaler: (m: string) => setSucces(m) };
 }
 
 export function Retour({ erreur, succes }: { readonly erreur: string | null; readonly succes?: string | null }) {
@@ -100,7 +100,19 @@ export function Charge<T>({ etat, recharger, children }: { readonly etat: Etat<T
     return (
       <div className="msg msg--erreur" role="alert">
         <p>{etat.expiree ? tx("app.sessionExpiree") : etat.message}</p>
-        {etat.expiree ? null : (
+        {etat.expiree ? (
+          <button
+            type="button"
+            className="bouton bouton-compact"
+            onClick={() => {
+              // Session close : retour à la connexion, l'écran demandé est gardé (#/…).
+              memoriserSession(null);
+              window.location.reload();
+            }}
+          >
+            {tx("app.reconnecter")}
+          </button>
+        ) : (
           <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={recharger}>
             {tx("app.reessayer")}
           </button>

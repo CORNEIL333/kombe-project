@@ -68,6 +68,10 @@ test("tour complet de bout en bout, trois personnes (L-02)", async ({ browser })
   await awa.getByLabel("Nom du groupe").fill(`Njangi E2E ${run}`);
   await awa.getByLabel("Votre nom").fill("Awa Ndongo");
   await awa.getByRole("button", { name: "Suivant" }).click(); // → Rythme
+  // Le rythme et la date se choisissent explicitement (rien n'est imposé).
+  await expect(awa.getByRole("button", { name: "Suivant" })).toBeDisabled();
+  await awa.getByLabel("Fréquence des séances").selectOption("weekly");
+  await awa.getByLabel("Date de la première séance").fill(new Date(Date.now() + 3_600_000).toISOString().slice(0, 10));
   await awa.getByRole("button", { name: "Suivant" }).click(); // → Cotisation
   await awa.getByLabel("Cotisation par part et par séance (FCFA)").fill("5000");
   await awa.getByLabel(/Nombre maximum de membres/).fill("3");
@@ -76,6 +80,12 @@ test("tour complet de bout en bout, trois personnes (L-02)", async ({ browser })
   await awa.getByRole("button", { name: "Suivant" }).click(); // → Bureau
   await awa.getByLabel("Témoins présents exigés pour une remise").fill("1");
   await awa.getByRole("button", { name: "Suivant" }).click(); // → Règlement
+  // Caisses annexes : décochées par défaut, le bureau les active avec SON montant.
+  await awa.getByLabel(/Caisse de secours/).check();
+  await expect(awa.getByRole("button", { name: "Suivant" })).toBeDisabled(); // montant exigé
+  await awa.locator("#cr-secours").fill("1000");
+  await awa.getByLabel(/Caisse de fonctionnement/).check();
+  await awa.locator("#cr-fonct").fill("500");
   await awa.getByRole("button", { name: "Suivant" }).click(); // → Récapitulatif
   await awa.getByRole("button", { name: "Créer la tontine" }).click();
   await expect(awa.getByRole("heading", { name: `Njangi E2E ${run}` })).toBeVisible();
@@ -119,16 +129,30 @@ test("tour complet de bout en bout, trois personnes (L-02)", async ({ browser })
   await bertrand.getByRole("button", { name: "Accepter la fonction de Trésorier" }).click();
   await expect(bertrand.getByText(/Trésorier/).first()).toBeVisible();
 
-  /* Statuts publiés puis acceptés par chacun */
+  /* Statuts publiés avec une échéance (ADR-0042), acceptés par chacun */
   await awa.reload();
-  await awa.getByRole("button", { name: "Publier une nouvelle version depuis le règlement" }).click();
-  for (const page of [awa, bertrand, chantal]) {
+  await onglet(awa, "Statuts");
+  await expect(awa.getByLabel("Délai pour accepter (jours)")).toHaveValue("7");
+  await awa.getByRole("button", { name: "Publier et demander l'acceptation" }).click();
+  await expect(awa.getByText("Vous avez accepté cette version.")).toBeVisible(); // qui publie approuve
+  await expect(awa.getByText("Pas encore accepté (2)")).toBeVisible();
+  // Bertrand passe par sa notification : la ligne ouvre directement les statuts.
+  await bertrand.goto("/#/notifications");
+  await bertrand.getByRole("button", { name: /Nouveaux statuts à accepter/ }).first().click();
+  await expect(bertrand).toHaveURL(/#\/groupe\/[^/]+\/statuts$/);
+  await expect(bertrand.getByText(/Acceptez avant le/)).toBeVisible();
+  for (const page of [bertrand, chantal]) {
     await page.goto("/");
     await page.getByRole("button", { name: new RegExp(`Njangi E2E ${run}`) }).click();
+    await expect(page.getByText(/Nouveaux statuts|statuts/i).first()).toBeVisible();
     await onglet(page, "Statuts");
-    await page.getByRole("button", { name: "J'ai lu et j'accepte" }).click();
+    await expect(page.getByText(/Acceptez avant le/)).toBeVisible();
+    await page.getByRole("button", { name: "J'accepte les statuts" }).click();
     await expect(page.getByText("Vous avez accepté cette version.")).toBeVisible();
   }
+  await awa.reload();
+  await onglet(awa, "Statuts");
+  await expect(awa.getByText("Tout le monde a accepté.")).toBeVisible();
 
   /* Démarrage dans l'ordre d'arrivée : Awa reçoit au tour 1 */
   await onglet(awa, "Aperçu");

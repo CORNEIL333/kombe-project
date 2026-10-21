@@ -21,7 +21,7 @@ import {
   type TontineDetail,
 } from "./api.js";
 import { peut } from "./droits.js";
-import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees, aujourdhui } from "./ui.js";
 import type { PaymentChannel } from "@kombe/domain";
 import { useTextes, type CleTexte } from "./textes.js";
 import { Membres } from "./Membres.js";
@@ -56,9 +56,30 @@ export interface ContexteGroupe {
   readonly rafraichir: () => void;
 }
 
-export function Groupe({ session, groupId, onRetour }: { readonly session: Session; readonly groupId: string; readonly onRetour: () => void }) {
+export function estOnglet(x: string | undefined): x is Onglet {
+  return x !== undefined && ONGLETS.some((o) => o.id === x);
+}
+
+export function Groupe({
+  session,
+  groupId,
+  onglet: ongletRoute,
+  onOnglet,
+  onRetour,
+}: {
+  readonly session: Session;
+  readonly groupId: string;
+  /** Onglet demandé par l'adresse (#/groupe/<id>/<onglet>), ex. depuis une notification. */
+  readonly onglet?: string | undefined;
+  readonly onOnglet?: (onglet: string) => void;
+  readonly onRetour: () => void;
+}) {
   const { tx, dyn } = useTextes();
-  const [onglet, setOnglet] = useState<Onglet>("apercu");
+  const onglet: Onglet = estOnglet(ongletRoute) ? ongletRoute : "apercu";
+  const setOnglet = (o: Onglet) => {
+    onOnglet?.(o);
+    window.scrollTo?.(0, 0);
+  };
   const { etat, recharger } = useDonnees(() => tontines.detail(session, groupId), [session.sessionId, groupId]);
 
   return (
@@ -118,6 +139,11 @@ export function Groupe({ session, groupId, onRetour }: { readonly session: Sessi
                   </button>
                 ))}
               </nav>
+              {g.me.roles.some((r) => r !== "member") ? (
+                <p className="aide-champ">
+                  <a href="/bureau/">{tx("td.espaceBureau")}</a>
+                </p>
+              ) : null}
               {onglet === "apercu" ? <Apercu ctx={ctx} allerA={setOnglet} /> : null}
               {onglet === "membres" ? <Membres ctx={ctx} /> : null}
               {onglet === "seances" ? <Seances ctx={ctx} /> : null}
@@ -153,6 +179,14 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
           </button>
         </div>
       ) : null}
+      {g.me.pendingRoles.length > 0 ? (
+        <div className="msg msg--attente" role="status">
+          <p>{tx("td.fonctionProposee", { fonctions: g.me.pendingRoles.map((r) => dyn(`role.${r}`)).join(", ") })}</p>
+          <button type="button" className="bouton bouton-compact" onClick={() => allerA("membres")}>
+            {tx("td.repondre")}
+          </button>
+        </div>
+      ) : null}
       {g.pendingCount > 0 && peut(ctx.roles, "member.admit") ? (
         <div className="msg msg--attente" role="status">
           <p>{tx("td.adhesions", { n: g.pendingCount })}</p>
@@ -162,8 +196,8 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
         </div>
       ) : null}
 
-      {!g.cycleStarted && peut(ctx.roles, "schedule.manage") ? <Demarrage ctx={ctx} /> : null}
-      {g.cycle?.finished && peut(ctx.roles, "schedule.manage") ? <Demarrage ctx={ctx} cycleTermine={g.cycle.number} /> : null}
+      {!g.cycleStarted && peut(ctx.roles, "schedule.manage") ? <Demarrage ctx={ctx} allerA={allerA} /> : null}
+      {g.cycle?.finished && peut(ctx.roles, "schedule.manage") ? <Demarrage ctx={ctx} cycleTermine={g.cycle.number} allerA={allerA} /> : null}
 
       {g.currentRound ? (
         <Carte titre={tx("td.tourCourant", { seq: g.currentRound.seq, date: date(g.currentRound.date) })}>
@@ -379,8 +413,8 @@ function RendreReserve({ ctx }: { readonly ctx: ContexteGroupe }) {
   );
 }
 
-function Demarrage({ ctx, cycleTermine }: { readonly ctx: ContexteGroupe; readonly cycleTermine?: number }) {
-  const { tx } = useTextes();
+function Demarrage({ ctx, cycleTermine, allerA }: { readonly ctx: ContexteGroupe; readonly cycleTermine?: number; readonly allerA: (o: Onglet) => void }) {
+  const { tx, date } = useTextes();
   const [ordre, setOrdre] = useState<"draw" | "join_order" | "manual">("draw");
   const [tirage, setTirage] = useState<{ drawId: string; commitment: string } | null>(null);
   const membres = useDonnees(() => tontines.membres(ctx.session, ctx.groupe.groupId), [ctx.groupe.groupId]);
@@ -395,17 +429,40 @@ function Demarrage({ ctx, cycleTermine }: { readonly ctx: ContexteGroupe; readon
   const [liste, setListe] = useState<MemberView[] | null>(null);
   const action = useAction();
   const actifs = membres.etat.statut === "ok" ? membres.etat.donnees.filter((m) => m.state === "active") : [];
-  const avecTelephone = actifs.filter((m) => !m.offline).length;
-  const tresorier = actifs.some((m) => m.roles.includes("treasurer"));
+  // Mêmes règles que le serveur : trésorier ou trésorier adjoint ; seuls les
+  // membres ADMIS doivent avoir accepté (une demande en attente ne bloque pas).
+  const tresorier = actifs.some((m) => m.roles.includes("treasurer") || m.roles.includes("treasurer_deputy"));
   const st = statuts.etat.statut === "ok" ? statuts.etat.donnees : null;
-  const conditions: { ok: boolean; texte: string }[] = [
-    { ok: actifs.length >= 2, texte: tx("td.c.membres", { n: actifs.length }) },
-    { ok: tresorier, texte: tx("td.c.tresorier") },
-    { ok: st !== null, texte: tx("td.c.statuts") },
-    { ok: st !== null && st.acceptedCount >= avecTelephone, texte: tx("td.c.acceptes", { n: st?.acceptedCount ?? 0, total: avecTelephone }) },
+  const retardataires = st ? st.pending.filter((p) => p.state === "active") : [];
+  const attendus = actifs.filter((m) => !m.offline).length;
+  const conditions: { ok: boolean; texte: string; onglet: Onglet }[] = [
+    { ok: actifs.length >= 2, texte: tx("td.c.membres", { n: actifs.length }), onglet: "membres" },
+    { ok: tresorier, texte: tx("td.c.tresorier"), onglet: "membres" },
+    { ok: st !== null, texte: tx("td.c.statuts"), onglet: "statuts" },
+    {
+      ok: st !== null && retardataires.length === 0,
+      texte:
+        retardataires.length > 0
+          ? tx("td.c.acceptesQui", { noms: retardataires.map((p) => p.name).join(", ") })
+          : tx("td.c.acceptes", { n: attendus - retardataires.length, total: attendus }),
+      onglet: "statuts",
+    },
   ];
   const pret = conditions.every((c) => c.ok);
-  const ordreManuel = liste ?? actifs;
+  // Ordre décidé : une ligne par PART (un membre à 2 parts passe 2 fois ; une
+  // demi-main partagée compte une seule fois pour le binôme).
+  const parts: MemberView[] = [];
+  const vus = new Set<string>();
+  for (const m of actifs) {
+    if (m.sharePartnerMembershipId) {
+      if (vus.has(m.membershipId)) continue;
+      vus.add(m.membershipId).add(m.sharePartnerMembershipId);
+      parts.push(m);
+      continue;
+    }
+    for (let i = 0; i < Math.max(1, m.shares); i++) parts.push(m);
+  }
+  const ordreManuel = liste ?? parts;
 
   const deplacer = (i: number, d: -1 | 1) => {
     const l = [...ordreManuel];
@@ -432,24 +489,30 @@ function Demarrage({ ctx, cycleTermine }: { readonly ctx: ContexteGroupe; readon
   return (
     <Carte titre={cycleTermine ? tx("td.nouveauCycle", { n: cycleTermine + 1 }) : tx("td.demarrer")}>
       <p className="aide-champ">{cycleTermine ? tx("td.nouveauCycleAide", { n: cycleTermine }) : tx("td.demarrerAide")}</p>
+      {!cycleTermine && ctx.groupe.settings.firstMeetingDate < aujourdhui() ? (
+        <p className="msg msg--info">
+          {tx("td.datePassee", { date: date(ctx.groupe.settings.firstMeetingDate) })}{" "}
+          {peut(ctx.roles, "group.manage") ? (
+            <button type="button" className="lien-retour" onClick={() => allerA("reglages")}>
+              {tx("td.changerDate")}
+            </button>
+          ) : null}
+        </p>
+      ) : null}
       <ul className="liste">
         {conditions.map((c) => (
           <li key={c.texte} className="liste__ligne">
             <span>{c.texte}</span>
-            <Pastille ton={c.ok ? "ok" : "attente"}>{c.ok ? "OK" : tx("td.aFaire")}</Pastille>
+            {c.ok ? (
+              <Pastille ton="ok">OK</Pastille>
+            ) : (
+              <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => allerA(c.onglet)}>
+                {tx("td.aFaire")} →
+              </button>
+            )}
           </li>
         ))}
       </ul>
-      {st === null && peut(ctx.roles, "statutes.publish") ? (
-        <button
-          type="button"
-          className="bouton bouton-secondaire"
-          disabled={action.enCours}
-          onClick={() => void action.lancer(() => reglement.publier(ctx.session, ctx.groupe.groupId)).then(() => (statuts.recharger(), ctx.rafraichir()))}
-        >
-          {tx("st.publier")}
-        </button>
-      ) : null}
       <fieldset className="champ">
         <legend>{tx("cr.e.ordre")}</legend>
         {(["draw", "join_order", "manual"] as const).map((o) => (
@@ -475,7 +538,7 @@ function Demarrage({ ctx, cycleTermine }: { readonly ctx: ContexteGroupe; readon
       {ordre === "manual" ? (
         <ol className="liste liste--ordre">
           {ordreManuel.map((m, i) => (
-            <li key={m.membershipId} className="liste__ligne">
+            <li key={`${m.membershipId}-${i}`} className="liste__ligne">
               <span>
                 {i + 1}. {m.displayName}
               </span>

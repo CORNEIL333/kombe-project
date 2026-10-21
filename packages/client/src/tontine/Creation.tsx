@@ -136,8 +136,20 @@ export function Creation({
     const base = edition?.settings ?? reglementParDefaut(aujourdhui());
     // Le montant par part est un paramètre d'admin : en création il n'est
     // JAMAIS pré-rempli à la place du bureau (l'étape Cotisation l'exige).
-    return edition ? base : { ...base, contributionPerShare: "" };
+    // Création : ni montant, ni date, ni caisses annexes décidés à la place
+    // du bureau. Le rythme se choisit explicitement (étape Rythme).
+    return edition
+      ? base
+      : {
+          ...base,
+          contributionPerShare: "",
+          firstMeetingDate: "",
+          solidarity: { enabled: false, perMeeting: "", scale: AID_DEFAUT },
+          operating: { enabled: false, perMeeting: "" },
+          yearEndReserve: { enabled: false, perMeeting: "" },
+        };
   });
+  const [cadenceChoisie, setCadenceChoisie] = useState(edition !== undefined);
   const action = useAction();
   const maj = (p: Partial<TontineSettings>) => setR((x) => ({ ...x, ...p }));
 
@@ -150,19 +162,30 @@ export function Creation({
       case 0:
         return nom.trim().length >= 2 && (edition !== undefined || monNom.trim().length >= 2);
       case 1:
-        return /^\d{4}-\d{2}-\d{2}$/.test(r.firstMeetingDate) && /^\d{2}:\d{2}$/.test(r.deadlineTime);
+        return (
+          cadenceChoisie &&
+          /^\d{4}-\d{2}-\d{2}$/.test(r.firstMeetingDate) &&
+          (edition !== undefined || r.firstMeetingDate >= aujourdhui()) &&
+          /^\d{2}:\d{2}$/.test(r.deadlineTime)
+        );
       case 2:
         return BigInt(r.contributionPerShare || "0") > 0n && r.maxMembers >= BORNES_MEMBRES.min && r.maxMembers <= BORNES_MEMBRES.max;
+      case 5:
+        // Une caisse annexe cochée doit avoir un montant saisi par le bureau.
+        return [r.solidarity, r.operating, r.yearEndReserve].every((f) => !f.enabled || BigInt(f.perMeeting || "0") > 0n);
       default:
         return true;
     }
-  }, [etape, nom, monNom, r, edition]);
+  }, [etape, nom, monNom, r, edition, cadenceChoisie]);
 
   const creer = async () => {
+    // Caisse annexe non retenue : montant 0 (jamais une valeur choisie à la place du bureau).
+    const zero = <T extends { enabled: boolean; perMeeting: string }>(f: T): T => (f.enabled ? f : { ...f, perMeeting: "0" });
+    const envoye: TontineSettings = { ...r, solidarity: zero(r.solidarity), operating: zero(r.operating), yearEndReserve: zero(r.yearEndReserve) };
     const d = await action.lancer(() =>
       edition
-        ? tontines.majReglement(session, edition.groupId, nom.trim(), r)
-        : tontines.creer(session, { name: nom.trim(), founderDisplayName: monNom.trim(), settings: r }),
+        ? tontines.majReglement(session, edition.groupId, nom.trim(), envoye)
+        : tontines.creer(session, { name: nom.trim(), founderDisplayName: monNom.trim(), settings: envoye }),
     );
     if (d) onCree(d.groupId);
   };
@@ -180,6 +203,7 @@ export function Creation({
               ? { kind, nth: 2, weekday: wd }
               : { kind, weekday: wd };
     maj({ cadence: c });
+    setCadenceChoisie(true);
   };
 
   return (
@@ -210,7 +234,12 @@ export function Creation({
         {etape === 1 ? (
           <>
             <Champ id="cr-cadence" libelle={tx("cr.cadence")}>
-              <select id="cr-cadence" value={r.cadence.kind} onChange={(e) => changerCadence(e.target.value as Cadence["kind"])}>
+              <select id="cr-cadence" value={cadenceChoisie ? r.cadence.kind : ""} onChange={(e) => e.target.value && changerCadence(e.target.value as Cadence["kind"])}>
+                {cadenceChoisie ? null : (
+                  <option value="" disabled>
+                    {tx("cr.choisir")}
+                  </option>
+                )}
                 {(["weekly", "biweekly", "every_n_days", "monthly_day", "monthly_nth_weekday", "daily"] as const).map((k) => (
                   <option key={k} value={k}>
                     {tx(`cr.c.${k}` as CleTexte)}
@@ -218,7 +247,7 @@ export function Creation({
                 ))}
               </select>
             </Champ>
-            {r.cadence.kind === "every_n_days" ? (
+            {cadenceChoisie && r.cadence.kind === "every_n_days" ? (
               <Champ id="cr-n" libelle={tx("cr.n")}>
                 <input
                   id="cr-n"
@@ -230,7 +259,7 @@ export function Creation({
                 />
               </Champ>
             ) : null}
-            {r.cadence.kind === "monthly_day" ? (
+            {cadenceChoisie && r.cadence.kind === "monthly_day" ? (
               <Champ id="cr-jourmois" libelle={tx("cr.quantieme")}>
                 <input
                   id="cr-jourmois"
@@ -242,7 +271,7 @@ export function Creation({
                 />
               </Champ>
             ) : null}
-            {r.cadence.kind === "monthly_nth_weekday" ? (
+            {cadenceChoisie && r.cadence.kind === "monthly_nth_weekday" ? (
               <Champ id="cr-rang" libelle={tx("cr.rang")}>
                 <select
                   id="cr-rang"
@@ -257,7 +286,7 @@ export function Creation({
                 </select>
               </Champ>
             ) : null}
-            {"weekday" in r.cadence ? (
+            {cadenceChoisie && "weekday" in r.cadence ? (
               <Champ id="cr-jour" libelle={tx("cr.jour")}>
                 <select
                   id="cr-jour"
@@ -275,7 +304,7 @@ export function Creation({
                 </select>
               </Champ>
             ) : null}
-            {r.cadence.kind === "daily" ? (
+            {cadenceChoisie && r.cadence.kind === "daily" ? (
               <fieldset className="champ">
                 <legend>{tx("cr.jour")}</legend>
                 <div className="cases">
@@ -302,7 +331,9 @@ export function Creation({
             <Champ id="cr-premiere" libelle={tx("cr.premiere")}>
               <input id="cr-premiere" type="date" value={r.firstMeetingDate} min={aujourdhui()} onChange={(e) => maj({ firstMeetingDate: e.target.value })} />
             </Champ>
-            <p className="msg msg--info">{tx("cr.premiereReelle", { date: date(premiereSeance(r.cadence, r.firstMeetingDate)) })}</p>
+            {cadenceChoisie && r.firstMeetingDate ? (
+              <p className="msg msg--info">{tx("cr.premiereReelle", { date: date(premiereSeance(r.cadence, r.firstMeetingDate)) })}</p>
+            ) : null}
             <Champ id="cr-heure" libelle={tx("cr.heure")}>
               <input id="cr-heure" type="time" value={r.deadlineTime} onChange={(e) => maj({ deadlineTime: e.target.value })} />
             </Champ>

@@ -678,3 +678,52 @@ fieldset.champ legend {
   margin: 0;
   padding-left: 1.2rem;
 }
+
+/* Ligne d'actions compacte (statuts : prolonger l'échéance). */
+.rangee {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.rangee input {
+  width: 4rem;
+}
+
+/* Notifications cliquables : toute la ligne ouvre l'écran concerné. */
+.notif-bouton {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.notif-bouton:focus-visible {
+  outline: 2px solid var(--k-or-500, #c9a227);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+.notif-texte {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+.notif-fleche {
+  font-size: 1.4rem;
+  opacity: 0.5;
+}
+/* La ligne de notification ne contient plus que son bouton : pleine largeur. */
+.liste-notifications .liste__ligne > .notif-bouton {
+  grid-column: 1 / -1;
+}
+.notif-bouton .pastille {
+  flex-shrink: 0;
+}

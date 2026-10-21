@@ -5,6 +5,8 @@
 import { acces, type Session } from "./api.js";
 import { Carte, Charge, Pastille, useDonnees } from "./ui.js";
 import { useTextes } from "./textes.js";
+import { ongletDe, texteNotification } from "./notifications.js";
+import type { NotificationView } from "@kombe/domain";
 import { BandeauPhoto, photoPour, urlPhoto } from "../composants/Scene.js";
 import { Orbite } from "../composants/Orbite.js";
 
@@ -108,10 +110,27 @@ export function Accueil({
   );
 }
 
-export function Notifications({ session, onOuvrir }: { readonly session: Session; readonly onOuvrir: (groupId: string) => void }) {
-  const { tx, dyn, date } = useTextes();
+export function Notifications({
+  session,
+  onOuvrir,
+  onLu,
+}: {
+  readonly session: Session;
+  readonly onOuvrir: (groupId: string, onglet: string | null) => void;
+  readonly onLu?: () => void;
+}) {
+  const { tx, dyn, date, instant, xaf } = useTextes();
   const { etat, recharger } = useDonnees(() => acces.notifications(session), [session.sessionId]);
   const nouvelles = etat.statut === "ok" ? etat.donnees.filter((n) => !n.read).length : 0;
+  const ouvrir = (n: NotificationView) => {
+    // Lue dès qu'on l'ouvre (sans attendre le réseau pour naviguer).
+    if (!n.read) {
+      void acces.marquerLues(session, [n.notificationId]).catch(() => undefined);
+      onLu?.();
+    }
+    if (n.groupId) onOuvrir(n.groupId, ongletDe(n));
+    else recharger();
+  };
   return (
     <div className="pile ecran">
       <BandeauPhoto photo="mains-telephone" variante="compact" surtitre={tx("app.notifications")} titre={tx("imm.noTitre")} accent={tx("imm.noAccent")}>
@@ -132,26 +151,29 @@ export function Notifications({ session, onOuvrir }: { readonly session: Session
             <p className="msg">{tx("no.aucune")}</p>
           ) : (
             <ul className="liste liste-notifications">
-              {liste.map((n, i) => (
-                <li
-                  key={n.notificationId}
-                  className={`entree-decalee liste__ligne${n.read ? "" : " liste__ligne--nouveau"}`}
-                  style={{ animationDelay: `${60 + i * 60}ms` }}
-                >
-                  <span className="notif-icone" data-famille={familleNotification(n.kind)} aria-hidden="true" />
-                  <div>
-                    <strong>{dyn(`notif.${n.kind}`) === `notif.${n.kind}` ? libelleNotification(n.kind) : dyn(`notif.${n.kind}`)}</strong>
-                    <span className="aide-champ">
-                      {n.groupName ?? ""} · {date(n.createdAt)}
-                    </span>
-                  </div>
-                  {n.groupId ? (
-                    <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => onOuvrir(n.groupId as string)}>
-                      {tx("td.apercu")}
+              {liste.map((n, i) => {
+                const { titre, detail } = texteNotification(n, { dyn, instant, date, xaf });
+                return (
+                  <li
+                    key={n.notificationId}
+                    className={`entree-decalee liste__ligne${n.read ? "" : " liste__ligne--nouveau"}`}
+                    style={{ animationDelay: `${60 + i * 40}ms` }}
+                  >
+                    <button type="button" className="notif-bouton" onClick={() => ouvrir(n)}>
+                      <span className="notif-icone" data-famille={familleNotification(n.kind)} aria-hidden="true" />
+                      <span className="notif-texte">
+                        <strong>{titre}</strong>
+                        {detail ? <span>{detail}</span> : null}
+                        <span className="aide-champ">{instant(n.createdAt)}</span>
+                      </span>
+                      {n.read ? null : <span className="pastille pastille--attente">{tx("no.nouveau")}</span>}
+                      <span className="notif-fleche" aria-hidden="true">
+                        ›
+                      </span>
                     </button>
-                  ) : null}
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )
         }
@@ -162,14 +184,9 @@ export function Notifications({ session, onOuvrir }: { readonly session: Session
 
 /** Famille visuelle d'une notification (icône seulement ; le texte fait foi). */
 function familleNotification(kind: string): "argent" | "seance" | "decision" | "autre" {
-  if (/payout|due|contribution|fine|payment|fund/.test(kind)) return "argent";
-  if (/meeting|minutes/.test(kind)) return "seance";
-  if (/validation|vote|decision|aid|member/.test(kind)) return "decision";
+  if (/payout|due|contribution|fine|payment|fund|movement/.test(kind)) return "argent";
+  if (/meeting|minutes|cycle|draw/.test(kind)) return "seance";
+  if (/validation|vote|decision|aid|member|statutes|role|join|admitted|rejected/.test(kind)) return "decision";
   return "autre";
 }
 
-/** Libellé lisible d'un type de notification (« meeting.reminder » → « Meeting reminder »). */
-function libelleNotification(kind: string): string {
-  const s = kind.replace(/[._]/g, " ").trim();
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
