@@ -341,3 +341,83 @@ vérification manuelle de chaque finding.
 - `flutter analyze` : 0 erreur ; `flutter test` : **31/31**.
 - `./gradlew help` (syntaxe Kotlin DSL du build Android) : BUILD SUCCESSFUL.
 - Gradle/signature : la construction d'un APK signé release reste une action porteur (§7.12) — key.properties et le .jks ne doivent JAMAIS être committés.
+
+## 9. Session du 2026-10-20/21 — retours du porteur sur le MVP en ligne
+
+Retour : « pas intuitif ; notifications ni intelligentes ni cliquables ; pour
+commencer, tous les membres doivent être là ; pour la charte, tout le monde doit
+accepter — l'app peut notifier les retardataires de plus en plus souvent avant
+une date limite, puis les exclure ; traquez toutes les incohérences ». Trois
+audits (création/cycles, actions « indisponibles », notifications/charte/
+connexion), puis correctifs.
+
+### 9.1 Corrigé
+
+| # | Constat (cause réelle) | Correctif |
+|---|---|---|
+| 1 | Démarrage bloqué indéfiniment par un seul membre qui n'accepte pas les statuts ; aucune échéance, aucune relance (`cycle.ts` `assertStatutesAccepted`) | Échéance d'acceptation fixée par le bureau, relances J-7/J-3/J-2/J-1/H-6 aux seuls retardataires, relance manuelle, prolongation, exclusion à l'échéance (avant cycle) ou signalement ; message de démarrage qui NOMME les retardataires (ADR-0042, migration 0034) |
+| 2 | Notifications génériques et fausses (« Nouvelle demande d'adhésion » pour une fonction proposée ; « paiements à contrôler » pour un secours ; « amende notifiée » pour une annulation ; « tirage » libellé « échange de tour ») | Types précis + détail (`params`) ; titres par palier de relance |
+| 3 | Notifications non cliquables (bouton « Aperçu » ignorant la cible), jamais marquées lues à l'ouverture | Ligne entière cliquable → onglet concerné (`#/groupe/<id>/<onglet>`), marquée lue |
+| 4 | Refus d'adhésion jamais notifié (état « revoked » posé avant la notification, filtrée par `kombe_notify`) | `kombe_notify_v2` remet `rejected` et `statutes_excluded` |
+| 5 | Rappels de cotisation seulement APRÈS l'échéance, rappel de séance « demain » faux, aucun rappel hors ouverture de l'app | Avant-veille / veille / jour J, séance veille / jour J, votes, fonctions en attente ; tâche planifiée quotidienne |
+| 6 | Aucune notification à l'ouverture de séance alors que les absents sont mis à l'amende à la clôture | `meeting_opened` |
+| 7 | Création : rythme (dimanche), date (aujourd'hui), secours 1 000 et fonctionnement 500 par séance imposés sans que le bureau les choisisse | Rythme à choisir, date à choisir (future), caisses annexes décochées et montant à saisir |
+| 8 | Règlement figé pour toujours après le 1er cycle ; message renvoyant à un vote inexistant | Modifiable entre deux saisons ; chaque tour garde l'instantané de ses règles (`roundSettingsOf`) — preuve `PAST-ROUNDS-KEEP-THEIR-RULES` |
+| 9 | Carte « Démarrer » : trésorier adjoint ignoré, acceptations comptées sur tous les membres (OK affiché, refus serveur), ordre décidé envoyé par membre au lieu de par part (échec dès 2 parts) | Mêmes règles que le serveur ; noms des retardataires ; une ligne par part ; boutons « À faire → » vers l'écran concerné ; avertissement si la 1re séance est passée |
+| 10 | Statuts : « au moins deux témoins » écrit en dur quel que soit le règlement ; caisses personnalisées sans montant | Nombre de témoins du règlement ; montant en vigueur ; article d'acceptation |
+| 11 | Connexion : voie « téléphone » proposée alors que fermée, pas de « renvoyer le code », « changer de numéro » pour un e-mail, inscription implicite | Seules les voies ouvertes ; renvoi avec compte à rebours ; libellés justes ; « Première fois ? le premier code crée votre compte » ; invitation signalée |
+| 12 | Lien d'invitation : code à revérifier à la main, nom redemandé, impasse si déjà membre | Vérification d'office, nom prérempli, « Voir mes tontines », étape suivante expliquée |
+| 13 | Session expirée sans bouton | « Me reconnecter » (l'écran demandé est conservé) |
+| 14 | Fonction proposée invisible hors de l'onglet Membres | Bandeau sur l'Aperçu |
+| 15 | Espace bureau : pas de rejet ni de validation (commissaire), page Statuts en erreur avant publication, identifiant brut affiché, mauvais clavier, pas de renvoi/changement, second code exigé | Rejet motivé, validation, état « pas encore publiés » + échéance et retardataires, nom affiché, renvoi et changement, session partagée avec l'application |
+| 16 | Tableaux de bord : lien d'évitement qui renvoyait à la page d'accueil ; commande shell montrée aux non-opérateurs ; page « Intégration » documentant des routes fictives (404 en production) | Corrigés |
+| 17 | Import du cahier : une ligne au montant décimal rejetait TOUT l'import (régression du plafond de montants, preuve `decisions.proof.mjs`) | Ligne écartée seule, comme prévu |
+| 18 | Preuves PostgreSQL : listes de rollback figées à 0031 ; jalons attendus à 33 | 0034 ajoutée ; 36 jalons |
+
+### 9.2 Application mobile (`packages/mobile`)
+
+Cause du « connexion serveur demandée puis indisponible » : des actions
+câblées en dur sur la feuille générique « Cette action exige une validation du
+serveur » MÊME dans une application branchée (rôles, litiges, PIN, parrainage,
+« plus d'infos »), et des écrans qui jetaient le motif du serveur.
+
+- Feuille générique supprimée ; partout le **motif français du serveur**, et
+  « Pas de connexion au serveur KÓMBE… » en cas de réseau.
+- Écrans sans route serveur retirés (découverte, parrainage, exports, PIN,
+  justificatif « joint » jamais envoyé) ; **litiges remplacés par « Mes
+  amendes »** (contester une amende, route réelle).
+- Connexion : voies ouvertes seulement (`/v1/auth/channels`), canal envoyé,
+  « Première fois ? votre premier code crée votre compte », renvoi du code
+  avec compte à rebours, plus de renvoi vers « connectez-vous » après
+  inscription, **nom demandé une fois** (fin des « Membre » / « Président »).
+- Invitations : code et lien **affichés**, copier, partager sur WhatsApp ;
+  bouton réservé aux fonctions qui ont le droit.
+- Bureau sur mobile : admission (admettre / refuser), proposer et accepter une
+  fonction, **statuts** (lire, accepter, publier avec échéance, retardataires,
+  relancer, repousser) — un président peut désormais démarrer depuis mobile.
+- Démarrage : tirage créé une fois et réutilisé (plus de tirage par essai) ;
+  message du serveur affiché.
+- Notifications : groupe, cible et détail conservés ; titres par type et par
+  palier ; un appui marque lu et ouvre l'écran concerné.
+- Création : rien d'imposé (rythme à choisir, `daily`, n jours saisi, date
+  future obligatoire, « Heure limite de cotisation », caisses annexes
+  décochées avec montant à saisir).
+- Vérifié : `flutter analyze` 0 erreur / 0 avertissement ; `flutter test` 46
+  PASS. Les 6 images de référence ont été régénérées (2 changements voulus,
+  4 écarts de rendu de police propres à l'environnement).
+- Reste : pas d'ordre de passage décidé à la main sur mobile (tirage / ordre
+  d'arrivée), pas d'édition du règlement après création sur mobile.
+
+### 9.3 Restant, documenté
+
+- **Plusieurs tontines tournantes dans un même groupe** (deux cagnottes à des
+  rythmes différents) : non supporté — une seule cagnotte tournante par groupe ;
+  les autres cotisations sont des caisses (à chaque séance, une fois, libre).
+  Contournement : un groupe KÓMBE par tontine tournante.
+- **Enchères / tontine négociée** : implémentées au domaine, fermées par
+  drapeau (avis juridique requis, ADR-0032) — l'ordre par saison reste au choix
+  tirage vérifiable / ordre d'arrivée / ordre décidé.
+- Le résultat publié d'un tirage précède le placement « nouveaux en dernier » :
+  l'ordre réel peut différer du tirage affiché quand cette règle est active.
+- `feeBearer` (frais Mobile Money) n'est qu'imprimé dans les statuts.
+- Aucune notification hors de l'application (push Android, SMS) : à prévoir.
