@@ -208,7 +208,13 @@ export interface TontineDetail {
   readonly name: string;
   readonly state: TontineState;
   readonly settings: TontineSettings;
-  readonly me: { readonly membershipId: string; readonly state: TontineMembershipState; readonly roles: readonly GroupRole[] };
+  readonly me: {
+    readonly membershipId: string;
+    readonly state: TontineMembershipState;
+    readonly roles: readonly GroupRole[];
+    /** Fonctions qu'on me propose et que je n'ai pas encore acceptées. */
+    readonly pendingRoles: readonly GroupRole[];
+  };
   readonly memberCount: number;
   readonly pendingCount: number;
   readonly funds: readonly FundView[];
@@ -394,7 +400,21 @@ export interface StatutesView {
   readonly hash: string;
   readonly publishedAt: IsoInstant;
   readonly acceptedByMe: boolean;
+  /** Acceptations des membres actuels (admis ou en attente d'admission). */
   readonly acceptedCount: number;
+  /** Personnes qui doivent accepter (membres avec téléphone, admis ou en attente). */
+  readonly expectedCount: number;
+  /** Échéance d'acceptation fixée par le bureau (ADR-0042) ; null si aucune. */
+  readonly deadline: {
+    readonly deadlineAt: IsoInstant;
+    readonly acceptanceDays: number;
+    /** « exclude » : retardataires exclus à l'échéance (avant démarrage du cycle) ; « keep » : signalés au bureau. */
+    readonly onExpiry: "exclude" | "keep";
+  } | null;
+  /** Mon échéance si je n'ai pas encore accepté. */
+  readonly myDeadlineAt: IsoInstant | null;
+  /** Qui n'a pas encore accepté, avec son échéance. */
+  readonly pending: readonly { readonly membershipId: string; readonly name: string; readonly state: "active" | "pending"; readonly deadlineAt: IsoInstant | null }[];
 }
 
 export interface NotificationView {
@@ -403,6 +423,8 @@ export interface NotificationView {
   readonly groupName: string | null;
   readonly kind: string;
   readonly target: string | null;
+  /** Détail lisible après authentification (échéance, n° de tour, nom…). */
+  readonly params: Readonly<Record<string, string | number | boolean | null>> | null;
   readonly createdAt: IsoInstant;
   readonly read: boolean;
 }

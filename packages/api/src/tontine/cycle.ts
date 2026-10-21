@@ -55,6 +55,7 @@ import {
   loadRounds,
   loadShareHoldings,
   loadShares,
+  roundSettingsOf,
   movementViews,
   type GroupRow,
 } from "./views.js";
@@ -63,16 +64,29 @@ import { assertMayDeclarePayout } from "./money.js";
 
 /** Statuts acceptés par chaque membre qui a un téléphone (L-12), sur la dernière version. */
 async function assertStatutesAccepted(db: Db, groupId: string): Promise<void> {
-  const st = await db.query(`SELECT version FROM statutes_version WHERE group_id = $1 ORDER BY version DESC LIMIT 1`, [groupId]);
-  if (!st.rows[0]) throw new DomainError("CYCLE_START_NOT_READY", "Générez les statuts et faites-les accepter");
+  const st = await db.query(
+    `SELECT v.version, d.deadline_at FROM statutes_version v LEFT JOIN statutes_deadline d ON d.group_id = v.group_id AND d.version = v.version
+      WHERE v.group_id = $1 ORDER BY v.version DESC LIMIT 1`,
+    [groupId],
+  );
+  if (!st.rows[0]) throw new DomainError("CYCLE_START_NOT_READY", "Publiez les statuts et faites-les accepter avant de démarrer");
   const missing = await db.query(
-    `SELECT count(*) AS c FROM membership m
+    `SELECT COALESCE(m.display_name, '') AS name FROM membership m
       WHERE m.group_id = $1 AND m.state = 'active' AND m.identity_id NOT LIKE 'offline\\_%'
-        AND NOT EXISTS (SELECT 1 FROM statutes_acceptance a WHERE a.group_id = m.group_id AND a.version = $2 AND a.identity_id = m.identity_id)`,
+        AND NOT EXISTS (SELECT 1 FROM statutes_acceptance a WHERE a.group_id = m.group_id AND a.version = $2 AND a.identity_id = m.identity_id)
+      ORDER BY m.joined_at NULLS LAST`,
     [groupId, st.rows[0].version],
   );
-  if (Number(missing.rows[0]?.c ?? 0) > 0) {
-    throw new DomainError("RULES_NOT_ACCEPTED", "Tous les membres doivent accepter la dernière version des statuts");
+  if (missing.rows.length > 0) {
+    const names = missing.rows.map((x) => String(x.name)).filter(Boolean);
+    const deadline = st.rows[0].deadline_at ? new Date(st.rows[0].deadline_at as string) : null;
+    const quand = deadline
+      ? ` Échéance : ${deadline.toLocaleDateString("fr-FR", { timeZone: "Africa/Douala", day: "numeric", month: "long" })} — passé ce délai, les retardataires sont traités selon votre choix (exclusion ou signalement).`
+      : " Fixez une échéance dans l'onglet Statuts pour ne pas attendre indéfiniment.";
+    throw new DomainError(
+      "RULES_NOT_ACCEPTED",
+      `Statuts pas encore acceptés par : ${names.length ? names.join(", ") : `${missing.rows.length} membre(s)`}. Relancez-les depuis l'onglet Statuts.${quand}`,
+    );
   }
 }
 
@@ -104,7 +118,7 @@ export class CycleService {
         [drawId, groupId, commitment, seed, actor.identityId],
       );
       await appendEvent(db, actor, "draw.committed", { drawId, commitment }, nowMs);
-      await notify(db, groupId, await activeMemberIdentities(db, groupId), "order_change", `/tontines/${groupId}/calendrier`, `draw:${drawId}`);
+      await notify(db, groupId, await activeMemberIdentities(db, groupId), "draw_committed", `/tontines/${groupId}/calendrier`, `draw:${drawId}`, { commitment: commitment.slice(0, 16) });
       return { drawId, commitment };
     });
   }
@@ -170,7 +184,11 @@ export class CycleService {
         { order: input.order, rounds: planted.rounds, firstDate: planted.firstDate, lastDate: planted.lastDate, ...planted.drawBody },
         nowMs,
       );
-      await notify(db, groupId, await activeMemberIdentities(db, groupId), "general", `/tontines/${groupId}/calendrier`, `cycle:${groupId}`);
+      await notify(db, groupId, await activeMemberIdentities(db, groupId), "cycle_started", `/tontines/${groupId}/calendrier`, `cycle:${groupId}`, {
+        cycleNo: 1,
+        firstDate: planted.firstDate,
+        rounds: planted.rounds,
+      });
       return tontineDetail(db, actor, nowMs);
     });
   }
@@ -193,7 +211,8 @@ export class CycleService {
       if (!rounds.some((r) => r.seq === seq)) throw new DomainError("OBJET_INTROUVABLE", "Tour introuvable");
       const rotation = await fundOfKind(db, groupId, "rotation");
       const shares = await loadShares(db, groupId, seq);
-      const dueMap = memberDueForRound(shares, BigInt(group.settings.contributionPerShare));
+      // Règles du tour (instantané) : un changement entre saisons ne réécrit pas le passé.
+      const dueMap = memberDueForRound(shares, BigInt((await roundSettingsOf(db, group))(seq).contributionPerShare));
       const names = await loadNames(db, groupId);
       const sums = await db.query(
         `SELECT membership_id, state, COALESCE(SUM(amount),0)::text AS s FROM fund_movement
@@ -291,7 +310,11 @@ export class CycleService {
         { cycle: cycleNo, order: input.order, rounds: planted.rounds, firstSeq: last.seq + 1, firstDate: planted.firstDate, lastDate: planted.lastDate, ...planted.drawBody },
         nowMs,
       );
-      await notify(db, groupId, await activeMemberIdentities(db, groupId), "general", `/tontines/${groupId}/calendrier`, `cycle:${groupId}:${cycleNo}`);
+      await notify(db, groupId, await activeMemberIdentities(db, groupId), "cycle_started", `/tontines/${groupId}/calendrier`, `cycle:${groupId}:${cycleNo}`, {
+        cycleNo,
+        firstDate: planted.firstDate,
+        rounds: planted.rounds,
+      });
       return tontineDetail(db, actor, nowMs);
     });
   }
@@ -348,9 +371,14 @@ export class CycleService {
       const wanted = input.membershipOrder ?? [];
       if (wanted.length !== holders.length) throw new DomainError("SCHEDULE_ROUNDS_MISMATCH", "Un tour par part : liste incomplète");
       const pool = new Map<string, string[]>();
-      for (const h of holders) pool.set(h.membershipId, [...(pool.get(h.membershipId) ?? []), h.shareId]);
+      // Une part partagée se désigne par l'un OU l'autre de ses deux titulaires.
+      const alias = new Map<string, string>();
+      for (const h of holders) {
+        pool.set(h.membershipId, [...(pool.get(h.membershipId) ?? []), h.shareId]);
+        if (h.partnerId) alias.set(h.partnerId, h.membershipId);
+      }
       order = wanted.map((mid) => {
-        const list = pool.get(mid);
+        const list = pool.get(mid) ?? pool.get(alias.get(mid) ?? "");
         const s = list?.shift();
         if (!s) throw new DomainError("SCHEDULE_MEMBER_UNKNOWN", "Membre ou nombre de parts incohérent");
         return s;
@@ -460,7 +488,7 @@ export class CycleService {
 
       // Impayés du tour : avance du fonds de caisse, remise réduite ou attente.
       const shares = await loadShares(db, groupId, seq);
-      const perShare = BigInt(group.settings.contributionPerShare);
+      const perShare = BigInt((await roundSettingsOf(db, group))(seq).contributionPerShare);
       const expectedPot = BigInt(shares.length) * perShare;
       const dueMap = memberDueForRound(shares, perShare);
       const conf = await db.query(
@@ -545,7 +573,10 @@ export class CycleService {
       const benIdentity = names.identityOf.get(beneficiary);
       const proxy = await db.query(`SELECT proxy_membership_id FROM membership WHERE group_id = $1 AND membership_id = $2`, [groupId, beneficiary]);
       const proxyIdentity = proxy.rows[0]?.proxy_membership_id ? names.identityOf.get(String(proxy.rows[0].proxy_membership_id)) : undefined;
-      await notify(db, groupId, [benIdentity, proxyIdentity].filter((x): x is string => !!x), "payout_recorded", `/tontines/${groupId}`, `payout:${movementId}`);
+      await notify(db, groupId, [benIdentity, proxyIdentity].filter((x): x is string => !!x), "payout_to_confirm", `/tontines/${groupId}/argent`, `payout:${movementId}`, {
+        roundSeq: seq,
+        amount: m(amount),
+      });
       const view = await movementViews(db, actor, { movementIds: [movementId] });
       return view[0] as MovementView;
     });

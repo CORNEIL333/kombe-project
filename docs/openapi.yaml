@@ -2846,6 +2846,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TontineError'
+  /internal/cron/echeances:
+    get:
+      tags:
+      - tontine
+      operationId: getInternalCronEcheances
+      summary: Tâche planifiée quotidienne (relances, échéances)
+      description: 'Appelée par Vercel Cron avec Authorization: Bearer CRON_SECRET. Relances (statuts, cotisations, séances, votes, fonctions) et échéance des statuts pour tous les groupes vivants (ADR-0042). 404 sans le secret.'
+      responses:
+        '200':
+          description: Groupes traités
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groups:
+                    type: integer
+        '404':
+          description: Secret absent ou incorrect
   /me/notifications:
     get:
       tags:
@@ -3777,7 +3796,7 @@ paths:
       - tontine
       operationId: postTontinesByIdStatutes
       summary: StatutesView (génère une nouvelle version depuis le règlement)
-      description: 'Rôle requis : bureau. Corps → réponse : → StatutesView (génère une nouvelle version depuis le règlement). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
+      description: 'Rôle requis : bureau. Corps → réponse : { acceptanceDays?: 1..60 (7 par défaut), onExpiry?: exclude|keep (exclude) } facultatif → StatutesView (génère une nouvelle version depuis le règlement, avec échéance d’acceptation, ADR-0042). Types : packages/domain/src/tontine/dto.ts (docs/API_TONTINE.md).'
       parameters:
       - name: id
         in: path
@@ -3850,6 +3869,125 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StatutesView'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/statutes/deadline:
+    patch:
+      tags:
+      - tontine
+      operationId: patchTontinesByIdStatutesDeadline
+      summary: StatutesView
+      description: 'Rôle requis : bureau (statutes.publish). Repousse l’échéance d’acceptation (jamais dans le passé) ou change la conséquence. Corps → réponse : { extendDays?: 0..60, onExpiry?: exclude|keep } → StatutesView (ADR-0042).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ extendDays?, onExpiry? }'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatutesView'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/statutes/reminders:
+    post:
+      tags:
+      - tontine
+      operationId: postTontinesByIdStatutesReminders
+      summary: Relance
+      description: 'Rôle requis : bureau (statutes.publish). Rappel immédiat aux membres qui n’ont pas accepté (au plus une fois toutes les 6 heures). Réponse : { reminded } (ADR-0042).'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/IdempotencyKeyOptional'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: 'aucun corps'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reminded:
+                    type: integer
         '401':
           description: Session absente ou invalide
           content:

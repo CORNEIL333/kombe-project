@@ -25,7 +25,7 @@ import {
   type Cadence,
 } from "@kombe/domain";
 import { groupActor, inTx, may, sessionIdentity, todayDouala } from "./infra.js";
-import { currentCycle, loadGroup, loadNames, loadRoundRows, loadShareHoldings, sharesAt } from "./views.js";
+import { currentCycle, loadGroup, loadNames, loadRoundRows, loadShareHoldings, sharesAt, roundSettingsOf } from "./views.js";
 
 function xaf(n: bigint): string {
   return `${n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} FCFA`;
@@ -137,7 +137,7 @@ export class InsightService {
       const cycle = await currentCycle(db, groupId);
       const rounds = (await loadRoundRows(db, groupId)).filter((r) => !cycle || (r.seq >= cycle.firstSeq && r.seq <= cycle.lastSeq));
       const holdings = await loadShareHoldings(db, groupId);
-      const per = BigInt(group.settings.contributionPerShare);
+      const rulesAt = await roundSettingsOf(db, group);
       const me = actor.membershipId;
       let cumulative = 0n;
       let totalToReceive = 0n;
@@ -150,6 +150,7 @@ export class InsightService {
       const receivedSeqs = new Set(received.rows.map((x) => Number(x.round_seq)));
       for (const r of rounds) {
         const at = sharesAt(holdings, r.seq);
+        const per = BigInt(rulesAt(r.seq).contributionPerShare);
         cumulative += at.length > 0 ? (memberDueForRound(at, per).get(me) ?? 0n) : 0n;
         const share = at.find((s) => s.shareId === r.shareId);
         const mine = share ? splitByWeight(per * BigInt(at.length), share.holders).find((p) => p.membershipId === me) : undefined;
@@ -201,7 +202,7 @@ export class InsightService {
       const seeAll = bureau || transparency !== "bureau_only";
       const showNames = bureau || transparency === "all_members";
       const grace = group.settings.fines.graceDays;
-      const per = BigInt(group.settings.contributionPerShare);
+      const rulesAt = await roundSettingsOf(db, group);
       const rounds = (await loadRoundRows(db, groupId)).filter((r) => r.date <= today);
       const holdings = await loadShareHoldings(db, groupId);
       const paidRes = await db.query(
@@ -231,7 +232,7 @@ export class InsightService {
         let unpaid = 0;
         for (const r of rounds) {
           const at = sharesAt(holdings, r.seq);
-          const owed = at.length > 0 ? (memberDueForRound(at, per).get(id) ?? 0n) : 0n;
+          const owed = at.length > 0 ? (memberDueForRound(at, BigInt(rulesAt(r.seq).contributionPerShare)).get(id) ?? 0n) : 0n;
           if (owed === 0n) continue;
           const p = paid.get(`${id}|${r.seq}`);
           if (p && p.amount >= owed) {

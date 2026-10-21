@@ -126,7 +126,7 @@ try {
   `);
 
   const DOWN = [
-    "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
+    "migrations/0034_echeances_notifications.down.sql", "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
     "migrations/0016_privacy_law.down.sql", "migrations/0015_export_manifest.down.sql",
     "migrations/0014_support_security.down.sql", "migrations/0013_outbox.down.sql",
     "migrations/0012_proposal.down.sql", "migrations/0011_disbursement.down.sql",

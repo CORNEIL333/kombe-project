@@ -9,6 +9,8 @@ import {
   assertMandate,
   assertRoleAssignable,
   buildStatutes,
+  effectiveStatutesDeadline,
+  STATUTES_ACCEPTANCE_DAYS,
   canonicalHash,
   isGroupRole,
   parseFeatureFlags,
@@ -50,6 +52,7 @@ import {
   cycleStarted,
   currentCycle,
   loadFundRows,
+  customCurrentAmount,
   loadFunds,
   loadGroup,
   loadMembers,
@@ -172,7 +175,17 @@ export async function tontineDetail(db: Db, actor: Actor, nowMs: number): Promis
     name: group.name,
     state: group.state,
     settings: group.settings,
-    me: { membershipId: actor.membershipId, state: actor.membershipState, roles: actor.roles.filter((r) => r !== "member").length ? actor.roles.filter((r) => r !== "member") : actor.membershipState === "active" ? ["member"] : [] },
+    me: {
+      membershipId: actor.membershipId,
+      state: actor.membershipState,
+      roles: actor.roles.filter((r) => r !== "member").length ? actor.roles.filter((r) => r !== "member") : actor.membershipState === "active" ? ["member"] : [],
+      pendingRoles: (
+        await db.query(
+          `SELECT role FROM role_assignment WHERE group_id = $1 AND membership_id = $2 AND accepted_at IS NULL AND ended_at IS NULL AND role <> 'member' ORDER BY role`,
+          [actor.groupId, actor.membershipId],
+        )
+      ).rows.map((x) => x.role as GroupRole),
+    },
     memberCount: Number(counts.rows[0]?.a ?? 0),
     pendingCount: Number(counts.rows[0]?.p ?? 0),
     funds: await loadFunds(db, actor.groupId),
@@ -274,8 +287,13 @@ export class GroupService {
       const actor = await groupActor(db, identityId, groupId);
       requireAct(actor, "rules.publish");
       const group = await loadGroup(db, groupId, true);
-      if (await cycleStarted(db, groupId)) {
-        throw new DomainError("GROUP_STATE_INVALID", "Règlement figé après le démarrage : proposez un changement par vote");
+      // Modifiable avant le premier cycle et ENTRE deux saisons ; pendant un
+      // cycle, les tours déjà plantés gardent leur règlement (instantané).
+      if (await cycleInProgress(db, groupId)) {
+        throw new DomainError(
+          "GROUP_STATE_INVALID",
+          "Cycle en cours : le règlement se modifie entre deux saisons, après le dernier tour. Les montants d'une caisse personnalisée peuvent changer à date (onglet Argent).",
+        );
       }
       const active = await db.query(`SELECT count(*) AS c FROM membership WHERE group_id = $1 AND state = 'active'`, [groupId]);
       if (Number(active.rows[0]?.c ?? 0) > settings.maxMembers) {
@@ -401,7 +419,14 @@ export class GroupService {
         );
         await appendEvent(db, actor, "member.admitted", { membershipId, shares }, nowMs);
       }
-      await notify(db, groupId, [String(target.identity_id)], "membership", `/tontines/${groupId}`, `admission:${membershipId}`);
+      await notify(
+        db,
+        groupId,
+        [String(target.identity_id)],
+        input.decision === "reject" ? "rejected" : "admitted",
+        input.decision === "reject" ? null : `/tontines/${groupId}/statuts`,
+        `admission:${membershipId}`,
+      );
       return this.memberView(db, actor, membershipId);
     });
   }
@@ -500,7 +525,7 @@ export class GroupService {
         [newId("rol"), groupId, input.membershipId, role, actor.identityId, today, input.mandateEnd ?? null],
       );
       await appendEvent(db, actor, "role.proposed", { membershipId: input.membershipId, role }, nowMs);
-      await notify(db, groupId, [String(target.identity_id)], "membership", `/tontines/${groupId}/membres`, `role:${role}:${input.membershipId}:${nowMs}`);
+      await notify(db, groupId, [String(target.identity_id)], "role_proposed", `/tontines/${groupId}/membres`, `role:${role}:${input.membershipId}:${nowMs}`, { role });
       return this.memberView(db, actor, input.membershipId);
     });
   }
@@ -662,7 +687,7 @@ export class GroupService {
       const actor: Actor = { identityId, groupId, membershipId, displayName, roles: ["member"], membershipState: "pending" };
       await appendEvent(db, actor, "member.requested", { membershipId, invitationId: String(inv.invitation_id) }, nowMs);
       const admins = await identitiesWithRoles(db, groupId, ["animator", "vice_president"]);
-      await notify(db, groupId, admins, "membership", `/tontines/${groupId}/membres`, `join:${membershipId}`);
+      await notify(db, groupId, admins, "join_request", `/tontines/${groupId}/membres`, `join:${membershipId}`, { name: displayName });
       return summaryFor(db, group, membershipId, "pending", [], nowMs);
     });
   }
@@ -671,21 +696,38 @@ export class GroupService {
 
   private async statutesView(db: Db, actor: Actor): Promise<StatutesView | null> {
     const r = await db.query(
-      `SELECT v.*, (SELECT count(*) FROM statutes_acceptance a WHERE a.group_id = v.group_id AND a.version = v.version) AS n,
+      `SELECT v.*, d.deadline_at, d.acceptance_days, d.on_expiry,
               EXISTS (SELECT 1 FROM statutes_acceptance a WHERE a.group_id = v.group_id AND a.version = v.version AND a.identity_id = $2) AS mine
-         FROM statutes_version v WHERE v.group_id = $1 ORDER BY v.version DESC LIMIT 1`,
+         FROM statutes_version v
+         LEFT JOIN statutes_deadline d ON d.group_id = v.group_id AND d.version = v.version
+        WHERE v.group_id = $1 ORDER BY v.version DESC LIMIT 1`,
       [actor.groupId, actor.identityId],
     );
     const row = r.rows[0];
     if (!row) return null;
+    const version = Number(row.version);
+    const signers = await statutesSigners(db, actor.groupId, version);
+    const deadline = row.deadline_at
+      ? { deadlineAt: isoInstant(row.deadline_at) as string, acceptanceDays: Number(row.acceptance_days), onExpiry: row.on_expiry as "exclude" | "keep" }
+      : null;
+    const deadlineOf = (joinedAt: number | null): string | null =>
+      deadline ? new Date(effectiveStatutesDeadline(Date.parse(deadline.deadlineAt), deadline.acceptanceDays, joinedAt)).toISOString() : null;
+    const pending = signers
+      .filter((x) => !x.accepted)
+      .map((x) => ({ membershipId: x.membershipId, name: x.name, state: x.state, deadlineAt: deadlineOf(x.joinedAtMs) }));
+    const me = signers.find((x) => x.identityId === actor.identityId);
     return {
-      version: Number(row.version),
+      version,
       title: String(row.title),
       body: String(row.body),
       hash: String(row.hash),
       publishedAt: isoInstant(row.published_at) as string,
       acceptedByMe: row.mine === true,
-      acceptedCount: Number(row.n),
+      acceptedCount: signers.filter((x) => x.accepted).length,
+      expectedCount: signers.length,
+      deadline,
+      myDeadlineAt: me && !me.accepted ? deadlineOf(me.joinedAtMs) : null,
+      pending,
     };
   }
 
@@ -699,8 +741,16 @@ export class GroupService {
     });
   }
 
-  async publishStatutes(headers: Record<string, unknown>, groupId: string): Promise<StatutesView> {
+  async publishStatutes(
+    headers: Record<string, unknown>,
+    groupId: string,
+    input: { readonly acceptanceDays?: number | undefined; readonly onExpiry?: "exclude" | "keep" | undefined } = {},
+  ): Promise<StatutesView> {
     const nowMs = this.now();
+    const days = input.acceptanceDays ?? STATUTES_ACCEPTANCE_DAYS.default;
+    if (!Number.isInteger(days) || days < STATUTES_ACCEPTANCE_DAYS.min || days > STATUTES_ACCEPTANCE_DAYS.max) {
+      throw new DomainError("REQUEST_INVALID", `Délai d'acceptation : ${STATUTES_ACCEPTANCE_DAYS.min} à ${STATUTES_ACCEPTANCE_DAYS.max} jours`);
+    }
     return inTx(this.pool, async (db) => {
       const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
       requireAct(actor, "statutes.publish");
@@ -719,7 +769,13 @@ export class GroupService {
         purpose: null,
         cadence: group.settings.cadence as Cadence,
         meetingPlace: group.settings.meetingPlace,
-        funds: funds.map((f) => ({ kind: f.kind, name: f.name, perMeetingAmount: f.perMeeting, annualAmount: 0n })),
+        funds: funds.map((f) => ({
+          kind: f.kind,
+          name: f.name,
+          // Caisse personnalisée « à chaque séance » : son montant en vigueur.
+          perMeetingAmount: f.custom ? (f.custom.mode === "each_meeting" ? customCurrentAmount(f.custom, todayDouala(nowMs)) : 0n) : f.perMeeting,
+          annualAmount: 0n,
+        })),
         rotationContribution: BigInt(group.settings.contributionPerShare),
         fines: fineScheduleOf(group.settings),
         aidScale: group.settings.solidarity.enabled ? aidScaleOf(group.settings) : [],
@@ -733,6 +789,8 @@ export class GroupService {
         guarantorRequired: group.settings.guarantorRequired,
         newcomersLast: group.settings.newcomersLast,
         rulesVersion: Number(rv.rows[0]?.v ?? 1),
+        payoutWitnesses: group.settings.payoutWitnesses,
+        acceptance: { days, onExpiry: input.onExpiry ?? "exclude" },
       });
       const last = await this.statutesView(db, actor);
       if (last && last.hash === doc.hash) return last;
@@ -741,9 +799,89 @@ export class GroupService {
         `INSERT INTO statutes_version (group_id, version, title, body, hash, rules_version, published_by_identity_id) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [groupId, version, doc.title, doc.text, doc.hash, Number(rv.rows[0]?.v ?? 1), actor.identityId],
       );
-      await appendEvent(db, actor, "statutes.published", { version, hash: doc.hash }, nowMs);
-      await notify(db, groupId, await activeMemberIdentities(db, groupId), "general", `/tontines/${groupId}/statuts`, `statutes:${version}`);
+      const deadlineAt = new Date(nowMs + days * 86_400_000).toISOString();
+      const onExpiry = input.onExpiry ?? "exclude";
+      await db.query(
+        `INSERT INTO statutes_deadline (group_id, version, deadline_at, acceptance_days, on_expiry, set_by_identity_id, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [groupId, version, deadlineAt, days, onExpiry, actor.identityId, new Date(nowMs)],
+      );
+      await appendEvent(db, actor, "statutes.published", { version, hash: doc.hash, deadlineAt, acceptanceDays: days, onExpiry }, nowMs);
+      // Qui publie approuve le texte qu'il publie : son acceptation est notée.
+      await db.query(
+        `INSERT INTO statutes_acceptance (group_id, version, identity_id, hash) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
+        [groupId, version, actor.identityId, doc.hash],
+      );
+      await appendEvent(db, actor, "statutes.accepted", { version, hash: doc.hash }, nowMs);
+      const others = (await statutesSigners(db, groupId, version)).filter((x) => !x.accepted).map((x) => x.identityId);
+      await notify(db, groupId, others, "statutes_published", `/tontines/${groupId}/statuts`, `statutes:${version}`, {
+        version,
+        deadlineAt,
+        onExpiry,
+        groupName: group.name,
+      });
       return (await this.statutesView(db, actor)) as StatutesView;
+    });
+  }
+
+  /** Le bureau repousse l'échéance ou change la conséquence (jamais rétroactif : l'échéance reste future). */
+  async setStatutesDeadline(
+    headers: Record<string, unknown>,
+    groupId: string,
+    input: { readonly extendDays?: number | undefined; readonly onExpiry?: "exclude" | "keep" | undefined },
+  ): Promise<StatutesView> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
+      requireAct(actor, "statutes.publish");
+      const v = await this.statutesView(db, actor);
+      if (!v) throw new DomainError("OBJET_INTROUVABLE", "Statuts pas encore générés");
+      const extend = input.extendDays ?? 0;
+      if (!Number.isInteger(extend) || extend < 0 || extend > STATUTES_ACCEPTANCE_DAYS.max) {
+        throw new DomainError("REQUEST_INVALID", `Prolongation : 0 à ${STATUTES_ACCEPTANCE_DAYS.max} jours`);
+      }
+      const base = v.deadline ? Math.max(Date.parse(v.deadline.deadlineAt), nowMs) : nowMs;
+      const deadlineAt = new Date(base + (v.deadline ? extend : Math.max(extend, 1)) * 86_400_000).toISOString();
+      const onExpiry = input.onExpiry ?? v.deadline?.onExpiry ?? "exclude";
+      const days = v.deadline?.acceptanceDays ?? Math.max(extend, 1);
+      await db.query(
+        `INSERT INTO statutes_deadline (group_id, version, deadline_at, acceptance_days, on_expiry, set_by_identity_id, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7)
+         ON CONFLICT (group_id, version) DO UPDATE SET deadline_at = EXCLUDED.deadline_at, on_expiry = EXCLUDED.on_expiry,
+                set_by_identity_id = EXCLUDED.set_by_identity_id, updated_at = EXCLUDED.updated_at`,
+        [groupId, v.version, deadlineAt, days, onExpiry, actor.identityId, new Date(nowMs)],
+      );
+      await appendEvent(db, actor, "statutes.deadline_set", { version: v.version, deadlineAt, onExpiry }, nowMs);
+      const others = v.pending.map((p) => p.membershipId);
+      const ids = await identitiesOfMemberships(db, groupId, others);
+      await notify(db, groupId, ids, "statutes_reminder", `/tontines/${groupId}/statuts`, `statutesDeadline:${v.version}:${deadlineAt}`, {
+        version: v.version,
+        deadlineAt,
+        onExpiry,
+        groupName: (await loadGroup(db, groupId)).name,
+        stage: "nouvelle_echeance",
+      });
+      return (await this.statutesView(db, actor)) as StatutesView;
+    });
+  }
+
+  /** « Relancer » : rappel immédiat aux retardataires (au plus une fois toutes les 6 heures). */
+  async remindStatutes(headers: Record<string, unknown>, groupId: string): Promise<{ reminded: number }> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
+      requireAct(actor, "statutes.publish");
+      const v = await this.statutesView(db, actor);
+      if (!v) throw new DomainError("OBJET_INTROUVABLE", "Statuts pas encore générés");
+      const ids = await identitiesOfMemberships(db, groupId, v.pending.map((p) => p.membershipId));
+      const bucket = Math.floor(nowMs / (6 * 3_600_000));
+      await notify(db, groupId, ids, "statutes_reminder", `/tontines/${groupId}/statuts`, `statutesManual:${v.version}:${bucket}`, {
+        version: v.version,
+        deadlineAt: v.deadline?.deadlineAt ?? null,
+        onExpiry: v.deadline?.onExpiry ?? null,
+        groupName: (await loadGroup(db, groupId)).name,
+        stage: "relance",
+      });
+      await appendEvent(db, actor, "statutes.reminded", { version: v.version, count: ids.length }, nowMs);
+      return { reminded: ids.filter((i) => !i.startsWith("offline_")).length };
     });
   }
 
@@ -773,4 +911,43 @@ async function assertRoom(db: Db, group: GroupRow): Promise<void> {
   if (Number(r.rows[0]?.c ?? 0) >= group.settings.maxMembers) {
     throw new DomainError("STATE_CONFLICT", "Nombre maximal de membres atteint");
   }
+}
+
+/**
+ * Personnes qui doivent accepter une version des statuts : membres admis ou en
+ * attente d'admission, avec téléphone (un membre sans téléphone est représenté).
+ */
+export async function statutesSigners(
+  db: Db,
+  groupId: string,
+  version: number,
+): Promise<{ membershipId: string; identityId: string; name: string; state: "active" | "pending"; joinedAtMs: number | null; accepted: boolean }[]> {
+  const r = await db.query(
+    `SELECT m.membership_id, m.identity_id, m.state, m.joined_at, COALESCE(m.display_name, p.display_name, '') AS name,
+            EXISTS (SELECT 1 FROM statutes_acceptance a WHERE a.group_id = m.group_id AND a.version = $2 AND a.identity_id = m.identity_id) AS accepted,
+            (SELECT published_at FROM statutes_version v WHERE v.group_id = m.group_id AND v.version = $2) AS published_at
+       FROM membership m LEFT JOIN identity_profile p ON p.identity_id = m.identity_id
+      WHERE m.group_id = $1 AND m.state IN ('active','pending') AND m.identity_id NOT LIKE 'offline\\_%'
+      ORDER BY m.joined_at NULLS LAST, m.membership_id`,
+    [groupId, version],
+  );
+  return r.rows.map((x) => {
+    const joined = x.joined_at ? new Date(x.joined_at as string).getTime() : null;
+    const published = x.published_at ? new Date(x.published_at as string).getTime() : 0;
+    return {
+      membershipId: String(x.membership_id),
+      identityId: String(x.identity_id),
+      name: String(x.name),
+      state: x.state as "active" | "pending",
+      // Seul compte l'admission APRÈS publication (délai propre au nouveau venu).
+      joinedAtMs: joined !== null && joined > published ? joined : null,
+      accepted: x.accepted === true,
+    };
+  });
+}
+
+async function identitiesOfMemberships(db: Db, groupId: string, membershipIds: readonly string[]): Promise<string[]> {
+  if (membershipIds.length === 0) return [];
+  const r = await db.query(`SELECT identity_id FROM membership WHERE group_id = $1 AND membership_id = ANY($2)`, [groupId, membershipIds as string[]]);
+  return r.rows.map((x) => String(x.identity_id));
 }

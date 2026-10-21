@@ -222,7 +222,7 @@ export class DisciplineService {
       await db.query(`UPDATE fine SET state = 'contested', version = version + 1 WHERE group_id = $1 AND fine_id = $2`, [groupId, fineId]);
       await appendEvent(db, actor, "fine.contested", { fineId, reason: reason.trim().slice(0, 500) }, nowMs);
       const deciders = await identitiesWithRoles(db, groupId, ["animator", "vice_president"]);
-      await notify(db, groupId, deciders.filter((i) => i !== actor.identityId), "general", `/tontines/${groupId}/discipline`, `contest:${fineId}`);
+      await notify(db, groupId, deciders.filter((i) => i !== actor.identityId), "fine_contested", `/tontines/${groupId}/discipline`, `contest:${fineId}`);
       return (await fineViews(db, groupId, { fineId }))[0] as FineView;
     });
   }
@@ -253,7 +253,12 @@ export class DisciplineService {
       await appendEvent(db, actor, decision === "cancel" ? "fine.cancelled" : "fine.maintained", { fineId, reason: reason.trim().slice(0, 500) }, nowMs);
       const names = await loadNames(db, groupId);
       const target = names.identityOf.get(String(row.membership_id));
-      if (target) await notify(db, groupId, [target], "fine_issued", `/tontines/${groupId}/discipline`, `fineDecision:${fineId}:${decision}`);
+      if (target) {
+        await notify(db, groupId, [target], decision === "cancel" ? "fine_cancelled" : "fine_issued", `/tontines/${groupId}/discipline`, `fineDecision:${fineId}:${decision}`, {
+          maintained: decision !== "cancel",
+          reason: reason.trim().slice(0, 140),
+        });
+      }
       return (await fineViews(db, groupId, { fineId }))[0] as FineView;
     });
   }
@@ -300,7 +305,7 @@ export class DisciplineService {
       );
       await appendEvent(db, actor, "aid.requested", { aidId, beneficiary, event: input.event, amount: m(amount) }, nowMs);
       const deciders = await identitiesWithRoles(db, groupId, ["animator", "vice_president", "secretary", "treasurer"]);
-      await notify(db, groupId, deciders.filter((i) => i !== actor.identityId), "validation_waiting", `/tontines/${groupId}/secours`, `aid:${aidId}`);
+      await notify(db, groupId, deciders.filter((i) => i !== actor.identityId), "aid_requested", `/tontines/${groupId}/secours`, `aid:${aidId}`);
       return (await aidViews(db, groupId, aidId))[0] as AidView;
     });
   }

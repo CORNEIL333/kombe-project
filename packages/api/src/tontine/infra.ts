@@ -276,12 +276,35 @@ export type NotificationKind =
   | "membership"
   | "minutes_ready"
   | "general"
-  | "decision";
+  | "decision"
+  | "join_request"
+  | "admitted"
+  | "rejected"
+  | "role_proposed"
+  | "role_reminder"
+  | "statutes_published"
+  | "statutes_reminder"
+  | "statutes_excluded"
+  | "statutes_expired"
+  | "cycle_started"
+  | "meeting_opened"
+  | "draw_committed"
+  | "fine_cancelled"
+  | "aid_requested"
+  | "vote_reminder"
+  | "payout_to_confirm"
+  | "fund_created"
+  | "movement_rejected"
+  | "fine_contested";
+
+/** Détail court d'une notification (lu après authentification, jamais en push). */
+export type NotificationParams = Readonly<Record<string, string | number | boolean | null>>;
 
 /**
- * Notifie des identités du groupe courant. Libellé SANS montant ni nom
- * (écran verrouillé) : `target` est un chemin de l'app, le détail se lit
- * après authentification. Dédupliqué par `dedup`.
+ * Notifie des identités du groupe courant. Le TITRE affiché (par type) ne
+ * porte ni montant ni nom (écran verrouillé, ADR-0016) ; `params` donne le
+ * détail lisible dans l'application authentifiée, `target` l'écran à ouvrir
+ * (`/tontines/<groupe>/<section>[/<objet>]`). Dédupliqué par `dedup`.
  */
 export async function notify(
   db: Db,
@@ -290,10 +313,17 @@ export async function notify(
   kind: NotificationKind,
   target: string | null,
   dedup: string,
+  params: NotificationParams | null = null,
 ): Promise<void> {
-  for (const id of new Set(identityIds)) {
-    if (id.startsWith("offline_")) continue;
-    await db.query("SELECT kombe_notify($1,$2,$3,$4,$5)", [id, groupId, kind, target, `${dedup}:${id}`]);
+  const ids = [...new Set(identityIds)].filter((i) => !i.startsWith("offline_"));
+  if (ids.length === 0) return;
+  let detail = params;
+  if (!detail || typeof detail.groupName !== "string") {
+    const g = await db.query(`SELECT display_name FROM "group" WHERE group_id = $1`, [groupId]);
+    detail = { ...(detail ?? {}), groupName: g.rows[0]?.display_name ? String(g.rows[0].display_name) : null };
+  }
+  for (const id of ids) {
+    await db.query("SELECT kombe_notify_v2($1,$2,$3,$4,$5,$6::jsonb)", [id, groupId, kind, target, `${dedup}:${id}`, JSON.stringify(detail)]);
   }
 }
 

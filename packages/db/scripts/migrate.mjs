@@ -69,6 +69,7 @@ const UP_MIGRATIONS = [
   "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql",
   "migrations/0032_audit_indexes.sql",
   "migrations/0033_custom_funds.sql",
+  "migrations/0034_echeances_notifications.sql",
   "provision/roles.sql",
 ];
 

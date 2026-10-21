@@ -96,5 +96,11 @@
         }
       ]
     }
+  ],
+  "crons": [
+    {
+      "path": "/v1/internal/cron/echeances",
+      "schedule": "0 6 * * *"
+    }
   ]
 }

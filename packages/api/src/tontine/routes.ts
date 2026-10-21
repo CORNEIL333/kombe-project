@@ -11,6 +11,8 @@ import { AID_EVENTS, ATTENDANCE_STATUSES, BALLOT_CHOICES, DECISION_KINDS, FINE_K
 import type { EmailSender } from "../email/emailSender.js";
 import { TontineAuth, neonAuthFromEnv, type NeonAuthConfig } from "./auth.js";
 import { CycleService } from "./cycle.js";
+import { processAllGroups } from "./echeances.js";
+import { inTx } from "./infra.js";
 import { DecisionService } from "./decisions.js";
 import { DisciplineService } from "./discipline.js";
 import { GroupService } from "./groups.js";
@@ -73,6 +75,10 @@ const S = {
   invitation: z.object({ maxUses: z.number().int().min(1).max(200).optional(), days: z.number().int().min(1).max(90).optional() }),
   join: z.object({ displayName: z.string().min(1).max(80), sponsorMembershipId: id.optional() }),
   hash: z.object({ hash: z.string().regex(/^[0-9a-f]{64}$/) }),
+  statutesPublish: z
+    .object({ acceptanceDays: z.number().int().min(1).max(60).optional(), onExpiry: z.enum(["exclude", "keep"]).optional() })
+    .optional(),
+  statutesDeadline: z.object({ extendDays: z.number().int().min(0).max(60).optional(), onExpiry: z.enum(["exclude", "keep"]).optional() }),
   start: z.object({
     order: z.enum(["draw", "manual", "join_order"]),
     drawId: id.optional(),
@@ -155,10 +161,12 @@ const S = {
         id: z.string().min(1).max(200),
         name: z.string().min(1).max(200),
         members: z.array(z.object({ uid: z.string().max(200), name: z.string().max(120), phone: z.string().max(40).optional(), email: z.string().max(200).optional(), role: z.string().max(40).optional() })).max(1000),
-        contributions: z.array(z.object({ id: z.string().max(200), uid: z.string().max(200), amount: z.number().int().min(0).max(1_000_000_000), date: z.string().max(40), status: z.string().max(40).optional() })).max(5000),
+        contributions: z.array(z.object({ id: z.string().max(200), uid: z.string().max(200), amount: z.number().finite().min(0).max(1_000_000_000), date: z.string().max(40), status: z.string().max(40).optional() })).max(5000),
       })
       .optional(),
-    rows: z.array(z.object({ memberName: z.string().max(120), date: z.string().max(40), amount: z.number().int().min(0).max(1_000_000_000) })).max(5000).optional(),
+    // Une ligne du cahier au montant invalide (décimal) est écartée ligne à
+    // ligne par le domaine, jamais tout l'import : seul le plafond est borné ici.
+    rows: z.array(z.object({ memberName: z.string().max(120), date: z.string().max(40), amount: z.number().finite().min(0).max(1_000_000_000) })).max(5000).optional(),
   }),
   notificationsRead: z.object({ ids: z.union([z.array(z.string().max(20)).max(500), z.literal("all")]) }),
   reason,
@@ -255,6 +263,14 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   app.patch("/v1/me", async (req, reply) => write(req, reply, 200, () => auth.updateMe(H(req), S.meUpdate.parse(req.body))));
   app.get("/v1/me/tontines", async (req) => groups.mine(H(req)));
   app.get("/v1/me/dues", async (req) => money.myDues(H(req), (req.query as Q).groupId));
+  // Tâche planifiée (Vercel Cron, une fois par jour) : relances et échéances
+  // de tous les groupes. Protégée par CRON_SECRET (en-tête Bearer posé par
+  // Vercel) ; absente si le secret n'est pas configuré.
+  app.get("/v1/internal/cron/echeances", async (req, reply) => {
+    const secret = process.env.CRON_SECRET;
+    if (!secret || req.headers.authorization !== `Bearer ${secret}`) return reply.code(404).send({ code: "OBJET_INTROUVABLE", message: "Introuvable" });
+    return inTx(pool, (db) => processAllGroups(db, now()));
+  });
   app.get("/v1/me/notifications", async (req) => inbox.notifications(H(req), { unreadOnly: (req.query as Q).unread === "1" }));
   app.post("/v1/me/notifications/read", async (req, reply) => write(req, reply, 200, () => inbox.markRead(H(req), S.notificationsRead.parse(req.body).ids)));
 
@@ -291,7 +307,13 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
 
   /* ── Statuts ───────────────────────────────────────────────────────── */
   app.get("/v1/tontines/:id/statutes", async (req) => groups.statutes(H(req), (req.params as P).id as string));
-  app.post("/v1/tontines/:id/statutes", async (req, reply) => write(req, reply, 200, () => groups.publishStatutes(H(req), (req.params as P).id as string)));
+  app.post("/v1/tontines/:id/statutes", async (req, reply) =>
+    write(req, reply, 200, () => groups.publishStatutes(H(req), (req.params as P).id as string, S.statutesPublish.parse(req.body ?? undefined) ?? {})),
+  );
+  app.patch("/v1/tontines/:id/statutes/deadline", async (req, reply) =>
+    write(req, reply, 200, () => groups.setStatutesDeadline(H(req), (req.params as P).id as string, S.statutesDeadline.parse(req.body))),
+  );
+  app.post("/v1/tontines/:id/statutes/reminders", async (req, reply) => write(req, reply, 200, () => groups.remindStatutes(H(req), (req.params as P).id as string)));
   app.post("/v1/tontines/:id/statutes/acceptance", async (req, reply) => write(req, reply, 200, () => groups.acceptStatutes(H(req), (req.params as P).id as string, S.hash.parse(req.body).hash)));
 
   /* ── Cycle ─────────────────────────────────────────────────────────── */

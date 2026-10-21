@@ -113,6 +113,9 @@ export class MeetingService {
         [groupId, meetingId, new Date(nowMs), actor.identityId],
       );
       await appendEvent(db, actor, "meeting.opened", { meetingId, seq: mt.seq }, nowMs);
+      await notify(db, groupId, (await activeMemberIdentities(db, groupId)).filter((i) => i !== actor.identityId), "meeting_opened", `/tontines/${groupId}/seances/${meetingId}`, `meetingOpen:${meetingId}`, {
+        seq: Number(mt.seq),
+      });
       return meetingDetail(db, actor, meetingId);
     });
   }

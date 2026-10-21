@@ -31,6 +31,10 @@ export interface StatutesInput {
   readonly guarantorRequired: boolean;
   readonly newcomersLast: boolean;
   readonly rulesVersion: number;
+  /** Témoins présents exigés pour une remise (règlement) ; 2 si non précisé. */
+  readonly payoutWitnesses?: number;
+  /** Délai d'acceptation des statuts et conséquence (ADR-0042). */
+  readonly acceptance?: { readonly days: number; readonly onExpiry: "exclude" | "keep" };
 }
 
 export type Transparency = "all_members" | "bureau_only" | "anonymized";
@@ -70,7 +74,9 @@ export function buildStatutes(s: StatutesInput): StatutesDocument {
   L.push("");
   L.push("TITRE II — SÉANCES");
   L.push(`Article 4. Les séances ont lieu : ${describeCadence(s.cadence, "fr").toLowerCase()}${s.meetingPlace ? `, à ${s.meetingPlace}` : ", chez le membre désigné comme hôte"}.`);
-  L.push("Article 5. Chaque séance donne lieu à un appel, à la collecte, aux remises devant au moins deux témoins présents et à un procès-verbal approuvé à la séance suivante.");
+  const w = s.payoutWitnesses ?? 2;
+  const temoins = w === 0 ? "aux remises notées en séance" : w === 1 ? "aux remises devant au moins un témoin présent" : `aux remises devant au moins ${w} témoins présents`;
+  L.push(`Article 5. Chaque séance donne lieu à un appel, à la collecte, ${temoins} et à un procès-verbal approuvé à la séance suivante.`);
   L.push("");
   L.push("TITRE III — CAISSES");
   let art = 6;
@@ -127,6 +133,15 @@ export function buildStatutes(s: StatutesInput): StatutesDocument {
   L.push("TITRE VII — DÉPART ET LITIGES");
   L.push(`Article ${art++}. Un membre qui part reste tenu des obligations déjà nées. Un repreneur peut prendre sa place avec l'accord du groupe.`);
   L.push(`Article ${art++}. Tout litige est ouvert dans le registre et examiné par des membres non impliqués.`);
+  if (s.acceptance) {
+    const suite =
+      s.acceptance.onExpiry === "exclude"
+        ? "passé ce délai, et tant que le cycle n'a pas démarré, il est exclu de l'association (la présidence en est exemptée)"
+        : "passé ce délai, le bureau en est informé et décide de la suite";
+    L.push(
+      `Article ${art++}. Chaque membre accepte les présents statuts dans les ${s.acceptance.days} jours qui suivent leur publication ou son admission ; ${suite}. Des rappels lui sont adressés à l'approche de l'échéance.`,
+    );
+  }
   const text = L.join("\n");
   return { title, text, hash: canonicalHash({ text }) };
 }

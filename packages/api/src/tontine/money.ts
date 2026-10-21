@@ -259,7 +259,7 @@ export class MoneyService {
       );
       await appendEvent(db, actor, "fund.created", { fundId, name, rules }, nowMs);
       const members = await activeMemberIdentities(db, groupId);
-      await notify(db, groupId, members.filter((i) => i !== actor.identityId), "general", `/tontines/${groupId}/argent`, `fund:${fundId}:created`);
+      await notify(db, groupId, members.filter((i) => i !== actor.identityId), "fund_created", `/tontines/${groupId}/argent`, `fund:${fundId}:created`);
       return loadFunds(db, groupId, today);
     });
   }
@@ -568,7 +568,7 @@ export class MoneyService {
       const names = await loadNames(db, groupId);
       const declarant = mv.declaredBy;
       const member = mv.membershipId ? names.identityOf.get(mv.membershipId) : undefined;
-      await notify(db, groupId, [declarant, member].filter((x): x is string => !!x && x !== actor.identityId), "general", `/tontines/${groupId}/argent`, `rejected:${movementId}`);
+      await notify(db, groupId, [declarant, member].filter((x): x is string => !!x && x !== actor.identityId), "movement_rejected", `/tontines/${groupId}/argent`, `rejected:${movementId}`);
       return (await movementViews(db, actor, { movementIds: [movementId] }))[0] as MovementView;
     });
   }

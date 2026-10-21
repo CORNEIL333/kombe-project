@@ -5,41 +5,27 @@
 import type pg from "pg";
 import { DomainError, verifyJournal, type JournalEntryView, type JournalEvent, type NotificationView } from "@kombe/domain";
 import { canonicalHash } from "@kombe/domain";
-import { type Db, groupActor, inTx, isoInstant, notify, scopeGroup, sessionIdentity, todayDouala } from "./infra.js";
-import { type GroupRow, computeDues, loadGroup, loadNames } from "./views.js";
-
-function addDays(iso: string, days: number): string {
-  return new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-}
+import { type Db, groupActor, inTx, isoInstant, scopeGroup, sessionIdentity } from "./infra.js";
+import { loadNames } from "./views.js";
+import { processGroupDeadlines } from "./echeances.js";
 
 /**
- * Rappels de l'application, produits à la lecture de la boîte (dédupliqués) :
- * séance dans les deux jours, cotisation en retard ou en délai de grâce.
- * Le libellé ne porte ni montant ni nom (écran verrouillé).
+ * Relances de l'application, produites à la lecture de la boîte (dédupliquées)
+ * pour la personne qui lit ; l'échéance des statuts est appliquée au groupe.
+ * La tâche planifiée quotidienne fait le même travail pour tout le monde.
  */
 async function produceReminders(db: Db, identityId: string, nowMs: number): Promise<void> {
-  const today = todayDouala(nowMs);
-  const mine = await db.query(`SELECT group_id, membership_id FROM kombe_my_memberships() WHERE membership_state = 'active' AND group_state = 'active'`);
+  const mine = await db.query(`SELECT DISTINCT group_id FROM kombe_my_memberships() WHERE membership_state IN ('active','pending')`);
   for (const row of mine.rows) {
     const gid = String(row.group_id);
-    await scopeGroup(db, gid);
-    let group: GroupRow;
+    await db.query("SAVEPOINT rappel");
     try {
-      group = await loadGroup(db, gid);
+      await scopeGroup(db, gid);
+      await processGroupDeadlines(db, gid, nowMs, { onlyIdentity: identityId });
+      await db.query("RELEASE SAVEPOINT rappel");
     } catch {
-      continue;
-    }
-    const mt = await db.query(
-      `SELECT meeting_id FROM meeting WHERE group_id = $1 AND state = 'planned' AND scheduled_date BETWEEN $2::date AND $3::date ORDER BY seq LIMIT 1`,
-      [gid, today, addDays(today, 2)],
-    );
-    if (mt.rows[0]) {
-      await notify(db, gid, [identityId], "meeting_reminder", `/tontines/${gid}/seances/${mt.rows[0].meeting_id}`, `meetingSoon:${mt.rows[0].meeting_id}`);
-    }
-    const dues = await computeDues(db, group, String(row.membership_id), today, { onlyOpen: true });
-    for (const d of dues.filter((x) => x.lateness === "late" || x.lateness === "grace")) {
-      await notify(db, gid, [identityId], "due_reminder", `/tontines/${gid}`, `due:${d.roundSeq}:${d.lateness}`);
-      break;
+      // Une relance ratée ne doit jamais empêcher de lire ses notifications.
+      await db.query("ROLLBACK TO SAVEPOINT rappel");
     }
   }
 }
@@ -58,6 +44,9 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   "invitation.revoked": "Invitation retirée",
   "statutes.published": "Statuts publiés",
   "statutes.accepted": "Statuts acceptés",
+  "statutes.deadline_set": "Échéance d'acceptation des statuts fixée",
+  "statutes.reminded": "Relance envoyée aux retardataires",
+  "statutes.deadline_exclusion": "Retardataire exclu à l'échéance des statuts",
   "draw.committed": "Tirage scellé",
   "cycle.started": "Cycle démarré",
   "cycle.renewed": "Nouveau cycle démarré",
@@ -116,16 +105,17 @@ export class InboxService {
       const groups = await db.query(`SELECT group_id, group_name FROM kombe_my_memberships()`);
       const nameOf = new Map(groups.rows.map((x) => [String(x.group_id), String(x.group_name ?? "")]));
       const r = await db.query(
-        `SELECT notification_id, group_id, kind, target, created_at, read_at FROM inbox_notification
+        `SELECT notification_id, group_id, kind, target, params, created_at, read_at FROM inbox_notification
           WHERE identity_id = $1 ${opts.unreadOnly ? "AND read_at IS NULL" : ""} ORDER BY created_at DESC, notification_id DESC LIMIT 100`,
         [id],
       );
       return r.rows.map((row) => ({
         notificationId: String(row.notification_id),
         groupId: row.group_id ? String(row.group_id) : null,
-        groupName: row.group_id ? (nameOf.get(String(row.group_id)) ?? null) : null,
+        groupName: row.group_id ? (nameOf.get(String(row.group_id)) ?? (typeof row.params?.groupName === "string" ? row.params.groupName : null)) : null,
         kind: String(row.kind),
         target: row.target ?? null,
+        params: (row.params as NotificationView["params"]) ?? null,
         createdAt: isoInstant(row.created_at) as string,
         read: row.read_at !== null,
       }));

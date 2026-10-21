@@ -279,6 +279,33 @@ export async function loadFunds(db: Db, groupId: string, today: string = new Dat
 
 /* ── Tours ───────────────────────────────────────────────────────────── */
 
+/**
+ * Règlement en vigueur à chaque tour : l'instantané publié au moment où le
+ * tour a été planté (round.rules_version). Changer le montant ou les caisses
+ * entre deux saisons ne réécrit donc jamais ce qui était dû aux tours passés.
+ */
+export async function roundSettingsOf(db: Db, group: GroupRow): Promise<(seq: number) => TontineSettings> {
+  const r = await db.query(
+    `SELECT r.seq, v.snapshot FROM round r LEFT JOIN rule_version v ON v.group_id = r.group_id AND v.rules_version = r.rules_version
+      WHERE r.group_id = $1`,
+    [group.groupId],
+  );
+  const bySeq = new Map<number, TontineSettings>();
+  for (const row of r.rows) {
+    const snap = row.snapshot as { kind?: string; settings?: TontineSettings } | null;
+    if (snap?.kind === "tontine_settings" && snap.settings) bySeq.set(Number(row.seq), snap.settings);
+  }
+  return (seq: number) => bySeq.get(seq) ?? group.settings;
+}
+
+/** Cotisation par séance d'une caisse du règlement d'après un règlement donné. */
+function settingsFundPerMeeting(kind: FundKind, s: TontineSettings): bigint | null {
+  if (kind === "solidarity") return s.solidarity.enabled ? BigInt(s.solidarity.perMeeting) : 0n;
+  if (kind === "operating") return s.operating.enabled ? BigInt(s.operating.perMeeting) : 0n;
+  if (kind === "year_end_reserve") return s.yearEndReserve.enabled ? BigInt(s.yearEndReserve.perMeeting) : 0n;
+  return null;
+}
+
 export interface RoundRow {
   readonly seq: number;
   readonly date: string;
@@ -307,8 +334,9 @@ export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> 
   const names = await loadNames(db, group.groupId);
   const rotation = await fundOfKind(db, group.groupId, "rotation");
   const holdings = await loadShareHoldings(db, group.groupId);
-  const perShare = BigInt(group.settings.contributionPerShare);
-  const potAt = (seq: number): bigint => (holdings.length > 0 ? BigInt(sharesAt(holdings, seq).length) : BigInt(rows.length)) * perShare;
+  const rulesAt = await roundSettingsOf(db, group);
+  const potAt = (seq: number): bigint =>
+    (holdings.length > 0 ? BigInt(sharesAt(holdings, seq).length) : BigInt(rows.length)) * BigInt(rulesAt(seq).contributionPerShare);
   const coll = await db.query(
     `SELECT round_seq, COALESCE(SUM(amount),0)::text AS s FROM fund_movement
       WHERE group_id = $1 AND fund_id = $2 AND kind = 'contribution' AND state IN ('confirmed','validated')
@@ -369,12 +397,16 @@ export async function computeDues(
 ): Promise<DueView[]> {
   const rounds = await loadRoundRows(db, group.groupId);
   if (rounds.length === 0) return [];
-  const funds = (await loadFundRows(db, group.groupId)).filter((f) => f.state === "active" || f.custom !== null);
+  // Caisses du règlement : même fermées aujourd'hui, elles restent dues aux
+  // tours où leur règlement les prévoyait (instantané par tour).
+  const funds = (await loadFundRows(db, group.groupId)).filter(
+    (f) => f.state === "active" || f.custom !== null || settingsFundPerMeeting(f.kind, group.settings) !== null,
+  );
   const holdings = await loadShareHoldings(db, group.groupId);
-  const perShare = BigInt(group.settings.contributionPerShare);
+  const rulesAt = await roundSettingsOf(db, group);
   const rotationDueAt = (seq: number): bigint => {
     const at = sharesAt(holdings, seq);
-    return at.length > 0 ? (memberDueForRound(at, perShare).get(membershipId) ?? 0n) : 0n;
+    return at.length > 0 ? (memberDueForRound(at, BigInt(rulesAt(seq).contributionPerShare)).get(membershipId) ?? 0n) : 0n;
   };
   const mem = await db.query(`SELECT joined_at FROM membership WHERE group_id = $1 AND membership_id = $2`, [group.groupId, membershipId]);
   const joined = mem.rows[0]?.joined_at ? (isoInstant(mem.rows[0].joined_at) as string).slice(0, 10) : "0000-00-00";
@@ -421,7 +453,10 @@ export async function computeDues(
           const first = start ? (rounds.find((x) => x.date >= start)?.date ?? null) : null;
           due = customFundDue(f.custom, r.date, first);
         }
-      } else if (f.perMeeting > 0n && r.date >= joined) due = f.perMeeting;
+      } else if (r.date >= joined) {
+        const fromRules = settingsFundPerMeeting(f.kind, rulesAt(r.seq));
+        due = fromRules ?? (f.state === "active" ? f.perMeeting : 0n);
+      }
       if (due === 0n) continue;
       const p = paid.get(`${f.fundId}|${r.seq}`) ?? { confirmed: 0n, declared: 0n };
       const moved = f.kind === "rotation" ? (transferred.get(r.seq) ?? 0n) : 0n;

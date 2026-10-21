@@ -97,6 +97,7 @@ async function main() {
     // historiques ne sont pas tolérants à l'absence de leurs tables (X-07).
     const vierge = (await migrator.query(`SELECT to_regclass('public."group"') IS NULL AS v`)).rows[0].v === true;
     if (!vierge) {
+      await runSql(migrator, "migrations/0034_echeances_notifications.down.sql");
       await runSql(migrator, "migrations/0031_cycles_reserve.down.sql");
       await runSql(migrator, "migrations/0030_decisions.down.sql");
       await runSql(migrator, "migrations/0029_ops_console.down.sql");
