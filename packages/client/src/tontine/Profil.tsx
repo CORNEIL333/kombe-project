@@ -31,7 +31,7 @@ export function Profil({
 }: {
   readonly session: Session;
   readonly onOuvrirGroupe: (groupId: string) => void;
-  readonly onAller: (ecran: "cotisations" | "validations" | "aide" | "notifications") => void;
+  readonly onAller: (ecran: "cotisations" | "validations" | "aide" | "notifications" | "documents") => void;
   readonly onDeconnecter: () => void;
 }) {
   const { tx, dyn, xaf, date } = useTextes();
@@ -132,6 +132,7 @@ export function Profil({
       <nav className="profil-raccourcis" aria-label={tx("pf.raccourcis")}>
         <BoutonIcone icone="declarer" libelle={tx("nav.cotisations")} legende onClick={() => onAller("cotisations")} />
         {bureau.length > 0 ? <BoutonIcone icone="validations" libelle={tx("pf.validations")} legende onClick={() => onAller("validations")} /> : null}
+        <BoutonIcone icone="document" libelle={tx("doc.titre")} legende onClick={() => onAller("documents")} />
         <BoutonIcone icone="cloche" libelle={tx("nav.activite")} legende onClick={() => onAller("notifications")} />
         <BoutonIcone icone="aide" libelle={tx("pf.aide")} legende onClick={() => onAller("aide")} />
       </nav>

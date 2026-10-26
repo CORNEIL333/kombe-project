@@ -20,6 +20,7 @@ import { Profil } from "./tontine/Profil.js";
 import { MesCotisations } from "./tontine/MesCotisations.js";
 import { Validations } from "./tontine/Validations.js";
 import { Aide } from "./tontine/Aide.js";
+import { Documents } from "./tontine/Documents.js";
 import { estBureau, ouvrirBureau } from "./tontine/bureau.js";
 import { BoutonIcone } from "./tontine/ui.js";
 
@@ -31,12 +32,13 @@ export type Route =
   | { readonly ecran: "cotisations" }
   | { readonly ecran: "validations" }
   | { readonly ecran: "aide" }
+  | { readonly ecran: "documents" }
   | { readonly ecran: "rejoindre"; readonly code?: string }
-  | { readonly ecran: "groupe"; readonly groupId: string };
+  | { readonly ecran: "groupe"; readonly groupId: string; readonly onglet?: string };
 
 export function lireRoute(hash: string): Route {
   const parties = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
-  const [tete, arg] = parties;
+  const [tete, arg, sous] = parties;
   if (tete === "rejoindre") return arg ? { ecran: "rejoindre", code: arg.toUpperCase() } : { ecran: "rejoindre" };
   if (tete === "creer") return { ecran: "creer" };
   if (tete === "notifications") return { ecran: "notifications" };
@@ -44,7 +46,8 @@ export function lireRoute(hash: string): Route {
   if (tete === "cotisations") return { ecran: "cotisations" };
   if (tete === "validations") return { ecran: "validations" };
   if (tete === "aide") return { ecran: "aide" };
-  if (tete === "groupe" && arg) return { ecran: "groupe", groupId: arg };
+  if (tete === "documents") return { ecran: "documents" };
+  if (tete === "groupe" && arg) return sous ? { ecran: "groupe", groupId: arg, onglet: sous } : { ecran: "groupe", groupId: arg };
   return { ecran: "accueil" };
 }
 
@@ -64,10 +67,12 @@ export function ecrireRoute(r: Route): string {
       return "#/validations";
     case "aide":
       return "#/aide";
+    case "documents":
+      return "#/documents";
     case "rejoindre":
       return r.code ? `#/rejoindre/${encodeURIComponent(r.code)}` : "#/rejoindre";
     case "groupe":
-      return `#/groupe/${encodeURIComponent(r.groupId)}`;
+      return `#/groupe/${encodeURIComponent(r.groupId)}${r.onglet ? `/${encodeURIComponent(r.onglet)}` : ""}`;
   }
 }
 
@@ -246,10 +251,12 @@ export function App() {
           <Validations key="validations" session={session} onOuvrirGroupe={(groupId) => aller({ ecran: "groupe", groupId })} />
         ) : route.ecran === "aide" ? (
           <Aide key="aide" />
+        ) : route.ecran === "documents" ? (
+          <Documents key="documents" session={session} onOuvrir={(groupId, onglet) => aller({ ecran: "groupe", groupId, onglet })} />
         ) : route.ecran === "notifications" ? (
           <Notifications key="notifications" session={session} onOuvrir={(groupId) => aller({ ecran: "groupe", groupId })} />
         ) : route.ecran === "groupe" ? (
-          <Groupe key={route.groupId} session={session} groupId={route.groupId} onRetour={() => aller({ ecran: "accueil" })} />
+          <Groupe key={route.groupId} session={session} groupId={route.groupId} {...(route.onglet ? { ongletInitial: route.onglet } : {})} onRetour={() => aller({ ecran: "accueil" })} />
         ) : (
           <Accueil
             key="accueil"

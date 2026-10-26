@@ -58,9 +58,19 @@ export interface ContexteGroupe {
   readonly rafraichir: () => void;
 }
 
-export function Groupe({ session, groupId, onRetour }: { readonly session: Session; readonly groupId: string; readonly onRetour: () => void }) {
+export function Groupe({
+  session,
+  groupId,
+  onRetour,
+  ongletInitial,
+}: {
+  readonly session: Session;
+  readonly groupId: string;
+  readonly onRetour: () => void;
+  readonly ongletInitial?: string;
+}) {
   const { tx, dyn } = useTextes();
-  const [onglet, setOnglet] = useState<Onglet>("apercu");
+  const [onglet, setOnglet] = useState<Onglet>(() => (ONGLETS.some((o) => o.id === ongletInitial) ? (ongletInitial as Onglet) : "apercu"));
   const { etat, recharger } = useDonnees(() => tontines.detail(session, groupId), [session.sessionId, groupId]);
 
   return (
