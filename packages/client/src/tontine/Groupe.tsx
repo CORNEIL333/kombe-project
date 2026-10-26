@@ -21,7 +21,9 @@ import {
   type TontineDetail,
 } from "./api.js";
 import { peut } from "./droits.js";
-import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { BoutonIcone, Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { estBureau, ouvrirBureau } from "./bureau.js";
+import { Icone, type NomIcone } from "../composants/Icones.js";
 import type { PaymentChannel } from "@kombe/domain";
 import { useTextes, type CleTexte } from "./textes.js";
 import { Membres } from "./Membres.js";
@@ -36,17 +38,17 @@ import { Reglages } from "./Reglages.js";
 import { EnFileAttente } from "./fileAttenteMoteur.js";
 
 type Onglet = "apercu" | "membres" | "seances" | "argent" | "tours" | "discipline" | "decisions" | "statuts" | "journal" | "reglages";
-const ONGLETS: { id: Onglet; cle: CleTexte }[] = [
-  { id: "apercu", cle: "td.apercu" },
-  { id: "argent", cle: "td.argent" },
-  { id: "seances", cle: "td.seances" },
-  { id: "tours", cle: "td.tours" },
-  { id: "membres", cle: "td.membres" },
-  { id: "discipline", cle: "td.discipline" },
-  { id: "decisions", cle: "td.decisions" },
-  { id: "statuts", cle: "td.statuts" },
-  { id: "journal", cle: "td.journal" },
-  { id: "reglages", cle: "td.reglages" },
+const ONGLETS: { id: Onglet; cle: CleTexte; icone: NomIcone }[] = [
+  { id: "apercu", cle: "td.apercu", icone: "accueil" },
+  { id: "argent", cle: "td.argent", icone: "cagnotte" },
+  { id: "seances", cle: "td.seances", icone: "seance" },
+  { id: "tours", cle: "td.tours", icone: "cycle" },
+  { id: "membres", cle: "td.membres", icone: "personnes" },
+  { id: "discipline", cle: "td.discipline", icone: "balance" },
+  { id: "decisions", cle: "td.decisions", icone: "vote" },
+  { id: "statuts", cle: "td.statuts", icone: "document" },
+  { id: "journal", cle: "td.journal", icone: "registre" },
+  { id: "reglages", cle: "td.reglages", icone: "reglages" },
 ];
 
 export interface ContexteGroupe {
@@ -63,9 +65,6 @@ export function Groupe({ session, groupId, onRetour }: { readonly session: Sessi
 
   return (
     <div className="pile ecran">
-      <button type="button" className="lien-retour" onClick={onRetour}>
-        ← {tx("app.accueil")}
-      </button>
       <Charge etat={etat} recharger={recharger}>
         {(g) => {
           const ctx: ContexteGroupe = { session, groupe: g, roles: g.me.roles, rafraichir: recharger };
@@ -76,6 +75,12 @@ export function Groupe({ session, groupId, onRetour }: { readonly session: Sessi
               : null;
           return (
             <>
+              <div className="barre-groupe">
+                <BoutonIcone icone="retour" libelle={tx("app.accueil")} onClick={onRetour} />
+                {estBureau(g.me.roles) ? (
+                  <BoutonIcone icone="bureau" ton="or" legende libelle={tx("app.bureau")} onClick={() => ouvrirBureau(session, g.groupId)} />
+                ) : null}
+              </div>
               <BandeauPhoto
                 photo={photoPour(g.groupId)}
                 surtitre={tx("imm.grpSur")}
@@ -111,10 +116,12 @@ export function Groupe({ session, groupId, onRetour }: { readonly session: Sessi
                     key={o.id}
                     type="button"
                     aria-current={onglet === o.id ? "page" : undefined}
-                    className={onglet === o.id ? "onglet onglet--actif" : "onglet"}
+                    className={onglet === o.id ? "onglet onglet--icone onglet--actif" : "onglet onglet--icone"}
+                    title={tx(o.cle)}
                     onClick={() => setOnglet(o.id)}
                   >
-                    {tx(o.cle)}
+                    <Icone nom={o.icone} taille={20} />
+                    <span className="onglet__libelle">{tx(o.cle)}</span>
                   </button>
                 ))}
               </nav>
@@ -148,16 +155,18 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
       {g.statutes && !g.statutes.acceptedByMe ? (
         <div className="msg msg--attente" role="status">
           <p>{tx("td.statutsAAccepter", { v: g.statutes.version })}</p>
-          <button type="button" className="bouton bouton-compact" onClick={() => allerA("statuts")}>
-            {tx("td.lireAccepter")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => allerA("statuts")} title={tx("td.lireAccepter")}>
+            <Icone nom="document" taille={18} />
+            <span className="bouton-libelle">{tx("td.lireAccepter")}</span>
           </button>
         </div>
       ) : null}
       {g.pendingCount > 0 && peut(ctx.roles, "member.admit") ? (
         <div className="msg msg--attente" role="status">
           <p>{tx("td.adhesions", { n: g.pendingCount })}</p>
-          <button type="button" className="bouton bouton-compact" onClick={() => allerA("membres")}>
-            {tx("td.membres")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone" onClick={() => allerA("membres")} title={tx("td.membres")}>
+            <Icone nom="personnes" taille={18} />
+            <span className="bouton-libelle">{tx("td.membres")}</span>
           </button>
         </div>
       ) : null}
@@ -183,8 +192,9 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
             {dyn(`se.etat.${g.nextMeeting.state}`)}
             {g.nextMeeting.location ? ` · ${g.nextMeeting.location}` : ""}
           </p>
-          <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => allerA("seances")}>
-            {tx("td.seances")}
+          <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => allerA("seances")} title={tx("td.seances")}>
+            <Icone nom="seance" taille={18} />
+            <span className="bouton-libelle">{tx("td.seances")}</span>
           </button>
         </Carte>
       ) : null}
@@ -216,8 +226,9 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
                       <Pastille ton={d.lateness === "late" ? "alerte" : d.lateness === "grace" ? "attente" : "neutre"}>{dyn(`ar.retard.${d.lateness}`)}</Pastille>
                     </div>
                     {BigInt(d.remaining) > 0n ? (
-                      <button type="button" className="bouton bouton-compact" onClick={() => setADeclarer(d)}>
-                        {tx("acc.declarer")}
+                      <button type="button" className="bouton bouton-compact bouton-avec-icone" onClick={() => setADeclarer(d)} title={tx("acc.declarer")}>
+                        <Icone nom="declarer" taille={18} />
+                        <span className="bouton-libelle">{tx("acc.declarer")}</span>
                       </button>
                     ) : null}
                   </li>

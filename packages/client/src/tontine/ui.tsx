@@ -2,6 +2,7 @@
    action protégée contre le double appui, messages d'état accessibles. */
 
 import { SymboleKombe } from "../composants/Marque.js";
+import { Icone, type NomIcone } from "../composants/Icones.js";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { estSessionExpiree, messageErreur } from "./api.js";
 import { EnFileAttente, estErreurReseau } from "./fileAttenteMoteur.js";
@@ -101,8 +102,9 @@ export function Charge<T>({ etat, recharger, children }: { readonly etat: Etat<T
       <div className="msg msg--erreur" role="alert">
         <p>{etat.expiree ? tx("app.sessionExpiree") : etat.message}</p>
         {etat.expiree ? null : (
-          <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={recharger}>
-            {tx("app.reessayer")}
+          <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={recharger} title={tx("app.reessayer")}>
+            <Icone nom="cycle" taille={18} />
+            <span className="bouton-libelle">{tx("app.reessayer")}</span>
           </button>
         )}
       </div>
@@ -181,4 +183,47 @@ export function aujourdhui(): string {
   // Date du jour à Douala (UTC+1, sans heure d'été).
   const d = new Date(Date.now() + 60 * 60 * 1000);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Action en icône : le dessin porte l'action, le libellé reste lu par les
+ * lecteurs d'écran et apparaît en infobulle (et sous l'icône si `legende`).
+ */
+export function BoutonIcone({
+  icone,
+  libelle,
+  onClick,
+  ton = "neutre",
+  legende = false,
+  taille = 20,
+  actif = false,
+  desactive = false,
+  className,
+}: {
+  readonly icone: NomIcone;
+  readonly libelle: string;
+  readonly onClick: () => void;
+  readonly ton?: "neutre" | "primaire" | "danger" | "or";
+  readonly legende?: boolean;
+  readonly taille?: number;
+  readonly actif?: boolean;
+  readonly desactive?: boolean;
+  readonly className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={`bouton-ico bouton-ico--${ton}${legende ? " bouton-ico--legende" : ""}${actif ? " is-actif" : ""}${className ? ` ${className}` : ""}`}
+      aria-label={libelle}
+      title={libelle}
+      aria-pressed={actif || undefined}
+      disabled={desactive}
+      onClick={onClick}
+    >
+      <span className="bouton-ico__pastille">
+        <Icone nom={icone} taille={taille} />
+      </span>
+      {legende ? <span className="bouton-ico__legende" aria-hidden="true">{libelle}</span> : null}
+    </button>
+  );
 }

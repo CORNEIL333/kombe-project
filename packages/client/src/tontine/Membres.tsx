@@ -5,6 +5,7 @@ import type { GroupRole } from "@kombe/domain";
 import { tontines, type InvitationView, type MemberView } from "./api.js";
 import { ROLES_NOMMABLES, peut } from "./droits.js";
 import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 
@@ -68,19 +69,21 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
                       <>
                         <button
                           type="button"
-                          className="bouton bouton-compact"
+                          className="bouton bouton-compact bouton-avec-icone"
                           disabled={action.enCours}
                           onClick={() => void action.lancer(() => tontines.admission(ctx.session, gid, m.membershipId, "admit")).then(apres)}
-                        >
-                          {tx("mb.admettre")}
+                         title={tx("mb.admettre")}>
+                          <Icone nom="coche" taille={18} />
+                          <span className="bouton-libelle">{tx("mb.admettre")}</span>
                         </button>
                         <button
                           type="button"
-                          className="bouton bouton-secondaire bouton-compact"
+                          className="bouton bouton-secondaire bouton-compact bouton-avec-icone"
                           disabled={action.enCours}
                           onClick={() => void action.lancer(() => tontines.admission(ctx.session, gid, m.membershipId, "reject")).then(apres)}
-                        >
-                          {tx("mb.refuser")}
+                         title={tx("mb.refuser")}>
+                          <Icone nom="fermer" taille={18} />
+                          <span className="bouton-libelle">{tx("mb.refuser")}</span>
                         </button>
                       </>
                     ) : null}
@@ -180,8 +183,9 @@ function Invitations({ ctx }: { readonly ctx: ContexteGroupe }) {
         <Champ id="inv-jours" libelle={tx("mb.invJours")} aide={tx("mb.invDefauts")}>
           <input id="inv-jours" inputMode="numeric" value={jours} placeholder="14" onChange={(e) => setJours(e.target.value)} />
         </Champ>
-        <button type="submit" className="bouton bouton-compact" disabled={action.enCours || !formulaireValide}>
-          {tx("mb.creerLien")}
+        <button type="submit" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" disabled={action.enCours || !formulaireValide} title={tx("mb.creerLien")}>
+          <Icone nom="inviter" taille={18} />
+          <span className="bouton-libelle">{tx("mb.creerLien")}</span>
         </button>
         {copieEchec ? <p className="aide-champ">{tx("mb.copieEchec")}</p> : null}
       </form>

@@ -200,7 +200,7 @@ body {
   .app-tontine { padding-bottom: 96px; }
   /* Téléphone : l'activité vit dans la barre du bas ; la déconnexion reste visible en haut. */
   .entete-session .bouton-notif { display: none; }
-  .nav-basse { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 6px 8px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); background: rgba(255, 255, 255, 0.92); -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px); box-shadow: 0 -1px 0 var(--c-trait), 0 -10px 30px -18px rgba(16, 60, 50, 0.3); }
+  .nav-basse { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); padding: 6px 8px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); background: rgba(255, 255, 255, 0.92); -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px); box-shadow: 0 -1px 0 var(--c-trait), 0 -10px 30px -18px rgba(16, 60, 50, 0.3); }
 }
 .nav-basse__item { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 58px; padding: 6px 2px; border: 0; border-radius: 14px; background: none; color: var(--c-texte-2); font: 600 11.5px/1.2 var(--f-ui); cursor: pointer; transition: color var(--t-std) var(--e-std), background-color var(--t-std); }
 .nav-basse__item:active { transform: scale(0.96); }
@@ -240,13 +240,9 @@ body {
 
 /* ── Déconnexion : toujours visible, toujours confirmée ──────────────── */
 @media (max-width: 899px) {
+  /* Téléphone : activité, bureau et profil vivent dans la barre du bas ; la sortie reste en haut. */
   .entete-session { display: flex; align-items: center; margin-left: auto; }
-  .bouton.bouton-icone.bouton-sortie { width: auto; min-width: 46px; padding: 0 14px 0 12px; }
-  .bouton-sortie .libelle-bouton { position: static; width: auto; height: auto; overflow: visible; clip: auto; margin-left: 6px; font-size: 13.5px; }
-}
-@media (max-width: 520px) {
-  .bouton.bouton-icone.bouton-sortie { width: 46px; padding: 0; }
-  .bouton-sortie .libelle-bouton { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); margin: 0; }
+  .entete-session .bouton-notif, .entete-session .bouton-profil, .entete-session .bouton-bureau { display: none; }
 }
 .pied-page__sortie { display: inline-flex; align-items: center; padding: 8px 0; border: 0; background: none; color: var(--c-erreur); font: 600 15px/1.2 var(--f-ui); cursor: pointer; }
 .pied-page__sortie svg { margin-right: 8px; }
@@ -261,3 +257,93 @@ body {
 @keyframes kombe-fondu { from { opacity: 0; } to { opacity: 1; } }
 @keyframes kombe-monte { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .voile-dialogue, .dialogue-sortie { animation: none; } }
+
+/* ── Boutons-icônes (actions sans longs libellés) ───────────────────── */
+.bouton-ico { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--c-foret); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.bouton-ico__pastille { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 14px; border: 1.5px solid var(--c-sable-trait); background: var(--c-blanc); box-shadow: 0 1px 2px rgba(16, 60, 50, 0.06); transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease, color 150ms ease; }
+.bouton-ico:hover:not(:disabled) .bouton-ico__pastille { background: var(--c-menthe); border-color: var(--c-actif); }
+.bouton-ico:active:not(:disabled) .bouton-ico__pastille { transform: scale(0.94); }
+.bouton-ico:focus-visible { outline: none; }
+.bouton-ico:focus-visible .bouton-ico__pastille { outline: 2px solid var(--c-or); outline-offset: 2px; }
+.bouton-ico:disabled { opacity: 0.45; cursor: not-allowed; }
+.bouton-ico.is-actif .bouton-ico__pastille { background: var(--c-menthe); border-color: var(--c-actif); color: var(--c-actif); }
+.bouton-ico--primaire .bouton-ico__pastille { background: var(--c-foret); border-color: var(--c-foret); color: var(--c-blanc); }
+.bouton-ico--primaire:hover:not(:disabled) .bouton-ico__pastille { background: var(--c-actif); border-color: var(--c-actif); color: var(--c-blanc); }
+.bouton-ico--or .bouton-ico__pastille { background: var(--c-or-pale); border-color: var(--c-or); color: #7a5410; }
+.bouton-ico--or:hover:not(:disabled) .bouton-ico__pastille { background: var(--c-or); border-color: var(--c-or); color: var(--c-encre); }
+.bouton-ico--danger { color: var(--c-erreur); }
+.bouton-ico--danger:hover:not(:disabled) .bouton-ico__pastille { background: var(--c-erreur-fond); border-color: var(--c-erreur); }
+.bouton-ico--legende { min-width: 64px; }
+.bouton-ico__legende { margin-top: 5px; font: 600 11.5px/1.15 var(--f-ui); color: var(--c-texte-2); text-align: center; max-width: 84px; }
+.entete-session .bouton-ico { margin-left: 6px; }
+.liste__actions .bouton-ico + .bouton-ico { margin-left: 6px; }
+.visuellement-cache { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── Onglets de la tontine : icônes avec légende courte ─────────────── */
+.onglet.onglet--icone { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 74px; padding: 8px 8px 7px; line-height: 1; }
+.onglet--icone .onglet__libelle { margin-top: 5px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.barre-groupe { display: flex; align-items: center; justify-content: space-between; }
+.barre-groupe .bouton-ico--legende { flex-direction: row; }
+.barre-groupe .bouton-ico--legende .bouton-ico__legende { margin: 0 0 0 8px; font-size: 13px; color: #7a5410; }
+.nav-basse__item--bureau .nav-basse__icone { color: #7a5410; }
+
+/* ── Titres d'écran avec icône ──────────────────────────────────────── */
+.ecran-titre { display: flex; align-items: flex-start; }
+.ecran-titre__icone { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; margin-right: 14px; border-radius: 16px; background: var(--c-menthe); color: var(--c-actif); }
+.ecran-titre h1 { margin: 2px 0 4px; font-size: 1.7rem; color: var(--c-foret); }
+
+/* ── Profil ─────────────────────────────────────────────────────────── */
+.profil-entete { display: flex; align-items: center; padding: 20px; border-radius: 22px; background: var(--c-blanc); border: 1px solid var(--c-sable-trait); box-shadow: 0 10px 30px -22px rgba(16, 60, 50, 0.45); }
+.profil-entete__avatar { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 72px; height: 72px; margin-right: 16px; border-radius: 50%; background: var(--c-foret); color: var(--c-blanc); font: 800 26px/1 var(--f-ui); box-shadow: 0 0 0 3px var(--c-blanc), 0 0 0 5px var(--c-or); }
+.profil-entete__texte { flex: 1 1 auto; min-width: 0; }
+.profil-entete__nom { margin: 0 0 4px; font-size: 1.5rem; line-height: 1.15; color: var(--c-foret); overflow-wrap: anywhere; }
+.profil-entete__login { display: flex; align-items: center; margin: 0; color: var(--c-texte-2); font-size: 14px; overflow-wrap: anywhere; }
+.profil-entete__login .icone-kombe { margin-right: 6px; }
+.profil-entete__form { display: flex; align-items: center; }
+.profil-entete__form input { flex: 1 1 auto; min-width: 0; margin-right: 6px; }
+.profil-chiffres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-gap: 10px; margin: 0; padding: 0; list-style: none; }
+.profil-chiffres li { display: flex; flex-direction: column; padding: 14px; border-radius: 18px; background: var(--c-sable-doux); color: var(--c-actif); }
+.profil-chiffres span { margin-top: 8px; font-size: 12.5px; color: var(--c-texte-2); }
+.profil-chiffres strong { font-size: 1.2rem; color: var(--c-foret); overflow-wrap: anywhere; }
+.profil-raccourcis { display: flex; justify-content: space-around; padding: 10px 4px; border-radius: 18px; background: var(--c-blanc); border: 1px solid var(--c-sable-trait); }
+.profil-lignes { margin: 0; padding: 0; list-style: none; }
+.profil-reglage { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--c-trait); }
+.profil-lignes .profil-reglage:last-child, .tcarte > .profil-reglage { border-bottom: 0; }
+.profil-reglage__icone { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; margin-right: 12px; border-radius: 12px; background: var(--c-menthe); color: var(--c-actif); }
+.profil-reglage__texte { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.profil-reglage--attente .profil-reglage__icone { background: var(--c-attention-fond); color: var(--c-attention); }
+.profil-sortie { display: inline-flex; align-items: center; margin-top: 14px; }
+.profil-sortie .icone-kombe { margin-right: 8px; }
+.profil-grille { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-gap: 10px; }
+.profil-grille__tuile { display: flex; flex-direction: column; align-items: center; padding: 14px 6px 12px; border-radius: 16px; border: 1px solid var(--c-sable-trait); background: var(--c-blanc); color: var(--c-foret); text-decoration: none; font: inherit; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease; }
+.profil-grille__tuile:hover { background: var(--c-menthe); border-color: var(--c-actif); }
+.profil-grille__icone { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 14px; background: var(--c-menthe); color: var(--c-actif); }
+.profil-grille__libelle { margin-top: 8px; font-size: 12.5px; font-weight: 600; text-align: center; }
+@media (max-width: 380px) { .profil-chiffres { grid-template-columns: 1fr 1fr; } }
+
+/* ── Aide ───────────────────────────────────────────────────────────── */
+.aide-gestes { display: grid; grid-template-columns: 1fr; grid-gap: 10px; margin: 0; padding: 0; list-style: none; }
+@media (min-width: 640px) { .aide-gestes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.aide-gestes li { display: flex; flex-direction: column; padding: 16px; border-radius: 18px; background: var(--c-blanc); border: 1px solid var(--c-sable-trait); }
+.aide-gestes__icone { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; margin-bottom: 10px; border-radius: 13px; background: var(--c-menthe); color: var(--c-actif); }
+.aide-faq details { border-bottom: 1px solid var(--c-trait); }
+.aide-faq summary { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; font-weight: 600; color: var(--c-foret); cursor: pointer; list-style: none; }
+.aide-faq summary::-webkit-details-marker { display: none; }
+.aide-faq summary .icone-kombe { transition: transform 220ms ease; }
+.aide-faq details[open] summary .icone-kombe { transform: rotate(180deg); }
+.aide-faq p { margin: 0 0 14px; color: var(--c-texte-2); }
+.actions-formulaire a.bouton { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.actions-formulaire a.bouton .icone-kombe { margin-right: 8px; }
+
+/* ── Validations du bureau ──────────────────────────────────────────── */
+.validations-groupe { padding: 16px; border-radius: 22px; background: var(--c-sable-doux); }
+.validations-groupe__entete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.validations-groupe__entete h2 { margin: 0; font-size: 1.25rem; color: var(--c-foret); }
+
+/* ── Boutons compacts : icône de la charte ; libellé long réduit à l'icône
+   (le texte reste lu par les lecteurs d'écran et s'affiche en infobulle). */
+.bouton.bouton-avec-icone { display: inline-flex; align-items: center; justify-content: center; }
+.bouton-avec-icone .icone-kombe { margin-right: 6px; }
+.bouton.bouton-icone-seule { width: 42px; min-width: 42px; padding: 0; }
+.bouton-icone-seule .icone-kombe { margin-right: 0; }
+.bouton-icone-seule .bouton-libelle { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

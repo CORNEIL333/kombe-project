@@ -270,10 +270,10 @@ class CycleView extends StatelessWidget {
         Row(
           children: <Widget>[
             Expanded(child: Text('Ordre des bénéficiaires', style: t.titleLarge)),
-            TextButton(
+            IconButton(
+              tooltip: 'Voir tout',
               onPressed: onSeeAll,
-              style: TextButton.styleFrom(foregroundColor: KombeColors.goldDark),
-              child: const Text('Voir tout'),
+              icon: const Icon(Icons.arrow_forward_rounded, color: KombeColors.goldDark),
             ),
           ],
         ),

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_icons.g.dart';
+import '../../core/update/kombe_update_sheet.dart';
 import '../../core/widgets/kombe_icon.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -66,7 +69,7 @@ class MainShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     return Scaffold(
-      body: SafeArea(bottom: false, child: navigationShell),
+      body: SafeArea(bottom: false, child: _VerificationMiseAJour(child: navigationShell)),
       floatingActionButton: FloatingActionButton(
         backgroundColor: KombeColors.goldDark,
         foregroundColor: Colors.white,
@@ -185,4 +188,31 @@ class _NavButton extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// Une vérification de mise à jour par ouverture de l'application (au plus
+/// toutes les 12 h, voir `kombeCheckForUpdate`).
+class _VerificationMiseAJour extends StatefulWidget {
+  const _VerificationMiseAJour({required this.child});
+  final Widget child;
+
+  @override
+  State<_VerificationMiseAJour> createState() => _VerificationMiseAJourState();
+}
+
+class _VerificationMiseAJourState extends State<_VerificationMiseAJour> {
+  static bool _faite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_faite) return;
+    _faite = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(kombeCheckForUpdate(context));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

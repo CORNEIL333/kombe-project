@@ -15,12 +15,22 @@ import { useTextes } from "./tontine/textes.js";
 import { FileAttente } from "./tontine/FileAttente.js";
 import { lireFile } from "./tontine/fileAttenteMoteur.js";
 import { BandeauPhoto } from "./composants/Scene.js";
-import { Icone } from "./composants/Icones.js";
+import { Icone, type NomIcone } from "./composants/Icones.js";
+import { Profil } from "./tontine/Profil.js";
+import { MesCotisations } from "./tontine/MesCotisations.js";
+import { Validations } from "./tontine/Validations.js";
+import { Aide } from "./tontine/Aide.js";
+import { estBureau, ouvrirBureau } from "./tontine/bureau.js";
+import { BoutonIcone } from "./tontine/ui.js";
 
 export type Route =
   | { readonly ecran: "accueil" }
   | { readonly ecran: "creer" }
   | { readonly ecran: "notifications" }
+  | { readonly ecran: "profil" }
+  | { readonly ecran: "cotisations" }
+  | { readonly ecran: "validations" }
+  | { readonly ecran: "aide" }
   | { readonly ecran: "rejoindre"; readonly code?: string }
   | { readonly ecran: "groupe"; readonly groupId: string };
 
@@ -30,6 +40,10 @@ export function lireRoute(hash: string): Route {
   if (tete === "rejoindre") return arg ? { ecran: "rejoindre", code: arg.toUpperCase() } : { ecran: "rejoindre" };
   if (tete === "creer") return { ecran: "creer" };
   if (tete === "notifications") return { ecran: "notifications" };
+  if (tete === "profil") return { ecran: "profil" };
+  if (tete === "cotisations") return { ecran: "cotisations" };
+  if (tete === "validations") return { ecran: "validations" };
+  if (tete === "aide") return { ecran: "aide" };
   if (tete === "groupe" && arg) return { ecran: "groupe", groupId: arg };
   return { ecran: "accueil" };
 }
@@ -42,6 +56,14 @@ export function ecrireRoute(r: Route): string {
       return "#/creer";
     case "notifications":
       return "#/notifications";
+    case "profil":
+      return "#/profil";
+    case "cotisations":
+      return "#/cotisations";
+    case "validations":
+      return "#/validations";
+    case "aide":
+      return "#/aide";
     case "rejoindre":
       return r.code ? `#/rejoindre/${encodeURIComponent(r.code)}` : "#/rejoindre";
     case "groupe":
@@ -106,6 +128,25 @@ export function App() {
     };
   }, [session, route]);
 
+  // Tontines où la personne siège au bureau : icône d'accès au tableau de bord.
+  const [groupesBureau, setGroupesBureau] = useState<string[]>([]);
+  useEffect(() => {
+    if (!session) return setGroupesBureau([]);
+    let actif = true;
+    acces.mesTontines(session).then(
+      (l) => actif && setGroupesBureau(l.filter((g) => g.membershipState === "active" && estBureau(g.roles)).map((g) => g.groupId)),
+      () => undefined,
+    );
+    return () => {
+      actif = false;
+    };
+  }, [session]);
+  const allerBureau = () => {
+    if (!session) return;
+    const enCours = route.ecran === "groupe" && groupesBureau.includes(route.groupId) ? route.groupId : groupesBureau[0];
+    ouvrirBureau(session, enCours);
+  };
+
   // Déconnexion en deux temps : on confirme, et l'on prévient si des
   // opérations attendent encore le réseau sur ce téléphone.
   const [quitter, setQuitter] = useState(false);
@@ -150,24 +191,16 @@ export function App() {
         )}
         {session ? (
           <div className="entete-session">
-            <button
-              type="button"
-              className="bouton bouton-secondaire bouton-compact bouton-icone bouton-notif"
-              aria-current={route.ecran === "notifications" ? "page" : undefined}
+            <BoutonIcone
+              icone="cloche"
+              libelle={nonLues > 0 ? `${tx("app.notifications")} (${nonLues})` : tx("app.notifications")}
+              actif={route.ecran === "notifications"}
+              className="bouton-notif"
               onClick={() => aller({ ecran: "notifications" })}
-            >
-              <Icone nom="cloche" />
-              <span className="libelle-bouton">{tx("app.notifications")}</span>
-              {nonLues > 0 ? (
-                <span className="compteur" aria-label={`${nonLues}`}>
-                  {nonLues}
-                </span>
-              ) : null}
-            </button>
-            <button type="button" className="bouton bouton-secondaire bouton-compact bouton-icone bouton-sortie" onClick={() => setQuitter(true)}>
-              <Icone nom="sortie" />
-              <span className="libelle-bouton">{tx("app.deconnexion")}</span>
-            </button>
+            />
+            {groupesBureau.length > 0 ? <BoutonIcone icone="bureau" ton="or" libelle={tx("app.bureau")} className="bouton-bureau" onClick={allerBureau} /> : null}
+            <BoutonIcone icone="profil" libelle={tx("nav.profil")} actif={route.ecran === "profil"} className="bouton-profil" onClick={() => aller({ ecran: "profil" })} />
+            <BoutonIcone icone="sortir" libelle={tx("app.deconnexion")} className="bouton-sortie" onClick={() => setQuitter(true)} />
           </div>
         ) : null}
         <div className="entete-actions">{session ? <BasculeLangue /> : <SelecteurLangue />}</div>
@@ -199,6 +232,20 @@ export function App() {
             <BandeauPhoto photo="generations" variante="compact" surtitre={tx("imm.rejSur")} titre={tx("imm.rejTitre")} accent={tx("imm.rejAccent")} />
             <Rejoindre session={session} {...(route.code ? { codeInitial: route.code } : {})} onFini={() => aller({ ecran: "accueil" })} />
           </div>
+        ) : route.ecran === "profil" ? (
+          <Profil
+            key="profil"
+            session={session}
+            onOuvrirGroupe={(groupId) => aller({ ecran: "groupe", groupId })}
+            onAller={(ecran) => aller({ ecran })}
+            onDeconnecter={() => setQuitter(true)}
+          />
+        ) : route.ecran === "cotisations" ? (
+          <MesCotisations key="cotisations" session={session} onOuvrirGroupe={(groupId) => aller({ ecran: "groupe", groupId })} />
+        ) : route.ecran === "validations" ? (
+          <Validations key="validations" session={session} onOuvrirGroupe={(groupId) => aller({ ecran: "groupe", groupId })} />
+        ) : route.ecran === "aide" ? (
+          <Aide key="aide" />
         ) : route.ecran === "notifications" ? (
           <Notifications key="notifications" session={session} onOuvrir={(groupId) => aller({ ecran: "groupe", groupId })} />
         ) : route.ecran === "groupe" ? (
@@ -258,19 +305,20 @@ export function App() {
           {(
             [
               ["accueil", "accueil", tx("nav.accueil")],
-              ["creer", "plus", tx("nav.creer")],
-              ["rejoindre", "inviter", tx("nav.rejoindre")],
+              ["cotisations", "declarer", tx("nav.cotisations")],
+              ...(groupesBureau.length > 0 ? ([["bureau", "bureau", tx("app.bureau")]] as const) : []),
               ["notifications", "cloche", tx("nav.activite")],
-            ] as const
+              ["profil", "profil", tx("nav.profil")],
+            ] as readonly (readonly [string, NomIcone, string])[]
           ).map(([ecran, icone, libelle]) => {
-            const actif = route.ecran === ecran || (ecran === "accueil" && route.ecran === "groupe");
+            const actif = route.ecran === ecran || (ecran === "accueil" && (route.ecran === "groupe" || route.ecran === "creer" || route.ecran === "rejoindre"));
             return (
               <button
                 key={ecran}
                 type="button"
-                className={actif ? "nav-basse__item is-actif" : "nav-basse__item"}
+                className={`nav-basse__item${actif ? " is-actif" : ""}${ecran === "bureau" ? " nav-basse__item--bureau" : ""}`}
                 aria-current={actif ? "page" : undefined}
-                onClick={() => aller({ ecran } as Route)}
+                onClick={() => (ecran === "bureau" ? allerBureau() : aller({ ecran } as Route))}
               >
                 <span className="nav-basse__icone">
                   <Icone nom={icone} taille={22} />

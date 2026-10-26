@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Seul le dossier de cache « mises_a_jour » est partagé avec l'installeur Android. -->
+<paths>
+    <cache-path name="mises_a_jour" path="mises_a_jour/" />
+</paths>

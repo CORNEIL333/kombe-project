@@ -3,6 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/widgets/kombe_icon.dart';
+
+import '../../core/design/kombe_icons.g.dart';
+
 import '../../core/design/kombe_colors.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/widgets/kombe_visuals.dart';
@@ -79,10 +83,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
                             ),
-                            TextButton(
+                            IconButton(
+                              tooltip: 'Voir tous les membres',
                               onPressed: () => context.push('/app/groups/$id/members'),
-                              style: TextButton.styleFrom(foregroundColor: KombeColors.goldDark),
-                              child: const Text('Voir tout'),
+                              icon: const KombeIcon(KombeIconData.fleche, size: 22, color: KombeColors.goldDark),
                             ),
                           ],
                         ),
@@ -136,6 +140,17 @@ class _Header extends StatelessWidget {
                   icon: const Icon(Icons.arrow_back_ios_new_rounded),
                 ),
                 const Spacer(),
+                if (g.role != GroupRole.member)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: IconButton(
+                      key: const Key('groupe-bureau'),
+                      tooltip: 'Bureau',
+                      style: IconButton.styleFrom(backgroundColor: const Color(0xFFF8ECD2), side: const BorderSide(color: KombeColors.gold)),
+                      onPressed: () => context.push('/app/groups/$groupId/bureau'),
+                      icon: const KombeIcon(KombeIconData.bureau, size: 22, color: Color(0xFF7A5410)),
+                    ),
+                  ),
                 IconButton(
                   tooltip: 'Paramètres du groupe',
                   color: Colors.white,

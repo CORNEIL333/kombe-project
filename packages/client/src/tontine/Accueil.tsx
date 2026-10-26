@@ -4,6 +4,7 @@
 
 import { acces, type Session } from "./api.js";
 import { Carte, Charge, Pastille, useDonnees } from "./ui.js";
+import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import { BandeauPhoto, photoPour, urlPhoto } from "../composants/Scene.js";
 import { Orbite } from "../composants/Orbite.js";
@@ -146,8 +147,9 @@ export function Notifications({ session, onOuvrir }: { readonly session: Session
                     </span>
                   </div>
                   {n.groupId ? (
-                    <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => onOuvrir(n.groupId as string)}>
-                      {tx("td.apercu")}
+                    <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => onOuvrir(n.groupId as string)} title={tx("td.apercu")}>
+                      <Icone nom="accueil" taille={18} />
+                      <span className="bouton-libelle">{tx("td.apercu")}</span>
                     </button>
                   ) : null}
                 </li>

@@ -122,10 +122,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: <Widget>[
                         Row(children: <Widget>[
                           const Expanded(child: _SectionTitle('Notifications récentes')),
-                          TextButton(
+                          IconButton(
+                            tooltip: 'Voir tout',
                             onPressed: () => context.go('/app/notifications'),
-                            style: TextButton.styleFrom(foregroundColor: KombeColors.goldDark),
-                            child: const Text('Voir tout'),
+                            icon: const Icon(Icons.arrow_forward_rounded, color: KombeColors.goldDark),
                           ),
                         ]),
                         for (final KombeNotification n in items)

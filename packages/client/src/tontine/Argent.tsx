@@ -9,6 +9,7 @@ import type { PaymentChannel } from "@kombe/domain";
 import { argent, tontines, type DueView, type MemberView, type MovementView } from "./api.js";
 import { peut } from "./droits.js";
 import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 import { useNomCaisse } from "./Caisses.js";
@@ -171,8 +172,9 @@ export function Argent({ ctx }: { readonly ctx: ContexteGroupe }) {
         titre={tx("ar.declarer")}
         actions={
           declarer || pour ? null : (
-            <button type="button" className="bouton bouton-compact" onClick={() => setDeclarer(true)}>
-              {tx("ar.declarer")}
+            <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setDeclarer(true)} title={tx("ar.declarer")}>
+              <Icone nom="declarer" taille={18} />
+              <span className="bouton-libelle">{tx("ar.declarer")}</span>
             </button>
           )
         }
@@ -299,8 +301,9 @@ export function AConfirmer({ ctx, onFini, meetingId }: { readonly ctx: ContexteG
                             ✓
                           </label>
                           {m.can.reject ? (
-                            <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setRejet({ id: m.movementId, motif: "" })}>
-                              {tx("ar.rejeter")}
+                            <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => setRejet({ id: m.movementId, motif: "" })} title={tx("ar.rejeter")}>
+                              <Icone nom="fermer" taille={18} />
+                              <span className="bouton-libelle">{tx("ar.rejeter")}</span>
                             </button>
                           ) : null}
                         </>
@@ -359,7 +362,7 @@ export function AConfirmer({ ctx, onFini, meetingId }: { readonly ctx: ContexteG
   );
 }
 
-function AControler({ ctx, onFini }: { readonly ctx: ContexteGroupe; readonly onFini: () => void }) {
+export function AControler({ ctx, onFini }: { readonly ctx: ContexteGroupe; readonly onFini: () => void }) {
   const { tx } = useTextes();
   const gid = ctx.groupe.groupId;
   const { etat, recharger } = useDonnees(() => argent.mouvements(ctx.session, gid, { state: "confirmed" }), [gid]);
@@ -381,7 +384,7 @@ function AControler({ ctx, onFini }: { readonly ctx: ContexteGroupe; readonly on
                   actions={
                     <button
                       type="button"
-                      className="bouton bouton-compact"
+                      className="bouton bouton-compact bouton-avec-icone bouton-icone-seule"
                       disabled={action.enCours}
                       onClick={() =>
                         void action.lancer(() => argent.controler(ctx.session, gid, m.movementId)).then(() => {
@@ -389,8 +392,9 @@ function AControler({ ctx, onFini }: { readonly ctx: ContexteGroupe; readonly on
                           onFini();
                         })
                       }
-                    >
-                      {tx("ar.controler")}
+                     title={tx("ar.controler")}>
+                      <Icone nom="confirmer" taille={18} />
+                      <span className="bouton-libelle">{tx("ar.controler")}</span>
                     </button>
                   }
                 />

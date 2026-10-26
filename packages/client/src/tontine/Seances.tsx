@@ -9,6 +9,7 @@ import { seances, tontines, type MeetingDetail, type MemberView } from "./api.js
 import { peut } from "./droits.js";
 import { AConfirmer, FormulaireDeclaration, LigneMouvement } from "./Argent.js";
 import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 
@@ -78,8 +79,9 @@ function DetailSeance({ ctx, meetingId, onChange }: { readonly ctx: ContexteGrou
             titre={tx("se.seance", { seq: s.seq, date: date(s.date) })}
             actions={
               s.state === "planned" && peut(ctx.roles, "meeting.manage") ? (
-                <button type="button" className="bouton bouton-compact" disabled={action.enCours} onClick={() => void action.lancer(() => seances.ouvrir(ctx.session, gid, meetingId)).then(apres)}>
-                  {tx("se.ouvrir")}
+                <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" disabled={action.enCours} onClick={() => void action.lancer(() => seances.ouvrir(ctx.session, gid, meetingId)).then(apres)} title={tx("se.ouvrir")}>
+                  <Icone nom="seance" taille={18} />
+                  <span className="bouton-libelle">{tx("se.ouvrir")}</span>
                 </button>
               ) : null
             }
@@ -175,8 +177,9 @@ function DetailSeance({ ctx, meetingId, onChange }: { readonly ctx: ContexteGrou
             <Carte
               titre={tx("se.pv")}
               actions={
-                <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => imprimerPv(s)}>
-                  {tx("se.imprimer")}
+                <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => imprimerPv(s)} title={tx("se.imprimer")}>
+                  <Icone nom="document" taille={18} />
+                  <span className="bouton-libelle">{tx("se.imprimer")}</span>
                 </button>
               }
             >
@@ -305,8 +308,9 @@ function PartageWhatsapp({ ctx, meetingId }: { readonly ctx: ContexteGroupe; rea
     return (
       <>
         <Retour erreur={action.erreur} />
-        <button type="button" className="bouton bouton-secondaire bouton-compact" disabled={action.enCours} onClick={() => void preparer()}>
-          {tx("se.whatsapp")}
+        <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone bouton-icone-seule" disabled={action.enCours} onClick={() => void preparer()} title={tx("se.whatsapp")}>
+          <Icone nom="partager" taille={18} />
+          <span className="bouton-libelle">{tx("se.whatsapp")}</span>
         </button>
       </>
     );

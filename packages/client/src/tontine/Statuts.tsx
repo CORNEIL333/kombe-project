@@ -3,6 +3,7 @@
 import { reglement, discipline } from "./api.js";
 import { peut } from "./droits.js";
 import { Carte, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 import { ApiError } from "./api.js";
@@ -30,8 +31,9 @@ export function Statuts({ ctx }: { readonly ctx: ContexteGroupe }) {
       titre={tx("st.titre")}
       actions={
         peut(ctx.roles, "statutes.publish") ? (
-          <button type="button" className="bouton bouton-secondaire bouton-compact" disabled={action.enCours} onClick={() => void action.lancer(() => reglement.publier(ctx.session, gid)).then(apres)}>
-            {tx("st.publier")}
+          <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone bouton-icone-seule" disabled={action.enCours} onClick={() => void action.lancer(() => reglement.publier(ctx.session, gid)).then(apres)} title={tx("st.publier")}>
+            <Icone nom="partager" taille={18} />
+            <span className="bouton-libelle">{tx("st.publier")}</span>
           </button>
         ) : null
       }
@@ -57,8 +59,9 @@ export function Statuts({ ctx }: { readonly ctx: ContexteGroupe }) {
                   {tx("st.accepter")}
                 </button>
               )}
-              <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => window.print()}>
-                {tx("se.imprimer")}
+              <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => window.print()} title={tx("se.imprimer")}>
+                <Icone nom="document" taille={18} />
+                <span className="bouton-libelle">{tx("se.imprimer")}</span>
               </button>
             </div>
           )
