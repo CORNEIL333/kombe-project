@@ -27,18 +27,20 @@ const args = new Set(process.argv.slice(2));
 const api = process.env.KOMBE_API_BASE_URL ?? "https://kombe.vercel.app/v1";
 
 function run(cmd, argv, opts = {}) {
-  const r = spawnSync(cmd, argv, { stdio: "inherit", shell: process.platform === "win32", cwd: racine, ...opts });
+  // Seul flutter (flutter.bat sous Windows) passe par le shell : gh et node
+  // reçoivent leurs arguments tels quels (titres avec espaces et parenthèses).
+  const r = spawnSync(cmd, argv, { stdio: "inherit", shell: process.platform === "win32" && cmd === "flutter", cwd: racine, ...opts });
   if (r.status !== 0) throw new Error(`${cmd} ${argv.join(" ")} → code ${r.status}`);
 }
 function gh(argv, opts = {}) {
-  return spawnSync("gh", argv, { encoding: "utf8", shell: process.platform === "win32", cwd: racine, ...opts });
+  return spawnSync("gh", argv, { encoding: "utf8", cwd: racine, ...opts });
 }
 
 const m = readFileSync(join(mobile, "pubspec.yaml"), "utf8").match(/^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$/m);
 if (!m) throw new Error("version introuvable dans pubspec.yaml");
 const [, version, build] = m;
 const tag = `mobile-v${version}-b${build}`;
-const depot = execFileSync("gh", ["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"], { encoding: "utf8", cwd: racine, shell: process.platform === "win32" }).trim();
+const depot = execFileSync("gh", ["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"], { encoding: "utf8", cwd: racine }).trim();
 console.log(`▶ KÓMBE mobile ${version} (build ${build}) → ${depot} · ${tag}`);
 
 // Commit publié : celui de HEAD, qui doit déjà être sur GitHub (le tag y pointe).
