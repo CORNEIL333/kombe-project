@@ -38,6 +38,20 @@ final class _MemoryStorage extends FlutterSecureStoragePlatform {
   Future<void> deleteAll({required Map<String, String> options}) async => store.clear();
 }
 
+/// Coffre Android en panne (clé Keystore perdue après une mise à jour,
+/// chiffrement illisible) : chaque accès lève une exception de plateforme.
+final class _BrokenStorage extends _MemoryStorage {
+  @override
+  Future<void> write({required String key, required String value, required Map<String, String> options}) async =>
+      throw Exception('KeyStoreException');
+  @override
+  Future<String?> read({required String key, required Map<String, String> options}) async =>
+      throw Exception('BadPaddingException');
+  @override
+  Future<void> delete({required String key, required Map<String, String> options}) async =>
+      throw Exception('KeyStoreException');
+}
+
 final List<http.Request> calls = <http.Request>[];
 
 KombeApiClient apiFor(Object? Function(http.Request req) route) => KombeApiClient(
@@ -77,7 +91,7 @@ void main() {
             '/v1/auth/code-verifications' => <String, dynamic>{'sessionId': 'ses_1', 'expiresAt': 4102444800000, 'identityId': '+237677123456'},
             _ => http.Response('{}', 404),
           }),
-      sessionStore: const SecureSessionStore(FlutterSecureStorage()),
+      sessionStore: SecureSessionStore(const FlutterSecureStorage()),
     );
     expect(await repo.requestLogin('6 77 12 34 56'), isA<OperationSuccess<void>>());
     final OperationResult<AuthSession> r = await repo.completeLogin(identityId: '6 77 12 34 56', code: '123456');
@@ -86,6 +100,44 @@ void main() {
     // La vérification utilise le numéro canonique rendu par le serveur.
     expect(jsonDecode(calls[1].body), <String, dynamic>{'login': '+237677123456', 'code': '123456'});
     expect(calls.every((http.Request c) => c.headers.containsKey('idempotency-key')), isTrue);
+  });
+
+  test('coffre de l’appareil en panne : la connexion aboutit quand même', () async {
+    FlutterSecureStoragePlatform.instance = _BrokenStorage();
+    final SecureSessionStore store = SecureSessionStore(const FlutterSecureStorage());
+    final KombeApiClient api = KombeApiClient(
+      baseUrl: Uri.parse('https://kombe.test/v1'),
+      sessionHeaders: () async {
+        final String? raw = await store.readOpaqueSession();
+        return raw == null ? const <String, String>{} : <String, String>{'authorization': 'Bearer ${jsonDecode(raw)['sessionId']}'};
+      },
+      client: MockClient((http.Request req) async {
+        calls.add(req);
+        final Object body = switch (req.url.path) {
+          '/v1/auth/code-requests' => <String, dynamic>{'accepted': true, 'login': 'awa@example.cm', 'channel': 'email'},
+          '/v1/auth/code-verifications' => <String, dynamic>{'sessionId': 'ses_9', 'expiresAt': 4102444800000, 'identityId': 'awa@example.cm'},
+          _ => <String, dynamic>{'identityId': 'awa@example.cm', 'login': 'awa@example.cm'},
+        };
+        return http.Response(jsonEncode(body), 200, headers: <String, String>{'content-type': 'application/json'});
+      }),
+    );
+    final TontineAuthRepository repo = TontineAuthRepository(api: api, sessionStore: store);
+    // Avant : la lecture du coffre (en-têtes) levait, aucune requête ne partait.
+    expect(await repo.requestLogin('awa@example.cm'), isA<OperationSuccess<void>>());
+    expect(await repo.completeLogin(identityId: 'awa@example.cm', code: '123456'), isA<OperationSuccess<AuthSession>>());
+    await api.get('/me');
+    expect(calls.map((http.Request c) => c.url.path), <String>['/v1/auth/code-requests', '/v1/auth/code-verifications', '/v1/me']);
+    // La session vit en mémoire : les appels suivants sont authentifiés.
+    expect(calls.last.headers['authorization'], 'Bearer ses_9');
+  });
+
+  test('canaux : SMS fermé → connexion par e-mail seulement', () async {
+    final TontineAuthRepository repo = TontineAuthRepository(
+      api: apiFor((_) => <String, dynamic>{'sms': false, 'whatsapp': false, 'email': true, 'neonAuthUrl': null}),
+      sessionStore: SecureSessionStore(const FlutterSecureStorage()),
+    );
+    expect(await repo.phoneLoginOpen(), isFalse);
+    expect(calls.last.url.path, '/v1/auth/channels');
   });
 
   test('mes tontines → résumés ; fonction la plus haute ; montants entiers', () async {

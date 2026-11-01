@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -5,7 +7,7 @@ import '../design/kombe_colors.dart';
 import '../design/kombe_theme.dart';
 import 'kombe_update.dart';
 
-/// Vérifie au plus toutes les 12 heures et propose la mise à jour si une
+/// Vérifie au plus toutes les 6 heures et propose la mise à jour si une
 /// version plus récente est publiée. Silencieux s'il n'y a rien (ou pas de
 /// réseau) ; une mise à jour obligatoire ne se ferme pas.
 Future<void> kombeCheckForUpdate(BuildContext context, {KombeUpdater? updater, bool manual = false}) async {
@@ -20,7 +22,7 @@ Future<void> kombeCheckForUpdate(BuildContext context, {KombeUpdater? updater, b
   final SharedPreferencesAsync prefs = SharedPreferencesAsync();
   if (!manual) {
     final int last = await prefs.getInt(cle) ?? 0;
-    if (DateTime.now().millisecondsSinceEpoch - last < const Duration(hours: 12).inMilliseconds) return;
+    if (DateTime.now().millisecondsSinceEpoch - last < const Duration(hours: 6).inMilliseconds) return;
   }
   final UpdateCheck r = await u.check();
   await prefs.setInt(cle, DateTime.now().millisecondsSinceEpoch);
@@ -156,4 +158,32 @@ class _KombeUpdateSheetState extends State<KombeUpdateSheet> {
       ),
     );
   }
+}
+
+/// Vérification automatique, une fois par lancement. Posée sur l'accueil, la
+/// connexion ET l'app connectée : une personne qui ne parvient plus à se
+/// connecter doit quand même recevoir la version qui corrige le problème.
+class KombeUpdateCheck extends StatefulWidget {
+  const KombeUpdateCheck({super.key, required this.child});
+  final Widget child;
+
+  @override
+  State<KombeUpdateCheck> createState() => _KombeUpdateCheckState();
+}
+
+class _KombeUpdateCheckState extends State<KombeUpdateCheck> {
+  static bool _faite = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_faite) return;
+    _faite = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(kombeCheckForUpdate(context));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

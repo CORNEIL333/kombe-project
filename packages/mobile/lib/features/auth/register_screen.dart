@@ -7,7 +7,7 @@ import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/server_action_guard.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../l10n/app_localizations.dart';
-import 'auth_validators.dart';
+import 'login_id_field.dart';
 import 'verify_code_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -76,16 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 28),
             Form(
               key: _formKey,
-              child: TextFormField(
-                controller: _email,
-                keyboardType: TextInputType.text,
-                autofillHints: const <String>[AutofillHints.telephoneNumber, AutofillHints.email],
-                decoration: InputDecoration(labelText: l10n.email),
-                validator: (String? value) =>
-                    AuthValidators.isLogin(value ?? '')
-                    ? null
-                    : l10n.invalidEmail,
-              ),
+              child: LoginIdField(controller: _email),
             ),
             const SizedBox(height: 20),
             FilledButton(

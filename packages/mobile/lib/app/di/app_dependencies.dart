@@ -59,7 +59,7 @@ final class AppDependencies {
         SharedPreferencesAsync(),
       ),
       biometricService: BiometricService(LocalAuthentication()),
-      secureSessionStore: const SecureSessionStore(secureStorage),
+      secureSessionStore: SecureSessionStore(secureStorage),
     );
   }
 
@@ -72,7 +72,7 @@ final class AppDependencies {
   /// `AppDependencies.unconfigured`), jamais devinée.
   factory AppDependencies.configured({required Uri apiBaseUrl}) {
     const FlutterSecureStorage secureStorage = FlutterSecureStorage();
-    const SecureSessionStore secureSessionStore = SecureSessionStore(
+    final SecureSessionStore secureSessionStore = SecureSessionStore(
       secureStorage,
     );
     // Le 401 purge la session et renvoie à la connexion (câblage tardif :

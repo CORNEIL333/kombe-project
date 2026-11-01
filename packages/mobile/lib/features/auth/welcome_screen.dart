@@ -9,6 +9,7 @@ import '../../core/widgets/kombe_icon.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/kombe_motion.dart';
 import '../../core/widgets/kombe_visuals.dart';
+import '../../core/update/kombe_update_sheet.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Accueil / onboarding, conforme à la charte : interface claire, photo
@@ -23,7 +24,8 @@ class WelcomeScreen extends StatelessWidget {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final TextTheme t = Theme.of(context).textTheme;
     final double photoH = (MediaQuery.sizeOf(context).height * .42).clamp(240, 380);
-    return Scaffold(
+    return KombeUpdateCheck(
+      child: Scaffold(
       backgroundColor: KombeColors.cream,
       body: Column(
         children: <Widget>[
@@ -147,6 +149,7 @@ class WelcomeScreen extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

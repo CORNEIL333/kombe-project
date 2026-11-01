@@ -6,7 +6,6 @@ import '../../core/state/operation_result.dart';
 import '../../core/widgets/server_action_guard.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../l10n/app_localizations.dart';
-import 'auth_validators.dart';
 
 /// Les TROIS finalités (ADR-0024) partagent le même mécanisme code+hash :
 /// un seul écran de saisie de code, paramétré par la finalité — jamais trois
@@ -43,6 +42,11 @@ class VerifyCodeScreen extends StatefulWidget {
 class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   final TextEditingController _code = TextEditingController();
   bool _submitting = false;
+  String? _error;
+
+  /// Chiffres seuls : un code collé depuis l'e-mail arrive souvent avec des
+  /// espaces (« 123 456 ») ou un retour à la ligne.
+  String get _digits => _code.text.replaceAll(RegExp(r'\D'), '');
 
   @override
   void dispose() {
@@ -51,21 +55,30 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   }
 
   Future<void> _verify() async {
-    if (!AuthValidators.isChallengeCode(_code.text)) return;
-    setState(() => _submitting = true);
+    if (_submitting) return;
+    final String code = _digits;
+    if (code.length != 6) {
+      // Auparavant : retour silencieux, le bouton semblait ne rien faire.
+      setState(() => _error = AppLocalizations.of(context).invalidCodeSix);
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
     final AuthRepository repo = context.read<AuthRepository>();
     final OperationResult<Object?> result = switch (widget.purpose) {
       VerifyCodePurpose.registration => await repo.verifyRegistration(
         identityId: widget.identityId,
-        code: _code.text,
+        code: code,
       ),
       VerifyCodePurpose.login => await repo.completeLogin(
         identityId: widget.identityId,
-        code: _code.text,
+        code: code,
       ),
       VerifyCodePurpose.recovery => await repo.completeRecovery(
         identityId: widget.identityId,
-        code: _code.text,
+        code: code,
       ),
     };
     if (!mounted) return;
@@ -127,7 +140,13 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
               controller: _code,
               keyboardType: TextInputType.number,
               autofillHints: const <String>[AutofillHints.oneTimeCode],
-              decoration: InputDecoration(labelText: l10n.code),
+              decoration: InputDecoration(labelText: l10n.code, errorText: _error),
+              onChanged: (_) {
+                if (_error != null) setState(() => _error = null);
+                // Six chiffres saisis ou collés : vérification immédiate.
+                if (_digits.length == 6) _verify();
+              },
+              onSubmitted: (_) => _verify(),
             ),
             const SizedBox(height: 20),
             FilledButton(

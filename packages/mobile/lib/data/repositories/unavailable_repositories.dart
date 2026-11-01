@@ -26,6 +26,9 @@ final class UnavailableAuthRepository implements AuthRepository {
   const UnavailableAuthRepository();
 
   @override
+  Future<bool> phoneLoginOpen() async => true;
+
+  @override
   Stream<Resource<AuthSession?>> watchSession() =>
       Stream<Resource<AuthSession?>>.value(
         const ResourceUnavailable<AuthSession?>(),

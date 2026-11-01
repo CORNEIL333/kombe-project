@@ -118,6 +118,9 @@ final class FakeWorld {
 
 final class FakeAuthRepository implements AuthRepository {
   FakeAuthRepository();
+
+  @override
+  Future<bool> phoneLoginOpen() async => true;
   final StreamController<Resource<AuthSession?>> _ctrl = StreamController<Resource<AuthSession?>>.broadcast();
   AuthSession? _session;
 
@@ -591,6 +594,6 @@ AppDependencies fakeDependencies() {
     draftRepository: ContributionDraftDatabase(),
     preferencesRepository: PreferencesRepositoryImpl(SharedPreferencesAsync()),
     biometricService: BiometricService(LocalAuthentication()),
-    secureSessionStore: const SecureSessionStore(FlutterSecureStorage()),
+    secureSessionStore: SecureSessionStore(const FlutterSecureStorage()),
   );
 }

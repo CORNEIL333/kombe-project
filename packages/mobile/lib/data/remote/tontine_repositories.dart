@@ -47,19 +47,26 @@ DateTime _date(Object? v) {
   return DateTime.tryParse(s)?.toUtc() ?? DateTime.now().toUtc();
 }
 
+/// Toute panne hors serveur (coffre de l'appareil, format inattendu) devient
+/// un échec lisible : une exception qui s'échappait laissait l'écran figé
+/// (bouton en attente, aucune requête envoyée).
+Object _clientError(Object e) => e is ApiFailure || e is ClientFailure
+    ? e
+    : const ApiFailure(statusCode: 0, code: 'CLIENT_ERROR', message: 'Une erreur est survenue sur cet appareil. Réessayez.');
+
 Future<Resource<T>> _read<T>(Future<T> Function() run) async {
   try {
     return ResourceReady<T>(await run());
-  } on ApiFailure catch (e) {
-    return ResourceFailure<T>(e);
+  } catch (e) {
+    return ResourceFailure<T>(_clientError(e));
   }
 }
 
 Future<OperationResult<T>> _write<T>(Future<T> Function() run) async {
   try {
     return OperationSuccess<T>(await run());
-  } on ApiFailure catch (e) {
-    return OperationFailure<T>(e);
+  } catch (e) {
+    return OperationFailure<T>(_clientError(e));
   }
 }
 
@@ -139,6 +146,16 @@ final class TontineAuthRepository implements AuthRepository {
         final StreamSubscription<Resource<AuthSession?>> sub = _updates.stream.listen(controller.add);
         controller.onCancel = sub.cancel;
       });
+
+  @override
+  Future<bool> phoneLoginOpen() async {
+    try {
+      final ApiResponse res = await _api.get('/auth/channels');
+      return res.body['sms'] == true || res.body['whatsapp'] == true;
+    } catch (_) {
+      return true; // inconnu : ne rien interdire, le serveur tranchera.
+    }
+  }
 
   Future<OperationResult<void>> _request(String login) => _write<void>(() async {
         final ApiResponse res = await _api.postOnce('/auth/code-requests', <String, dynamic>{'login': login.trim()});

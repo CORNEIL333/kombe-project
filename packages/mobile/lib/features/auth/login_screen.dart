@@ -8,8 +8,9 @@ import '../../core/widgets/kombe_orbit_band.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/server_action_guard.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../core/update/kombe_update_sheet.dart';
 import '../../l10n/app_localizations.dart';
-import 'auth_validators.dart';
+import 'login_id_field.dart';
 import 'verify_code_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -58,7 +59,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    return Scaffold(
+    return KombeUpdateCheck(
+      child: Scaffold(
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -88,19 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: KombeColors.slate),
                       ),
                       const SizedBox(height: 28),
-                      TextFormField(
-                        controller: _email,
-                        keyboardType: TextInputType.text,
-                        autofillHints: const <String>[AutofillHints.telephoneNumber, AutofillHints.email],
-                        decoration: InputDecoration(
-                          labelText: l10n.email,
-                          prefixIcon: const Icon(Icons.phone_android_rounded),
-                        ),
-                        validator: (String? value) =>
-                            AuthValidators.isLogin(value ?? '')
-                            ? null
-                            : l10n.invalidEmail,
-                      ),
+                      LoginIdField(controller: _email, showIcon: true),
                       const SizedBox(height: 20),
                       FilledButton(
                         onPressed: _submitting ? null : _submit,
@@ -162,6 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

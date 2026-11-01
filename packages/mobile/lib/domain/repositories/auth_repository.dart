@@ -10,6 +10,11 @@ import '../entities/auth.dart';
 abstract interface class AuthRepository {
   Stream<Resource<AuthSession?>> watchSession();
 
+  /// Connexion par numéro de téléphone ouverte sur ce déploiement (SMS ou
+  /// WhatsApp). Faux : seul l'e-mail fonctionne et l'écran le dit d'emblée,
+  /// au lieu de laisser saisir un numéro voué à l'échec.
+  Future<bool> phoneLoginOpen();
+
   /// 1/2 inscription — compte créé en attente, code envoyé (202 uniforme,
   /// anti-énumération côté serveur).
   Future<OperationResult<void>> requestRegistration(String identityId);
