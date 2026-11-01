@@ -4,7 +4,6 @@
    Ouvrir une notification ne décide rien : on arrive là où l'action se fait,
    et le serveur re-vérifie les droits. */
 
-import type { NotificationView } from "./api.js";
 import type { CleTexte } from "./textes.js";
 import type { NomIcone } from "../composants/Icones.js";
 
@@ -45,8 +44,25 @@ const CATALOGUE: Readonly<Record<string, { readonly cle: CleTexte; readonly icon
   "swap-applied": { cle: "nt.swapApplied", icone: "cycle" },
 };
 
-export function entreeNotification(n: Pick<NotificationView, "topic">): { readonly cle: CleTexte; readonly icone: NomIcone } {
-  return CATALOGUE[n.topic ?? ""] ?? { cle: "nt.autre", icone: "cloche" };
+/** Repli par catégorie serveur (serveur antérieur sans `topic`). */
+const PAR_CATEGORIE: Readonly<Record<string, CleTexte>> = {
+  due_reminder: "notif.due_reminder",
+  meeting_reminder: "notif.meeting_reminder",
+  validation_waiting: "notif.validation_waiting",
+  payout_recorded: "notif.payout_recorded",
+  fine_issued: "notif.fine_issued",
+  aid_decided: "notif.aid_decided",
+  order_change: "notif.order_change",
+  membership: "notif.membership",
+  minutes_ready: "notif.minutes_ready",
+  decision: "notif.decision",
+};
+
+export function entreeNotification(n: { readonly topic?: string | null; readonly kind?: string }): { readonly cle: CleTexte; readonly icone: NomIcone } {
+  const exacte = CATALOGUE[n.topic ?? ""];
+  if (exacte) return exacte;
+  const categorie = PAR_CATEGORIE[n.kind ?? ""];
+  return categorie ? { cle: categorie, icone: "cloche" } : { cle: "nt.autre", icone: "cloche" };
 }
 
 /** Onglet du groupe où se fait l'action (les ids d'onglets de `Groupe.tsx`). */
@@ -79,7 +95,7 @@ const ONGLET: Readonly<Record<string, string>> = {
   "swap-applied": "tours",
 };
 
-export function destinationNotification(n: Pick<NotificationView, "topic" | "groupId">): DestinationNotification | null {
+export function destinationNotification(n: { readonly topic?: string | null; readonly groupId: string | null }): DestinationNotification | null {
   if (n.topic === "declared" || n.topic === "toControl") return { ecran: "validations" };
   if (!n.groupId) return null;
   return { ecran: "groupe", groupId: n.groupId, onglet: ONGLET[n.topic ?? ""] ?? "apercu" };

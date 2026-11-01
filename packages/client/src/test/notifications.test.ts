@@ -22,6 +22,10 @@ describe("notifications : libellé exact et destination contrôlée", () => {
     expect(destinationNotification({ topic: "inconnu", groupId: null })).toBeNull();
   });
 
+  it("serveur sans `topic` : repli sur la catégorie, jamais vide", () => {
+    expect(entreeNotification({ kind: "meeting_reminder" }).cle).toBe("notif.meeting_reminder");
+  });
+
   it("chaque libellé existe en français et en anglais", () => {
     for (const topic of ["declared", "toControl", "rejected", "due", "payout", "decision", "fine", "aid", "meetingSoon", "statutes", "join", "swap-ready"]) {
       const cle = entreeNotification({ topic }).cle;
