@@ -1,3 +1,4 @@
+import '../../core/api/api_failure.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../../domain/entities/auth.dart';
@@ -123,10 +124,8 @@ final class UnavailableGroupRepository implements GroupRepository {
       const OperationBlocked<void>(_reason);
 
   @override
-  Future<OperationResult<void>> inviteMember({
-    required String groupId,
-    required String phoneE164,
-  }) async => const OperationBlocked<void>(_reason);
+  Future<OperationResult<GroupInvitation>> createInvitation(String groupId) async =>
+      const OperationBlocked<GroupInvitation>(_reason);
 
   @override
   Future<OperationResult<String>> createGroup(TontineCreation draft) async =>
@@ -174,9 +173,12 @@ final class UnavailableContributionRepository
       const ResourceUnavailable<Contribution>();
 
   @override
-  Future<OperationResult<Contribution>> submitDraft(
-    ContributionDraft draft,
-  ) async => const OperationBlocked<Contribution>(_reason);
+  Future<Resource<List<OpenDue>>> openDues(String groupId) async =>
+      const ResourceUnavailable<List<OpenDue>>();
+
+  @override
+  Future<DeclarationReceipt> sendDeclaration(ContributionDraft draft) async =>
+      DeclarationReceipt(lines: draft.plan, error: const ApiFailure(statusCode: 0, code: 'UNCONFIGURED', message: _reason));
 }
 
 final class UnavailableGovernanceRepository implements GovernanceRepository {

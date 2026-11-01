@@ -181,33 +181,104 @@ void main() {
     expect(jsonDecode(calls.last.body), <String, dynamic>{'displayName': 'Awa'});
   });
 
-  test('brouillon : montant réparti sur les échéances (cagnotte d’abord), référence Mobile Money', () async {
-    final TontineContributionRepository repo = TontineContributionRepository(
-      api: apiFor((http.Request r) {
-        if (r.url.path == '/v1/me/dues') {
-          return <dynamic>[
-            <String, dynamic>{'fundId': 'f_sol', 'fundKind': 'solidarity', 'roundSeq': 1, 'remaining': '1000', 'date': '2026-10-18'},
-            <String, dynamic>{'fundId': 'f_rot', 'fundKind': 'rotation', 'roundSeq': 1, 'remaining': '5000', 'date': '2026-10-18'},
-            <String, dynamic>{'fundId': 'f_rot', 'fundKind': 'rotation', 'roundSeq': 2, 'remaining': '5000', 'date': '2026-10-25'},
-          ];
-        }
-        final Map<String, dynamic> b = jsonDecode(r.body) as Map<String, dynamic>;
-        return <String, dynamic>{'movementId': 'mv_${b['fundId']}', 'fundId': b['fundId'], 'amount': b['amount'], 'state': 'declared', 'channel': b['channel'], 'declaredAt': '2026-10-13T10:00:00Z'};
-      }),
-    );
-    final OperationResult<Contribution> r = await repo.submitDraft(ContributionDraft(
-      localId: 'l1',
-      groupId: 'grp_1',
-      amountXaf: 6000,
-      channel: PaymentChannel.orangeMoney,
-      updatedAtUtc: DateTime.utc(2026, 10, 13),
-      note: 'MP261013.1234.A56789',
-    ));
-    expect(r, isA<OperationSuccess<Contribution>>());
-    final List<Map<String, dynamic>> posted =
-        calls.where((http.Request c) => c.method == 'POST').map((http.Request c) => jsonDecode(c.body) as Map<String, dynamic>).toList();
-    expect(posted.map((Map<String, dynamic> p) => '${p['fundId']}:${p['amount']}'), <String>['f_rot:5000', 'f_sol:1000']);
-    expect(posted.every((Map<String, dynamic> p) => p['channel'] == 'orange_money' && p['reference'] == 'MP261013.1234.A56789'), isTrue);
+  group('déclaration', () {
+    const List<Map<String, dynamic>> dues = <Map<String, dynamic>>[
+      <String, dynamic>{'fundId': 'f_sol', 'fundKind': 'solidarity', 'fundName': 'Secours', 'roundSeq': 1, 'remaining': '1000', 'lateness': 'late'},
+      <String, dynamic>{'fundId': 'f_rot', 'fundKind': 'rotation', 'fundName': 'Cagnotte', 'roundSeq': 1, 'remaining': '5000', 'lateness': 'late'},
+      <String, dynamic>{'fundId': 'f_rot', 'fundKind': 'rotation', 'fundName': 'Cagnotte', 'roundSeq': 2, 'remaining': '5000', 'lateness': 'upcoming'},
+    ];
+
+    Future<List<OpenDue>> loadDues(TontineContributionRepository repo) async =>
+        ((await repo.openDues('grp_1')) as ResourceReady<List<OpenDue>>).data;
+
+    ContributionDraft draftWith(List<DeclarationLine> plan, {PaymentChannel channel = PaymentChannel.orangeMoney}) => ContributionDraft(
+          localId: 'l1',
+          groupId: 'grp_1',
+          amountXaf: 6000,
+          channel: channel,
+          updatedAtUtc: DateTime.utc(2026, 10, 13),
+          reference: 'MP261013.1234.A56789',
+          plan: plan,
+        );
+
+    test('répartition : plus ancien tour, cagnotte d’abord ; référence distincte', () async {
+      final TontineContributionRepository repo = TontineContributionRepository(
+        api: apiFor((http.Request r) {
+          if (r.url.path == '/v1/me/dues') return dues;
+          final Map<String, dynamic> b = jsonDecode(r.body) as Map<String, dynamic>;
+          return <String, dynamic>{'movementId': 'mv_${b['fundId']}_${b['roundSeq']}'};
+        }),
+      );
+      final List<DeclarationLine> plan = planDeclaration(await loadDues(repo), 6000);
+      expect(plan.map((DeclarationLine l) => '${l.fundId}:${l.roundSeq}:${l.amountXaf}'), <String>['f_rot:1:5000', 'f_sol:1:1000']);
+      final DeclarationReceipt r = await repo.sendDeclaration(draftWith(plan));
+      expect(r.complete, isTrue);
+      final List<Map<String, dynamic>> posted =
+          calls.where((http.Request c) => c.method == 'POST').map((http.Request c) => jsonDecode(c.body) as Map<String, dynamic>).toList();
+      expect(posted.every((Map<String, dynamic> p) => p['reference'] == 'MP261013.1234.A56789' && !p.containsKey('justification')), isTrue);
+    });
+
+    test('excédent : refusé avant tout envoi (jamais déclaré en silence)', () async {
+      final TontineContributionRepository repo = TontineContributionRepository(api: apiFor((_) => dues));
+      expect(() => planDeclaration(<OpenDue>[], 1), throwsA(isA<AmountExceedsDue>()));
+      expect(
+        () async => planDeclaration(await loadDues(repo), 11001),
+        throwsA(isA<AmountExceedsDue>().having((AmountExceedsDue e) => e.maxXaf, 'max', 11000)),
+      );
+    });
+
+    test('coupure après une ligne : partiel honnête, reprise sans doublon (mêmes clés)', () async {
+      int posts = 0;
+      final Map<String, String> byKey = <String, String>{};
+      final List<String> keys = <String>[];
+      final KombeApiClient api = KombeApiClient(
+        baseUrl: Uri.parse('https://kombe.test/v1'),
+        client: MockClient((http.Request req) async {
+          if (req.url.path == '/v1/me/dues') return http.Response(jsonEncode(dues), 200);
+          final String key = req.headers['idempotency-key']!;
+          keys.add(key);
+          posts++;
+          // 2e ligne du premier passage : la réponse se perd (réseau).
+          if (posts == 2) throw http.ClientException('connexion perdue');
+          // Le serveur rejoue la réponse mémorisée pour une clé déjà vue.
+          final String id = byKey.putIfAbsent(key, () => 'mv_${byKey.length + 1}');
+          return http.Response(jsonEncode(<String, dynamic>{'movementId': id}), 201);
+        }),
+      );
+      final TontineContributionRepository repo = TontineContributionRepository(api: api);
+      final List<DeclarationLine> plan = planDeclaration(await loadDues(repo), 6000);
+
+      final DeclarationReceipt first = await repo.sendDeclaration(draftWith(plan));
+      expect(first.complete, isFalse);
+      expect(first.recordedCount, 1);
+      expect(first.outcomeUnknown, isTrue);
+
+      final DeclarationReceipt resumed = await repo.sendDeclaration(draftWith(first.lines));
+      expect(resumed.complete, isTrue);
+      // La ligne déjà enregistrée n'est pas renvoyée ; la ligne incertaine
+      // est renvoyée avec LA MÊME clé.
+      expect(keys.length, 3);
+      expect(keys[2], keys[1]);
+      expect(byKey.length, 2);
+    });
+
+    test('sans référence : le motif part comme justification', () async {
+      final TontineContributionRepository repo = TontineContributionRepository(
+        api: apiFor((http.Request r) => <String, dynamic>{'movementId': 'mv_1'}),
+      );
+      await repo.sendDeclaration(ContributionDraft(
+        localId: 'l2',
+        groupId: 'grp_1',
+        amountXaf: 1000,
+        channel: PaymentChannel.mtnMomo,
+        updatedAtUtc: DateTime.utc(2026, 10, 13),
+        noReferenceReason: 'SMS non reçu',
+        plan: const <DeclarationLine>[DeclarationLine(fundId: 'f_sol', fundName: 'Secours', roundSeq: 1, amountXaf: 1000)],
+      ));
+      final Map<String, dynamic> body = jsonDecode(calls.single.body) as Map<String, dynamic>;
+      expect(body['justification'], 'SMS non reçu');
+      expect(body.containsKey('reference'), isFalse);
+    });
   });
 
   test('validation : le trésorier confirme une déclaration qu’il peut confirmer', () async {

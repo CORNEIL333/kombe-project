@@ -11,10 +11,9 @@ abstract interface class GroupRepository {
   Future<Resource<CycleDetails>> getCycle(String groupId);
   Future<Resource<List<String>>> getRules(String groupId);
   Future<OperationResult<void>> joinGroup(String invitationCode);
-  Future<OperationResult<void>> inviteMember({
-    required String groupId,
-    required String phoneE164,
-  });
+  /// Crée une invitation à usage unique (14 jours) et la rend : le bureau
+  /// la partage lui-même (WhatsApp, SMS) — KÓMBE n'envoie rien en son nom.
+  Future<OperationResult<GroupInvitation>> createInvitation(String groupId);
 
   /// Crée une tontine via l'API réelle `POST /v1/tontines` : le bureau
   /// fournit les vrais paramètres (nom, cotisation par part, rythme, date

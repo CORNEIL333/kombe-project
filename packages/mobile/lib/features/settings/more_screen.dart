@@ -40,12 +40,6 @@ class MoreScreen extends StatelessWidget {
                   title: 'Votes',
                   onTap: () => context.push('/app/votes'),
                 ),
-                const Divider(),
-                KombeListRow(
-                  icon: Icons.gavel_outlined,
-                  title: 'Litiges',
-                  onTap: () => context.push('/app/disputes'),
-                ),
               ],
             ),
           ),

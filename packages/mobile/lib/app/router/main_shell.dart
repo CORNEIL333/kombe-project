@@ -46,18 +46,6 @@ class MainShell extends StatelessWidget {
                   context.go('/app/groups');
                 },
               ),
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: KombeColors.mint,
-                  foregroundColor: KombeColors.forest,
-                  child: KombeIcon(KombeIconData.balance, size: 22),
-                ),
-                title: const Text('Ouvrir un litige'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  context.push('/app/disputes/new');
-                },
-              ),
             ],
           ),
         ),

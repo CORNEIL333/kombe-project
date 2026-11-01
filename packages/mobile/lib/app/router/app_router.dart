@@ -8,11 +8,8 @@ import '../../features/auth/register_screen.dart';
 import '../../features/auth/verify_code_screen.dart';
 import '../../features/auth/welcome_screen.dart';
 import '../../features/contributions/contribution_detail_screen.dart';
-import '../../features/contributions/contribution_evidence_screen.dart';
 import '../../features/contributions/contribution_history_screen.dart';
-import '../../features/contributions/contribution_review_screen.dart';
 import '../../features/contributions/contribution_start_screen.dart';
-import '../../features/disputes/dispute_screens.dart';
 import '../../features/documents/document_screens.dart';
 import '../../features/governance/vote_screens.dart';
 import '../../features/groups/beneficiaries_screen.dart';
@@ -194,20 +191,6 @@ final class AppRouter {
           ),
         ),
         GoRoute(
-          path: '/app/groups/:groupId/contributions/:draftId/evidence',
-          builder: (_, state) => ContributionEvidenceScreen(
-            groupId: state.pathParameters['groupId']!,
-            draftId: state.pathParameters['draftId']!,
-          ),
-        ),
-        GoRoute(
-          path: '/app/groups/:groupId/contributions/:draftId/review',
-          builder: (_, state) => ContributionReviewScreen(
-            groupId: state.pathParameters['groupId']!,
-            draftId: state.pathParameters['draftId']!,
-          ),
-        ),
-        GoRoute(
           path: '/app/contributions',
           builder: (_, __) => const ContributionHistoryScreen(),
         ),
@@ -232,20 +215,6 @@ final class AppRouter {
           path: '/app/votes/:voteId',
           builder: (_, state) =>
               VoteDetailScreen(voteId: state.pathParameters['voteId']!),
-        ),
-        GoRoute(
-          path: '/app/disputes',
-          builder: (_, __) => const DisputesScreen(),
-        ),
-        GoRoute(
-          path: '/app/disputes/new',
-          builder: (_, __) => const CreateDisputeScreen(),
-        ),
-        GoRoute(
-          path: '/app/disputes/:disputeId',
-          builder: (_, state) => DisputeDetailScreen(
-            disputeId: state.pathParameters['disputeId']!,
-          ),
         ),
         GoRoute(
           path: '/app/profile',

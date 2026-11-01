@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 
 import '../../core/api/api_failure.dart';
 import '../../core/security/secure_session_store.dart';
@@ -346,7 +349,7 @@ final class TontineGroupRepository implements GroupRepository {
   Future<Resource<GroupMember>> getMember(String groupId, String identityId) => _read(() async {
         final Map<String, dynamic> m = _items(await _api.get('${_t(groupId)}/members')).firstWhere(
               (Map<String, dynamic> x) => x['membershipId'] == identityId,
-              orElse: () => throw const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE'),
+              orElse: () => throw const ApiFailure(statusCode: 404, code: 'NOT_FOUND'),
             );
         return _member(m);
       });
@@ -407,12 +410,16 @@ final class TontineGroupRepository implements GroupRepository {
         });
       });
 
-  /// Le bureau crée un lien d'invitation (partagé ensuite par WhatsApp) ; le
-  /// numéro saisi n'est pas transmis : la personne rejoint avec le code.
   @override
-  Future<OperationResult<void>> inviteMember({required String groupId, required String phoneE164}) =>
-      _write<void>(() async {
-        await _api.postOnce('${_t(groupId)}/invitations', <String, dynamic>{'maxUses': 1, 'days': 14});
+  Future<OperationResult<GroupInvitation>> createInvitation(String groupId) => _write<GroupInvitation>(() async {
+        final Map<String, dynamic> b =
+            (await _api.postOnce('${_t(groupId)}/invitations', <String, dynamic>{'maxUses': 1, 'days': 14})).body;
+        return GroupInvitation(
+          code: '${b['code']}',
+          url: '${b['url']}',
+          shareText: '${b['whatsappText'] ?? b['url']}',
+          expiresAtUtc: _date(b['expiresAt']),
+        );
       });
 
   @override
@@ -536,54 +543,68 @@ final class TontineContributionRepository implements ContributionRepository {
     return switch (all) {
       ResourceReady<List<Contribution>>(:final List<Contribution> data) =>
         data.where((Contribution c) => c.id == contributionId).map((Contribution c) => ResourceReady<Contribution>(c)).firstOrNull ??
-            ResourceFailure<Contribution>(const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE')),
+            ResourceFailure<Contribution>(const ApiFailure(statusCode: 404, code: 'NOT_FOUND')),
       ResourceFailure<List<Contribution>>(:final Object error) => ResourceFailure<Contribution>(error),
       _ => const ResourceUnavailable<Contribution>(),
     };
   }
 
-  /// Le brouillon porte un montant pour un groupe : il est réparti sur les
-  /// échéances ouvertes du plus ancien tour (cagnotte d'abord, puis secours,
-  /// fonctionnement…), une déclaration par caisse — comme on paie en séance.
-  /// La note sert de référence de transaction (exigée pour le Mobile Money).
   @override
-  Future<OperationResult<Contribution>> submitDraft(ContributionDraft draft) => _write<Contribution>(() async {
-        final List<Map<String, dynamic>> dues = _items(await _api.get('/me/dues?groupId=${Uri.encodeQueryComponent(draft.groupId)}'))
-            .where((Map<String, dynamic> d) => _xaf(d['remaining']) > 0)
-            .toList()
-          ..sort((Map<String, dynamic> a, Map<String, dynamic> b) {
-            final int byRound = (a['roundSeq'] as num).compareTo(b['roundSeq'] as num);
-            if (byRound != 0) return byRound;
-            return (a['fundKind'] == 'rotation' ? 0 : 1).compareTo(b['fundKind'] == 'rotation' ? 0 : 1);
-          });
-        if (dues.isEmpty) {
-          throw const ApiFailure(statusCode: 409, code: 'STATE_CONFLICT', message: 'Rien à régler pour ce groupe pour le moment');
-        }
-        int left = draft.amountXaf;
-        final String? reference = (draft.note ?? '').trim().isEmpty ? null : draft.note!.trim();
-        Contribution? first;
-        for (final Map<String, dynamic> d in dues) {
-          if (left <= 0) break;
-          final int part = left < _xaf(d['remaining']) ? left : _xaf(d['remaining']);
-          final Map<String, dynamic> mv = (await _api.postOnce('/tontines/${Uri.encodeComponent(draft.groupId)}/movements', <String, dynamic>{
-            'fundId': d['fundId'],
-            'kind': 'contribution',
-            'amount': '$part',
-            'roundSeq': d['roundSeq'],
-            'channel': channelOf(draft.channel),
-            if (reference != null) 'reference': reference.length > 64 ? reference.substring(0, 64) : reference,
-          }))
-              .body;
-          first ??= _contribution(draft.groupId, mv);
-          left -= part;
-        }
-        if (left > 0) {
-          // Déclarations faites pour ce qui était dû ; l'excédent n'est pas déclaré.
-          return first!;
-        }
-        return first!;
-      });
+  Future<Resource<List<OpenDue>>> openDues(String groupId) => _read(() async => _items(
+          await _api.get('/me/dues?groupId=${Uri.encodeQueryComponent(groupId)}'))
+      .map((Map<String, dynamic> d) => OpenDue(
+            fundId: '${d['fundId']}',
+            fundName: '${d['fundName'] ?? ''}',
+            fundKind: '${d['fundKind'] ?? ''}',
+            roundSeq: (d['roundSeq'] as num).toInt(),
+            remainingXaf: _xaf(d['remaining']),
+            late: d['lateness'] == 'late',
+          ))
+      .where((OpenDue d) => d.remainingXaf > 0)
+      .toList());
+
+  /// Une déclaration = une écriture par caisse et par tour (plan figé). Chaque
+  /// ligne porte une clé d'idempotence DÉRIVÉE du brouillon et de la ligne :
+  /// une reprise (réponse perdue, coupure entre deux lignes) rejoue les lignes
+  /// déjà faites et n'écrit que le reste.
+  @override
+  Future<DeclarationReceipt> sendDeclaration(ContributionDraft draft) async {
+    final List<DeclarationLine> lines = List<DeclarationLine>.of(draft.plan);
+    final String? reference = (draft.reference ?? '').trim().isEmpty ? null : draft.reference!.trim();
+    final String? reason = (draft.noReferenceReason ?? '').trim().isEmpty ? null : draft.noReferenceReason!.trim();
+    for (int i = 0; i < lines.length; i++) {
+      final DeclarationLine l = lines[i];
+      if (l.recorded) continue;
+      final Map<String, dynamic> body = <String, dynamic>{
+        'fundId': l.fundId,
+        'kind': 'contribution',
+        'amount': '${l.amountXaf}',
+        'roundSeq': l.roundSeq,
+        'channel': channelOf(draft.channel),
+        if (draft.channel != PaymentChannel.cash && reference != null) 'reference': reference,
+        if (draft.channel != PaymentChannel.cash && reference == null && reason != null) 'justification': reason,
+      };
+      try {
+        final ApiResponse res = await _api.postWithKey(
+          '/tontines/${Uri.encodeComponent(draft.groupId)}/movements',
+          body,
+          declarationKey(draft.localId, i, body),
+        );
+        lines[i] = l.recordedAs('${res.body['movementId']}');
+      } catch (e) {
+        // Pas de réponse (réseau, délai) ou passerelle expirée : l'effet a pu
+        // avoir lieu. Ce n'est pas un échec certain.
+        final bool unknown = e is ApiFailure && (e.statusCode == 0 || e.statusCode == 504);
+        return DeclarationReceipt(lines: lines, error: _clientError(e), outcomeUnknown: unknown);
+      }
+    }
+    return DeclarationReceipt(lines: lines);
+  }
 }
+
+/// Clé stable d'une ligne de déclaration (8–120 caractères côté serveur).
+String declarationKey(String localId, int index, Map<String, dynamic> body) =>
+    'decl-${sha256.convert(utf8.encode('$localId|$index|${jsonEncode(body)}'))}';
 
 // ── Validation (trésorier, commissaire aux comptes) ──────────────────────
 
@@ -592,7 +613,7 @@ final class TontineGovernanceRepository implements GovernanceRepository {
   final KombeApiClient _api;
   final Map<String, ({String groupId, bool control})> _known = <String, ({String groupId, bool control})>{};
 
-  ValidationItem _item(String groupId, Map<String, dynamic> m) => ValidationItem(
+  ValidationItem _item(String groupId, String groupName, bool control, Map<String, dynamic> m) => ValidationItem(
         contributionId: '${m['movementId']}',
         groupId: groupId,
         memberIdentityId: '${m['membershipId'] ?? ''}',
@@ -601,38 +622,50 @@ final class TontineGovernanceRepository implements GovernanceRepository {
         declaredAtUtc: _date(m['declaredAt']),
         version: 1,
         evidenceName: m['reference'] as String?,
+        control: control,
+        groupName: groupName,
+        fundName: '${m['fundName'] ?? ''}',
+        channel: m['channel'] as String?,
       );
 
   @override
   Future<Resource<List<ValidationItem>>> listPendingValidations() => _read(() async {
-        final List<ValidationItem> out = <ValidationItem>[];
+        // Une requête par groupe et par étape, EN PARALLÈLE ; le serveur dit
+        // pour chaque ligne si je peux agir (`can`) — jamais sur ma propre
+        // déclaration.
+        final List<Future<List<ValidationItem>>> jobs = <Future<List<ValidationItem>>>[];
         for (final Map<String, dynamic> g in _items(await _api.get('/me/tontines'))) {
           if (g['membershipState'] != 'active') continue;
           final Set<String> roles = ((g['roles'] as List<dynamic>?) ?? const <dynamic>[]).map((dynamic r) => '$r').toSet();
           final bool confirms = roles.intersection(<String>{'treasurer', 'treasurer_deputy', 'animator', 'vice_president'}).isNotEmpty;
           final bool controls = roles.contains('auditor');
-          if (!confirms && !controls) continue;
           final String gid = '${g['groupId']}';
+          final String name = '${g['name'] ?? ''}';
           for (final (String state, bool control) in <(String, bool)>[if (confirms) ('declared', false), if (controls) ('confirmed', true)]) {
-            for (final Map<String, dynamic> m in _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/movements?state=$state'))) {
-              final Map<String, dynamic> can = (m['can'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
-              if (can[control ? 'control' : 'confirm'] != true) continue;
-              _known['${m['movementId']}'] = (groupId: gid, control: control);
-              out.add(_item(gid, m));
-            }
+            jobs.add(() async {
+              final List<ValidationItem> items = <ValidationItem>[];
+              for (final Map<String, dynamic> m in _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/movements?state=$state'))) {
+                final Map<String, dynamic> can = (m['can'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
+                if (can[control ? 'control' : 'confirm'] != true) continue;
+                _known['${m['movementId']}'] = (groupId: gid, control: control);
+                items.add(_item(gid, name, control, m));
+              }
+              return items;
+            }());
           }
         }
+        final List<ValidationItem> out = (await Future.wait(jobs)).expand((List<ValidationItem> l) => l).toList()
+          ..sort((ValidationItem a, ValidationItem b) => a.declaredAtUtc.compareTo(b.declaredAtUtc));
         return out;
       });
 
   @override
   Future<Resource<ValidationItem>> getValidation(String contributionId) async {
-    if (!_known.containsKey(contributionId)) await listPendingValidations();
     final Resource<List<ValidationItem>> all = await listPendingValidations();
     return switch (all) {
       ResourceReady<List<ValidationItem>>(:final List<ValidationItem> data) =>
         data.where((ValidationItem v) => v.contributionId == contributionId).map((ValidationItem v) => ResourceReady<ValidationItem>(v)).firstOrNull ??
-            ResourceFailure<ValidationItem>(const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE')),
+            ResourceFailure<ValidationItem>(const ApiFailure(statusCode: 404, code: 'NOT_FOUND')),
       ResourceFailure<List<ValidationItem>>(:final Object error) => ResourceFailure<ValidationItem>(error),
       _ => const ResourceUnavailable<ValidationItem>(),
     };
@@ -647,7 +680,7 @@ final class TontineGovernanceRepository implements GovernanceRepository {
   }) async {
     if (!_known.containsKey(contributionId)) await listPendingValidations();
     final ({String groupId, bool control})? k = _known[contributionId];
-    if (k == null) return OperationFailure<void>(const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE'));
+    if (k == null) return OperationFailure<void>(const ApiFailure(statusCode: 404, code: 'NOT_FOUND'));
     final String base = '/tontines/${Uri.encodeComponent(k.groupId)}/movements';
     return _write<void>(() async {
       switch (decision) {
@@ -658,14 +691,12 @@ final class TontineGovernanceRepository implements GovernanceRepository {
             await _api.postOnce('$base/confirmations', <String, dynamic>{'movementIds': <String>[contributionId]});
           }
         case ValidationDecision.reject:
+          // Le motif est transmis au membre : jamais inventé à sa place.
           final String motif = (reason ?? '').trim();
-          await _api.postOnce('$base/${Uri.encodeComponent(contributionId)}/rejection', <String, dynamic>{
-            'reason': motif.isNotEmpty
-                ? motif
-                : 'Paiement non retrouvé par la trésorerie (rejet depuis l’application mobile)',
-          });
-        case ValidationDecision.requestInformation:
-          throw const ApiFailure(statusCode: 422, code: 'VALIDATION', message: 'Demandez la précision en séance ou par WhatsApp, puis confirmez ou rejetez.');
+          if (motif.isEmpty) {
+            throw const ApiFailure(statusCode: 422, code: 'VALIDATION', message: 'Indiquez le motif du rejet : il est transmis au membre.');
+          }
+          await _api.postOnce('$base/${Uri.encodeComponent(contributionId)}/rejection', <String, dynamic>{'reason': motif});
       }
       _known.remove(contributionId);
     });
@@ -736,14 +767,14 @@ final class TontineGovernanceRepository implements GovernanceRepository {
             ballots: (d['ballots'] as num?)?.toInt() ?? 0,
           );
         }
-        throw const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE');
+        throw const ApiFailure(statusCode: 404, code: 'NOT_FOUND');
       });
 
   @override
   Future<OperationResult<void>> castVote({required String voteId, required VoteChoice choice}) async {
     if (!_voteGroup.containsKey(voteId)) await listVotes();
     final String? gid = _voteGroup[voteId];
-    if (gid == null) return OperationFailure<void>(const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE'));
+    if (gid == null) return OperationFailure<void>(const ApiFailure(statusCode: 404, code: 'NOT_FOUND'));
     final String c = switch (choice) {
       VoteChoice.forChoice => 'yes',
       VoteChoice.against => 'no',

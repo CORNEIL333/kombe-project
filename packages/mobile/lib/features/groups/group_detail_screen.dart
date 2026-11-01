@@ -14,6 +14,7 @@ import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
 import 'groups_view_models.dart';
+import 'invite_member_screen.dart';
 
 /// Détail du groupe (maquette « Aperçu, membres, cycle et règles »).
 class GroupDetailScreen extends StatefulWidget {
@@ -63,7 +64,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       children: <Widget>[
                         Row(
                           children: <Widget>[
-                            _Action(icon: Icons.person_add_alt_1_outlined, label: 'Inviter', onTap: () => context.push('/app/groups/$id/invite')),
+                            _Action(icon: Icons.person_add_alt_1_outlined, label: 'Inviter', onTap: () => showInviteSheet(context, id)),
                             _Action(icon: Icons.calendar_month_outlined, label: 'Cycle', onTap: () => context.push('/app/groups/$id/cycle')),
                             _Action(icon: Icons.settings_outlined, label: 'Paramètres', onTap: () => context.push('/app/groups/$id/settings')),
                             _Action(icon: Icons.rule_rounded, label: 'Règles', onTap: () => context.push('/app/groups/$id/rules')),

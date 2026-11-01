@@ -282,9 +282,14 @@ final class FakeGroupRepository implements GroupRepository {
   }
 
   @override
-  Future<OperationResult<void>> inviteMember({required String groupId, required String phoneE164}) async {
+  Future<OperationResult<GroupInvitation>> createInvitation(String groupId) async {
     await _lag();
-    return const OperationSuccess<void>(null);
+    return OperationSuccess<GroupInvitation>(GroupInvitation(
+      code: 'K7P2MNQX',
+      url: 'https://kombe.vercel.app/#/rejoindre/K7P2MNQX',
+      shareText: 'Rejoignez notre tontine sur KÓMBE : https://kombe.vercel.app/#/rejoindre/K7P2MNQX',
+      expiresAtUtc: DateTime.utc(2026, 11, 15),
+    ));
   }
 
   @override
@@ -396,27 +401,36 @@ final class FakeContributionRepository implements ContributionRepository {
     return const ResourceUnavailable<Contribution>();
   }
 
+  @override
+  Future<Resource<List<OpenDue>>> openDues(String groupId) async => const ResourceReady<List<OpenDue>>(<OpenDue>[
+        OpenDue(fundId: 'f_rot', fundName: 'Cagnotte', fundKind: 'rotation', roundSeq: 3, remainingXaf: 25000, late: false),
+        OpenDue(fundId: 'f_sec', fundName: 'Secours', fundKind: 'solidarity', roundSeq: 3, remainingXaf: 1000, late: false),
+      ]);
+
   /// La déclaration rejoint l'historique « en attente » — jamais « validée ».
   @override
-  Future<OperationResult<Contribution>> submitDraft(ContributionDraft draft) async {
+  Future<DeclarationReceipt> sendDeclaration(ContributionDraft draft) async {
     await _lag(700);
-    final Contribution c = Contribution(
-      id: w.nextId('cot'),
-      groupId: draft.groupId,
-      obligationId: w.nextId('obl'),
-      amountXaf: draft.amountXaf,
-      status: ContributionStatus.submitted,
-      channel: draft.channel,
-      declaredAtUtc: DateTime.now().toUtc(),
-      note: draft.note,
-      evidenceName: draft.evidencePath?.split(RegExp(r'[\\/]')).last,
-    );
-    w.history.add(c);
-    w.notifications.insert(
-      0,
-      KombeNotification(id: w.nextId('n'), kind: NotificationKind.contribution, title: 'Votre déclaration a été envoyée', body: 'En attente de validation', createdAtUtc: DateTime.now().toUtc(), read: false),
-    );
-    return OperationSuccess<Contribution>(c);
+    final List<DeclarationLine> lines = <DeclarationLine>[];
+    for (final DeclarationLine l in draft.plan) {
+      if (l.recorded) {
+        lines.add(l);
+        continue;
+      }
+      final String id = w.nextId('cot');
+      w.history.add(Contribution(
+        id: id,
+        groupId: draft.groupId,
+        obligationId: w.nextId('obl'),
+        amountXaf: l.amountXaf,
+        status: ContributionStatus.submitted,
+        channel: draft.channel,
+        declaredAtUtc: DateTime.now().toUtc(),
+        note: draft.reference,
+      ));
+      lines.add(l.recordedAs(id));
+    }
+    return DeclarationReceipt(lines: lines);
   }
 }
 
