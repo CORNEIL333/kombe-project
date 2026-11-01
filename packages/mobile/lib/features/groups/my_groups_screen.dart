@@ -1,19 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/active_group_controller.dart';
+import '../../core/design/kombe_colors.dart';
 import '../../core/state/resource.dart';
+import '../../core/widgets/kombe_visuals.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
 
-/// Vue consolidée « mes tontines » (C21 §2.5) : TOUTES les tontines dont le
-/// membre fait partie (MULTI-ADHÉSION), servie par l'API réelle
-/// `GET /me/tontines`. Contrairement à la maquette [GroupSummary] (champs
-/// financiers non exposés au pilote), cette vue n'affiche que l'identité de
-/// la tontine, l'état d'adhésion, et la hiérarchie de supervision (une
-/// grande tontine qui en chapeaute plusieurs). L'identité listée est
-/// toujours celle de la session, résolue serveur (§14).
+/// Toutes mes adhésions (`GET /me/tontines`), actives ou en attente.
+/// Toucher un groupe actif en fait le groupe de l'accueil.
 class MyGroupsScreen extends StatefulWidget {
   const MyGroupsScreen({super.key});
 
@@ -22,8 +22,7 @@ class MyGroupsScreen extends StatefulWidget {
 }
 
 class _MyGroupsScreenState extends State<MyGroupsScreen> {
-  Resource<List<MemberGroup>> _state =
-      const ResourceLoading<List<MemberGroup>>();
+  Resource<List<MemberGroup>> _state = const ResourceLoading<List<MemberGroup>>();
 
   @override
   void initState() {
@@ -32,96 +31,72 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _state = const ResourceLoading<List<MemberGroup>>());
-    final Resource<List<MemberGroup>> next =
-        await context.read<GroupRepository>().listMyGroups();
-    if (!mounted) return;
-    setState(() => _state = next);
+    final Resource<List<MemberGroup>> next = await context.read<GroupRepository>().listMyGroups();
+    if (mounted) setState(() => _state = next);
+  }
+
+  ActiveGroupController? get _active {
+    try {
+      return context.read<ActiveGroupController>();
+    } on ProviderNotFoundException {
+      return null;
+    }
+  }
+
+  void _open(MemberGroup g) {
+    if (g.membershipState != 'active') {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Votre adhésion attend l’accord du bureau. Le groupe s’ouvrira dès qu’elle sera acceptée.'),
+      ));
+      return;
+    }
+    final ActiveGroupController? active = _active;
+    if (active != null) unawaited(active.select(g.groupId));
+    context.go('/app');
   }
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme t = Theme.of(context).textTheme;
+    final String? activeId = _active?.active?.id;
     return Scaffold(
       appBar: AppBar(title: const Text('Mes tontines')),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: ResourceView<List<MemberGroup>>(
-            resource: _state,
-            emptyWhen: (List<MemberGroup> g) => g.isEmpty,
-            emptyTitle: 'Aucune tontine',
-            emptyBody:
-                "Vous n'êtes membre d'aucune tontine pour le moment. Créez-en "
-                'une, rejoignez-en une par code, ou demandez un parrainage.',
-            builder: (BuildContext context, List<MemberGroup> groups) =>
-                ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-              itemCount: groups.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (BuildContext context, int i) {
-                final MemberGroup g = groups[i];
-                return Card(
-                  child: ListTile(
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    title: Text(g.displayName,
-                        style:
-                            t.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            children: <Widget>[
-                              _Chip(label: membershipStateLabel(g.membershipState)),
-                            ],
-                          ),
-                          if (g.parentGroupId != null &&
-                              g.parentGroupId!.isNotEmpty) ...<Widget>[
-                            const SizedBox(height: 6),
-                            Row(
-                              children: <Widget>[
-                                const Icon(Icons.account_tree_outlined,
-                                    size: 15),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    'Supervisée par ${g.parentGroupId}',
-                                    style: t.bodySmall,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    trailing: const Icon(
-                        Icons.chevron_right_rounded),
-                    onTap: () => context.push('/app/groups/${g.groupId}'),
-                  ),
-                );
-              },
-            ),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: ResourceView<List<MemberGroup>>(
+          resource: _state,
+          onRetry: _load,
+          emptyWhen: (List<MemberGroup> g) => g.isEmpty,
+          emptyTitle: 'Aucune tontine',
+          emptyBody: 'Rejoignez une tontine avec le code reçu du bureau, ou créez la vôtre.',
+          builder: (BuildContext context, List<MemberGroup> groups) => ListView(
+            padding: const EdgeInsets.only(bottom: 24),
+            children: <Widget>[
+              for (final MemberGroup g in groups)
+                ListTile(
+                  minVerticalPadding: 12,
+                  leading: KombeAvatar(name: g.displayName, size: 44),
+                  title: Text(g.displayName),
+                  subtitle: Text(membershipStateLabel(g.membershipState)),
+                  trailing: g.groupId == activeId
+                      ? const Icon(Icons.check_rounded, color: KombeColors.forest, semanticLabel: 'groupe actif')
+                      : const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _open(g),
+                ),
+              const Divider(height: 32),
+              ListTile(
+                leading: const Icon(Icons.group_add_outlined, color: KombeColors.forest),
+                title: const Text('Rejoindre avec un code'),
+                onTap: () => context.push('/app/groups/join'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_circle_outline_rounded, color: KombeColors.forest),
+                title: const Text('Créer une tontine'),
+                onTap: () => context.push('/app/groups/create'),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Chip(
-        label: Text(label, style: Theme.of(context).textTheme.bodySmall),
-        visualDensity: VisualDensity.compact,
-        padding: EdgeInsets.zero,
-      );
 }

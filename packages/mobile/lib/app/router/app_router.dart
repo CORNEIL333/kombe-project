@@ -1,27 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/auth/biometric_setup_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/recovery_request_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/auth/verify_code_screen.dart';
 import '../../features/auth/welcome_screen.dart';
 import '../../features/contributions/contribution_detail_screen.dart';
-import '../../features/contributions/contribution_evidence_screen.dart';
 import '../../features/contributions/contribution_history_screen.dart';
-import '../../features/contributions/contribution_review_screen.dart';
 import '../../features/contributions/contribution_start_screen.dart';
-import '../../features/disputes/dispute_screens.dart';
 import '../../features/documents/document_screens.dart';
 import '../../features/governance/vote_screens.dart';
 import '../../features/groups/beneficiaries_screen.dart';
 import '../../features/groups/create_group_screen.dart';
 import '../../features/groups/cycle_screen.dart';
-import '../../features/groups/discover_groups_screen.dart';
 import '../../features/groups/group_detail_screen.dart';
 import '../../features/groups/group_settings_screen.dart';
-import '../../features/groups/groups_screen.dart';
 import '../../features/groups/invite_member_screen.dart';
 import '../../features/groups/join_group_screen.dart';
 import '../../features/groups/member_detail_screen.dart';
@@ -38,7 +32,6 @@ import '../../features/profile/edit_profile_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/settings/about_screen.dart';
 import '../../features/settings/language_screen.dart';
-import '../../features/settings/more_screen.dart';
 import '../../features/settings/notification_preferences_screen.dart';
 import '../../features/settings/privacy_screen.dart';
 import '../../features/settings/security_screen.dart';
@@ -73,10 +66,6 @@ final class AppRouter {
           builder: (_, __) => const RecoveryRequestScreen(),
         ),
         GoRoute(
-          path: '/biometric-setup',
-          builder: (_, __) => const BiometricSetupScreen(),
-        ),
-        GoRoute(
           path: '/server-required',
           builder: (_, __) => const ServerRequiredScreen(),
         ),
@@ -95,8 +84,8 @@ final class AppRouter {
             StatefulShellBranch(
               routes: <RouteBase>[
                 GoRoute(
-                  path: '/app/groups',
-                  builder: (_, __) => const GroupsScreen(),
+                  path: '/app/contributions',
+                  builder: (_, __) => const ContributionHistoryScreen(),
                 ),
               ],
             ),
@@ -111,12 +100,16 @@ final class AppRouter {
             StatefulShellBranch(
               routes: <RouteBase>[
                 GoRoute(
-                  path: '/app/more',
-                  builder: (_, __) => const MoreScreen(),
+                  path: '/app/bureau',
+                  builder: (_, __) => const ActiveBureauScreen(),
                 ),
               ],
             ),
           ],
+        ),
+        GoRoute(
+          path: '/app/groups',
+          builder: (_, __) => const MyGroupsScreen(),
         ),
         GoRoute(
           path: '/app/groups/join',
@@ -126,14 +119,7 @@ final class AppRouter {
           path: '/app/groups/create',
           builder: (_, __) => const CreateGroupScreen(),
         ),
-        GoRoute(
-          path: '/app/groups/discover',
-          builder: (_, __) => const DiscoverGroupsScreen(),
-        ),
-        GoRoute(
-          path: '/app/groups/mine',
-          builder: (_, __) => const MyGroupsScreen(),
-        ),
+        GoRoute(path: '/app/groups/mine', redirect: (_, __) => '/app/groups'),
         GoRoute(
           path: '/app/groups/:groupId',
           builder: (_, state) =>
@@ -194,24 +180,6 @@ final class AppRouter {
           ),
         ),
         GoRoute(
-          path: '/app/groups/:groupId/contributions/:draftId/evidence',
-          builder: (_, state) => ContributionEvidenceScreen(
-            groupId: state.pathParameters['groupId']!,
-            draftId: state.pathParameters['draftId']!,
-          ),
-        ),
-        GoRoute(
-          path: '/app/groups/:groupId/contributions/:draftId/review',
-          builder: (_, state) => ContributionReviewScreen(
-            groupId: state.pathParameters['groupId']!,
-            draftId: state.pathParameters['draftId']!,
-          ),
-        ),
-        GoRoute(
-          path: '/app/contributions',
-          builder: (_, __) => const ContributionHistoryScreen(),
-        ),
-        GoRoute(
           path: '/app/contributions/:contributionId',
           builder: (_, state) => ContributionDetailScreen(
             contributionId: state.pathParameters['contributionId']!,
@@ -232,20 +200,6 @@ final class AppRouter {
           path: '/app/votes/:voteId',
           builder: (_, state) =>
               VoteDetailScreen(voteId: state.pathParameters['voteId']!),
-        ),
-        GoRoute(
-          path: '/app/disputes',
-          builder: (_, __) => const DisputesScreen(),
-        ),
-        GoRoute(
-          path: '/app/disputes/new',
-          builder: (_, __) => const CreateDisputeScreen(),
-        ),
-        GoRoute(
-          path: '/app/disputes/:disputeId',
-          builder: (_, state) => DisputeDetailScreen(
-            disputeId: state.pathParameters['disputeId']!,
-          ),
         ),
         GoRoute(
           path: '/app/profile',
@@ -276,10 +230,6 @@ final class AppRouter {
           builder: (_, __) => const DocumentsScreen(),
         ),
         GoRoute(
-          path: '/app/exports',
-          builder: (_, __) => const ExportCenterScreen(),
-        ),
-        GoRoute(
           path: '/app/help',
           builder: (_, __) => const HelpCenterScreen(),
         ),
@@ -307,8 +257,7 @@ final class AppRouter {
         path == '/login' ||
         path == '/register' ||
         path == '/verify-code' ||
-        path == '/recovery-request' ||
-        path == '/biometric-setup';
+        path == '/recovery-request';
 
     if (sessionController.kind == SessionStateKind.signedIn && authPath) {
       return '/app';

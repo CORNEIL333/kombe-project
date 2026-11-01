@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 
 import '../../core/api/api_failure.dart';
+import '../../core/formatters/xaf.dart';
 import '../../core/security/secure_session_store.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
@@ -23,6 +27,7 @@ import '../../domain/repositories/governance_repository.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
+import '../../features/notifications/notification_catalog.dart';
 import 'kombe_api_client.dart';
 import 'stored_session_codec.dart';
 
@@ -315,7 +320,7 @@ final class TontineGroupRepository implements GroupRepository {
         final List<dynamic> funds = (d['funds'] as List<dynamic>?) ?? const <dynamic>[];
         final String caisses = funds
             .cast<Map<String, dynamic>>()
-            .map((Map<String, dynamic> f) => '${f['name']} : ${f['confirmedBalance']} FCFA confirmés')
+            .map((Map<String, dynamic> f) => '${f['name']} ${Xaf.format(_xaf(f['confirmedBalance']))}')
             .join(' · ');
         return GroupDetails(
           summary: _summary(<String, dynamic>{
@@ -326,7 +331,7 @@ final class TontineGroupRepository implements GroupRepository {
             'contributionPerShare': settings['contributionPerShare'],
             'nextMeetingDate': next?['date'] ?? round?['date'],
           }, cycleIndex: (round?['seq'] as num?)?.toInt() ?? 0, cycleTotal: (d['memberCount'] as num?)?.toInt() ?? 0),
-          description: 'Argent tenu par le trésorier, pas par KÓMBE. $caisses',
+          description: caisses.isEmpty ? '' : 'Soldes confirmés : $caisses. L’argent est tenu par la trésorerie du groupe, pas par KÓMBE.',
           currentRulesVersion: (statutes?['version'] as num?)?.toInt() ?? 0,
         );
       });
@@ -346,7 +351,7 @@ final class TontineGroupRepository implements GroupRepository {
   Future<Resource<GroupMember>> getMember(String groupId, String identityId) => _read(() async {
         final Map<String, dynamic> m = _items(await _api.get('${_t(groupId)}/members')).firstWhere(
               (Map<String, dynamic> x) => x['membershipId'] == identityId,
-              orElse: () => throw const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE'),
+              orElse: () => throw const ApiFailure(statusCode: 404, code: 'NOT_FOUND'),
             );
         return _member(m);
       });
@@ -407,12 +412,16 @@ final class TontineGroupRepository implements GroupRepository {
         });
       });
 
-  /// Le bureau crée un lien d'invitation (partagé ensuite par WhatsApp) ; le
-  /// numéro saisi n'est pas transmis : la personne rejoint avec le code.
   @override
-  Future<OperationResult<void>> inviteMember({required String groupId, required String phoneE164}) =>
-      _write<void>(() async {
-        await _api.postOnce('${_t(groupId)}/invitations', <String, dynamic>{'maxUses': 1, 'days': 14});
+  Future<OperationResult<GroupInvitation>> createInvitation(String groupId) => _write<GroupInvitation>(() async {
+        final Map<String, dynamic> b =
+            (await _api.postOnce('${_t(groupId)}/invitations', <String, dynamic>{'maxUses': 1, 'days': 14})).body;
+        return GroupInvitation(
+          code: '${b['code']}',
+          url: '${b['url']}',
+          shareText: '${b['whatsappText'] ?? b['url']}',
+          expiresAtUtc: _date(b['expiresAt']),
+        );
       });
 
   @override
@@ -536,54 +545,68 @@ final class TontineContributionRepository implements ContributionRepository {
     return switch (all) {
       ResourceReady<List<Contribution>>(:final List<Contribution> data) =>
         data.where((Contribution c) => c.id == contributionId).map((Contribution c) => ResourceReady<Contribution>(c)).firstOrNull ??
-            ResourceFailure<Contribution>(const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE')),
+            ResourceFailure<Contribution>(const ApiFailure(statusCode: 404, code: 'NOT_FOUND')),
       ResourceFailure<List<Contribution>>(:final Object error) => ResourceFailure<Contribution>(error),
       _ => const ResourceUnavailable<Contribution>(),
     };
   }
 
-  /// Le brouillon porte un montant pour un groupe : il est réparti sur les
-  /// échéances ouvertes du plus ancien tour (cagnotte d'abord, puis secours,
-  /// fonctionnement…), une déclaration par caisse — comme on paie en séance.
-  /// La note sert de référence de transaction (exigée pour le Mobile Money).
   @override
-  Future<OperationResult<Contribution>> submitDraft(ContributionDraft draft) => _write<Contribution>(() async {
-        final List<Map<String, dynamic>> dues = _items(await _api.get('/me/dues?groupId=${Uri.encodeQueryComponent(draft.groupId)}'))
-            .where((Map<String, dynamic> d) => _xaf(d['remaining']) > 0)
-            .toList()
-          ..sort((Map<String, dynamic> a, Map<String, dynamic> b) {
-            final int byRound = (a['roundSeq'] as num).compareTo(b['roundSeq'] as num);
-            if (byRound != 0) return byRound;
-            return (a['fundKind'] == 'rotation' ? 0 : 1).compareTo(b['fundKind'] == 'rotation' ? 0 : 1);
-          });
-        if (dues.isEmpty) {
-          throw const ApiFailure(statusCode: 409, code: 'STATE_CONFLICT', message: 'Rien à régler pour ce groupe pour le moment');
-        }
-        int left = draft.amountXaf;
-        final String? reference = (draft.note ?? '').trim().isEmpty ? null : draft.note!.trim();
-        Contribution? first;
-        for (final Map<String, dynamic> d in dues) {
-          if (left <= 0) break;
-          final int part = left < _xaf(d['remaining']) ? left : _xaf(d['remaining']);
-          final Map<String, dynamic> mv = (await _api.postOnce('/tontines/${Uri.encodeComponent(draft.groupId)}/movements', <String, dynamic>{
-            'fundId': d['fundId'],
-            'kind': 'contribution',
-            'amount': '$part',
-            'roundSeq': d['roundSeq'],
-            'channel': channelOf(draft.channel),
-            if (reference != null) 'reference': reference.length > 64 ? reference.substring(0, 64) : reference,
-          }))
-              .body;
-          first ??= _contribution(draft.groupId, mv);
-          left -= part;
-        }
-        if (left > 0) {
-          // Déclarations faites pour ce qui était dû ; l'excédent n'est pas déclaré.
-          return first!;
-        }
-        return first!;
-      });
+  Future<Resource<List<OpenDue>>> openDues(String groupId) => _read(() async => _items(
+          await _api.get('/me/dues?groupId=${Uri.encodeQueryComponent(groupId)}'))
+      .map((Map<String, dynamic> d) => OpenDue(
+            fundId: '${d['fundId']}',
+            fundName: '${d['fundName'] ?? ''}',
+            fundKind: '${d['fundKind'] ?? ''}',
+            roundSeq: (d['roundSeq'] as num).toInt(),
+            remainingXaf: _xaf(d['remaining']),
+            late: d['lateness'] == 'late',
+          ))
+      .where((OpenDue d) => d.remainingXaf > 0)
+      .toList());
+
+  /// Une déclaration = une écriture par caisse et par tour (plan figé). Chaque
+  /// ligne porte une clé d'idempotence DÉRIVÉE du brouillon et de la ligne :
+  /// une reprise (réponse perdue, coupure entre deux lignes) rejoue les lignes
+  /// déjà faites et n'écrit que le reste.
+  @override
+  Future<DeclarationReceipt> sendDeclaration(ContributionDraft draft) async {
+    final List<DeclarationLine> lines = List<DeclarationLine>.of(draft.plan);
+    final String? reference = (draft.reference ?? '').trim().isEmpty ? null : draft.reference!.trim();
+    final String? reason = (draft.noReferenceReason ?? '').trim().isEmpty ? null : draft.noReferenceReason!.trim();
+    for (int i = 0; i < lines.length; i++) {
+      final DeclarationLine l = lines[i];
+      if (l.recorded) continue;
+      final Map<String, dynamic> body = <String, dynamic>{
+        'fundId': l.fundId,
+        'kind': 'contribution',
+        'amount': '${l.amountXaf}',
+        'roundSeq': l.roundSeq,
+        'channel': channelOf(draft.channel),
+        if (draft.channel != PaymentChannel.cash && reference != null) 'reference': reference,
+        if (draft.channel != PaymentChannel.cash && reference == null && reason != null) 'justification': reason,
+      };
+      try {
+        final ApiResponse res = await _api.postWithKey(
+          '/tontines/${Uri.encodeComponent(draft.groupId)}/movements',
+          body,
+          declarationKey(draft.localId, i, body),
+        );
+        lines[i] = l.recordedAs('${res.body['movementId']}');
+      } catch (e) {
+        // Pas de réponse (réseau, délai) ou passerelle expirée : l'effet a pu
+        // avoir lieu. Ce n'est pas un échec certain.
+        final bool unknown = e is ApiFailure && (e.statusCode == 0 || e.statusCode == 504);
+        return DeclarationReceipt(lines: lines, error: _clientError(e), outcomeUnknown: unknown);
+      }
+    }
+    return DeclarationReceipt(lines: lines);
+  }
 }
+
+/// Clé stable d'une ligne de déclaration (8–120 caractères côté serveur).
+String declarationKey(String localId, int index, Map<String, dynamic> body) =>
+    'decl-${sha256.convert(utf8.encode('$localId|$index|${jsonEncode(body)}'))}';
 
 // ── Validation (trésorier, commissaire aux comptes) ──────────────────────
 
@@ -592,7 +615,7 @@ final class TontineGovernanceRepository implements GovernanceRepository {
   final KombeApiClient _api;
   final Map<String, ({String groupId, bool control})> _known = <String, ({String groupId, bool control})>{};
 
-  ValidationItem _item(String groupId, Map<String, dynamic> m) => ValidationItem(
+  ValidationItem _item(String groupId, String groupName, bool control, Map<String, dynamic> m) => ValidationItem(
         contributionId: '${m['movementId']}',
         groupId: groupId,
         memberIdentityId: '${m['membershipId'] ?? ''}',
@@ -601,38 +624,50 @@ final class TontineGovernanceRepository implements GovernanceRepository {
         declaredAtUtc: _date(m['declaredAt']),
         version: 1,
         evidenceName: m['reference'] as String?,
+        control: control,
+        groupName: groupName,
+        fundName: '${m['fundName'] ?? ''}',
+        channel: m['channel'] as String?,
       );
 
   @override
   Future<Resource<List<ValidationItem>>> listPendingValidations() => _read(() async {
-        final List<ValidationItem> out = <ValidationItem>[];
+        // Une requête par groupe et par étape, EN PARALLÈLE ; le serveur dit
+        // pour chaque ligne si je peux agir (`can`) — jamais sur ma propre
+        // déclaration.
+        final List<Future<List<ValidationItem>>> jobs = <Future<List<ValidationItem>>>[];
         for (final Map<String, dynamic> g in _items(await _api.get('/me/tontines'))) {
           if (g['membershipState'] != 'active') continue;
           final Set<String> roles = ((g['roles'] as List<dynamic>?) ?? const <dynamic>[]).map((dynamic r) => '$r').toSet();
           final bool confirms = roles.intersection(<String>{'treasurer', 'treasurer_deputy', 'animator', 'vice_president'}).isNotEmpty;
           final bool controls = roles.contains('auditor');
-          if (!confirms && !controls) continue;
           final String gid = '${g['groupId']}';
+          final String name = '${g['name'] ?? ''}';
           for (final (String state, bool control) in <(String, bool)>[if (confirms) ('declared', false), if (controls) ('confirmed', true)]) {
-            for (final Map<String, dynamic> m in _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/movements?state=$state'))) {
-              final Map<String, dynamic> can = (m['can'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
-              if (can[control ? 'control' : 'confirm'] != true) continue;
-              _known['${m['movementId']}'] = (groupId: gid, control: control);
-              out.add(_item(gid, m));
-            }
+            jobs.add(() async {
+              final List<ValidationItem> items = <ValidationItem>[];
+              for (final Map<String, dynamic> m in _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/movements?state=$state'))) {
+                final Map<String, dynamic> can = (m['can'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
+                if (can[control ? 'control' : 'confirm'] != true) continue;
+                _known['${m['movementId']}'] = (groupId: gid, control: control);
+                items.add(_item(gid, name, control, m));
+              }
+              return items;
+            }());
           }
         }
+        final List<ValidationItem> out = (await Future.wait(jobs)).expand((List<ValidationItem> l) => l).toList()
+          ..sort((ValidationItem a, ValidationItem b) => a.declaredAtUtc.compareTo(b.declaredAtUtc));
         return out;
       });
 
   @override
   Future<Resource<ValidationItem>> getValidation(String contributionId) async {
-    if (!_known.containsKey(contributionId)) await listPendingValidations();
     final Resource<List<ValidationItem>> all = await listPendingValidations();
     return switch (all) {
       ResourceReady<List<ValidationItem>>(:final List<ValidationItem> data) =>
         data.where((ValidationItem v) => v.contributionId == contributionId).map((ValidationItem v) => ResourceReady<ValidationItem>(v)).firstOrNull ??
-            ResourceFailure<ValidationItem>(const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE')),
+            ResourceFailure<ValidationItem>(const ApiFailure(statusCode: 404, code: 'NOT_FOUND')),
       ResourceFailure<List<ValidationItem>>(:final Object error) => ResourceFailure<ValidationItem>(error),
       _ => const ResourceUnavailable<ValidationItem>(),
     };
@@ -647,7 +682,7 @@ final class TontineGovernanceRepository implements GovernanceRepository {
   }) async {
     if (!_known.containsKey(contributionId)) await listPendingValidations();
     final ({String groupId, bool control})? k = _known[contributionId];
-    if (k == null) return OperationFailure<void>(const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE'));
+    if (k == null) return OperationFailure<void>(const ApiFailure(statusCode: 404, code: 'NOT_FOUND'));
     final String base = '/tontines/${Uri.encodeComponent(k.groupId)}/movements';
     return _write<void>(() async {
       switch (decision) {
@@ -658,14 +693,12 @@ final class TontineGovernanceRepository implements GovernanceRepository {
             await _api.postOnce('$base/confirmations', <String, dynamic>{'movementIds': <String>[contributionId]});
           }
         case ValidationDecision.reject:
+          // Le motif est transmis au membre : jamais inventé à sa place.
           final String motif = (reason ?? '').trim();
-          await _api.postOnce('$base/${Uri.encodeComponent(contributionId)}/rejection', <String, dynamic>{
-            'reason': motif.isNotEmpty
-                ? motif
-                : 'Paiement non retrouvé par la trésorerie (rejet depuis l’application mobile)',
-          });
-        case ValidationDecision.requestInformation:
-          throw const ApiFailure(statusCode: 422, code: 'VALIDATION', message: 'Demandez la précision en séance ou par WhatsApp, puis confirmez ou rejetez.');
+          if (motif.isEmpty) {
+            throw const ApiFailure(statusCode: 422, code: 'VALIDATION', message: 'Indiquez le motif du rejet : il est transmis au membre.');
+          }
+          await _api.postOnce('$base/${Uri.encodeComponent(contributionId)}/rejection', <String, dynamic>{'reason': motif});
       }
       _known.remove(contributionId);
     });
@@ -679,8 +712,8 @@ final class TontineGovernanceRepository implements GovernanceRepository {
 
   static const Map<String, String> _kindTitles = <String, String>{
     'pause': 'Pause des séances',
-    'removal': 'Destitution',
-    'exclusion': 'Exclusion',
+    'removal': 'Destitution d’un membre du bureau',
+    'exclusion': 'Exclusion d’un membre',
     'payout_suspension': 'Suspension du droit de bouffer',
     'replacement': 'Reprise de place',
   };
@@ -706,15 +739,19 @@ final class TontineGovernanceRepository implements GovernanceRepository {
   }
 
   Future<List<(String, Map<String, dynamic>)>> _openDecisions() async {
-    final List<(String, Map<String, dynamic>)> out = <(String, Map<String, dynamic>)>[];
-    for (final Map<String, dynamic> g in _items(await _api.get('/me/tontines'))) {
-      if (g['membershipState'] != 'active') continue;
-      final String gid = '${g['groupId']}';
-      for (final Map<String, dynamic> d in _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/decisions'))) {
-        if (d['state'] == 'open') out.add((gid, d));
-      }
-    }
-    return out;
+    final List<String> groups = _items(await _api.get('/me/tontines'))
+        .where((Map<String, dynamic> g) => g['membershipState'] == 'active')
+        .map((Map<String, dynamic> g) => '${g['groupId']}')
+        .toList();
+    // Un appel par groupe, en parallèle.
+    final List<List<Map<String, dynamic>>> lists = await Future.wait(
+      groups.map((String gid) async => _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/decisions'))),
+    );
+    return <(String, Map<String, dynamic>)>[
+      for (int i = 0; i < groups.length; i++)
+        for (final Map<String, dynamic> d in lists[i])
+          if (d['state'] == 'open') (groups[i], d),
+    ];
   }
 
   @override
@@ -722,28 +759,53 @@ final class TontineGovernanceRepository implements GovernanceRepository {
         for (final (String gid, Map<String, dynamic> d) in await _openDecisions()) _vote(gid, d),
       ]);
 
+  /// Un vote peut être clos (notification « résultat d'un vote ») : on le
+  /// cherche parmi TOUTES les décisions, d'abord dans son groupe connu.
   @override
   Future<Resource<VoteDetails>> getVote(String voteId) => _read(() async {
-        for (final (String gid, Map<String, dynamic> d) in await _openDecisions()) {
-          if ('${d['decisionId']}' != voteId) continue;
-          final int electorate = (d['electorate'] as num?)?.toInt() ?? 0;
-          final String outcome = (d['can'] as Map<String, dynamic>?)?['vote'] == true ? '' : '\nVous ne votez pas sur ce scrutin.';
-          return VoteDetails(
-            summary: _vote(gid, d),
-            description: '${d['reason'] ?? ''}$outcome',
-            electorate: electorate,
-            requiredYes: electorate ~/ 2 + 1,
-            ballots: (d['ballots'] as num?)?.toInt() ?? 0,
-          );
+        final String? known = _voteGroup[voteId];
+        final List<String> groups = known != null
+            ? <String>[known]
+            : _items(await _api.get('/me/tontines'))
+                .where((Map<String, dynamic> g) => g['membershipState'] == 'active')
+                .map((Map<String, dynamic> g) => '${g['groupId']}')
+                .toList();
+        final List<List<Map<String, dynamic>>> lists = await Future.wait(
+          groups.map((String gid) async => _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/decisions'))),
+        );
+        for (int i = 0; i < groups.length; i++) {
+          for (final Map<String, dynamic> d in lists[i]) {
+            if ('${d['decisionId']}' != voteId) continue;
+            final int electorate = (d['electorate'] as num?)?.toInt() ?? 0;
+            final Map<String, dynamic>? res = d['result'] as Map<String, dynamic>?;
+            return VoteDetails(
+              summary: _vote(groups[i], d),
+              description: '${d['reason'] ?? ''}',
+              electorate: electorate,
+              requiredYes: electorate ~/ 2 + 1,
+              ballots: (d['ballots'] as num?)?.toInt() ?? 0,
+              state: '${d['state'] ?? 'open'}',
+              myChoice: switch (d['myChoice']) {
+                'yes' => VoteChoice.forChoice,
+                'no' => VoteChoice.against,
+                'abstain' => VoteChoice.abstain,
+                _ => null,
+              },
+              canVote: (d['can'] as Map<String, dynamic>?)?['vote'] == true,
+              result: res == null
+                  ? null
+                  : (yes: (res['yes'] as num).toInt(), no: (res['no'] as num).toInt(), abstain: (res['abstain'] as num).toInt()),
+            );
+          }
         }
-        throw const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE');
+        throw const ApiFailure(statusCode: 404, code: 'NOT_FOUND', message: 'Ce vote n’existe plus ou ne concerne pas vos groupes.');
       });
 
   @override
   Future<OperationResult<void>> castVote({required String voteId, required VoteChoice choice}) async {
     if (!_voteGroup.containsKey(voteId)) await listVotes();
     final String? gid = _voteGroup[voteId];
-    if (gid == null) return OperationFailure<void>(const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE'));
+    if (gid == null) return OperationFailure<void>(const ApiFailure(statusCode: 404, code: 'NOT_FOUND'));
     final String c = switch (choice) {
       VoteChoice.forChoice => 'yes',
       VoteChoice.against => 'no',
@@ -761,29 +823,19 @@ final class TontineNotificationRepository implements NotificationRepository {
   const TontineNotificationRepository({required KombeApiClient api}) : _api = api;
   final KombeApiClient _api;
 
-  static ({NotificationKind kind, String title}) _label(String k) => switch (k) {
-        'due_reminder' => (kind: NotificationKind.contribution, title: 'Une cotisation arrive à échéance'),
-        'meeting_reminder' => (kind: NotificationKind.meeting, title: 'Rappel : séance demain'),
-        'validation_waiting' => (kind: NotificationKind.validation, title: 'Des paiements attendent votre contrôle'),
-        'payout_recorded' => (kind: NotificationKind.contribution, title: 'Remise déclarée : confirmez la réception'),
-        'fine_issued' => (kind: NotificationKind.dispute, title: 'Une amende vous a été notifiée'),
-        'aid_decided' => (kind: NotificationKind.system, title: 'Décision sur une demande de secours'),
-        'order_change' => (kind: NotificationKind.vote, title: 'Demande d’échange de tour'),
-        'membership' => (kind: NotificationKind.system, title: 'Nouvelle demande d’adhésion'),
-        'minutes_ready' => (kind: NotificationKind.meeting, title: 'Procès-verbal disponible'),
-        'decision' => (kind: NotificationKind.vote, title: 'Un vote de l’association vous concerne'),
-        _ => (kind: NotificationKind.system, title: 'Information du groupe'),
-      };
-
   static KombeNotification notification(Map<String, dynamic> n) {
-    final ({NotificationKind kind, String title}) l = _label('${n['kind']}');
+    final String topic = '${n['topic'] ?? ''}';
+    final NotificationEntry e = entryFor(topic, '${n['kind']}');
     return KombeNotification(
       id: '${n['notificationId']}',
-      kind: l.kind,
-      title: l.title,
+      kind: e.kind,
+      title: e.title,
       body: '${n['groupName'] ?? ''}',
       createdAtUtc: _date(n['createdAt']),
       read: n['read'] == true,
+      groupId: n['groupId'] as String?,
+      topic: topic,
+      subjectId: n['subjectId'] as String?,
     );
   }
 
@@ -792,8 +844,22 @@ final class TontineNotificationRepository implements NotificationRepository {
       _read(() async => _items(await _api.get('/me/notifications')).map(notification).toList());
 
   @override
+  Future<int> unreadCount() async {
+    try {
+      return _items(await _api.get('/me/notifications?unread=1')).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  @override
   Future<OperationResult<void>> markRead(String notificationId) => _write<void>(() async {
         await _api.post('/me/notifications/read', <String, dynamic>{'ids': <String>[notificationId]});
+      });
+
+  @override
+  Future<OperationResult<void>> markAllRead() => _write<void>(() async {
+        await _api.post('/me/notifications/read', <String, dynamic>{'ids': 'all'});
       });
 }
 
@@ -836,52 +902,79 @@ final class TontineDashboardRepository implements DashboardRepository {
   const TontineDashboardRepository({required KombeApiClient api}) : _api = api;
   final KombeApiClient _api;
 
+  static const Map<String, String> _decisionTitle = <String, String>{
+    'pause': 'Pause des séances',
+    // Même vocabulaire que la PWA (`dc.k.*`).
+    'removal': 'Destitution d’un membre du bureau',
+    'exclusion': 'Exclusion d’un membre',
+    'payout_suspension': 'Suspension du droit de bouffer',
+    'replacement': 'Reprise de place',
+  };
+
   @override
-  Future<Resource<DashboardData>> loadDashboard() => _read(() async {
-        final List<Map<String, dynamic>> mine =
-            _items(await _api.get('/me/tontines')).where((Map<String, dynamic> g) => g['membershipState'] == 'active').toList();
-        final Map<String, dynamic>? primary = mine.isEmpty ? null : mine.first;
-        DateTime? next;
-        int progress = 0;
-        int monthDeclared = 0;
-        if (primary != null) {
-          final String gid = '${primary['groupId']}';
-          final List<Map<String, dynamic>> dues = _items(await _api.get('/me/dues?groupId=${Uri.encodeQueryComponent(gid)}'));
-          if (dues.isNotEmpty) {
-            next = dues.map((Map<String, dynamic> d) => _date(d['date'])).reduce((DateTime a, DateTime b) => a.isBefore(b) ? a : b);
-            final int due = dues.fold<int>(0, (int s, Map<String, dynamic> d) => s + _xaf(d['due']));
-            final int left = dues.fold<int>(0, (int s, Map<String, dynamic> d) => s + _xaf(d['remaining']));
-            progress = due == 0 ? 100 : (((due - left) * 100) ~/ due).clamp(0, 100);
-          } else {
-            progress = 100;
-          }
-          final DateTime now = DateTime.now().toUtc();
-          for (final Map<String, dynamic> m in _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/movements?mine=1'))) {
-            final DateTime at = _date(m['declaredAt']);
-            if (m['kind'] == 'contribution' && m['state'] != 'rejected' && at.year == now.year && at.month == now.month) {
-              monthDeclared += _xaf(m['amount']);
-            }
-          }
+  Future<Resource<HomeData>> loadHome(GroupSummary group) => _read(() async {
+        final String t = '/tontines/${Uri.encodeComponent(group.id)}';
+        final bool confirms = group.role == GroupRole.treasurer || group.role == GroupRole.administrator;
+        final bool controls = group.role == GroupRole.controller;
+        // Lectures indépendantes : en parallèle.
+        final List<ApiResponse> r = await Future.wait(<Future<ApiResponse>>[
+          _api.get('/me/dues?groupId=${Uri.encodeQueryComponent(group.id)}'),
+          _api.get(t),
+          _api.get('$t/movements?mine=1&state=declared'),
+          _api.get('$t/decisions'),
+          _api.get('/me/notifications'),
+          if (confirms) _api.get('$t/movements?state=declared'),
+          if (controls) _api.get('$t/movements?state=confirmed'),
+        ]);
+        final List<OpenDue> dues = _items(r[0])
+            .where((Map<String, dynamic> d) => _xaf(d['remaining']) > 0)
+            .map((Map<String, dynamic> d) => OpenDue(
+                  fundId: '${d['fundId']}',
+                  fundName: '${d['fundName'] ?? ''}',
+                  fundKind: '${d['fundKind'] ?? ''}',
+                  roundSeq: (d['roundSeq'] as num).toInt(),
+                  remainingXaf: _xaf(d['remaining']),
+                  late: d['lateness'] == 'late',
+                ))
+            .toList();
+        final List<DateTime> dates = _items(r[0])
+            .where((Map<String, dynamic> d) => _xaf(d['remaining']) > 0)
+            .map((Map<String, dynamic> d) => _date(d['date']))
+            .toList()
+          ..sort();
+        final Map<String, dynamic>? meeting = r[1].body['nextMeeting'] as Map<String, dynamic>?;
+        final List<Map<String, dynamic>> mine = _items(r[2]).where((Map<String, dynamic> m) => m['kind'] == 'contribution').toList();
+        final List<PendingVote> votes = _items(r[3])
+            .where((Map<String, dynamic> d) =>
+                d['state'] == 'open' && d['myChoice'] == null && ((d['can'] as Map<String, dynamic>?)?['vote'] == true))
+            .map((Map<String, dynamic> d) => PendingVote(
+                  id: '${d['decisionId']}',
+                  title: _decisionTitle['${d['kind']}'] ?? 'Vote de l’association',
+                  closesAtUtc: _date(d['closesAt']),
+                ))
+            .toList();
+        int toValidate = 0;
+        if (r.length > 5) {
+          toValidate = _items(r[5]).where((Map<String, dynamic> m) {
+            final Map<String, dynamic> can = (m['can'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
+            return can[controls ? 'control' : 'confirm'] == true;
+          }).length;
         }
-        final List<KombeNotification> recent =
-            _items(await _api.get('/me/notifications')).take(5).map(TontineNotificationRepository.notification).toList();
-        return DashboardData(
-          primaryGroup: primary == null
-              ? null
-              : GroupSummary(
-                  id: '${primary['groupId']}',
-                  name: '${primary['name']}',
-                  role: roleFrom((primary['roles'] as List<dynamic>?) ?? const <dynamic>[]),
-                  memberCount: (primary['memberCount'] as num?)?.toInt() ?? 0,
-                  cycleIndex: 0,
-                  cycleTotal: (primary['memberCount'] as num?)?.toInt() ?? 0,
-                  contributionAmountXaf: _xaf(primary['contributionPerShare']),
-                  nextDueAtUtc: next ?? _date(primary['nextMeetingDate']),
-                ),
-          nextContributionAtUtc: next,
-          currentMonthDeclaredXaf: monthDeclared,
-          progressPercent: progress,
-          recentActivity: recent,
+        return HomeData(
+          group: group,
+          dues: dues,
+          nextDueDate: dates.isEmpty ? null : dates.first,
+          pendingDeclaredXaf: mine.fold<int>(0, (int s, Map<String, dynamic> m) => s + _xaf(m['amount'])),
+          pendingDeclarations: mine.length,
+          toValidate: toValidate,
+          votes: votes,
+          nextMeetingDate: meeting == null ? null : _date(meeting['date']),
+          nextMeetingPlace: meeting?['location'] as String?,
+          recent: _items(r[4])
+              .where((Map<String, dynamic> n) => n['groupId'] == group.id)
+              .take(3)
+              .map(TontineNotificationRepository.notification)
+              .toList(),
         );
       });
 }

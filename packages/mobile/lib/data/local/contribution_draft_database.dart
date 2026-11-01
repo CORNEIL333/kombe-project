@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
@@ -30,7 +32,7 @@ final class ContributionDraftDatabase implements ContributionDraftRepository {
     final sqflite.Database db = await _factory.openDatabase(
       databasePath,
       options: sqflite.OpenDatabaseOptions(
-        version: 1,
+        version: 2,
         onCreate: (sqflite.Database database, int version) async {
           await database.execute(
             'CREATE TABLE contribution_draft ('
@@ -40,9 +42,19 @@ final class ContributionDraftDatabase implements ContributionDraftRepository {
             'payment_channel TEXT NOT NULL,'
             'note TEXT,'
             'evidence_path TEXT,'
-            'updated_at_utc TEXT NOT NULL'
+            'updated_at_utc TEXT NOT NULL,'
+            'reference TEXT,'
+            'plan_json TEXT'
             ')',
           );
+        },
+        // v2 : référence distincte du motif, plan d'envoi figé (reprise sans
+        // doublon). Les anciens brouillons gardent leur note comme motif.
+        onUpgrade: (sqflite.Database database, int from, int to) async {
+          if (from < 2) {
+            await database.execute('ALTER TABLE contribution_draft ADD COLUMN reference TEXT');
+            await database.execute('ALTER TABLE contribution_draft ADD COLUMN plan_json TEXT');
+          }
         },
       ),
     );
@@ -82,8 +94,13 @@ final class ContributionDraftDatabase implements ContributionDraftRepository {
         'group_id': draft.groupId,
         'amount_xaf': draft.amountXaf,
         'payment_channel': draft.channel.name,
-        'note': draft.note,
-        'evidence_path': draft.evidencePath,
+        // `note` porte désormais le motif « pas de référence ».
+        'note': draft.noReferenceReason,
+        'evidence_path': null,
+        'reference': draft.reference,
+        'plan_json': draft.plan.isEmpty
+            ? null
+            : jsonEncode(draft.plan.map((DeclarationLine l) => l.toJson()).toList()),
         'updated_at_utc': draft.updatedAtUtc.toUtc().toIso8601String(),
       },
       conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
@@ -106,14 +123,26 @@ final class ContributionDraftDatabase implements ContributionDraftRepository {
     await db.delete('contribution_draft');
   }
 
+  static List<DeclarationLine> _plan(String? raw) {
+    if (raw == null || raw.isEmpty) return const <DeclarationLine>[];
+    try {
+      return (jsonDecode(raw) as List<dynamic>)
+          .map((dynamic j) => DeclarationLine.fromJson(j as Map<String, dynamic>))
+          .toList(growable: false);
+    } catch (_) {
+      return const <DeclarationLine>[];
+    }
+  }
+
   ContributionDraft _fromRow(Map<String, Object?> row) {
     return ContributionDraft(
       localId: row['local_id']! as String,
       groupId: row['group_id']! as String,
       amountXaf: row['amount_xaf']! as int,
       channel: PaymentChannel.values.byName(row['payment_channel']! as String),
-      note: row['note'] as String?,
-      evidencePath: row['evidence_path'] as String?,
+      reference: row['reference'] as String?,
+      noReferenceReason: row['note'] as String?,
+      plan: _plan(row['plan_json'] as String?),
       updatedAtUtc: DateTime.parse(row['updated_at_utc']! as String).toUtc(),
     );
   }

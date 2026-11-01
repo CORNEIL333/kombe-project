@@ -403,6 +403,11 @@ export interface NotificationView {
   readonly groupName: string | null;
   readonly kind: string;
   readonly target: string | null;
+  /** Nature précise (préfixe de la clé de dédoublonnage : `declared`,
+   *  `rejected`, `decision`, `contest`…) — pour un libellé exact. */
+  readonly topic: string;
+  /** Objet visé (mouvement, décision, amende…) quand la clé le porte. */
+  readonly subjectId: string | null;
   readonly createdAt: IsoInstant;
   readonly read: boolean;
 }

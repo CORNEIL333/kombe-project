@@ -1,21 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/design/kombe_colors.dart';
 import '../../core/state/operation_result.dart';
-import '../../core/widgets/server_action_guard.dart';
+import '../../core/widgets/kombe_sheet.dart';
+import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../auth/auth_validators.dart';
 
-class InviteMemberScreen extends StatefulWidget {
+/// Ouvre l'invitation en demi-fenêtre, sans quitter l'écran du groupe.
+Future<void> showInviteSheet(BuildContext context, String groupId) =>
+    showKombeSheet<void>(context, title: 'Inviter un membre', builder: (_) => InvitePanel(groupId: groupId));
+
+/// Route directe (`/app/groups/:id/invite`) : même contenu en plein écran.
+class InviteMemberScreen extends StatelessWidget {
   const InviteMemberScreen({required this.groupId, super.key});
   final String groupId;
 
   @override
-  State<InviteMemberScreen> createState() => _InviteMemberScreenState();
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Inviter un membre')),
+        body: SafeArea(
+          child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: InvitePanel(groupId: groupId)),
+        ),
+      );
 }
 
-class _InviteMemberScreenState extends State<InviteMemberScreen> {
+/// Créer une invitation (action réelle, écrite au registre) puis la partager.
+/// Le numéro est facultatif : il sert seulement à ouvrir WhatsApp sur la
+/// bonne conversation. KÓMBE n'envoie aucun message en votre nom.
+class InvitePanel extends StatefulWidget {
+  const InvitePanel({required this.groupId, super.key});
+  final String groupId;
+
+  @override
+  State<InvitePanel> createState() => _InvitePanelState();
+}
+
+class _InvitePanelState extends State<InvitePanel> {
   final TextEditingController _phone = TextEditingController();
+  GroupInvitation? _invitation;
+  bool _creating = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -23,47 +51,115 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
     super.dispose();
   }
 
-  Future<void> _invite() async {
-    if (!AuthValidators.isCameroonLocalPhone(_phone.text)) return;
-    final OperationResult<void> result =
-        await context.read<GroupRepository>().inviteMember(
-              groupId: widget.groupId,
-              phoneE164: '+237${_phone.text.replaceAll(RegExp(r'\s+'), '')}',
-            );
+  Future<void> _create() async {
+    if (_creating) return;
+    setState(() {
+      _creating = true;
+      _error = null;
+    });
+    final OperationResult<GroupInvitation> r = await context.read<GroupRepository>().createInvitation(widget.groupId);
     if (!mounted) return;
-    switch (result) {
-      case OperationSuccess<void>():
-        Navigator.of(context).pop();
-      case OperationBlocked<void>():
-        await showServerAuthorityRequired(context);
-      case OperationFailure<void>(:final error):
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    setState(() {
+      _creating = false;
+      switch (r) {
+        case OperationSuccess<GroupInvitation>(:final GroupInvitation value):
+          _invitation = value;
+        case OperationFailure<GroupInvitation>(:final Object error):
+          _error = '$error';
+        case OperationBlocked<GroupInvitation>():
+          _error = 'L’invitation ne peut pas être créée depuis cette version de l’application.';
+      }
+    });
+  }
+
+  Future<void> _copy(String text, String what) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$what copié.')));
+  }
+
+  Future<void> _whatsApp(GroupInvitation inv) async {
+    final String digits = _phone.text.replaceAll(RegExp(r'\D'), '');
+    final String to = AuthValidators.isCameroonLocalPhone(digits) ? '237$digits' : '';
+    final Uri uri = Uri.parse('https://wa.me/$to?text=${Uri.encodeComponent(inv.shareText)}');
+    final bool ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('WhatsApp n’a pas pu s’ouvrir. Copiez le lien et envoyez-le vous-même.')),
+      );
     }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Inviter un membre')),
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: <Widget>[
-              const Text(
-                'L’invitation est créée par le serveur. Le mobile ne génère aucun membre ni invitation localement.',
+  Widget build(BuildContext context) {
+    final TextTheme t = Theme.of(context).textTheme;
+    final GroupInvitation? inv = _invitation;
+    if (inv == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            'Créez un lien à usage unique, valable 14 jours. La personne le reçoit de votre part '
+            'et rejoint le groupe ; le bureau valide ensuite son adhésion.',
+            style: t.bodyMedium,
+          ),
+          if (_error != null) ...<Widget>[
+            const SizedBox(height: 12),
+            Semantics(liveRegion: true, child: Text(_error!, style: t.bodyMedium?.copyWith(color: KombeColors.danger))),
+          ],
+          const SizedBox(height: 18),
+          FilledButton(
+            onPressed: _creating ? null : _create,
+            child: _creating
+                ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
+                : const Text('Créer le lien d’invitation'),
+          ),
+        ],
+      );
+    }
+    final DateTime exp = inv.expiresAtUtc.toLocal();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text('Code d’invitation', style: t.labelLarge?.copyWith(color: KombeColors.slate)),
+        const SizedBox(height: 4),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: SelectableText(
+                inv.code,
+                style: t.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: 3),
               ),
-              const SizedBox(height: 22),
-              TextField(
-                controller: _phone,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Téléphone',
-                  prefixText: '+237  ',
-                ),
-              ),
-              const SizedBox(height: 20),
-              FilledButton(onPressed: _invite, child: const Text('Envoyer l’invitation')),
-            ],
+            ),
+            IconButton(tooltip: 'Copier le code', onPressed: () => _copy(inv.code, 'Code'), icon: const Icon(Icons.copy_rounded)),
+          ],
+        ),
+        Text(
+          'Valable jusqu’au ${exp.day.toString().padLeft(2, '0')}/${exp.month.toString().padLeft(2, '0')}/${exp.year}, pour une personne.',
+          style: t.bodySmall?.copyWith(color: KombeColors.slate),
+        ),
+        const SizedBox(height: 18),
+        TextField(
+          controller: _phone,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'Numéro WhatsApp (facultatif)',
+            prefixText: '+237 ',
+            helperText: 'Pour ouvrir directement la conversation.',
           ),
         ),
-      );
+        const SizedBox(height: 14),
+        FilledButton.icon(
+          onPressed: () => _whatsApp(inv),
+          icon: const Icon(Icons.chat_rounded),
+          label: const Text('Envoyer par WhatsApp'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => _copy(inv.url, 'Lien'),
+          icon: const Icon(Icons.link_rounded),
+          label: const Text('Copier le lien'),
+        ),
+      ],
+    );
+  }
 }

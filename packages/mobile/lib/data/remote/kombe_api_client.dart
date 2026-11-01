@@ -87,6 +87,13 @@ final class KombeApiClient {
   Future<ApiResponse> postOnce(String path, Map<String, dynamic> body) =>
       _send('POST', path, body: body, headers: <String, String>{'idempotency-key': newIdempotencyKey()});
 
+  /// Écriture rejouable : la clé est DÉRIVÉE de l'intention (même brouillon,
+  /// même ligne) par l'appelant. Après une réponse perdue, renvoyer la même
+  /// requête avec la même clé fait rejouer au serveur la réponse mémorisée —
+  /// jamais une seconde écriture.
+  Future<ApiResponse> postWithKey(String path, Map<String, dynamic> body, String idempotencyKey) =>
+      _send('POST', path, body: body, headers: <String, String>{'idempotency-key': idempotencyKey});
+
   Future<ApiResponse> _send(
     String method,
     String path, {

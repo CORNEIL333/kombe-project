@@ -1,177 +1,312 @@
-/* KÓMBE — accueil « Mes tontines » (I-06) : la personne voit ses groupes,
-   ce qu'elle doit, sa prochaine séance et la date de sa remise ; elle touche
-   un groupe pour l'ouvrir. Aucun identifiant n'est jamais saisi à la main. */
+/* KÓMBE — accueil du groupe actif. Emplacements STABLES, dans cet ordre :
+   1. ma situation (reste dû réel, retard, déclaré en attente) et l'action
+      principale ; 2. « À faire » (confirmations de ma fonction, vote ouvert) ;
+   3. prochaine séance ; 4. activité récente du groupe, chaque ligne menant à
+   l'action. Lectures en parallèle ; une donnée absente reste absente. Même
+   contrat que l'accueil de l'app mobile. */
 
-import { acces, type Session } from "./api.js";
-import { Carte, Charge, Pastille, useDonnees } from "./ui.js";
+import type { Route } from "../App.js";
+import { acces, argent, decisions, tontines, type DecisionView, type NotificationView, type Session, type TontineSummary } from "./api.js";
+import { Charge, useDonnees } from "./ui.js";
 import { Icone } from "../composants/Icones.js";
-import { useTextes } from "./textes.js";
-import { BandeauPhoto, photoPour, urlPhoto } from "../composants/Scene.js";
-import { Orbite } from "../composants/Orbite.js";
+import { useTextes, type CleTexte } from "./textes.js";
+import { destinationNotification, entreeNotification } from "./notifications.js";
+
+const CONFIRME = ["treasurer", "treasurer_deputy", "animator", "vice_president"];
+
+interface DonneesAccueil {
+  readonly reste: bigint;
+  readonly enRetard: boolean;
+  readonly prochaineEcheance: string | null;
+  readonly declare: bigint;
+  readonly aValider: number;
+  readonly controle: boolean;
+  readonly votes: readonly DecisionView[];
+  readonly seance: { readonly date: string; readonly lieu: string | null } | null;
+  readonly recentes: readonly NotificationView[];
+}
+
+async function chargerAccueil(session: Session, g: TontineSummary): Promise<DonneesAccueil> {
+  const confirme = g.roles.some((r) => CONFIRME.includes(r));
+  const controle = g.roles.includes("auditor");
+  const [echeances, detail, miennes, scrutins, notifs, aTraiter] = await Promise.all([
+    acces.mesEcheances(session, g.groupId),
+    tontines.detail(session, g.groupId),
+    argent.mouvements(session, g.groupId, { mine: true, state: "declared" }),
+    decisions.liste(session, g.groupId),
+    acces.notifications(session),
+    confirme || controle ? argent.mouvements(session, g.groupId, { state: controle ? "confirmed" : "declared" }) : Promise.resolve([]),
+  ]);
+  const ouvertes = echeances.filter((e) => BigInt(e.remaining) > 0n);
+  const dates = ouvertes.map((e) => e.date).sort();
+  return {
+    reste: ouvertes.reduce((s, e) => s + BigInt(e.remaining), 0n),
+    enRetard: ouvertes.some((e) => e.lateness === "late"),
+    prochaineEcheance: dates[0] ?? null,
+    declare: miennes.filter((m) => m.kind === "contribution").reduce((s, m) => s + BigInt(m.amount), 0n),
+    // Le serveur dit ce que MA fonction permet — jamais ma propre déclaration.
+    aValider: aTraiter.filter((m) => (controle ? m.can?.control : m.can?.confirm) === true).length,
+    controle,
+    votes: scrutins.filter((d) => d.state === "open" && d.myChoice === null && d.can.vote),
+    seance: detail.nextMeeting ? { date: detail.nextMeeting.date, lieu: detail.nextMeeting.location } : null,
+    recentes: notifs.filter((n) => n.groupId === g.groupId).slice(0, 3),
+  };
+}
 
 export function Accueil({
   session,
-  onOuvrir,
-  onCreer,
-  onRejoindre,
+  groupe,
+  enChargement,
+  enAttente,
+  aller,
 }: {
   readonly session: Session;
-  readonly onOuvrir: (groupId: string) => void;
-  readonly onCreer: () => void;
-  readonly onRejoindre: () => void;
+  readonly groupe: TontineSummary | null;
+  readonly enChargement: boolean;
+  /** Adhésions en attente d'accord du bureau. */
+  readonly enAttente: readonly TontineSummary[];
+  readonly aller: (r: Route) => void;
 }) {
-  const { tx, dyn, xaf, date } = useTextes();
-  const { etat, recharger } = useDonnees(() => acces.mesTontines(session), [session.sessionId]);
-  const moi = useDonnees(() => acces.moi(session), [session.sessionId]);
-  const prenom = moi.etat.statut === "ok" && moi.etat.donnees.displayName ? moi.etat.donnees.displayName.split(" ")[0] : null;
-  const groupes = etat.statut === "ok" ? etat.donnees : null;
-  const aRegler = groupes ? groupes.filter((g) => g.membershipState !== "pending" && BigInt(g.myOpenDue || "0") > 0n).length : 0;
-
-  return (
-    <div className="pile ecran">
-      <BandeauPhoto
-        photo="cercle-vue-dessus"
-        surtitre={tx("imm.accSur")}
-        titre={prenom ? `${tx("imm.bonjour", { nom: prenom })} ${tx("imm.accTitre")}` : tx("acc.titre")}
-        accent={tx("imm.accAccent")}
-        orbite={<Orbite total={8} courant={3} variante="marque" taille={150} />}
-      >
-        {groupes && groupes.length ? (
-          <ul className="bandeau-photo__chiffres">
-            <li>{tx("imm.tontines", { n: groupes.length })}</li>
-            <li data-ton={aRegler ? "attente" : "ok"}>{aRegler ? tx("imm.aRegler", { n: aRegler }) : tx("acc.aJour")}</li>
-          </ul>
-        ) : null}
-        <div className="bandeau-photo__actions">
-          <button type="button" className="bouton" onClick={onCreer}>
-            {tx("acc.creer")}
+  const { tx } = useTextes();
+  if (enChargement) return <p className="msg" role="status">{tx("app.chargement")}</p>;
+  if (!groupe) {
+    return (
+      <div className="pile ecran accueil-vide">
+        <h1 className="ecran-titre-simple">{tx("ho.bienvenue")}</h1>
+        <p>{tx("ho.bienvenueTexte")}</p>
+        {enAttente.map((g) => (
+          <p key={g.groupId} className="msg msg--info">
+            {tx("ho.attenteAdhesion", { nom: g.name })}
+          </p>
+        ))}
+        <div className="actions-pile">
+          <button type="button" className="bouton" onClick={() => aller({ ecran: "rejoindre" })}>
+            {tx("ho.rejoindreCode")}
           </button>
-          <button type="button" className="bouton bouton-secondaire" onClick={onRejoindre}>
-            {tx("acc.rejoindre")}
+          <button type="button" className="bouton bouton-secondaire" onClick={() => aller({ ecran: "creer" })}>
+            {tx("sh.creer")}
           </button>
         </div>
-      </BandeauPhoto>
+      </div>
+    );
+  }
+  return <AccueilGroupe key={groupe.groupId} session={session} groupe={groupe} aller={aller} />;
+}
+
+function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; readonly groupe: TontineSummary; readonly aller: (r: Route) => void }) {
+  const { tx, dyn, xaf, date } = useTextes();
+  const { etat, recharger } = useDonnees(() => chargerAccueil(session, groupe), [session.sessionId, groupe.groupId]);
+  return (
+    <div className="pile ecran accueil">
       <Charge etat={etat} recharger={recharger}>
-        {(liste) =>
-          liste.length === 0 ? (
-            <section className="etat-vide">
-              <img className="etat-vide__photo" src={urlPhoto("mains-telephone")} alt="" decoding="async" />
-              <div className="etat-vide__texte">
-                <h3>{tx("imm.accVideTitre")}</h3>
-                <p>{tx("acc.aucune")}</p>
-                <p className="aide-champ">{tx("imm.accVideTexte")}</p>
-              </div>
-            </section>
-          ) : (
-            <ul className="grille-tontines" aria-label={tx("acc.titre")}>
-              {liste.map((g, i) => (
-                <li key={g.groupId} className="entree-decalee" style={{ animationDelay: `${80 + i * 70}ms` }}>
-                  <button type="button" className="tuile-tontine" onClick={() => onOuvrir(g.groupId)} disabled={g.membershipState === "pending"}>
-                    <span className="tuile-tontine__couverture" aria-hidden="true">
-                      <img src={urlPhoto(photoPour(g.groupId), true)} alt="" decoding="async" loading="lazy" />
-                      <span className="tuile-tontine__monogramme">{g.name.trim().charAt(0).toUpperCase()}</span>
-                    </span>
-                    <span className="tuile-tontine__corps">
-                      <span className="tuile-tontine__nom">{g.name}</span>
-                      <span className="tuile-tontine__meta">
-                        {dyn(`etat.${g.state}`)} · {tx("acc.membres", { n: g.memberCount })} · {xaf(g.contributionPerShare)}
-                      </span>
-                      {g.membershipState === "pending" ? (
-                        <Pastille ton="attente">{tx("acc.enAttente")}</Pastille>
-                      ) : (
-                        <>
-                          <span className="tuile-tontine__ligne">{g.nextMeetingDate ? tx("acc.prochaine", { date: date(g.nextMeetingDate) }) : tx("acc.sansSeance")}</span>
-                          {BigInt(g.myOpenDue || "0") > 0n ? (
-                            <Pastille ton="attente">{tx("acc.aRegler", { montant: xaf(g.myOpenDue) })}</Pastille>
-                          ) : (
-                            <Pastille ton="ok">{tx("acc.aJour")}</Pastille>
-                          )}
-                          {g.myPayoutDate ? (
-                            <span className="tuile-tontine__remise">
-                              <span className="accent-or" aria-hidden="true" />
-                              {tx("acc.maRemise", { date: date(g.myPayoutDate) })}
-                            </span>
-                          ) : null}
-                          {g.roles.filter((r) => r !== "member").length ? (
-                            <span className="tuile-tontine__roles">{g.roles.filter((r) => r !== "member").map((r) => dyn(`role.${r}`)).join(" · ")}</span>
-                          ) : null}
-                        </>
-                      )}
-                    </span>
+        {(d) => (
+          <>
+            <section className="situation" aria-labelledby="situation-titre">
+              {d.reste > 0n ? (
+                <>
+                  <h1 id="situation-titre" className="situation__libelle">
+                    {tx("ho.aRegler")}
+                  </h1>
+                  <p className="situation__montant">{xaf(d.reste.toString())}</p>
+                  <p className={d.enRetard ? "situation__echeance situation__echeance--retard" : "situation__echeance"}>
+                    {d.enRetard ? tx("ho.enRetard") : d.prochaineEcheance ? tx("ho.avant", { date: date(d.prochaineEcheance) }) : tx("ho.tourEnCours")}
+                  </p>
+                  <button type="button" className="bouton bouton-large" onClick={() => aller({ ecran: "groupe", groupId: groupe.groupId, onglet: "argent" })}>
+                    <Icone nom="declarer" taille={20} />
+                    {tx("ho.declarer")}
                   </button>
-                </li>
-              ))}
-            </ul>
-          )
-        }
+                </>
+              ) : (
+                <h1 id="situation-titre" className="situation__ajour">
+                  <Icone nom="coche" taille={26} />
+                  {tx("ho.aJour")}
+                </h1>
+              )}
+              {d.declare > 0n ? (
+                <button type="button" className="lien-ligne" onClick={() => aller({ ecran: "cotisations" })}>
+                  <Icone nom="attente" taille={18} />
+                  <span>{tx("ho.enAttente", { montant: xaf(d.declare.toString()) })}</span>
+                  <Icone nom="chevron" taille={18} />
+                </button>
+              ) : null}
+              {groupe.myPayoutDate ? <p className="aide-champ">{tx("ho.remise", { date: date(groupe.myPayoutDate) })}</p> : null}
+            </section>
+
+            {d.aValider > 0 || d.votes.length > 0 ? (
+              <section aria-labelledby="afaire-titre">
+                <h2 id="afaire-titre" className="titre-section">
+                  {tx("ho.aFaire")}
+                </h2>
+                <ul className="lignes">
+                  {d.aValider > 0 ? (
+                    <Ligne
+                      icone="validations"
+                      titre={tx(d.controle ? "ho.aControler" : "ho.aConfirmer", { n: d.aValider })}
+                      sousTitre={tx("ho.votreFonction")}
+                      onClick={() => aller({ ecran: "validations" })}
+                    />
+                  ) : null}
+                  {d.votes.map((v) => (
+                    <Ligne
+                      key={v.decisionId}
+                      icone="vote"
+                      titre={tx("ho.vote", { titre: dyn(`dc.k.${v.kind}`) })}
+                      sousTitre={tx("ho.jusquAu", { date: date(v.closesAt) })}
+                      onClick={() => aller({ ecran: "groupe", groupId: groupe.groupId, onglet: "decisions" })}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {d.seance ? (
+              <section aria-labelledby="seance-titre">
+                <h2 id="seance-titre" className="titre-section">
+                  {tx("ho.seance")}
+                </h2>
+                <ul className="lignes">
+                  <Ligne
+                    icone="seance"
+                    titre={date(d.seance.date)}
+                    sousTitre={d.seance.lieu ?? undefined}
+                    onClick={() => aller({ ecran: "groupe", groupId: groupe.groupId, onglet: "seances" })}
+                  />
+                </ul>
+              </section>
+            ) : null}
+
+            <section aria-labelledby="activite-titre">
+              <div className="titre-section titre-section--action">
+                <h2 id="activite-titre">{tx("ho.activite")}</h2>
+                <button type="button" className="bouton-texte" onClick={() => aller({ ecran: "notifications" })}>
+                  {tx("ho.toutVoir")}
+                </button>
+              </div>
+              {d.recentes.length === 0 ? (
+                <p className="aide-champ">{tx("ho.rienDeNeuf")}</p>
+              ) : (
+                <ul className="lignes">
+                  {d.recentes.map((n) => (
+                    <LigneNotification key={n.notificationId} n={n} session={session} aller={aller} />
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <p>
+              <button type="button" className="bouton bouton-secondaire" onClick={() => aller({ ecran: "groupe", groupId: groupe.groupId })}>
+                {tx("sh.toutLeGroupe")}
+              </button>
+            </p>
+          </>
+        )}
       </Charge>
     </div>
   );
 }
 
-export function Notifications({ session, onOuvrir }: { readonly session: Session; readonly onOuvrir: (groupId: string) => void }) {
-  const { tx, dyn, date } = useTextes();
+function Ligne({
+  icone,
+  titre,
+  sousTitre,
+  onClick,
+  nonLue,
+}: {
+  readonly icone: Parameters<typeof Icone>[0]["nom"];
+  readonly titre: string;
+  readonly sousTitre?: string | undefined;
+  readonly onClick: () => void;
+  readonly nonLue?: boolean;
+}) {
+  return (
+    <li>
+      <button type="button" className={nonLue ? "ligne ligne--nonlue" : "ligne"} onClick={onClick}>
+        <span className="ligne__icone" aria-hidden="true">
+          <Icone nom={icone} taille={22} />
+        </span>
+        <span className="ligne__texte">
+          <span className="ligne__titre">{titre}</span>
+          {sousTitre ? <span className="ligne__sous">{sousTitre}</span> : null}
+        </span>
+        {nonLue ? <span className="ligne__point" aria-label="non lue" /> : <Icone nom="chevron" taille={18} />}
+      </button>
+    </li>
+  );
+}
+
+/** Ouvre la destination contrôlée et marque la notification lue. */
+export function ouvrirNotification(session: Session, n: NotificationView, aller: (r: Route) => void): void {
+  if (!n.read) void acces.marquerLues(session, [n.notificationId]).catch(() => undefined);
+  const d = destinationNotification(n);
+  if (d) aller(d);
+}
+
+function LigneNotification({ n, session, aller, onLue }: { readonly n: NotificationView; readonly session: Session; readonly aller: (r: Route) => void; readonly onLue?: () => void }) {
+  const { tx, date } = useTextes();
+  const e = entreeNotification(n);
+  return (
+    <Ligne
+      icone={e.icone}
+      titre={tx(e.cle as CleTexte)}
+      sousTitre={[n.groupName ?? "", date(n.createdAt)].filter(Boolean).join(" · ")}
+      nonLue={!n.read}
+      onClick={() => {
+        onLue?.();
+        ouvrirNotification(session, n, aller);
+      }}
+    />
+  );
+}
+
+export function Notifications({ session, aller }: { readonly session: Session; readonly aller: (r: Route) => void }) {
+  const { tx } = useTextes();
   const { etat, recharger } = useDonnees(() => acces.notifications(session), [session.sessionId]);
-  const nouvelles = etat.statut === "ok" ? etat.donnees.filter((n) => !n.read).length : 0;
   return (
     <div className="pile ecran">
-      <BandeauPhoto photo="mains-telephone" variante="compact" surtitre={tx("app.notifications")} titre={tx("imm.noTitre")} accent={tx("imm.noAccent")}>
-        <div className="bandeau-photo__actions">
-          {nouvelles ? <span className="pastille-verre">{tx("imm.nouvelles", { n: nouvelles })}</span> : null}
-          <button
-            type="button"
-            className="bouton bouton-secondaire bouton-compact"
-            onClick={() => void acces.marquerLues(session, "all").then(recharger, recharger)}
-          >
+      <div className="titre-section titre-section--action">
+        <h1 className="ecran-titre-simple">{tx("nav.activite")}</h1>
+        {etat.statut === "ok" && etat.donnees.some((n) => !n.read) ? (
+          <button type="button" className="bouton-texte" onClick={() => void acces.marquerLues(session, "all").then(recharger, recharger)}>
             {tx("no.toutLu")}
           </button>
-        </div>
-      </BandeauPhoto>
+        ) : null}
+      </div>
       <Charge etat={etat} recharger={recharger}>
-        {(liste) =>
-          liste.length === 0 ? (
-            <p className="msg">{tx("no.aucune")}</p>
-          ) : (
-            <ul className="liste liste-notifications">
-              {liste.map((n, i) => (
-                <li
-                  key={n.notificationId}
-                  className={`entree-decalee liste__ligne${n.read ? "" : " liste__ligne--nouveau"}`}
-                  style={{ animationDelay: `${60 + i * 60}ms` }}
-                >
-                  <span className="notif-icone" data-famille={familleNotification(n.kind)} aria-hidden="true" />
-                  <div>
-                    <strong>{dyn(`notif.${n.kind}`) === `notif.${n.kind}` ? libelleNotification(n.kind) : dyn(`notif.${n.kind}`)}</strong>
-                    <span className="aide-champ">
-                      {n.groupName ?? ""} · {date(n.createdAt)}
-                    </span>
-                  </div>
-                  {n.groupId ? (
-                    <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => onOuvrir(n.groupId as string)} title={tx("td.apercu")}>
-                      <Icone nom="accueil" taille={18} />
-                      <span className="bouton-libelle">{tx("td.apercu")}</span>
-                    </button>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )
-        }
+        {(liste) => {
+          if (liste.length === 0) return <p className="msg">{tx("no.aucune")}</p>;
+          const nonLues = liste.filter((n) => !n.read);
+          const lues = liste.filter((n) => n.read);
+          return (
+            <>
+              {nonLues.length ? (
+                <section aria-labelledby="no-nonlues">
+                  <h2 id="no-nonlues" className="titre-section">
+                    {tx("no.nonLues", { n: nonLues.length })}
+                  </h2>
+                  <ul className="lignes">
+                    {nonLues.map((n) => (
+                      <LigneNotification key={n.notificationId} n={n} session={session} aller={aller} />
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+              {lues.length ? (
+                <section aria-labelledby="no-lues">
+                  <h2 id="no-lues" className="titre-section">
+                    {tx("no.plusTot")}
+                  </h2>
+                  <ul className="lignes">
+                    {lues.map((n) => (
+                      <LigneNotification key={n.notificationId} n={n} session={session} aller={aller} />
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+            </>
+          );
+        }}
       </Charge>
     </div>
   );
 }
 
-/** Famille visuelle d'une notification (icône seulement ; le texte fait foi). */
-function familleNotification(kind: string): "argent" | "seance" | "decision" | "autre" {
-  if (/payout|due|contribution|fine|payment|fund/.test(kind)) return "argent";
-  if (/meeting|minutes/.test(kind)) return "seance";
-  if (/validation|vote|decision|aid|member/.test(kind)) return "decision";
-  return "autre";
-}
-
-/** Libellé lisible d'un type de notification (« meeting.reminder » → « Meeting reminder »). */
-function libelleNotification(kind: string): string {
-  const s = kind.replace(/[._]/g, " ").trim();
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}

@@ -48,7 +48,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
               Text('Code d’invitation', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 8),
               const Text(
-                'Le code sera vérifié côté serveur. Aucun groupe n’est créé localement.',
+                'Saisissez le code reçu du bureau (lien WhatsApp ou SMS). Le bureau validera ensuite votre adhésion.',
               ),
               const SizedBox(height: 22),
               TextField(

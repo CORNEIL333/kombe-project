@@ -49,7 +49,7 @@ class _AboutScreenState extends State<AboutScreen> {
                   const Divider(),
                   const ListTile(contentPadding: EdgeInsets.zero, title: Text('Données embarquées'), trailing: Text('Aucune')),
                   const Divider(),
-                  const ListTile(contentPadding: EdgeInsets.zero, title: Text('Autorité métier'), trailing: Text('Serveur KÓMBE')),
+                  const ListTile(contentPadding: EdgeInsets.zero, title: Text('Registre'), trailing: Text('Tenu par KÓMBE')),
                 ],
               ),
             ),

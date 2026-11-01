@@ -95,7 +95,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     }
     final String s = error.toString();
     if (s.contains('UNAUTHENTICATED') || s.contains('401')) return 'session requise (reconnectez-vous).';
-    return 'la demande a été refusée par le serveur.';
+    return 'la création n’a pas abouti. Vérifiez les informations, puis réessayez.';
   }
 
   static String _yyyyMmDd(DateTime d) =>

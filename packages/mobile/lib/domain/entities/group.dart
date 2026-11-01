@@ -75,6 +75,15 @@ final class TontineCreation {
 /// publie aucun annuaire (les tontines restent privées ; on y entre par
 /// invitation), cette vue reste vide — mais la forme est conservée pour le
 /// parcours « parrainage ». JAMAIS de registre réel avant adhésion (C03 §4.1).
+/// Invitation créée par le bureau : code à saisir, lien à partager.
+final class GroupInvitation {
+  const GroupInvitation({required this.code, required this.url, required this.shareText, required this.expiresAtUtc});
+  final String code;
+  final String url;
+  final String shareText;
+  final DateTime expiresAtUtc;
+}
+
 final class DiscoverableGroup {
   const DiscoverableGroup({
     required this.groupId,

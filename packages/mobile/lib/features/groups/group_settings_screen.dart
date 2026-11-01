@@ -33,7 +33,7 @@ class GroupSettingsScreen extends StatelessWidget {
                   KombeListRow(
                     icon: Icons.manage_accounts_outlined,
                     title: 'Rôles et responsabilités',
-                    subtitle: 'Modification uniquement après validation serveur',
+                    subtitle: 'Modifiable par le bureau, dans KÓMBE Web',
                     onTap: () => showServerAuthorityRequired(context),
                   ),
                 ],

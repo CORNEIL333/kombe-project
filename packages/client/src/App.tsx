@@ -3,18 +3,19 @@
    écran, même après la connexion. La session est gardée sur l'appareil. */
 
 import { useCallback, useEffect, useState } from "react";
-import { BasculeLangue, SelecteurLangue, useLangue } from "./i18n/ContexteLangue.js";
+import { SelecteurLangue, useLangue } from "./i18n/ContexteLangue.js";
 import { LogoCompose, LogoKombe } from "./composants/Marque.js";
 import { acces, memoriserSession, sessionMemorisee, type Session } from "./tontine/api.js";
 import { ConnexionTelephone } from "./tontine/Connexion.js";
 import { Accueil, Notifications } from "./tontine/Accueil.js";
+import { oublierGroupeActif, useGroupeActif } from "./tontine/groupeActif.js";
+import { MenuLateral, SelecteurGroupe } from "./tontine/Coquille.js";
 import { Creation } from "./tontine/Creation.js";
 import { Rejoindre } from "./tontine/Rejoindre.js";
 import { Groupe } from "./tontine/Groupe.js";
 import { useTextes } from "./tontine/textes.js";
 import { FileAttente } from "./tontine/FileAttente.js";
 import { lireFile } from "./tontine/fileAttenteMoteur.js";
-import { BandeauPhoto } from "./composants/Scene.js";
 import { Icone, type NomIcone } from "./composants/Icones.js";
 import { Profil } from "./tontine/Profil.js";
 import { MesCotisations } from "./tontine/MesCotisations.js";
@@ -22,7 +23,6 @@ import { Validations } from "./tontine/Validations.js";
 import { Aide } from "./tontine/Aide.js";
 import { Documents } from "./tontine/Documents.js";
 import { estBureau, ouvrirBureau } from "./tontine/bureau.js";
-import { BoutonIcone } from "./tontine/ui.js";
 
 export type Route =
   | { readonly ecran: "accueil" }
@@ -97,7 +97,10 @@ export function App() {
   const [session, setSession] = useState<Session | null>(() => sessionMemorisee());
   const [route, setRoute] = useState<Route>(() => lireRoute(window.location.hash));
   const [nonLues, setNonLues] = useState(0);
+  const [menuOuvert, setMenuOuvert] = useState(false);
+  const [choixGroupe, setChoixGroupe] = useState(false);
   const enLigne = useEnLigne();
+  const groupes = useGroupeActif(session);
 
   useEffect(() => {
     const surHash = () => setRoute(lireRoute(window.location.hash));
@@ -105,10 +108,13 @@ export function App() {
     return () => window.removeEventListener("hashchange", surHash);
   }, []);
 
+  // Le fragment fait foi : précédent/suivant du navigateur, liens directs et
+  // rechargement retrouvent le même écran.
   const aller = useCallback((r: Route) => {
     const h = ecrireRoute(r);
     if (window.location.hash !== h) window.location.hash = h;
     setRoute(r);
+    setMenuOuvert(false);
     window.scrollTo?.(0, 0);
   }, []);
 
@@ -133,24 +139,8 @@ export function App() {
     };
   }, [session, route]);
 
-  // Tontines où la personne siège au bureau : icône d'accès au tableau de bord.
-  const [groupesBureau, setGroupesBureau] = useState<string[]>([]);
-  useEffect(() => {
-    if (!session) return setGroupesBureau([]);
-    let actif = true;
-    acces.mesTontines(session).then(
-      (l) => actif && setGroupesBureau(l.filter((g) => g.membershipState === "active" && estBureau(g.roles)).map((g) => g.groupId)),
-      () => undefined,
-    );
-    return () => {
-      actif = false;
-    };
-  }, [session]);
-  const allerBureau = () => {
-    if (!session) return;
-    const enCours = route.ecran === "groupe" && groupesBureau.includes(route.groupId) ? route.groupId : groupesBureau[0];
-    ouvrirBureau(session, enCours);
-  };
+  const actif = groupes.actif;
+  const bureau = actif !== null && estBureau(actif.roles);
 
   // Déconnexion en deux temps : on confirme, et l'on prévient si des
   // opérations attendent encore le réseau sur ce téléphone.
@@ -159,6 +149,7 @@ export function App() {
   const deconnecter = () => {
     if (session) void acces.deconnexion(session).catch(() => undefined);
     memoriserSession(null);
+    oublierGroupeActif();
     setSession(null);
     setQuitter(false);
     aller({ ecran: "accueil" });
@@ -173,19 +164,68 @@ export function App() {
     return () => window.removeEventListener("keydown", echap);
   }, [quitter]);
 
+  const destinations: readonly (readonly [Route["ecran"] | "bureau", NomIcone, string])[] = [
+    ["accueil", "accueil", tx("nav.accueil")],
+    ["cotisations", "declarer", tx("nav.cotisations")],
+    ["notifications", "cloche", tx("nav.activite")],
+    ...(bureau ? ([["bureau", "bureau", tx("app.bureau")]] as const) : []),
+  ];
+
   return (
-    <div className={session ? "app app-tontine" : "app app-tontine app--accueil"}>
+    <div className={session ? "app app-tontine app--session" : "app app-tontine app--accueil"}>
       <a href="#contenu" className="evitement" onClick={(e) => (e.preventDefault(), document.getElementById("contenu")?.focus())}>
         {tx("app.accueil")}
       </a>
-      <header className="entete">
-        <div className="entete-marque">
-          <button type="button" className="lien-logo" onClick={() => aller({ ecran: "accueil" })} aria-label={tx("app.accueil")}>
-            {session ? <LogoKombe hauteur={34} /> : <LogoCompose symbole={60} mot={34.3} signature={10.6} ecart={14} />}
+      {session ? (
+        <header className="barre-haut">
+          <button
+            type="button"
+            className="barre-haut__menu"
+            aria-label={tx("sh.menu")}
+            aria-expanded={menuOuvert}
+            aria-controls="menu-lateral"
+            onClick={() => setMenuOuvert(true)}
+          >
+            <Icone nom="menu" taille={24} />
           </button>
-        </div>
-        {session ? null : (
-          // Avant connexion : la navigation du site (maquette « Connectez-vous »).
+          <div className="barre-haut__titre">
+            {actif ? (
+              <button
+                type="button"
+                className="selecteur-groupe"
+                aria-label={tx("sh.groupeActif", { nom: actif.name })}
+                aria-haspopup="dialog"
+                onClick={() => setChoixGroupe(true)}
+              >
+                <span className="selecteur-groupe__nom">{actif.name}</span>
+                <Icone nom="chevron-bas" taille={18} />
+              </button>
+            ) : (
+              <LogoKombe hauteur={30} />
+            )}
+          </div>
+          <button
+            type="button"
+            className="barre-haut__cloche"
+            aria-label={nonLues > 0 ? `${tx("nav.activite")}, ${nonLues}` : tx("nav.activite")}
+            onClick={() => aller({ ecran: "notifications" })}
+          >
+            <Icone nom="cloche" taille={24} />
+            {nonLues > 0 ? (
+              <span className="compteur" aria-hidden="true">
+                {nonLues > 99 ? "99+" : nonLues}
+              </span>
+            ) : null}
+          </button>
+        </header>
+      ) : (
+        <header className="entete">
+          <div className="entete-marque">
+            <button type="button" className="lien-logo" onClick={() => aller({ ecran: "accueil" })} aria-label={tx("app.accueil")}>
+              <LogoCompose symbole={60} mot={34.3} signature={10.6} ecart={14} />
+            </button>
+          </div>
+          {/* Avant connexion : la navigation du site (maquette « Connectez-vous »). */}
           <nav className="entete-site" aria-label={t("cx2.accueil")}>
             <a href="#/" aria-current="page">{t("cx2.accueil")}</a>
             <a href="/site/a-propos/">{t("cx2.aPropos")}</a>
@@ -193,23 +233,25 @@ export function App() {
             <a href="/site/securite/">{t("cx2.securite")}</a>
             <a href="/site/#questions">{t("cx2.faq")}</a>
           </nav>
-        )}
-        {session ? (
-          <div className="entete-session">
-            <BoutonIcone
-              icone="cloche"
-              libelle={nonLues > 0 ? `${tx("app.notifications")} (${nonLues})` : tx("app.notifications")}
-              actif={route.ecran === "notifications"}
-              className="bouton-notif"
-              onClick={() => aller({ ecran: "notifications" })}
-            />
-            {groupesBureau.length > 0 ? <BoutonIcone icone="bureau" ton="or" libelle={tx("app.bureau")} className="bouton-bureau" onClick={allerBureau} /> : null}
-            <BoutonIcone icone="profil" libelle={tx("nav.profil")} actif={route.ecran === "profil"} className="bouton-profil" onClick={() => aller({ ecran: "profil" })} />
-            <BoutonIcone icone="sortir" libelle={tx("app.deconnexion")} className="bouton-sortie" onClick={() => setQuitter(true)} />
+          <div className="entete-actions">
+            <SelecteurLangue />
           </div>
-        ) : null}
-        <div className="entete-actions">{session ? <BasculeLangue /> : <SelecteurLangue />}</div>
-      </header>
+        </header>
+      )}
+      {session ? (
+        <MenuLateral ouvert={menuOuvert} onFermer={() => setMenuOuvert(false)} groupes={groupes} route={route} aller={aller} onDeconnecter={() => setQuitter(true)} />
+      ) : null}
+      {session && choixGroupe ? (
+        <SelecteurGroupe
+          groupes={groupes}
+          onFermer={() => setChoixGroupe(false)}
+          onChoisir={(id) => {
+            groupes.choisir(id);
+            setChoixGroupe(false);
+            aller({ ecran: "accueil" });
+          }}
+        />
+      ) : null}
       {enLigne ? null : (
         <p className="bandeau bandeau--horsLigne" role="status">
           {tx("app.horsLigne")}
@@ -227,15 +269,28 @@ export function App() {
           />
         ) : route.ecran === "creer" ? (
           <div className="pile ecran" key="creer">
-            <BandeauPhoto photo="decision" surtitre={tx("imm.crSur")} titre={tx("imm.crTitre")} accent={tx("imm.crAccent")}>
-              <p className="bandeau-photo__meta">{tx("imm.crTexte")}</p>
-            </BandeauPhoto>
-            <Creation session={session} onCree={(groupId) => aller({ ecran: "groupe", groupId })} onAnnuler={() => aller({ ecran: "accueil" })} />
+            <h1 className="ecran-titre-simple">{tx("sh.creer")}</h1>
+            <Creation
+              session={session}
+              onCree={(groupId) => {
+                groupes.recharger();
+                groupes.choisir(groupId);
+                aller({ ecran: "groupe", groupId });
+              }}
+              onAnnuler={() => aller({ ecran: "accueil" })}
+            />
           </div>
         ) : route.ecran === "rejoindre" ? (
           <div className="pile ecran" key="rejoindre">
-            <BandeauPhoto photo="generations" variante="compact" surtitre={tx("imm.rejSur")} titre={tx("imm.rejTitre")} accent={tx("imm.rejAccent")} />
-            <Rejoindre session={session} {...(route.code ? { codeInitial: route.code } : {})} onFini={() => aller({ ecran: "accueil" })} />
+            <h1 className="ecran-titre-simple">{tx("sh.rejoindre")}</h1>
+            <Rejoindre
+              session={session}
+              {...(route.code ? { codeInitial: route.code } : {})}
+              onFini={() => {
+                groupes.recharger();
+                aller({ ecran: "accueil" });
+              }}
+            />
           </div>
         ) : route.ecran === "profil" ? (
           <Profil
@@ -246,7 +301,7 @@ export function App() {
             onDeconnecter={() => setQuitter(true)}
           />
         ) : route.ecran === "cotisations" ? (
-          <MesCotisations key="cotisations" session={session} onOuvrirGroupe={(groupId) => aller({ ecran: "groupe", groupId })} />
+          <MesCotisations key="cotisations" session={session} onOuvrirGroupe={(groupId) => aller({ ecran: "groupe", groupId, onglet: "argent" })} />
         ) : route.ecran === "validations" ? (
           <Validations key="validations" session={session} onOuvrirGroupe={(groupId) => aller({ ecran: "groupe", groupId })} />
         ) : route.ecran === "aide" ? (
@@ -254,35 +309,36 @@ export function App() {
         ) : route.ecran === "documents" ? (
           <Documents key="documents" session={session} onOuvrir={(groupId, onglet) => aller({ ecran: "groupe", groupId, onglet })} />
         ) : route.ecran === "notifications" ? (
-          <Notifications key="notifications" session={session} onOuvrir={(groupId) => aller({ ecran: "groupe", groupId })} />
+          <Notifications key="notifications" session={session} aller={aller} />
         ) : route.ecran === "groupe" ? (
-          <Groupe key={route.groupId} session={session} groupId={route.groupId} {...(route.onglet ? { ongletInitial: route.onglet } : {})} onRetour={() => aller({ ecran: "accueil" })} />
+          <Groupe
+            key={`${route.groupId}/${route.onglet ?? ""}`}
+            session={session}
+            groupId={route.groupId}
+            {...(route.onglet ? { ongletInitial: route.onglet } : {})}
+            onRetour={() => aller({ ecran: "accueil" })}
+          />
         ) : (
           <Accueil
             key="accueil"
             session={session}
-            onOuvrir={(groupId) => aller({ ecran: "groupe", groupId })}
-            onCreer={() => aller({ ecran: "creer" })}
-            onRejoindre={() => aller({ ecran: "rejoindre" })}
+            groupe={actif}
+            enChargement={groupes.groupes === null && !groupes.erreur}
+            enAttente={(groupes.groupes ?? []).filter((g) => g.membershipState === "pending")}
+            aller={aller}
           />
         )}
       </main>
-      <footer className="pied-page">
-        <p className="pied-page__promesse">{tx("app.positionnement")}</p>
-        <p>
-          <a className="pied-page__lien" href="/site/">
-            {tx("imm.decouvrir")} →
-          </a>
-        </p>
-        {session ? (
+      {session ? null : (
+        <footer className="pied-page">
+          <p className="pied-page__promesse">{tx("app.positionnement")}</p>
           <p>
-            <button type="button" className="pied-page__sortie" onClick={() => setQuitter(true)}>
-              <Icone nom="sortie" taille={18} />
-              {tx("app.deconnexion")}
-            </button>
+            <a className="pied-page__lien" href="/site/">
+              {tx("imm.decouvrir")} →
+            </a>
           </p>
-        ) : null}
-      </footer>
+        </footer>
+      )}
       {quitter ? (
         <div className="voile-dialogue" onClick={(e) => e.target === e.currentTarget && setQuitter(false)}>
           <div className="dialogue dialogue-sortie" role="dialog" aria-modal="true" aria-labelledby="quitter-titre" aria-describedby="quitter-texte">
@@ -308,24 +364,16 @@ export function App() {
         </div>
       ) : null}
       {session ? (
-        <nav className="nav-basse" aria-label={tx("app.accueil")}>
-          {(
-            [
-              ["accueil", "accueil", tx("nav.accueil")],
-              ["cotisations", "declarer", tx("nav.cotisations")],
-              ...(groupesBureau.length > 0 ? ([["bureau", "bureau", tx("app.bureau")]] as const) : []),
-              ["notifications", "cloche", tx("nav.activite")],
-              ["profil", "profil", tx("nav.profil")],
-            ] as readonly (readonly [string, NomIcone, string])[]
-          ).map(([ecran, icone, libelle]) => {
-            const actif = route.ecran === ecran || (ecran === "accueil" && (route.ecran === "groupe" || route.ecran === "creer" || route.ecran === "rejoindre"));
+        <nav className="nav-basse" aria-label={tx("sh.navigation")}>
+          {destinations.map(([ecran, icone, libelle]) => {
+            const estActif = route.ecran === ecran || (ecran === "accueil" && (route.ecran === "groupe" || route.ecran === "creer" || route.ecran === "rejoindre"));
             return (
               <button
                 key={ecran}
                 type="button"
-                className={`nav-basse__item${actif ? " is-actif" : ""}${ecran === "bureau" ? " nav-basse__item--bureau" : ""}`}
-                aria-current={actif ? "page" : undefined}
-                onClick={() => (ecran === "bureau" ? allerBureau() : aller({ ecran } as Route))}
+                className={`nav-basse__item${estActif ? " is-actif" : ""}`}
+                aria-current={estActif ? "page" : undefined}
+                onClick={() => (ecran === "bureau" ? actif && ouvrirBureau(session, actif.groupId) : aller({ ecran } as Route))}
               >
                 <span className="nav-basse__icone">
                   <Icone nom={icone} taille={22} />
