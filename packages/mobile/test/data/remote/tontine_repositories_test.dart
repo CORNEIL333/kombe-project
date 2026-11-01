@@ -329,6 +329,30 @@ void main() {
     expect(calls.last.headers.containsKey('idempotency-key'), isTrue);
   });
 
+  test('vote déjà clos (ouvert depuis la notification du résultat) : trouvé, résultat publié, pas de bulletin', () async {
+    final TontineGovernanceRepository repo = TontineGovernanceRepository(
+      api: apiFor((http.Request r) => switch (r.url.path) {
+            '/v1/me/tontines' => <dynamic>[tontine],
+            '/v1/tontines/grp_1/decisions' => <dynamic>[
+                <String, dynamic>{
+                  'decisionId': 'd9', 'kind': 'pause', 'state': 'adopted', 'params': <String, dynamic>{'occurrences': 2},
+                  'reason': 'Fêtes de fin d’année', 'openedAt': '2026-10-01T10:00:00Z', 'closesAt': '2026-10-08T10:00:00Z',
+                  'electorate': 12, 'ballots': 10, 'myChoice': 'yes',
+                  'result': <String, dynamic>{'yes': 8, 'no': 1, 'abstain': 1},
+                  'can': <String, dynamic>{'vote': false},
+                },
+              ],
+            _ => <dynamic>[],
+          }),
+    );
+    final VoteDetails v = ((await repo.getVote('d9')) as ResourceReady<VoteDetails>).data;
+    expect(v.open, isFalse);
+    expect(v.state, 'adopted');
+    expect(v.result?.yes, 8);
+    expect(v.myChoice, VoteChoice.forChoice);
+    expect(v.canVote, isFalse);
+  });
+
   test('la chaîne de requête reste une requête (jamais encodée dans le chemin)', () async {
     final KombeApiClient api = apiFor((_) => <dynamic>[]);
     await api.get('/me/dues?groupId=grp_1');

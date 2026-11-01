@@ -26,14 +26,14 @@ class ServerRequiredScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      'Serveur KÓMBE requis',
+                      'Connexion impossible pour le moment',
                       style: Theme.of(context).textTheme.headlineMedium,
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 10),
                     const Text(
                       'Ce client mobile ne simule aucune donnée métier. '
-                      'Connectez le backend KÓMBE pour authentifier un compte et charger les données réelles autorisées.',
+                      'Cette version de l’application n’est pas reliée au service KÓMBE. Installez la version officielle depuis kombe.vercel.app/telecharger.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),

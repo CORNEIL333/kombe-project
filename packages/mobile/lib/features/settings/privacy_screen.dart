@@ -37,9 +37,9 @@ class PrivacyScreen extends StatelessWidget {
                   Divider(),
                   ListTile(
                     leading: Icon(Icons.verified_user_outlined),
-                    title: Text('Autorité serveur'),
+                    title: Text('Décisions enregistrées en ligne'),
                     subtitle: Text(
-                      'Validation, vote, rôle, règle et décaissement ne peuvent pas devenir officiels hors serveur.',
+                      'Confirmations, votes, fonctions et règles ne comptent qu’une fois enregistrés au registre du groupe.',
                     ),
                   ),
                 ],

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/auth/biometric_setup_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/recovery_request_screen.dart';
 import '../../features/auth/register_screen.dart';
@@ -65,10 +64,6 @@ final class AppRouter {
         GoRoute(
           path: '/recovery-request',
           builder: (_, __) => const RecoveryRequestScreen(),
-        ),
-        GoRoute(
-          path: '/biometric-setup',
-          builder: (_, __) => const BiometricSetupScreen(),
         ),
         GoRoute(
           path: '/server-required',
@@ -235,10 +230,6 @@ final class AppRouter {
           builder: (_, __) => const DocumentsScreen(),
         ),
         GoRoute(
-          path: '/app/exports',
-          builder: (_, __) => const ExportCenterScreen(),
-        ),
-        GoRoute(
           path: '/app/help',
           builder: (_, __) => const HelpCenterScreen(),
         ),
@@ -266,8 +257,7 @@ final class AppRouter {
         path == '/login' ||
         path == '/register' ||
         path == '/verify-code' ||
-        path == '/recovery-request' ||
-        path == '/biometric-setup';
+        path == '/recovery-request';
 
     if (sessionController.kind == SessionStateKind.signedIn && authPath) {
       return '/app';

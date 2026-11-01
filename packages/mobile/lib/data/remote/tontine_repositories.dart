@@ -712,8 +712,8 @@ final class TontineGovernanceRepository implements GovernanceRepository {
 
   static const Map<String, String> _kindTitles = <String, String>{
     'pause': 'Pause des séances',
-    'removal': 'Destitution',
-    'exclusion': 'Exclusion',
+    'removal': 'Destitution d’un membre du bureau',
+    'exclusion': 'Exclusion d’un membre',
     'payout_suspension': 'Suspension du droit de bouffer',
     'replacement': 'Reprise de place',
   };
@@ -739,15 +739,19 @@ final class TontineGovernanceRepository implements GovernanceRepository {
   }
 
   Future<List<(String, Map<String, dynamic>)>> _openDecisions() async {
-    final List<(String, Map<String, dynamic>)> out = <(String, Map<String, dynamic>)>[];
-    for (final Map<String, dynamic> g in _items(await _api.get('/me/tontines'))) {
-      if (g['membershipState'] != 'active') continue;
-      final String gid = '${g['groupId']}';
-      for (final Map<String, dynamic> d in _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/decisions'))) {
-        if (d['state'] == 'open') out.add((gid, d));
-      }
-    }
-    return out;
+    final List<String> groups = _items(await _api.get('/me/tontines'))
+        .where((Map<String, dynamic> g) => g['membershipState'] == 'active')
+        .map((Map<String, dynamic> g) => '${g['groupId']}')
+        .toList();
+    // Un appel par groupe, en parallèle.
+    final List<List<Map<String, dynamic>>> lists = await Future.wait(
+      groups.map((String gid) async => _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/decisions'))),
+    );
+    return <(String, Map<String, dynamic>)>[
+      for (int i = 0; i < groups.length; i++)
+        for (final Map<String, dynamic> d in lists[i])
+          if (d['state'] == 'open') (groups[i], d),
+    ];
   }
 
   @override
@@ -755,21 +759,46 @@ final class TontineGovernanceRepository implements GovernanceRepository {
         for (final (String gid, Map<String, dynamic> d) in await _openDecisions()) _vote(gid, d),
       ]);
 
+  /// Un vote peut être clos (notification « résultat d'un vote ») : on le
+  /// cherche parmi TOUTES les décisions, d'abord dans son groupe connu.
   @override
   Future<Resource<VoteDetails>> getVote(String voteId) => _read(() async {
-        for (final (String gid, Map<String, dynamic> d) in await _openDecisions()) {
-          if ('${d['decisionId']}' != voteId) continue;
-          final int electorate = (d['electorate'] as num?)?.toInt() ?? 0;
-          final String outcome = (d['can'] as Map<String, dynamic>?)?['vote'] == true ? '' : '\nVous ne votez pas sur ce scrutin.';
-          return VoteDetails(
-            summary: _vote(gid, d),
-            description: '${d['reason'] ?? ''}$outcome',
-            electorate: electorate,
-            requiredYes: electorate ~/ 2 + 1,
-            ballots: (d['ballots'] as num?)?.toInt() ?? 0,
-          );
+        final String? known = _voteGroup[voteId];
+        final List<String> groups = known != null
+            ? <String>[known]
+            : _items(await _api.get('/me/tontines'))
+                .where((Map<String, dynamic> g) => g['membershipState'] == 'active')
+                .map((Map<String, dynamic> g) => '${g['groupId']}')
+                .toList();
+        final List<List<Map<String, dynamic>>> lists = await Future.wait(
+          groups.map((String gid) async => _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/decisions'))),
+        );
+        for (int i = 0; i < groups.length; i++) {
+          for (final Map<String, dynamic> d in lists[i]) {
+            if ('${d['decisionId']}' != voteId) continue;
+            final int electorate = (d['electorate'] as num?)?.toInt() ?? 0;
+            final Map<String, dynamic>? res = d['result'] as Map<String, dynamic>?;
+            return VoteDetails(
+              summary: _vote(groups[i], d),
+              description: '${d['reason'] ?? ''}',
+              electorate: electorate,
+              requiredYes: electorate ~/ 2 + 1,
+              ballots: (d['ballots'] as num?)?.toInt() ?? 0,
+              state: '${d['state'] ?? 'open'}',
+              myChoice: switch (d['myChoice']) {
+                'yes' => VoteChoice.forChoice,
+                'no' => VoteChoice.against,
+                'abstain' => VoteChoice.abstain,
+                _ => null,
+              },
+              canVote: (d['can'] as Map<String, dynamic>?)?['vote'] == true,
+              result: res == null
+                  ? null
+                  : (yes: (res['yes'] as num).toInt(), no: (res['no'] as num).toInt(), abstain: (res['abstain'] as num).toInt()),
+            );
+          }
         }
-        throw const ApiFailure(statusCode: 404, code: 'NOT_FOUND');
+        throw const ApiFailure(statusCode: 404, code: 'NOT_FOUND', message: 'Ce vote n’existe plus ou ne concerne pas vos groupes.');
       });
 
   @override
