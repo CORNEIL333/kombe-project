@@ -12,6 +12,7 @@ import "./tontine/tontine.css";
 import "./immersif.css";
 import "./charte.css";
 import "./connexion.css";
+import "./coquille.css";
 
 const conteneur = document.getElementById("root");
 if (conteneur === null) {

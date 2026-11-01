@@ -875,10 +875,11 @@ final class TontineDashboardRepository implements DashboardRepository {
 
   static const Map<String, String> _decisionTitle = <String, String>{
     'pause': 'Pause des séances',
-    'removal': 'Retrait d’un membre',
+    // Même vocabulaire que la PWA (`dc.k.*`).
+    'removal': 'Destitution d’un membre du bureau',
     'exclusion': 'Exclusion d’un membre',
-    'payout_suspension': 'Suspension d’une remise',
-    'replacement': 'Remplacement à une fonction',
+    'payout_suspension': 'Suspension du droit de bouffer',
+    'replacement': 'Reprise de place',
   };
 
   @override
