@@ -18,6 +18,7 @@ import '../domain/repositories/notification_repository.dart';
 import '../domain/repositories/profile_repository.dart';
 import '../domain/repositories/preferences_repository.dart';
 import '../l10n/app_localizations.dart';
+import 'active_group_controller.dart';
 import 'app_settings_controller.dart';
 import 'di/app_dependencies.dart';
 import 'router/app_router.dart';
@@ -35,6 +36,7 @@ class _KombeAppState extends State<KombeApp> {
   late final AppSettingsController _settings;
   late final SessionController _session;
   late final AppRouter _router;
+  late final ActiveGroupController _activeGroup;
 
   @override
   void initState() {
@@ -42,12 +44,14 @@ class _KombeAppState extends State<KombeApp> {
     _settings = AppSettingsController(widget.dependencies.preferencesRepository);
     _session = SessionController(widget.dependencies.authRepository)..start();
     _router = AppRouter(sessionController: _session);
+    _activeGroup = ActiveGroupController(widget.dependencies.groupRepository, _session);
     _settings.initialize();
   }
 
   @override
   void dispose() {
     _router.dispose();
+    _activeGroup.dispose();
     _session.dispose();
     _settings.dispose();
     super.dispose();
@@ -72,6 +76,7 @@ class _KombeAppState extends State<KombeApp> {
         Provider.value(value: widget.dependencies.biometricService),
         ChangeNotifierProvider<AppSettingsController>.value(value: _settings),
         ChangeNotifierProvider<SessionController>.value(value: _session),
+        ChangeNotifierProvider<ActiveGroupController>.value(value: _activeGroup),
       ],
       child: AnimatedBuilder(
         animation: _settings,

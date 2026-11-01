@@ -205,6 +205,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                         decoration: InputDecoration(
                           labelText: 'Référence de la transaction',
                           helperText: 'Le code du SMS de confirmation de l’opérateur ou de la banque.',
+                          helperMaxLines: 2,
                           errorText: _showErrors ? _referenceError : null,
                         ),
                         onChanged: (_) => setState(_save),
@@ -217,6 +218,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                         decoration: InputDecoration(
                           labelText: 'Pourquoi pas de référence ?',
                           helperText: 'Par exemple : SMS de confirmation non reçu.',
+                          helperMaxLines: 2,
                           errorText: _showErrors ? _reasonError : null,
                         ),
                         onChanged: (_) => setState(_save),
@@ -270,7 +272,8 @@ String _channelLabel(AppLocalizations l10n, PaymentChannel c) => switch (c) {
       PaymentChannel.orangeMoney => l10n.orangeMoney,
       PaymentChannel.mtnMomo => l10n.mtnMomo,
       PaymentChannel.bankTransfer => l10n.bankTransfer,
-      PaymentChannel.internationalTransfer => l10n.internationalTransfer,
+      // Libellé court (puce) ; le montant déclaré est celui reçu en FCFA.
+      PaymentChannel.internationalTransfer => 'Transfert international',
       PaymentChannel.cash => l10n.cash,
       PaymentChannel.mobileMoney => 'Mobile Money',
     };

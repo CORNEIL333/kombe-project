@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import '../../core/api/api_failure.dart';
+import '../../core/formatters/xaf.dart';
 import '../../core/security/secure_session_store.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
@@ -26,6 +27,7 @@ import '../../domain/repositories/governance_repository.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
+import '../../features/notifications/notification_catalog.dart';
 import 'kombe_api_client.dart';
 import 'stored_session_codec.dart';
 
@@ -318,7 +320,7 @@ final class TontineGroupRepository implements GroupRepository {
         final List<dynamic> funds = (d['funds'] as List<dynamic>?) ?? const <dynamic>[];
         final String caisses = funds
             .cast<Map<String, dynamic>>()
-            .map((Map<String, dynamic> f) => '${f['name']} : ${f['confirmedBalance']} FCFA confirmés')
+            .map((Map<String, dynamic> f) => '${f['name']} ${Xaf.format(_xaf(f['confirmedBalance']))}')
             .join(' · ');
         return GroupDetails(
           summary: _summary(<String, dynamic>{
@@ -329,7 +331,7 @@ final class TontineGroupRepository implements GroupRepository {
             'contributionPerShare': settings['contributionPerShare'],
             'nextMeetingDate': next?['date'] ?? round?['date'],
           }, cycleIndex: (round?['seq'] as num?)?.toInt() ?? 0, cycleTotal: (d['memberCount'] as num?)?.toInt() ?? 0),
-          description: 'Argent tenu par le trésorier, pas par KÓMBE. $caisses',
+          description: caisses.isEmpty ? '' : 'Soldes confirmés : $caisses. L’argent est tenu par la trésorerie du groupe, pas par KÓMBE.',
           currentRulesVersion: (statutes?['version'] as num?)?.toInt() ?? 0,
         );
       });
@@ -792,29 +794,19 @@ final class TontineNotificationRepository implements NotificationRepository {
   const TontineNotificationRepository({required KombeApiClient api}) : _api = api;
   final KombeApiClient _api;
 
-  static ({NotificationKind kind, String title}) _label(String k) => switch (k) {
-        'due_reminder' => (kind: NotificationKind.contribution, title: 'Une cotisation arrive à échéance'),
-        'meeting_reminder' => (kind: NotificationKind.meeting, title: 'Rappel : séance demain'),
-        'validation_waiting' => (kind: NotificationKind.validation, title: 'Des paiements attendent votre contrôle'),
-        'payout_recorded' => (kind: NotificationKind.contribution, title: 'Remise déclarée : confirmez la réception'),
-        'fine_issued' => (kind: NotificationKind.dispute, title: 'Une amende vous a été notifiée'),
-        'aid_decided' => (kind: NotificationKind.system, title: 'Décision sur une demande de secours'),
-        'order_change' => (kind: NotificationKind.vote, title: 'Demande d’échange de tour'),
-        'membership' => (kind: NotificationKind.system, title: 'Nouvelle demande d’adhésion'),
-        'minutes_ready' => (kind: NotificationKind.meeting, title: 'Procès-verbal disponible'),
-        'decision' => (kind: NotificationKind.vote, title: 'Un vote de l’association vous concerne'),
-        _ => (kind: NotificationKind.system, title: 'Information du groupe'),
-      };
-
   static KombeNotification notification(Map<String, dynamic> n) {
-    final ({NotificationKind kind, String title}) l = _label('${n['kind']}');
+    final String topic = '${n['topic'] ?? ''}';
+    final NotificationEntry e = entryFor(topic, '${n['kind']}');
     return KombeNotification(
       id: '${n['notificationId']}',
-      kind: l.kind,
-      title: l.title,
+      kind: e.kind,
+      title: e.title,
       body: '${n['groupName'] ?? ''}',
       createdAtUtc: _date(n['createdAt']),
       read: n['read'] == true,
+      groupId: n['groupId'] as String?,
+      topic: topic,
+      subjectId: n['subjectId'] as String?,
     );
   }
 
@@ -823,8 +815,22 @@ final class TontineNotificationRepository implements NotificationRepository {
       _read(() async => _items(await _api.get('/me/notifications')).map(notification).toList());
 
   @override
+  Future<int> unreadCount() async {
+    try {
+      return _items(await _api.get('/me/notifications?unread=1')).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  @override
   Future<OperationResult<void>> markRead(String notificationId) => _write<void>(() async {
         await _api.post('/me/notifications/read', <String, dynamic>{'ids': <String>[notificationId]});
+      });
+
+  @override
+  Future<OperationResult<void>> markAllRead() => _write<void>(() async {
+        await _api.post('/me/notifications/read', <String, dynamic>{'ids': 'all'});
       });
 }
 
@@ -867,52 +873,78 @@ final class TontineDashboardRepository implements DashboardRepository {
   const TontineDashboardRepository({required KombeApiClient api}) : _api = api;
   final KombeApiClient _api;
 
+  static const Map<String, String> _decisionTitle = <String, String>{
+    'pause': 'Pause des séances',
+    'removal': 'Retrait d’un membre',
+    'exclusion': 'Exclusion d’un membre',
+    'payout_suspension': 'Suspension d’une remise',
+    'replacement': 'Remplacement à une fonction',
+  };
+
   @override
-  Future<Resource<DashboardData>> loadDashboard() => _read(() async {
-        final List<Map<String, dynamic>> mine =
-            _items(await _api.get('/me/tontines')).where((Map<String, dynamic> g) => g['membershipState'] == 'active').toList();
-        final Map<String, dynamic>? primary = mine.isEmpty ? null : mine.first;
-        DateTime? next;
-        int progress = 0;
-        int monthDeclared = 0;
-        if (primary != null) {
-          final String gid = '${primary['groupId']}';
-          final List<Map<String, dynamic>> dues = _items(await _api.get('/me/dues?groupId=${Uri.encodeQueryComponent(gid)}'));
-          if (dues.isNotEmpty) {
-            next = dues.map((Map<String, dynamic> d) => _date(d['date'])).reduce((DateTime a, DateTime b) => a.isBefore(b) ? a : b);
-            final int due = dues.fold<int>(0, (int s, Map<String, dynamic> d) => s + _xaf(d['due']));
-            final int left = dues.fold<int>(0, (int s, Map<String, dynamic> d) => s + _xaf(d['remaining']));
-            progress = due == 0 ? 100 : (((due - left) * 100) ~/ due).clamp(0, 100);
-          } else {
-            progress = 100;
-          }
-          final DateTime now = DateTime.now().toUtc();
-          for (final Map<String, dynamic> m in _items(await _api.get('/tontines/${Uri.encodeComponent(gid)}/movements?mine=1'))) {
-            final DateTime at = _date(m['declaredAt']);
-            if (m['kind'] == 'contribution' && m['state'] != 'rejected' && at.year == now.year && at.month == now.month) {
-              monthDeclared += _xaf(m['amount']);
-            }
-          }
+  Future<Resource<HomeData>> loadHome(GroupSummary group) => _read(() async {
+        final String t = '/tontines/${Uri.encodeComponent(group.id)}';
+        final bool confirms = group.role == GroupRole.treasurer || group.role == GroupRole.administrator;
+        final bool controls = group.role == GroupRole.controller;
+        // Lectures indépendantes : en parallèle.
+        final List<ApiResponse> r = await Future.wait(<Future<ApiResponse>>[
+          _api.get('/me/dues?groupId=${Uri.encodeQueryComponent(group.id)}'),
+          _api.get(t),
+          _api.get('$t/movements?mine=1&state=declared'),
+          _api.get('$t/decisions'),
+          _api.get('/me/notifications'),
+          if (confirms) _api.get('$t/movements?state=declared'),
+          if (controls) _api.get('$t/movements?state=confirmed'),
+        ]);
+        final List<OpenDue> dues = _items(r[0])
+            .where((Map<String, dynamic> d) => _xaf(d['remaining']) > 0)
+            .map((Map<String, dynamic> d) => OpenDue(
+                  fundId: '${d['fundId']}',
+                  fundName: '${d['fundName'] ?? ''}',
+                  fundKind: '${d['fundKind'] ?? ''}',
+                  roundSeq: (d['roundSeq'] as num).toInt(),
+                  remainingXaf: _xaf(d['remaining']),
+                  late: d['lateness'] == 'late',
+                ))
+            .toList();
+        final List<DateTime> dates = _items(r[0])
+            .where((Map<String, dynamic> d) => _xaf(d['remaining']) > 0)
+            .map((Map<String, dynamic> d) => _date(d['date']))
+            .toList()
+          ..sort();
+        final Map<String, dynamic>? meeting = r[1].body['nextMeeting'] as Map<String, dynamic>?;
+        final List<Map<String, dynamic>> mine = _items(r[2]).where((Map<String, dynamic> m) => m['kind'] == 'contribution').toList();
+        final List<PendingVote> votes = _items(r[3])
+            .where((Map<String, dynamic> d) =>
+                d['state'] == 'open' && d['myChoice'] == null && ((d['can'] as Map<String, dynamic>?)?['vote'] == true))
+            .map((Map<String, dynamic> d) => PendingVote(
+                  id: '${d['decisionId']}',
+                  title: _decisionTitle['${d['kind']}'] ?? 'Vote de l’association',
+                  closesAtUtc: _date(d['closesAt']),
+                ))
+            .toList();
+        int toValidate = 0;
+        if (r.length > 5) {
+          toValidate = _items(r[5]).where((Map<String, dynamic> m) {
+            final Map<String, dynamic> can = (m['can'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
+            return can[controls ? 'control' : 'confirm'] == true;
+          }).length;
         }
-        final List<KombeNotification> recent =
-            _items(await _api.get('/me/notifications')).take(5).map(TontineNotificationRepository.notification).toList();
-        return DashboardData(
-          primaryGroup: primary == null
-              ? null
-              : GroupSummary(
-                  id: '${primary['groupId']}',
-                  name: '${primary['name']}',
-                  role: roleFrom((primary['roles'] as List<dynamic>?) ?? const <dynamic>[]),
-                  memberCount: (primary['memberCount'] as num?)?.toInt() ?? 0,
-                  cycleIndex: 0,
-                  cycleTotal: (primary['memberCount'] as num?)?.toInt() ?? 0,
-                  contributionAmountXaf: _xaf(primary['contributionPerShare']),
-                  nextDueAtUtc: next ?? _date(primary['nextMeetingDate']),
-                ),
-          nextContributionAtUtc: next,
-          currentMonthDeclaredXaf: monthDeclared,
-          progressPercent: progress,
-          recentActivity: recent,
+        return HomeData(
+          group: group,
+          dues: dues,
+          nextDueDate: dates.isEmpty ? null : dates.first,
+          pendingDeclaredXaf: mine.fold<int>(0, (int s, Map<String, dynamic> m) => s + _xaf(m['amount'])),
+          pendingDeclarations: mine.length,
+          toValidate: toValidate,
+          votes: votes,
+          nextMeetingDate: meeting == null ? null : _date(meeting['date']),
+          nextMeetingPlace: meeting?['location'] as String?,
+          recent: _items(r[4])
+              .where((Map<String, dynamic> n) => n['groupId'] == group.id)
+              .take(3)
+              .map(TontineNotificationRepository.notification)
+              .toList(),
         );
       });
 }

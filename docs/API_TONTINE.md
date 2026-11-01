@@ -27,8 +27,8 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 | PATCH | `/v1/me` | `MeUpdate` → `MeView` |
 | GET | `/v1/me/tontines` | → `TontineSummary[]` |
 | GET | `/v1/me/dues` | `?groupId=` → `DueView[]` (mes échéances ouvertes) |
-| GET | `/v1/me/notifications` | → `NotificationView[]` |
-| POST | `/v1/me/notifications/read` | `{ ids?: string[] }` → 204 (toutes si vide) |
+| GET | `/v1/me/notifications` | `?unread=1` (non lues seulement) → `NotificationView[]` (100 au plus ; `topic` = nature précise, `subjectId` = objet visé, `target` = écran du groupe) |
+| POST | `/v1/me/notifications/read` | `{ ids: string[] \| "all" }` → `{ updated }` |
 
 ## Association
 

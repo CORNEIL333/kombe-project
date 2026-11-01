@@ -336,19 +336,49 @@ void main() {
     expect(calls.single.url.queryParameters, <String, String>{'groupId': 'grp_1'});
   });
 
-  test('tableau de bord : progression du tour depuis mes échéances', () async {
+  test('accueil du groupe actif : reste dû, mes déclarations en attente, à confirmer, vote, séance — en parallèle', () async {
     final TontineDashboardRepository repo = TontineDashboardRepository(
-      api: apiFor((http.Request r) => switch (r.url.path) {
-            '/v1/me/tontines' => <dynamic>[tontine],
-            '/v1/me/dues' => <dynamic>[
-                <String, dynamic>{'due': '5000', 'remaining': '2000', 'date': '2026-10-18'},
-                <String, dynamic>{'due': '1500', 'remaining': '1500', 'date': '2026-10-18'},
-              ],
-            _ => <dynamic>[],
-          }),
+      api: apiFor((http.Request r) {
+        final String q = r.url.query;
+        return switch (r.url.path) {
+          '/v1/me/dues' => <dynamic>[
+              <String, dynamic>{'fundId': 'f_rot', 'fundKind': 'rotation', 'fundName': 'Cagnotte', 'roundSeq': 2, 'remaining': '2000', 'date': '2026-10-18', 'lateness': 'late'},
+              <String, dynamic>{'fundId': 'f_sol', 'fundKind': 'solidarity', 'fundName': 'Secours', 'roundSeq': 2, 'remaining': '0', 'date': '2026-10-11', 'lateness': 'on_time'},
+            ],
+          '/v1/tontines/grp_1' => <String, dynamic>{'nextMeeting': <String, dynamic>{'date': '2026-10-25', 'location': 'Chez Awa'}},
+          '/v1/tontines/grp_1/movements' when q.contains('mine=1') => <dynamic>[
+              <String, dynamic>{'kind': 'contribution', 'amount': '5000'},
+            ],
+          '/v1/tontines/grp_1/movements' => <dynamic>[
+              <String, dynamic>{'movementId': 'a', 'can': <String, dynamic>{'confirm': true}},
+              <String, dynamic>{'movementId': 'mine', 'can': <String, dynamic>{'confirm': false}},
+            ],
+          '/v1/tontines/grp_1/decisions' => <dynamic>[
+              <String, dynamic>{'decisionId': 'd1', 'kind': 'pause', 'state': 'open', 'myChoice': null, 'closesAt': '2026-10-20T18:00:00Z', 'can': <String, dynamic>{'vote': true}},
+              <String, dynamic>{'decisionId': 'd2', 'kind': 'pause', 'state': 'open', 'myChoice': 'yes', 'closesAt': '2026-10-20T18:00:00Z', 'can': <String, dynamic>{'vote': false}},
+            ],
+          '/v1/me/notifications' => <dynamic>[
+              <String, dynamic>{'notificationId': '9', 'groupId': 'grp_2', 'kind': 'general', 'topic': 'fund', 'createdAt': '2026-10-13T10:00:00Z', 'read': false},
+              <String, dynamic>{'notificationId': '8', 'groupId': 'grp_1', 'groupName': 'Njangi', 'kind': 'validation_waiting', 'topic': 'declared', 'subjectId': 'mv_7', 'createdAt': '2026-10-13T09:00:00Z', 'read': false},
+            ],
+          _ => <dynamic>[],
+        };
+      }),
     );
-    final DashboardData d = ((await repo.loadDashboard()) as ResourceReady<DashboardData>).data;
-    expect(d.primaryGroup?.name, 'Njangi Bonanjo');
-    expect(d.progressPercent, 46); // (6500 − 3500) × 100 / 6500, entier
+    final GroupSummary g = GroupSummary(
+      id: 'grp_1', name: 'Njangi', role: GroupRole.treasurer, memberCount: 4, cycleIndex: 0, cycleTotal: 4,
+      contributionAmountXaf: 5000, nextDueAtUtc: DateTime.utc(2026, 10, 18),
+    );
+    final HomeData d = ((await repo.loadHome(g)) as ResourceReady<HomeData>).data;
+    expect(d.remainingXaf, 2000);
+    expect(d.late, isTrue);
+    expect(d.pendingDeclaredXaf, 5000);
+    expect(d.toValidate, 1); // jamais sa propre déclaration
+    expect(d.votes.map((PendingVote v) => v.id), <String>['d1']);
+    expect(d.nextMeetingPlace, 'Chez Awa');
+    // Seules les notifications du groupe actif, avec leur destination.
+    expect(d.recent.single.subjectId, 'mv_7');
+    expect(d.recent.single.title, 'Une déclaration attend votre confirmation');
+    expect(calls.where((http.Request c) => c.url.path == '/v1/me/tontines'), isEmpty);
   });
 }

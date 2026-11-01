@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/state/safe_notifier.dart';
+
 import '../../core/formatters/xaf.dart';
 import '../../core/state/resource.dart';
 import '../../domain/entities/contribution.dart';
@@ -15,7 +17,7 @@ enum DeclarationPhase { editing, sending, done, partial, unknown, failed }
 /// modification (rien ne se perd si l'app est fermée), le plan de répartition
 /// est figé AVANT le premier envoi, et une reprise renvoie exactement les
 /// mêmes lignes avec les mêmes clés — jamais de doublon.
-final class ContributionDraftViewModel extends ChangeNotifier {
+final class ContributionDraftViewModel extends ChangeNotifier with SafeNotifier {
   ContributionDraftViewModel(this._drafts, this._contributions, this.groupId, {String? localId})
       : _localId = localId;
 

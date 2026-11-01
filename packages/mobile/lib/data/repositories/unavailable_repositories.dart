@@ -246,6 +246,12 @@ final class UnavailableNotificationRepository
   @override
   Future<OperationResult<void>> markRead(String notificationId) async =>
       const OperationBlocked<void>(_reason);
+
+  @override
+  Future<int> unreadCount() async => 0;
+
+  @override
+  Future<OperationResult<void>> markAllRead() async => const OperationBlocked<void>(_reason);
 }
 
 final class UnavailableDocumentRepository implements DocumentRepository {
@@ -264,6 +270,6 @@ final class UnavailableDashboardRepository implements DashboardRepository {
   const UnavailableDashboardRepository();
 
   @override
-  Future<Resource<DashboardData>> loadDashboard() async =>
-      const ResourceUnavailable<DashboardData>();
+  Future<Resource<HomeData>> loadHome(GroupSummary group) async =>
+      const ResourceUnavailable<HomeData>();
 }

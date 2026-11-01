@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/active_group_controller.dart';
+import '../../app/router/main_shell.dart';
+import '../../domain/entities/group.dart';
 import '../../core/formatters/labels.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/state/resource.dart';
@@ -43,7 +46,17 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Mes cotisations')),
+        appBar: KombeTopBar(
+          title: const Text('Cotisations'),
+          actions: <Widget>[
+            if (context.watch<ActiveGroupController>().active case final GroupSummary g)
+              IconButton(
+                tooltip: 'Déclarer un versement',
+                onPressed: () => context.push('/app/groups/${Uri.encodeComponent(g.id)}/contributions/new'),
+                icon: const Icon(Icons.add_rounded),
+              ),
+          ],
+        ),
         body: RefreshIndicator(
           onRefresh: _load,
           child: ListView(

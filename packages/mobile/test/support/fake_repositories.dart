@@ -24,6 +24,7 @@ import 'package:kombe_mobile/domain/entities/governance.dart';
 import 'package:kombe_mobile/domain/entities/group.dart';
 import 'package:kombe_mobile/domain/entities/notification.dart';
 import 'package:kombe_mobile/domain/entities/profile.dart';
+import 'package:kombe_mobile/domain/repositories/draft_repository.dart';
 import 'package:kombe_mobile/domain/repositories/auth_repository.dart';
 import 'package:kombe_mobile/domain/repositories/contribution_repository.dart';
 import 'package:kombe_mobile/domain/repositories/dashboard_repository.dart';
@@ -548,7 +549,18 @@ final class FakeNotificationRepository implements NotificationRepository {
     final int i = w.notifications.indexWhere((KombeNotification n) => n.id == notificationId);
     if (i >= 0) {
       final KombeNotification n = w.notifications[i];
-      w.notifications[i] = KombeNotification(id: n.id, kind: n.kind, title: n.title, body: n.body, createdAtUtc: n.createdAtUtc, read: true);
+      w.notifications[i] = n.markedRead();
+    }
+    return const OperationSuccess<void>(null);
+  }
+
+  @override
+  Future<int> unreadCount() async => w.notifications.where((KombeNotification n) => !n.read).length;
+
+  @override
+  Future<OperationResult<void>> markAllRead() async {
+    for (int i = 0; i < w.notifications.length; i++) {
+      w.notifications[i] = w.notifications[i].markedRead();
     }
     return const OperationSuccess<void>(null);
   }
@@ -577,23 +589,43 @@ final class FakeDashboardRepository implements DashboardRepository {
   final FakeWorld w;
 
   @override
-  Future<Resource<DashboardData>> loadDashboard() async {
+  Future<Resource<HomeData>> loadHome(GroupSummary group) async {
     await _lag(500);
-    final int declared = w.history
-        .where((Contribution c) => c.declaredAtUtc != null && c.declaredAtUtc!.month == DateTime.now().toUtc().month)
-        .fold<int>(0, (int s, Contribution c) => s + c.amountXaf);
-    return ResourceReady<DashboardData>(DashboardData(
-      primaryGroup: w.groups.first,
-      nextContributionAtUtc: w.nextDue,
-      currentMonthDeclaredXaf: declared,
-      progressPercent: declared == 0 ? 0 : 100,
-      recentActivity: w.notifications.take(4).toList(),
+    return ResourceReady<HomeData>(HomeData(
+      group: group,
+      dues: const <OpenDue>[
+        OpenDue(fundId: 'f_rot', fundName: 'Cagnotte', fundKind: 'rotation', roundSeq: 3, remainingXaf: 25000, late: false),
+        OpenDue(fundId: 'f_sec', fundName: 'Secours', fundKind: 'solidarity', roundSeq: 3, remainingXaf: 1000, late: false),
+      ],
+      nextDueDate: w.nextDue,
+      pendingDeclaredXaf: 15000,
+      pendingDeclarations: 1,
+      toValidate: group.role == GroupRole.member ? 0 : 2,
+      votes: <PendingVote>[PendingVote(id: 'essai-vote-1', title: 'Pause des séances', closesAtUtc: w.nextDue)],
+      nextMeetingDate: w.nextDue,
+      nextMeetingPlace: 'Chez Mme Ngo, Bonamoussadi',
+      recent: w.notifications.take(3).toList(),
     ));
   }
 }
 
 /// Dépendances complètes de l'app branchées sur les dépôts factices (tests uniquement).
-AppDependencies fakeDependencies() {
+/// Brouillons en mémoire (pas de SQLite dans les tests de widgets).
+final class InMemoryDraftRepository implements ContributionDraftRepository {
+  final Map<String, ContributionDraft> store = <String, ContributionDraft>{};
+  @override
+  Future<List<ContributionDraft>> listDrafts() async => store.values.toList();
+  @override
+  Future<ContributionDraft?> getDraft(String localId) async => store[localId];
+  @override
+  Future<void> upsertDraft(ContributionDraft draft) async => store[draft.localId] = draft;
+  @override
+  Future<void> deleteDraft(String localId) async => store.remove(localId);
+  @override
+  Future<void> purgeAll() async => store.clear();
+}
+
+AppDependencies fakeDependencies({ContributionDraftRepository? drafts}) {
   final FakeWorld world = FakeWorld();
   return AppDependencies(
     authRepository: FakeAuthRepository(),
@@ -605,7 +637,7 @@ AppDependencies fakeDependencies() {
     notificationRepository: FakeNotificationRepository(world),
     documentRepository: FakeDocumentRepository(),
     dashboardRepository: FakeDashboardRepository(world),
-    draftRepository: ContributionDraftDatabase(),
+    draftRepository: drafts ?? ContributionDraftDatabase(),
     preferencesRepository: PreferencesRepositoryImpl(SharedPreferencesAsync()),
     biometricService: BiometricService(LocalAuthentication()),
     secureSessionStore: SecureSessionStore(const FlutterSecureStorage()),

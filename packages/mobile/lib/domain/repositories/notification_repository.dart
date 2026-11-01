@@ -4,5 +4,10 @@ import '../entities/notification.dart';
 
 abstract interface class NotificationRepository {
   Future<Resource<List<KombeNotification>>> listNotifications();
+
+  /// Nombre réel de non-lues (compté par le serveur, pas sur un extrait).
+  Future<int> unreadCount();
+
   Future<OperationResult<void>> markRead(String notificationId);
+  Future<OperationResult<void>> markAllRead();
 }

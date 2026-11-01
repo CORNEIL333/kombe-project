@@ -11,7 +11,6 @@ abstract final class ScreenManifest {
     'groups',
     'join_group',
     'create_group',
-    'discover_groups',
     'my_groups',
     'group_detail',
     'group_settings',
@@ -41,6 +40,5 @@ abstract final class ScreenManifest {
     'contact_support',
     'offline_status',
     'about',
-    'more',
   ];
 }

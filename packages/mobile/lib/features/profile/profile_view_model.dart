@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/state/safe_notifier.dart';
+
 import '../../core/state/resource.dart';
 import '../../domain/entities/profile.dart';
 import '../../domain/repositories/profile_repository.dart';
 
-final class ProfileViewModel extends ChangeNotifier {
+final class ProfileViewModel extends ChangeNotifier with SafeNotifier {
   ProfileViewModel(this._repository);
 
   final ProfileRepository _repository;
