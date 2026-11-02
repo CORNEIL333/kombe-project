@@ -31,6 +31,14 @@ class KombeAvatar extends StatelessWidget {
   final Uri? url;
   final double size;
 
+  static const List<(Color, Color)> _tints = <(Color, Color)>[
+    (KombeColors.mint, KombeColors.forest),
+    (KombeColors.goldPale, KombeColors.goldDark),
+    (KombeColors.sand, Color(0xFF46413A)),
+    (Color(0xFFE3ECF4), Color(0xFF1F4F78)),
+    (Color(0xFFF5E1D8), Color(0xFF8E3F1F)),
+  ];
+
   String get _initials {
     final List<String> parts = name.trim().split(RegExp(r'\s+')).where((String p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return '?';
@@ -39,14 +47,18 @@ class KombeAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Teinte stable par personne (menthe, or pâle, sable, bleu, argile) :
+    // une liste de membres se lit d'un coup d'œil sans visage inventé.
+    final int h = name.codeUnits.fold<int>(5, (int a, int c) => (a * 31 + c) & 0x7fffffff);
+    final (Color bg, Color fg) = _tints[h % _tints.length];
     final Widget initials = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(color: KombeColors.sand, shape: BoxShape.circle),
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
       child: Text(
         _initials,
-        style: TextStyle(color: KombeColors.forest, fontWeight: FontWeight.w800, fontSize: size * .34),
+        style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: size * .36, letterSpacing: .2),
       ),
     );
     final Uri? u = url;

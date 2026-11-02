@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../design/kombe_colors.dart';
+import '../design/kombe_ndop.dart';
+import '../design/kombe_theme.dart';
 
-/// En-tête d'écran (planche) : grand titre, sous-titre, motif tissé en coin.
+/// En-tête d'écran : grand titre Fraunces, sous-titre, coin de motif Ndop.
 class KombeScreenHeader extends StatelessWidget {
   const KombeScreenHeader({super.key, required this.title, required this.subtitle, this.inset = 20});
   final String title;
@@ -18,14 +20,16 @@ class KombeScreenHeader extends StatelessWidget {
           clipBehavior: Clip.hardEdge,
           children: <Widget>[
             const Positioned(
-              right: -30,
-              top: -30,
+              right: -20,
+              top: -24,
+              width: 190,
+              height: 150,
               child: ExcludeSemantics(
-                // Coin tissé fondu dans le fond (pas de bord franc).
+                // Coin Ndop (vectoriel) fondu dans le papier.
                 child: ShaderMask(
                   blendMode: BlendMode.dstIn,
                   shaderCallback: _fondu,
-                  child: Image(image: AssetImage('assets/images/fonds/creation.webp'), width: 170, fit: BoxFit.cover),
+                  child: CustomPaint(painter: NdopPainter(color: KombeColors.forest, opacity: .16, variant: 2, tile: 30)),
                 ),
               ),
             ),
@@ -36,7 +40,7 @@ class KombeScreenHeader extends StatelessWidget {
                 children: <Widget>[
                   Semantics(
                     header: true,
-                    child: Text(title, style: const TextStyle(color: KombeColors.forest, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -.6)),
+                    child: Text(title, style: KombeType.display(size: 32)),
                   ),
                   const SizedBox(height: 4),
                   Text(subtitle, style: const TextStyle(color: KombeColors.slate, fontSize: 14)),

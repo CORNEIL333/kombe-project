@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/design/kombe_ndop.dart';
 import '../../core/design/kombe_icons.g.dart';
 import '../../core/state/resource.dart';
 import '../../core/update/kombe_update_sheet.dart';
@@ -384,18 +385,14 @@ class KombeMenu extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Container(
-            padding: EdgeInsets.fromLTRB(22, MediaQuery.paddingOf(context).top + 18, 16, 22),
-            decoration: const BoxDecoration(
-              color: KombeColors.forest,
-              image: DecorationImage(
-                image: AssetImage('assets/images/fonds/creation.webp'),
-                fit: BoxFit.cover,
-                alignment: Alignment.centerRight,
-                opacity: .55,
-              ),
+          NdopSurface(
+            variant: 2,
+            opacity: .16,
+            fadeTo: Alignment.centerLeft,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(22, MediaQuery.paddingOf(context).top + 18, 16, 22),
+              child: const Align(alignment: Alignment.centerLeft, child: KombeLogo(size: 34, inverse: true)),
             ),
-            child: const Align(alignment: Alignment.centerLeft, child: KombeLogo(size: 34, inverse: true)),
           ),
           Expanded(
             // Material (et non DecoratedBox) : les retours tactiles des lignes restent visibles.

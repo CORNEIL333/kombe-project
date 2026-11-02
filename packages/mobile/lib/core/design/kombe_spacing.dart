@@ -7,7 +7,9 @@ abstract final class KombeSpacing {
   static const double xl = 32;
   static const double xxl = 48;
   static const double screen = 20;
-  static const double cardRadius = 20;
+  static const double cardRadius = 22;
+  static const double tileRadius = 16;
+  static const double sheetRadius = 28;
   static const double fieldRadius = 16;
   static const double minTouch = 48;
 }

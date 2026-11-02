@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../design/kombe_spacing.dart';
+import 'kombe_components.dart';
 
 class SectionCard extends StatelessWidget {
   const SectionCard({
@@ -13,9 +14,7 @@ class SectionCard extends StatelessWidget {
   final EdgeInsets padding;
 
   @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(padding: padding, child: child),
-      );
+  Widget build(BuildContext context) => KombeCard(padding: padding, child: child);
 }
 
 class ScreenTitle extends StatelessWidget {
@@ -39,7 +38,7 @@ class ScreenTitle extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(title, style: Theme.of(context).textTheme.headlineMedium),
+              Semantics(header: true, child: Text(title, style: Theme.of(context).textTheme.headlineMedium)),
               if (subtitle != null) ...<Widget>[
                 const SizedBox(height: 6),
                 Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
