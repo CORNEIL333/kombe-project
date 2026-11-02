@@ -92,24 +92,24 @@ final class AppRouter {
             StatefulShellBranch(
               routes: <RouteBase>[
                 GoRoute(
-                  path: '/app/notifications',
-                  builder: (_, __) => const NotificationsScreen(),
+                  path: '/app/groups',
+                  builder: (_, __) => const MyGroupsScreen(),
                 ),
               ],
             ),
             StatefulShellBranch(
               routes: <RouteBase>[
                 GoRoute(
-                  path: '/app/bureau',
-                  builder: (_, __) => const ActiveBureauScreen(),
+                  path: '/app/notifications',
+                  builder: (_, __) => const NotificationsScreen(),
                 ),
               ],
             ),
           ],
         ),
         GoRoute(
-          path: '/app/groups',
-          builder: (_, __) => const MyGroupsScreen(),
+          path: '/app/bureau',
+          builder: (_, __) => const ActiveBureauScreen(),
         ),
         GoRoute(
           path: '/app/groups/join',

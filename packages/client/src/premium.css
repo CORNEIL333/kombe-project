@@ -238,7 +238,7 @@
   display: flex; align-items: center; width: 100%; margin-top: 18px; padding: 16px; border: 0; border-radius: var(--p-rayon-l); text-align: left; cursor: pointer;
   color: var(--p-ivoire); font: inherit;
   background-color: var(--p-foret);
-  background-image: linear-gradient(90deg, var(--p-foret) 55%, rgba(16, 60, 50, 0.35)), url("/brand/fonds/cotisations.webp");
+  background-image: linear-gradient(90deg, var(--p-foret) 55%, rgba(16, 60, 50, 0.35)), url("/brand/fonds/creation.webp");
   background-size: cover; background-position: right center; box-shadow: var(--p-ombre-1);
 }
 .carte-seance:focus-visible { outline: 3px solid var(--p-or); outline-offset: 2px; }
@@ -297,7 +297,7 @@
 
 /* Repli des avatars : initiales sur un motif tissé de la marque (jamais une personne). */
 .avatar-groupe[data-motif="1"] { background-image: linear-gradient(rgba(16, 60, 50, 0.72), rgba(16, 60, 50, 0.72)), url("/brand/fonds/creation.webp"); background-size: cover; }
-.avatar-groupe[data-motif="2"] { background-image: linear-gradient(rgba(16, 60, 50, 0.72), rgba(16, 60, 50, 0.72)), url("/brand/fonds/cotisations.webp"); background-size: cover; }
+.avatar-groupe[data-motif="2"] { background-image: linear-gradient(rgba(16, 60, 50, 0.6), rgba(16, 60, 50, 0.6)), url("/brand/fonds/confirmation.webp"); background-size: cover; }
 
 /* Grand écran : la coquille occupe la largeur ; le contenu reste centré et lisible. */
 @media (min-width: 900px) {

@@ -33,7 +33,7 @@
 .menu-lateral__tete {
   padding: 18px 12px 14px 20px; color: var(--p-ivoire);
   background-color: var(--p-foret);
-  background-image: linear-gradient(90deg, var(--p-foret) 55%, rgba(16, 60, 50, 0.6)), url("/brand/fonds/cotisations.webp");
+  background-image: linear-gradient(90deg, var(--p-foret) 55%, rgba(16, 60, 50, 0.6)), url("/brand/fonds/creation.webp");
   background-size: cover; background-position: right center;
 }
 .menu-lateral__marque { display: flex; flex-direction: column; }
@@ -204,7 +204,7 @@
 .carte-promo {
   margin-top: 18px; padding: 22px; border-radius: 22px; color: var(--p-ivoire);
   background-color: var(--p-foret);
-  background-image: linear-gradient(90deg, var(--p-foret) 62%, rgba(16, 60, 50, 0.2)), url("/brand/fonds/cotisations.webp");
+  background-image: linear-gradient(90deg, var(--p-foret) 62%, rgba(16, 60, 50, 0.2)), url("/brand/fonds/creation.webp");
   background-size: cover; background-position: right center;
 }
 .carte-promo svg { color: var(--p-or); }

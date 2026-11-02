@@ -8,6 +8,7 @@ import '../../domain/entities/group.dart';
 import '../../core/formatters/labels.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/state/resource.dart';
+import '../../core/widgets/kombe_screen_header.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/repositories/contribution_repository.dart';
@@ -47,7 +48,6 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: KombeTopBar(
-          title: const Text('Cotisations'),
           actions: <Widget>[
             if (context.watch<ActiveGroupController>().active case final GroupSummary g)
               IconButton(
@@ -60,8 +60,9 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
         body: RefreshIndicator(
           onRefresh: _load,
           child: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             children: <Widget>[
+              const KombeScreenHeader(inset: 0, title: 'Cotisations', subtitle: 'Vos déclarations et leur confirmation par la trésorerie.'),
               if (_drafts.isNotEmpty) ...<Widget>[
                 Text('À terminer', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 10),

@@ -28,7 +28,7 @@ void main() {
     );
   });
 
-  testWidgets('accueil du groupe actif, changement de groupe, onglet Bureau selon la fonction', (WidgetTester tester) async {
+  testWidgets('accueil du groupe actif, changement de groupe, quatre onglets, bureau selon la fonction', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(390 * 3, 844 * 3);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -43,7 +43,10 @@ void main() {
     // Groupe actif : le premier par défaut, nommé dans la barre.
     expect(find.descendant(of: find.byType(AppBar), matching: find.text('Les Étoiles de Yaoundé')), findsOneWidget);
     expect(find.text('À régler'), findsOneWidget);
-    expect(find.text('Bureau'), findsNothing); // simple membre
+    // Quatre destinations stables, quel que soit le rôle.
+    for (final String tab in <String>['Accueil', 'Cotisations', 'Groupes', 'Activité']) {
+      expect(find.text(tab), findsWidgets);
+    }
 
     // Changer de groupe sans quitter l'écran.
     await tester.tap(find.descendant(of: find.byType(AppBar), matching: find.text('Les Étoiles de Yaoundé')));
@@ -52,6 +55,10 @@ void main() {
     await _settle(tester, steps: 30);
     expect(find.descendant(of: find.byType(AppBar), matching: find.text('Solidarité Bamiléké')), findsOneWidget);
     expect(find.text('2 déclarations à confirmer'), findsOneWidget);
-    expect(find.text('Bureau'), findsOneWidget); // trésorerie
+    // Outils du bureau : depuis l'onglet Groupes, seulement là où la personne a une fonction.
+    await tester.tap(find.text('Groupes').last);
+    await _settle(tester, steps: 20);
+    expect(find.text('Mes groupes'), findsOneWidget);
+    expect(find.byTooltip('Outils du bureau'), findsOneWidget); // trésorerie de Solidarité Bamiléké
   });
 }

@@ -8,3 +8,10 @@
 - Routes : GET/PUT/DELETE `/v1/tontines/:id/photo`, GET `/v1/invitations/:code/photo` (ETag = version, `private`). `photoVersion` ajouté (optionnel) aux résumés et au détail.
 - Tests : domaine 444 (dont 5 photo : EXIF/GPS retirés, dimensions réelles, PNG/SVG/vide/tronqué/lourd/malformé refusés, droits), API 249 (contrat OpenAPI ↔ routes).
 - Non fait : preuve sur PostgreSQL réel (aucune base isolée) → BLOCKED.
+
+## 2026-11-02 — Lots B/C : planches de référence (PWA + Flutter)
+- PWA : coquille, accueil (bento bureau, carte ivoire téléphone), Groupes, Activité, colonne forêt — conformes aux planches ; recherche (loupe) NON ajoutée (aucune fonction derrière) ; « Épargnez » remplacé (mot interdit) ; personnes des planches non utilisées comme photo de groupe.
+- API : `cyclePosition` dans les résumés (progression réelle du cycle).
+- Flutter : 4 onglets (Accueil, Cotisations, Groupes, Activité), cloche → non lues en demi-fenêtre, barre forêt sur l'accueil, menu à en-tête forêt et feuille ivoire, Groupes et Activité de la planche, photo de groupe (galerie/appareil, recadrage, JPEG 512/256 en isolat, EXIF effacé — fuite réelle trouvée par test et corrigée), avatar à couverture tissée.
+- Défauts trouvés par la recette et corrigés : en-tête d'écran à hauteur fixe (débordement en grand texte), ombre peinte à l'intérieur des cartes, retour tactile invisible dans le menu (DecoratedBox), police du bouton principal non fixée.
+- Fond « marché » (personnes) retiré des couvertures et en-têtes ; seuls tissage, vert-or, Yaoundé et paysage restent.

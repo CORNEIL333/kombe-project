@@ -74,9 +74,21 @@ class _Initials extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(color: KombeColors.forest, borderRadius: radius),
+        // Grande couverture : tissage de la marque sous un voile forêt (planche) ;
+        // petit avatar : anneau. Jamais une photo de personnes.
+        decoration: BoxDecoration(
+          color: KombeColors.forest,
+          borderRadius: radius,
+          image: size >= 64
+              ? const DecorationImage(
+                  image: AssetImage('assets/images/fonds/creation.webp'),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(Color(0x99103C32), BlendMode.srcATop),
+                )
+              : null,
+        ),
         child: CustomPaint(
-          painter: _RingPainter(),
+          painter: size >= 64 ? null : _RingPainter(),
           child: Center(
             child: Text(
               groupInitials(name),

@@ -9,9 +9,11 @@ import '../../core/design/kombe_colors.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/state/resource.dart';
 import '../../core/web/kombe_web.dart';
+import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
+import 'group_photo_sheet.dart';
 import 'invite_member_screen.dart';
 
 /// Fiche d'un groupe : l'essentiel en trois lignes, puis UNE entrée par
@@ -82,6 +84,37 @@ class _Body extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
       children: <Widget>[
+        // Photo du groupe (ou couverture tissée) ; modifiable selon la fonction.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: Row(
+            children: <Widget>[
+              Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  GroupAvatar(groupId: g.id, name: g.name, photoVersion: active?.list.where((GroupSummary x) => x.id == g.id).firstOrNull?.photoVersion ?? g.photoVersion, size: 88),
+                  if (canEditGroupPhoto(g.role))
+                    Positioned(
+                      right: -8,
+                      bottom: -8,
+                      child: Material(
+                        color: KombeColors.goldWarm,
+                        shape: const CircleBorder(side: BorderSide(color: KombeColors.cream, width: 2)),
+                        child: IconButton(
+                          tooltip: 'Modifier la photo',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => showGroupPhotoSheet(context, g),
+                          icon: const Icon(Icons.edit_outlined, size: 18, color: KombeColors.ink),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 18),
+              Expanded(child: Text(g.name, style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: KombeColors.forest))),
+            ],
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
           child: Column(
