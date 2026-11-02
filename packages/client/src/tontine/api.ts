@@ -123,7 +123,7 @@ function cleIdempotence(): string {
   return `k-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
-type Methode = "GET" | "POST" | "PUT" | "PATCH";
+type Methode = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /** Écriture gardable sans réseau (mode séance, L-05) : groupe + libellé affiché. */
 interface HorsLigne {
@@ -159,6 +159,17 @@ async function appel<T>(
     }
     throw err;
   }
+}
+
+/** Photo d'un groupe : octets JPEG lus avec la session (jamais d'URL publique). */
+export async function lirePhotoGroupe(session: Session, groupId: string, version: number, taille: 256 | 512, viaInvitation?: string): Promise<Blob | null> {
+  const config = await loadRuntimeConfig();
+  const base = config.apiBaseUrl.replace(/\/+$/, "");
+  const chemin = viaInvitation ? `/v1/invitations/${encodeURIComponent(viaInvitation)}/photo` : `${t(groupId)}/photo`;
+  const r = await fetch(`${base}${chemin}?size=${taille}&v=${version}`, { headers: { authorization: `Bearer ${session.sessionId}` } });
+  if (!r.ok) return null;
+  const blob = await r.blob();
+  return blob.type === "image/jpeg" ? blob : null;
 }
 
 /** Envoie les opérations gardées sur ce téléphone, avec leur clé d'origine. */
@@ -220,6 +231,10 @@ export const tontines = {
   invitations: (s: Session, id: string) => appel<InvitationView[]>(s, "GET", `${t(id)}/invitations`),
   revoquerInvitation: (s: Session, id: string, iid: string) =>
     appel<void>(s, "POST", `${t(id)}/invitations/${encodeURIComponent(iid)}/revocation`),
+  /** JPEG carrés 512/256 en base64, préparés par `preparerPhoto`. */
+  changerPhoto: (s: Session, id: string, image512: string, image256: string) =>
+    appel<{ photoVersion: number }>(s, "PUT", `${t(id)}/photo`, { image512, image256 }),
+  retirerPhoto: (s: Session, id: string) => appel<{ photoVersion: null }>(s, "DELETE", `${t(id)}/photo`),
   apercuInvitation: (s: Session, code: string) => appel<InvitationPreview>(s, "GET", `/v1/invitations/${encodeURIComponent(code)}`),
   rejoindre: (s: Session, code: string, displayName: string, sponsorMembershipId?: string) =>
     appel<TontineSummary>(s, "POST", `/v1/invitations/${encodeURIComponent(code)}/join`, {

@@ -80,7 +80,7 @@
 }
 
 /* Grand écran : le menu reste ouvert en colonne, sans voile ni bouton. */
-@media (min-width: 1100px) {
+@media (min-width: 900px) {
   .app--session { padding-left: 300px; }
   .menu-lateral { transform: none; visibility: visible; box-shadow: none; border-right: 1px solid var(--c-trait, #e7dcc6); z-index: 20; }
   .menu-voile, .menu-lateral__fermer, .barre-haut__menu { display: none; }

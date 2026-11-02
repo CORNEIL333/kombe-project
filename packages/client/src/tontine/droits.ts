@@ -29,6 +29,7 @@ export const MATRICE: Readonly<Record<TontineAction, readonly GroupRole[]>> = {
   "member.remove": PRESIDENCY,
   "role.assign": PRESIDENCY,
   "rules.publish": ADMIN,
+  "group.photo": ADMIN,
   "schedule.manage": ADMIN,
   "meeting.manage": ADMIN,
   "meeting.attendance": ["animator", "vice_president", "secretary", "censor"],

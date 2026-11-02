@@ -2,8 +2,7 @@
    Amendes & secours, Statuts, Registre, Règlement. Chaque bouton n'apparaît
    que pour la fonction qui peut l'exercer ; le serveur reste seul juge. */
 
-import { BandeauPhoto, photoPour } from "../composants/Scene.js";
-import { Orbite } from "../composants/Orbite.js";
+import { AvatarGroupe, DialoguePhoto, peutChangerPhoto } from "./PhotoGroupe.js";
 import { useState } from "react";
 import type { GroupRole } from "@kombe/domain";
 import {
@@ -72,6 +71,7 @@ export function Groupe({
   const { tx, dyn } = useTextes();
   const [onglet, setOnglet] = useState<Onglet>(() => (ONGLETS.some((o) => o.id === ongletInitial) ? (ongletInitial as Onglet) : "apercu"));
   const { etat, recharger } = useDonnees(() => tontines.detail(session, groupId), [session.sessionId, groupId]);
+  const [editionPhoto, setEditionPhoto] = useState(false);
 
   return (
     <div className="pile ecran">
@@ -85,41 +85,50 @@ export function Groupe({
               : null;
           return (
             <>
-              <div className="barre-groupe">
-                <BoutonIcone icone="retour" libelle={tx("app.accueil")} onClick={onRetour} />
-                {estBureau(g.me.roles) ? (
-                  <BoutonIcone icone="bureau" ton="or" legende libelle={tx("app.bureau")} onClick={() => ouvrirBureau(session, g.groupId)} />
-                ) : null}
-              </div>
-              <BandeauPhoto
-                photo={photoPour(g.groupId)}
-                surtitre={tx("imm.grpSur")}
-                titre={g.name}
-                orbite={
-                  tourActuel ? (
-                    <Orbite
-                      total={tourActuel.total}
-                      courant={tourActuel.index}
-                      variante="marque"
-                      taille={170}
-                      libelle={tx("imm.tourSur", { n: tourActuel.index + 1, total: tourActuel.total })}
-                    />
-                  ) : undefined
-                }
-              >
-                <p className="bandeau-photo__meta">
-                  {tx("td.etat", { etat: dyn(`etat.${g.state}`) })}
-                  {g.cycle ? ` · ${tx("td.cycleN", { n: g.cycle.number })}` : ""} · {g.me.roles.map((r) => dyn(`role.${r}`)).join(" · ")}
-                </p>
-                {tourActuel ? (
-                  <ul className="bandeau-photo__chiffres">
-                    <li>{tx("imm.tourSur", { n: tourActuel.index + 1, total: tourActuel.total })}</li>
-                    {g.currentRound?.beneficiaryName ? (
-                      <li data-ton="accent">{tx("imm.beneficiaire", { nom: g.currentRound.beneficiaryName })}</li>
+              <header className="entete-groupe">
+                <div className="entete-groupe__barre">
+                  <BoutonIcone icone="retour" libelle={tx("app.accueil")} onClick={onRetour} />
+                  {estBureau(g.me.roles) ? (
+                    <BoutonIcone icone="bureau" ton="or" legende libelle={tx("app.bureau")} onClick={() => ouvrirBureau(session, g.groupId)} />
+                  ) : null}
+                </div>
+                <div className="entete-groupe__identite">
+                  <span className="entete-groupe__avatar">
+                    <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={88} />
+                    {peutChangerPhoto(g.me.roles) ? (
+                      <button type="button" className="entete-groupe__photo" aria-label={tx("ph.modifier")} title={tx("ph.modifier")} onClick={() => setEditionPhoto(true)}>
+                        <Icone nom="modifier" taille={16} />
+                      </button>
                     ) : null}
-                  </ul>
-                ) : null}
-              </BandeauPhoto>
+                  </span>
+                  <div className="entete-groupe__texte">
+                    <h1 className="entete-groupe__nom">{g.name}</h1>
+                    <p className="entete-groupe__meta">
+                      {tx("td.etat", { etat: dyn(`etat.${g.state}`) })}
+                      {g.cycle ? ` · ${tx("td.cycleN", { n: g.cycle.number })}` : ""} · {g.me.roles.map((r) => dyn(`role.${r}`)).join(" · ")}
+                    </p>
+                    {tourActuel ? (
+                      <p className="entete-groupe__tour">
+                        {tx("imm.tourSur", { n: tourActuel.index + 1, total: tourActuel.total })}
+                        {g.currentRound?.beneficiaryName ? ` · ${tx("imm.beneficiaire", { nom: g.currentRound.beneficiaryName })}` : ""}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </header>
+              {editionPhoto ? (
+                <DialoguePhoto
+                  session={session}
+                  groupId={g.groupId}
+                  nom={g.name}
+                  version={g.photoVersion}
+                  onFermer={() => setEditionPhoto(false)}
+                  onChange={() => {
+                    recharger();
+                    window.dispatchEvent(new Event("kombe:groupes"));
+                  }}
+                />
+              ) : null}
               <nav className="onglets-groupe" aria-label={g.name}>
                 {ONGLETS.filter((o) => o.id !== "reglages" || peut(g.me.roles, "group.manage")).map((o) => (
                   <button

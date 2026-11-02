@@ -58,6 +58,13 @@ export function useGroupeActif(session: Session | null): GroupeActif {
     };
   }, [session, jeton]);
 
+  // Une photo changée ailleurs (fiche du groupe) : on relit la liste.
+  useEffect(() => {
+    const relire = () => setJeton((n) => n + 1);
+    window.addEventListener("kombe:groupes", relire);
+    return () => window.removeEventListener("kombe:groupes", relire);
+  }, []);
+
   const choisir = useCallback((groupId: string) => {
     setChoix(groupId);
     try {

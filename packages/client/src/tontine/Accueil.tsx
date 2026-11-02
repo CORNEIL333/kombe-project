@@ -11,6 +11,7 @@ import { Charge, useDonnees } from "./ui.js";
 import { Icone } from "../composants/Icones.js";
 import { useTextes, type CleTexte } from "./textes.js";
 import { destinationNotification, entreeNotification } from "./notifications.js";
+import { AvatarGroupe } from "./PhotoGroupe.js";
 
 const CONFIRME = ["treasurer", "treasurer_deputy", "animator", "vice_president"];
 
@@ -19,6 +20,7 @@ interface DonneesAccueil {
   readonly enRetard: boolean;
   readonly prochaineEcheance: string | null;
   readonly declare: bigint;
+  readonly confirme: bigint;
   readonly aValider: number;
   readonly controle: boolean;
   readonly votes: readonly DecisionView[];
@@ -43,6 +45,7 @@ async function chargerAccueil(session: Session, g: TontineSummary): Promise<Donn
     reste: ouvertes.reduce((s, e) => s + BigInt(e.remaining), 0n),
     enRetard: ouvertes.some((e) => e.lateness === "late"),
     prochaineEcheance: dates[0] ?? null,
+    confirme: echeances.reduce((s, e) => s + BigInt(e.confirmed), 0n),
     declare: miennes.filter((m) => m.kind === "contribution").reduce((s, m) => s + BigInt(m.amount), 0n),
     // Le serveur dit ce que MA fonction permet — jamais ma propre déclaration.
     aValider: aTraiter.filter((m) => (controle ? m.can?.control : m.can?.confirm) === true).length,
@@ -68,7 +71,13 @@ export function Accueil({
   readonly aller: (r: Route) => void;
 }) {
   const { tx } = useTextes();
-  if (enChargement) return <p className="msg" role="status">{tx("app.chargement")}</p>;
+  if (enChargement) {
+    return (
+      <div className="pile ecran accueil" role="status" aria-busy="true" aria-label={tx("app.chargement")}>
+        <SqueletteAccueil />
+      </div>
+    );
+  }
   if (!groupe) {
     return (
       <div className="pile ecran accueil-vide">
@@ -98,40 +107,46 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
   const { etat, recharger } = useDonnees(() => chargerAccueil(session, groupe), [session.sessionId, groupe.groupId]);
   return (
     <div className="pile ecran accueil">
-      <Charge etat={etat} recharger={recharger}>
+      <Charge etat={etat} recharger={recharger} squelette={<SqueletteAccueil />}>
         {(d) => (
           <>
-            <section className="situation" aria-labelledby="situation-titre">
+            <section className={d.enRetard ? "carte-cotisation carte-cotisation--retard" : "carte-cotisation"} aria-labelledby="situation-titre">
+              <div className="carte-cotisation__groupe">
+                <AvatarGroupe session={session} groupId={groupe.groupId} nom={groupe.name} version={groupe.photoVersion} taille={40} />
+                <span>{groupe.name}</span>
+              </div>
               {d.reste > 0n ? (
                 <>
-                  <h1 id="situation-titre" className="situation__libelle">
+                  <h1 id="situation-titre" className="carte-cotisation__libelle">
                     {tx("ho.aRegler")}
                   </h1>
-                  <p className="situation__montant">{xaf(d.reste.toString())}</p>
-                  <p className={d.enRetard ? "situation__echeance situation__echeance--retard" : "situation__echeance"}>
+                  <p className="carte-cotisation__montant">{xaf(d.reste.toString())}</p>
+                  <p className="carte-cotisation__echeance">
                     {d.enRetard ? tx("ho.enRetard") : d.prochaineEcheance ? tx("ho.avant", { date: date(d.prochaineEcheance) }) : tx("ho.tourEnCours")}
                   </p>
-                  <button type="button" className="bouton bouton-large" onClick={() => aller({ ecran: "groupe", groupId: groupe.groupId, onglet: "argent" })}>
+                  <button type="button" className="bouton bouton-or bouton-large" onClick={() => aller({ ecran: "groupe", groupId: groupe.groupId, onglet: "argent" })}>
                     <Icone nom="declarer" taille={20} />
                     {tx("ho.declarer")}
                   </button>
                 </>
               ) : (
-                <h1 id="situation-titre" className="situation__ajour">
+                <h1 id="situation-titre" className="carte-cotisation__ajour">
                   <Icone nom="coche" taille={26} />
                   {tx("ho.aJour")}
                 </h1>
               )}
-              {d.declare > 0n ? (
-                <button type="button" className="lien-ligne" onClick={() => aller({ ecran: "cotisations" })}>
-                  <Icone nom="attente" taille={18} />
-                  <span>{tx("ho.enAttente", { montant: xaf(d.declare.toString()) })}</span>
-                  <Icone nom="chevron" taille={18} />
-                </button>
-              ) : null}
-              {groupe.myPayoutDate ? <p className="aide-champ">{tx("ho.remise", { date: date(groupe.myPayoutDate) })}</p> : null}
+              <dl className="carte-cotisation__etats">
+                <div>
+                  <dt>{tx("ho.declareAttente")}</dt>
+                  <dd>{xaf(d.declare.toString())}</dd>
+                </div>
+                <div>
+                  <dt>{tx("ho.confirmeTresorerie")}</dt>
+                  <dd>{xaf(d.confirme.toString())}</dd>
+                </div>
+              </dl>
+              {groupe.myPayoutDate ? <p className="carte-cotisation__remise">{tx("ho.remise", { date: date(groupe.myPayoutDate) })}</p> : null}
             </section>
-
             {d.aValider > 0 || d.votes.length > 0 ? (
               <section aria-labelledby="afaire-titre">
                 <h2 id="afaire-titre" className="titre-section">
@@ -310,3 +325,16 @@ export function Notifications({ session, aller }: { readonly session: Session; r
   );
 }
 
+/** Silhouette de l'accueil : mêmes blocs que le contenu réel, aucune valeur. */
+function SqueletteAccueil() {
+  return (
+    <div className="pile" aria-hidden="true">
+      <div className="squelette squelette--carte" />
+      <div className="squelette squelette--titre" />
+      <div className="squelette squelette--ligne" />
+      <div className="squelette squelette--ligne" />
+      <div className="squelette squelette--titre" />
+      <div className="squelette squelette--ligne" />
+    </div>
+  );
+}

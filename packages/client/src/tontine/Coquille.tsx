@@ -5,12 +5,15 @@
    colonne ; sur téléphone, il glisse par-dessus et se ferme par Échap, le
    voile ou le bouton — le focus revient au bouton du menu. */
 
+import { createPortal } from "react-dom";
 import { useEffect, useRef } from "react";
 import type { Route } from "../App.js";
 import { BasculeLangue } from "../i18n/ContexteLangue.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
 import { LogoKombe } from "../composants/Marque.js";
 import type { GroupeActif } from "./groupeActif.js";
+import type { Session } from "./api.js";
+import { AvatarGroupe } from "./PhotoGroupe.js";
 import { useTextes } from "./textes.js";
 
 function useEchap(actif: boolean, fermer: () => void) {
@@ -25,6 +28,7 @@ function useEchap(actif: boolean, fermer: () => void) {
 }
 
 export function MenuLateral({
+  session,
   ouvert,
   onFermer,
   groupes,
@@ -32,6 +36,7 @@ export function MenuLateral({
   aller,
   onDeconnecter,
 }: {
+  readonly session: Session;
   readonly ouvert: boolean;
   readonly onFermer: () => void;
   readonly groupes: GroupeActif;
@@ -72,6 +77,13 @@ export function MenuLateral({
             <Icone nom="fermer" taille={22} />
           </button>
         </div>
+        {/* Grand écran : les quatre destinations principales (la barre du bas est masquée). */}
+        <ul className="menu-lateral__liste menu-lateral__principal">
+          {lien("accueil", "accueil", tx("nav.accueil"))}
+          {lien("cotisations", "declarer", tx("nav.cotisations"))}
+          {lien("groupes", "groupes", tx("nav.groupes"))}
+          {lien("notifications", "cloche", tx("nav.activite"))}
+        </ul>
         <h2 className="menu-lateral__titre">{tx("sh.vosGroupes")}</h2>
         <ul className="menu-lateral__liste">
           {actifs.map((g) => {
@@ -87,9 +99,7 @@ export function MenuLateral({
                     aller({ ecran: "accueil" });
                   }}
                 >
-                  <span className="monogramme" aria-hidden="true">
-                    {g.name.trim().charAt(0).toUpperCase()}
-                  </span>
+                  <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={36} />
                   <span className="menu-lateral__groupe-texte">
                     <span>{g.name}</span>
                     <span className="aide-champ">
@@ -124,10 +134,12 @@ export function MenuLateral({
 
 /** Choisir le groupe actif sans quitter l'écran (demi-fenêtre sur téléphone). */
 export function SelecteurGroupe({
+  session,
   groupes,
   onFermer,
   onChoisir,
 }: {
+  readonly session: Session;
   readonly groupes: GroupeActif;
   readonly onFermer: () => void;
   readonly onChoisir: (groupId: string) => void;
@@ -141,7 +153,7 @@ export function SelecteurGroupe({
     return () => declencheur?.focus?.();
   }, []);
   const actifs = (groupes.groupes ?? []).filter((g) => g.membershipState === "active");
-  return (
+  return createPortal(
     <div className="voile-dialogue voile-dialogue--bas" onClick={(e) => e.target === e.currentTarget && onFermer()}>
       <div className="dialogue panneau-bas" role="dialog" aria-modal="true" aria-labelledby="choix-groupe-titre">
         <div className="panneau-bas__tete">
@@ -156,9 +168,7 @@ export function SelecteurGroupe({
             return (
               <li key={g.groupId}>
                 <button type="button" className="ligne" aria-current={choisi ? "true" : undefined} onClick={() => onChoisir(g.groupId)}>
-                  <span className="monogramme" aria-hidden="true">
-                    {g.name.trim().charAt(0).toUpperCase()}
-                  </span>
+                  <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={40} />
                   <span className="ligne__texte">
                     <span className="ligne__titre">{g.name}</span>
                     <span className="ligne__sous">{g.roles.filter((r) => r !== "member").map((r) => dyn(`role.${r}`)).join(" · ") || dyn("role.member")}</span>
@@ -170,6 +180,7 @@ export function SelecteurGroupe({
           })}
         </ul>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

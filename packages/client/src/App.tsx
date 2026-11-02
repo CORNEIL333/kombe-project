@@ -10,6 +10,9 @@ import { ConnexionTelephone } from "./tontine/Connexion.js";
 import { Accueil, Notifications } from "./tontine/Accueil.js";
 import { oublierGroupeActif, useGroupeActif } from "./tontine/groupeActif.js";
 import { MenuLateral, SelecteurGroupe } from "./tontine/Coquille.js";
+import { MesGroupes } from "./tontine/MesGroupes.js";
+import { ApercuNonLues } from "./tontine/ApercuNonLues.js";
+import { AvatarGroupe } from "./tontine/PhotoGroupe.js";
 import { Creation } from "./tontine/Creation.js";
 import { Rejoindre } from "./tontine/Rejoindre.js";
 import { Groupe } from "./tontine/Groupe.js";
@@ -22,12 +25,12 @@ import { MesCotisations } from "./tontine/MesCotisations.js";
 import { Validations } from "./tontine/Validations.js";
 import { Aide } from "./tontine/Aide.js";
 import { Documents } from "./tontine/Documents.js";
-import { estBureau, ouvrirBureau } from "./tontine/bureau.js";
 
 export type Route =
   | { readonly ecran: "accueil" }
   | { readonly ecran: "creer" }
   | { readonly ecran: "notifications" }
+  | { readonly ecran: "groupes" }
   | { readonly ecran: "profil" }
   | { readonly ecran: "cotisations" }
   | { readonly ecran: "validations" }
@@ -42,6 +45,7 @@ export function lireRoute(hash: string): Route {
   if (tete === "rejoindre") return arg ? { ecran: "rejoindre", code: arg.toUpperCase() } : { ecran: "rejoindre" };
   if (tete === "creer") return { ecran: "creer" };
   if (tete === "notifications") return { ecran: "notifications" };
+  if (tete === "groupes") return { ecran: "groupes" };
   if (tete === "profil") return { ecran: "profil" };
   if (tete === "cotisations") return { ecran: "cotisations" };
   if (tete === "validations") return { ecran: "validations" };
@@ -59,6 +63,8 @@ export function ecrireRoute(r: Route): string {
       return "#/creer";
     case "notifications":
       return "#/notifications";
+    case "groupes":
+      return "#/groupes";
     case "profil":
       return "#/profil";
     case "cotisations":
@@ -99,6 +105,8 @@ export function App() {
   const [nonLues, setNonLues] = useState(0);
   const [menuOuvert, setMenuOuvert] = useState(false);
   const [choixGroupe, setChoixGroupe] = useState(false);
+  const [apercuNonLues, setApercuNonLues] = useState(false);
+  const [jetonNonLues, setJetonNonLues] = useState(0);
   const enLigne = useEnLigne();
   const groupes = useGroupeActif(session);
 
@@ -137,10 +145,9 @@ export function App() {
       actif = false;
       window.clearInterval(t);
     };
-  }, [session, route]);
+  }, [session, route, jetonNonLues]);
 
   const actif = groupes.actif;
-  const bureau = actif !== null && estBureau(actif.roles);
 
   // Déconnexion en deux temps : on confirme, et l'on prévient si des
   // opérations attendent encore le réseau sur ce téléphone.
@@ -164,11 +171,13 @@ export function App() {
     return () => window.removeEventListener("keydown", echap);
   }, [quitter]);
 
-  const destinations: readonly (readonly [Route["ecran"] | "bureau", NomIcone, string])[] = [
+  // Quatre destinations, toujours les mêmes : le bureau s'ouvre depuis
+  // Groupes et la fiche du groupe, selon la fonction.
+  const destinations: readonly (readonly [Route["ecran"], NomIcone, string])[] = [
     ["accueil", "accueil", tx("nav.accueil")],
     ["cotisations", "declarer", tx("nav.cotisations")],
+    ["groupes", "groupes", tx("nav.groupes")],
     ["notifications", "cloche", tx("nav.activite")],
-    ...(bureau ? ([["bureau", "bureau", tx("app.bureau")]] as const) : []),
   ];
 
   return (
@@ -197,6 +206,7 @@ export function App() {
                 aria-haspopup="dialog"
                 onClick={() => setChoixGroupe(true)}
               >
+                <AvatarGroupe session={session} groupId={actif.groupId} nom={actif.name} version={actif.photoVersion} taille={28} />
                 <span className="selecteur-groupe__nom">{actif.name}</span>
                 <Icone nom="chevron-bas" taille={18} />
               </button>
@@ -208,7 +218,8 @@ export function App() {
             type="button"
             className="barre-haut__cloche"
             aria-label={nonLues > 0 ? `${tx("nav.activite")}, ${nonLues}` : tx("nav.activite")}
-            onClick={() => aller({ ecran: "notifications" })}
+            aria-haspopup="dialog"
+            onClick={() => setApercuNonLues(true)}
           >
             <Icone nom="cloche" taille={24} />
             {nonLues > 0 ? (
@@ -239,10 +250,21 @@ export function App() {
         </header>
       )}
       {session ? (
-        <MenuLateral ouvert={menuOuvert} onFermer={() => setMenuOuvert(false)} groupes={groupes} route={route} aller={aller} onDeconnecter={() => setQuitter(true)} />
+        <MenuLateral session={session} ouvert={menuOuvert} onFermer={() => setMenuOuvert(false)} groupes={groupes} route={route} aller={aller} onDeconnecter={() => setQuitter(true)} />
+      ) : null}
+      {session && apercuNonLues ? (
+        <ApercuNonLues
+          session={session}
+          aller={aller}
+          onFermer={() => {
+            setApercuNonLues(false);
+            setJetonNonLues((n) => n + 1);
+          }}
+        />
       ) : null}
       {session && choixGroupe ? (
         <SelecteurGroupe
+          session={session}
           groupes={groupes}
           onFermer={() => setChoixGroupe(false)}
           onChoisir={(id) => {
@@ -308,6 +330,8 @@ export function App() {
           <Aide key="aide" />
         ) : route.ecran === "documents" ? (
           <Documents key="documents" session={session} onOuvrir={(groupId, onglet) => aller({ ecran: "groupe", groupId, onglet })} />
+        ) : route.ecran === "groupes" ? (
+          <MesGroupes key="groupes" session={session} groupes={groupes} aller={aller} />
         ) : route.ecran === "notifications" ? (
           <Notifications key="notifications" session={session} aller={aller} />
         ) : route.ecran === "groupe" ? (
@@ -366,14 +390,14 @@ export function App() {
       {session ? (
         <nav className="nav-basse" aria-label={tx("sh.navigation")}>
           {destinations.map(([ecran, icone, libelle]) => {
-            const estActif = route.ecran === ecran || (ecran === "accueil" && (route.ecran === "groupe" || route.ecran === "creer" || route.ecran === "rejoindre"));
+            const estActif = route.ecran === ecran || (ecran === "groupes" && (route.ecran === "groupe" || route.ecran === "creer" || route.ecran === "rejoindre"));
             return (
               <button
                 key={ecran}
                 type="button"
                 className={`nav-basse__item${estActif ? " is-actif" : ""}`}
                 aria-current={estActif ? "page" : undefined}
-                onClick={() => (ecran === "bureau" ? actif && ouvrirBureau(session, actif.groupId) : aller({ ecran } as Route))}
+                onClick={() => aller({ ecran } as Route)}
               >
                 <span className="nav-basse__icone">
                   <Icone nom={icone} taille={22} />

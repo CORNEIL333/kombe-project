@@ -87,8 +87,26 @@ export function Retour({ erreur, succes }: { readonly erreur: string | null; rea
   );
 }
 
-export function Charge<T>({ etat, recharger, children }: { readonly etat: Etat<T>; readonly recharger: () => void; readonly children: (d: T) => ReactNode }) {
+export function Charge<T>({
+  etat,
+  recharger,
+  children,
+  squelette,
+}: {
+  readonly etat: Etat<T>;
+  readonly recharger: () => void;
+  readonly children: (d: T) => ReactNode;
+  /** Silhouette des blocs réels pendant le chargement (au lieu d'un indicateur seul). */
+  readonly squelette?: ReactNode;
+}) {
   const { tx } = useTextes();
+  if (etat.statut === "chargement" && squelette) {
+    return (
+      <div role="status" aria-busy="true" aria-label={tx("app.chargement")}>
+        {squelette}
+      </div>
+    );
+  }
   if (etat.statut === "chargement") {
     return (
       <p className="msg msg--chargement" role="status" aria-busy="true">

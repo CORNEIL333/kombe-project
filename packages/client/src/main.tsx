@@ -13,6 +13,7 @@ import "./immersif.css";
 import "./charte.css";
 import "./connexion.css";
 import "./coquille.css";
+import "./premium.css";
 
 const conteneur = document.getElementById("root");
 if (conteneur === null) {
