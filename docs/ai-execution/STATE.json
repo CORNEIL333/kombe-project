@@ -1,16 +1,18 @@
 {
   "branch": "refonte/premium-photos",
   "base": "refonte/ux-integrale",
-  "step": "D-recette",
+  "step": "E-rapport",
   "done": [
     "A-photo-serveur",
     "B1-pwa-4-onglets-groupes-photo",
     "B1b-pwa-planches-reference",
-    "B2-flutter-4-onglets-groupes-photo-planche"
+    "B2-flutter-4-onglets-groupes-photo-planche",
+    "E-rapport-final"
   ],
   "remaining": [
     "D-recette-appareil (Android/iOS)",
-    "E-PR et rapport final"
+    "PR refonte/premium-photos → refonte/ux-integrale",
+    "écarts PWA bureau (voir FINAL_REPORT.md)"
   ],
   "blocked": [
     "preuve PostgreSQL réelle (pas de base isolée)",
