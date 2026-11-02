@@ -14,6 +14,7 @@ import "./charte.css";
 import "./connexion.css";
 import "./coquille.css";
 import "./premium.css";
+import "./planche.css";
 
 const conteneur = document.getElementById("root");
 if (conteneur === null) {

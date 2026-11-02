@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -67,6 +68,23 @@ final class KombeApiClient {
     Map<String, String>? headers,
   }) =>
       _send('POST', path, body: body, headers: headers);
+
+  /// Suppression (DELETE), même traitement des erreurs que les autres verbes.
+  Future<ApiResponse> delete(String path, {Map<String, String>? headers}) =>
+      _send('DELETE', path, headers: headers);
+
+  /// Octets bruts (photo de groupe). `null` si absente (404) ; la session est
+  /// portée comme pour toute requête — aucune URL publique.
+  Future<Uint8List?> getBytes(String path) async {
+    final http.Request request = http.Request('GET', _uri(path))..headers.addAll(await _sessionHeaders());
+    try {
+      final http.Response res = await _client.send(request).then(http.Response.fromStream).timeout(_timeout);
+      if (res.statusCode != 200) return null;
+      return (res.headers['content-type'] ?? '').startsWith('image/jpeg') ? res.bodyBytes : null;
+    } catch (_) {
+      return null; // réseau instable : les initiales restent affichées
+    }
+  }
 
   Future<ApiResponse> patch(
     String path,

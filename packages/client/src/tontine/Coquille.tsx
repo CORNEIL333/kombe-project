@@ -1,9 +1,8 @@
-/* KÓMBE — coquille de l'espace connecté : menu latéral et choix du groupe
-   actif. Le menu porte les destinations MOINS fréquentes (groupes, documents,
-   aide, profil, langue, déconnexion) ; les tâches courantes restent sur
-   l'accueil et la barre du bas. Sur grand écran, le menu reste ouvert en
-   colonne ; sur téléphone, il glisse par-dessus et se ferme par Échap, le
-   voile ou le bouton — le focus revient au bouton du menu. */
+/* KÓMBE — coquille de l'espace connecté (planche de référence 2026-11) :
+   colonne forêt (logo, carte de la personne), « Mes groupes » avec photo ou
+   initiales et fonction, navigation, déconnexion, motif tissé en pied.
+   Ouverte en colonne sur grand écran ; sur téléphone elle glisse par-dessus,
+   se ferme par Échap, le voile ou le bouton, et rend le focus. */
 
 import { createPortal } from "react-dom";
 import { useEffect, useRef } from "react";
@@ -12,8 +11,8 @@ import { BasculeLangue } from "../i18n/ContexteLangue.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
 import { LogoKombe } from "../composants/Marque.js";
 import type { GroupeActif } from "./groupeActif.js";
-import type { Session } from "./api.js";
-import { AvatarGroupe } from "./PhotoGroupe.js";
+import type { Session, TontineSummary } from "./api.js";
+import { AvatarGroupe, initiales } from "./PhotoGroupe.js";
 import { useTextes } from "./textes.js";
 
 function useEchap(actif: boolean, fermer: () => void) {
@@ -27,8 +26,11 @@ function useEchap(actif: boolean, fermer: () => void) {
   }, [actif, fermer]);
 }
 
+const roleDe = (g: TontineSummary) => g.roles.find((r) => r !== "member") ?? "member";
+
 export function MenuLateral({
   session,
+  nom,
   ouvert,
   onFermer,
   groupes,
@@ -37,6 +39,7 @@ export function MenuLateral({
   onDeconnecter,
 }: {
   readonly session: Session;
+  readonly nom: string | null;
   readonly ouvert: boolean;
   readonly onFermer: () => void;
   readonly groupes: GroupeActif;
@@ -47,20 +50,19 @@ export function MenuLateral({
   const { tx, dyn } = useTextes();
   const premier = useRef<HTMLButtonElement>(null);
   useEchap(ouvert, onFermer);
-  // Focus : dans le menu à l'ouverture, rendu au bouton à la fermeture —
-  // jamais déplacé au premier affichage de la page.
+  // Focus : dans le menu à l'ouverture, rendu au bouton à la fermeture.
   const etaitOuvert = useRef(false);
   useEffect(() => {
-    // Après l'application du style (le menu sort de `visibility: hidden`).
     if (ouvert) requestAnimationFrame(() => premier.current?.focus());
     else if (etaitOuvert.current) (document.querySelector(".barre-haut__menu") as HTMLElement | null)?.focus?.();
     etaitOuvert.current = ouvert;
   }, [ouvert]);
 
   const actifs = (groupes.groupes ?? []).filter((g) => g.membershipState === "active");
-  const lien = (ecran: Route["ecran"], icone: NomIcone, libelle: string) => (
+  const actif = groupes.actif;
+  const lien = (cible: Route, icone: NomIcone, libelle: string, courant: boolean) => (
     <li>
-      <button type="button" className="menu-lateral__lien" aria-current={route.ecran === ecran ? "page" : undefined} onClick={() => aller({ ecran } as Route)}>
+      <button type="button" className="menu-lateral__lien" aria-current={courant ? "page" : undefined} onClick={() => aller(cible)}>
         <Icone nom={icone} taille={22} />
         <span>{libelle}</span>
       </button>
@@ -72,61 +74,76 @@ export function MenuLateral({
       <div className={ouvert ? "menu-voile is-ouvert" : "menu-voile"} onClick={onFermer} aria-hidden="true" />
       <nav id="menu-lateral" className={ouvert ? "menu-lateral is-ouvert" : "menu-lateral"} aria-label={tx("sh.menu")}>
         <div className="menu-lateral__tete">
-          <LogoKombe hauteur={28} />
+          <div className="menu-lateral__marque">
+            <LogoKombe hauteur={34} variante="inverse" />
+            <span className="menu-lateral__signature">{tx("sh.signature")}</span>
+          </div>
           <button ref={premier} type="button" className="menu-lateral__fermer" aria-label={tx("sh.fermer")} onClick={onFermer}>
             <Icone nom="fermer" taille={22} />
           </button>
         </div>
-        {/* Grand écran : les quatre destinations principales (la barre du bas est masquée). */}
-        <ul className="menu-lateral__liste menu-lateral__principal">
-          {lien("accueil", "accueil", tx("nav.accueil"))}
-          {lien("cotisations", "declarer", tx("nav.cotisations"))}
-          {lien("groupes", "groupes", tx("nav.groupes"))}
-          {lien("notifications", "cloche", tx("nav.activite"))}
-        </ul>
-        <h2 className="menu-lateral__titre">{tx("sh.vosGroupes")}</h2>
-        <ul className="menu-lateral__liste">
-          {actifs.map((g) => {
-            const choisi = g.groupId === groupes.actif?.groupId;
-            return (
-              <li key={g.groupId}>
-                <button
-                  type="button"
-                  className={choisi ? "menu-lateral__groupe is-choisi" : "menu-lateral__groupe"}
-                  aria-current={choisi ? "true" : undefined}
-                  onClick={() => {
-                    groupes.choisir(g.groupId);
-                    aller({ ecran: "accueil" });
-                  }}
-                >
-                  <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={36} />
-                  <span className="menu-lateral__groupe-texte">
-                    <span>{g.name}</span>
-                    <span className="aide-champ">
-                      {g.roles.filter((r) => r !== "member").map((r) => dyn(`role.${r}`)).join(" · ") || dyn("role.member")}
+        <button type="button" className="menu-lateral__personne" onClick={() => aller({ ecran: "profil" })}>
+          <span className="menu-lateral__personne-avatar" aria-hidden="true">
+            {initiales(nom ?? "?")}
+          </span>
+          <span className="menu-lateral__personne-texte">
+            <span className="menu-lateral__personne-nom">{nom ?? tx("pf.sansNom")}</span>
+            {actif ? <span className="menu-lateral__personne-role">{dyn(`role.${roleDe(actif)}`)}</span> : null}
+          </span>
+          <Icone nom="chevron" taille={20} />
+        </button>
+
+        <div className="menu-lateral__corps">
+          <div className="menu-lateral__titre">
+            <h2>{tx("sh.mesGroupesN", { n: actifs.length })}</h2>
+            <button type="button" className="menu-lateral__ajout" aria-label={tx("sh.creer")} title={tx("sh.creer")} onClick={() => aller({ ecran: "creer" })}>
+              <Icone nom="plus" taille={18} />
+            </button>
+          </div>
+          <ul className="menu-lateral__liste">
+            {actifs.map((g) => {
+              const choisi = g.groupId === actif?.groupId;
+              const role = roleDe(g);
+              return (
+                <li key={g.groupId}>
+                  <button
+                    type="button"
+                    className={choisi ? "menu-lateral__groupe is-choisi" : "menu-lateral__groupe"}
+                    aria-current={choisi ? "true" : undefined}
+                    onClick={() => {
+                      groupes.choisir(g.groupId);
+                      aller({ ecran: "accueil" });
+                    }}
+                  >
+                    <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={42} rond />
+                    <span className="menu-lateral__groupe-texte">
+                      <span className="menu-lateral__groupe-nom">{g.name}</span>
+                      <span className="menu-lateral__groupe-role">{dyn(`role.${role}`)}</span>
                     </span>
-                  </span>
-                  {choisi ? <Icone nom="coche" taille={20} /> : null}
-                </button>
-              </li>
-            );
-          })}
-          {lien("rejoindre", "inviter", tx("sh.rejoindre"))}
-          {lien("creer", "plus", tx("sh.creer"))}
-        </ul>
-        <hr />
-        <ul className="menu-lateral__liste">
-          {lien("documents", "document", tx("doc.titre"))}
-          {lien("aide", "aide", tx("pf.aide"))}
-          {lien("profil", "profil", tx("sh.profil"))}
-        </ul>
-        <div className="menu-lateral__pied">
+                    {choisi ? <Icone nom="coche" taille={20} /> : null}
+                  </button>
+                </li>
+              );
+            })}
+            {lien({ ecran: "rejoindre" }, "inviter", tx("sh.rejoindre"), route.ecran === "rejoindre")}
+          </ul>
+          <hr />
+          <ul className="menu-lateral__liste menu-lateral__nav">
+            {lien({ ecran: "accueil" }, "accueil", tx("nav.accueil"), route.ecran === "accueil")}
+            {lien({ ecran: "groupes" }, "groupes", tx("nav.groupes"), route.ecran === "groupes" || route.ecran === "groupe")}
+            {actif ? lien({ ecran: "groupe", groupId: actif.groupId, onglet: "decisions" }, "vote", tx("sh.votes"), false) : null}
+            {lien({ ecran: "documents" }, "document", tx("doc.titre"), route.ecran === "documents")}
+            {lien({ ecran: "aide" }, "aide", tx("sh.aideSupport"), route.ecran === "aide")}
+            {lien({ ecran: "profil" }, "reglages", tx("sh.parametres"), route.ecran === "profil")}
+          </ul>
+          <hr />
           <BasculeLangue />
           <button type="button" className="menu-lateral__lien menu-lateral__sortie" onClick={onDeconnecter}>
             <Icone nom="sortie" taille={22} />
             <span>{tx("app.deconnexion")}</span>
           </button>
         </div>
+        <div className="menu-lateral__pied" aria-hidden="true" />
       </nav>
     </>
   );
@@ -168,10 +185,10 @@ export function SelecteurGroupe({
             return (
               <li key={g.groupId}>
                 <button type="button" className="ligne" aria-current={choisi ? "true" : undefined} onClick={() => onChoisir(g.groupId)}>
-                  <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={40} />
+                  <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={44} rond />
                   <span className="ligne__texte">
                     <span className="ligne__titre">{g.name}</span>
-                    <span className="ligne__sous">{g.roles.filter((r) => r !== "member").map((r) => dyn(`role.${r}`)).join(" · ") || dyn("role.member")}</span>
+                    <span className="ligne__sous">{dyn(`role.${roleDe(g)}`)}</span>
                   </span>
                   {choisi ? <Icone nom="coche" taille={20} /> : null}
                 </button>

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../core/api/api_failure.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
@@ -126,6 +128,16 @@ final class UnavailableGroupRepository implements GroupRepository {
   @override
   Future<OperationResult<GroupInvitation>> createInvitation(String groupId) async =>
       const OperationBlocked<GroupInvitation>(_reason);
+
+  @override
+  Future<Uint8List?> loadPhoto(String groupId, int version, int size) async => null;
+
+  @override
+  Future<OperationResult<int>> setPhoto(String groupId, Uint8List jpeg512, Uint8List jpeg256) async =>
+      const OperationBlocked<int>(_reason);
+
+  @override
+  Future<OperationResult<void>> removePhoto(String groupId) async => const OperationBlocked<void>(_reason);
 
   @override
   Future<OperationResult<String>> createGroup(TontineCreation draft) async =>

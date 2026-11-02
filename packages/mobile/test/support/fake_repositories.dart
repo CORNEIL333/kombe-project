@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 // Dépôts FACTICES pour les tests visuels (golden, visite d'écrans).
 // Vivent dans test/ : jamais embarqués dans l'application.
 import 'dart:async';
@@ -279,6 +280,24 @@ final class FakeGroupRepository implements GroupRepository {
   @override
   Future<OperationResult<void>> joinGroup(String invitationCode) async {
     await _lag();
+    return const OperationSuccess<void>(null);
+  }
+
+  final Map<String, Uint8List> photos = <String, Uint8List>{};
+
+  @override
+  Future<Uint8List?> loadPhoto(String groupId, int version, int size) async => photos['$groupId:$size'];
+
+  @override
+  Future<OperationResult<int>> setPhoto(String groupId, Uint8List jpeg512, Uint8List jpeg256) async {
+    photos['$groupId:512'] = jpeg512;
+    photos['$groupId:256'] = jpeg256;
+    return const OperationSuccess<int>(1);
+  }
+
+  @override
+  Future<OperationResult<void>> removePhoto(String groupId) async {
+    photos.removeWhere((String k, _) => k.startsWith('$groupId:'));
     return const OperationSuccess<void>(null);
   }
 

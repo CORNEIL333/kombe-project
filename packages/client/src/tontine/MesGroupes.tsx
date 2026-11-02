@@ -1,8 +1,8 @@
-/* KÓMBE — onglet « Groupes » : toutes mes tontines (actives et en attente),
-   leur photo ou leurs initiales, ma fonction, l'essentiel utile, l'accès au
-   bureau selon la fonction ; rejoindre et créer en actions compactes. Le
-   sélecteur de la barre du haut sert au changement rapide ; cet onglet est
-   la vue complète et permanente. */
+/* KÓMBE — onglet « Groupes » (planche de référence) : toutes mes tontines,
+   leur photo ou leur couverture tissée, ma fonction, la progression réelle du
+   cycle, la prochaine cotisation, l'accès au bureau selon la fonction ;
+   créer et rejoindre en tuiles. Le sélecteur de la barre du haut sert au
+   changement rapide ; cet onglet est la vue complète et permanente. */
 
 import type { Route } from "../App.js";
 import type { Session, TontineSummary } from "./api.js";
@@ -15,20 +15,21 @@ import { Icone } from "../composants/Icones.js";
 export function MesGroupes({ session, groupes, aller }: { readonly session: Session; readonly groupes: GroupeActif; readonly aller: (r: Route) => void }) {
   const { tx, dyn, xaf, date } = useTextes();
   const liste = groupes.groupes;
-  const roles = (g: TontineSummary) => g.roles.filter((r) => r !== "member").map((r) => dyn(`role.${r}`)).join(" · ") || dyn("role.member");
+  const role = (g: TontineSummary) => g.roles.find((r) => r !== "member") ?? "member";
   return (
     <div className="pile ecran groupes">
-      <div className="titre-section titre-section--action">
+      <header className="entete-ecran">
         <h1 className="ecran-titre-simple">{tx("gr.titre")}</h1>
-      </div>
-      <div className="actions-ligne">
-        <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => aller({ ecran: "rejoindre" })}>
-          <Icone nom="inviter" taille={18} />
-          {tx("gr.rejoindre")}
+        <p className="ecran-sous-titre">{tx("gr.sousTitre")}</p>
+      </header>
+      <div className="tuiles-groupes">
+        <button type="button" className="tuile-groupe tuile-groupe--forte" onClick={() => aller({ ecran: "creer" })}>
+          <Icone nom="plus" taille={24} />
+          <span>{tx("gr.creerTuile")}</span>
         </button>
-        <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => aller({ ecran: "creer" })}>
-          <Icone nom="plus" taille={18} />
-          {tx("gr.creer")}
+        <button type="button" className="tuile-groupe" onClick={() => aller({ ecran: "rejoindre" })}>
+          <Icone nom="inviter" taille={24} />
+          <span>{tx("gr.rejoindreTuile")}</span>
         </button>
       </div>
       {liste === null ? (
@@ -45,40 +46,60 @@ export function MesGroupes({ session, groupes, aller }: { readonly session: Sess
             const actif = g.groupId === groupes.actif?.groupId;
             const attente = g.membershipState === "pending";
             const du = BigInt(g.myOpenDue || "0");
+            const r = role(g);
+            const cy = g.cyclePosition;
+            const pct = cy && cy.total > 0 ? Math.round((cy.current / cy.total) * 100) : null;
+            const ouvrir = () => {
+              groupes.choisir(g.groupId);
+              aller({ ecran: "groupe", groupId: g.groupId });
+            };
             return (
               <li key={g.groupId} className={actif ? "carte-groupe is-actif" : "carte-groupe"}>
-                <button
-                  type="button"
-                  className="carte-groupe__corps"
-                  disabled={attente}
-                  onClick={() => {
-                    groupes.choisir(g.groupId);
-                    aller({ ecran: "groupe", groupId: g.groupId });
-                  }}
-                >
-                  <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={56} />
+                <button type="button" className="carte-groupe__corps" disabled={attente} onClick={ouvrir}>
+                  <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={84} />
                   <span className="carte-groupe__texte">
                     <span className="carte-groupe__nom">{g.name}</span>
                     <span className="carte-groupe__meta">
-                      {roles(g)} · {tx("acc.membres", { n: g.memberCount })}
+                      <Icone nom="personnes" taille={16} />
+                      {tx("acc.membres", { n: g.memberCount })}
+                      <span className={r === "member" ? "etiquette etiquette--ok" : "etiquette etiquette--or"}>
+                        {r === "member" ? null : "★ "}
+                        {dyn(`role.${r}`)}
+                      </span>
                     </span>
                     {attente ? (
                       <span className="etiquette etiquette--attente">{tx("acc.enAttente")}</span>
-                    ) : (
-                      <span className="carte-groupe__infos">
-                        <span className={du > 0n ? "etiquette etiquette--attente" : "etiquette etiquette--ok"}>
-                          {du > 0n ? tx("acc.aRegler", { montant: xaf(g.myOpenDue) }) : tx("acc.aJour")}
+                    ) : cy && pct !== null ? (
+                      <span className="carte-groupe__cycle">
+                        <span>{tx("gr.cycle", { n: cy.current, total: cy.total })}</span>
+                        <span className="carte-groupe__barre" role="progressbar" aria-valuemin={0} aria-valuemax={cy.total} aria-valuenow={cy.current} aria-label={tx("ho.progressionCycle")}>
+                          <span style={{ transform: `scaleX(${pct / 100})` }} />
                         </span>
-                        {g.nextMeetingDate ? <span className="carte-groupe__date">{tx("acc.prochaine", { date: date(g.nextMeetingDate) })}</span> : null}
+                        <span className="carte-groupe__pct">{pct}%</span>
                       </span>
-                    )}
+                    ) : null}
                   </span>
+                  <Icone nom="chevron" taille={20} />
                   {actif ? <span className="visuellement-cache">{tx("gr.actif")}</span> : null}
                 </button>
-                {!attente && estBureau(g.roles) ? (
-                  <button type="button" className="carte-groupe__bureau" aria-label={tx("app.bureauDe", { nom: g.name })} onClick={() => ouvrirBureau(session, g.groupId)}>
-                    <Icone nom="bureau" taille={20} />
-                  </button>
+                {!attente ? (
+                  <div className="carte-groupe__pied">
+                    <button type="button" className="carte-groupe__prochaine" onClick={ouvrir}>
+                      <span className="carte-groupe__calendrier" aria-hidden="true">
+                        <Icone nom="seance" taille={18} />
+                      </span>
+                      <span className="carte-groupe__prochaine-texte">
+                        <span>{du > 0n ? tx("acc.aRegler", { montant: xaf(g.myOpenDue) }) : tx("ho.prochaineCotisation")}</span>
+                        <strong>{g.nextMeetingDate ? date(g.nextMeetingDate) : "—"}</strong>
+                      </span>
+                      <Icone nom="chevron" taille={18} />
+                    </button>
+                    {estBureau(g.roles) ? (
+                      <button type="button" className="carte-groupe__bureau" aria-label={tx("app.bureauDe", { nom: g.name })} title={tx("app.bureau")} onClick={() => ouvrirBureau(session, g.groupId)}>
+                        <Icone nom="bureau" taille={20} />
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
               </li>
             );

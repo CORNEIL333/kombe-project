@@ -134,6 +134,7 @@ final class GroupSummary {
     required this.contributionAmountXaf,
     required this.nextDueAtUtc,
     this.coverUrl,
+    this.photoVersion,
   });
 
   final String id;
@@ -145,6 +146,8 @@ final class GroupSummary {
   final int contributionAmountXaf;
   final DateTime nextDueAtUtc;
   final Uri? coverUrl;
+  /// Version de la photo du groupe (clé de cache) ; null = initiales.
+  final int? photoVersion;
 }
 
 final class GroupDetails {

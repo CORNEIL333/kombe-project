@@ -1,21 +1,35 @@
-/* KÓMBE — accueil du groupe actif. Emplacements STABLES, dans cet ordre :
-   1. ma situation (reste dû réel, retard, déclaré en attente) et l'action
-      principale ; 2. « À faire » (confirmations de ma fonction, vote ouvert) ;
-   3. prochaine séance ; 4. activité récente du groupe, chaque ligne menant à
-   l'action. Lectures en parallèle ; une donnée absente reste absente. Même
-   contrat que l'accueil de l'app mobile. */
+/* KÓMBE — accueil du groupe actif (direction premium). Emplacements STABLES :
+   1. bandeau d'accueil (salutation, groupe) ; 2. carte de cotisation (reste
+   dû réel, échéance ou retard, déclaré en attente / confirmé, action
+   principale) ; 3. actions rapides selon la fonction ; 4. « À faire » ;
+   5. prochaine séance ; 6. activité récente. Sur grand écran, une colonne
+   « Tour en cours » (progression, cagnotte, bénéficiaire, membres).
+   Lectures en parallèle ; une donnée absente reste absente. */
 
+import { useEffect, useState, type ReactNode } from "react";
 import type { Route } from "../App.js";
-import { acces, argent, decisions, tontines, type DecisionView, type NotificationView, type Session, type TontineSummary } from "./api.js";
+import {
+  acces,
+  argent,
+  lirePhotoGroupe,
+  decisions,
+  tontines,
+  type DecisionView,
+  type NotificationView,
+  type RoundView,
+  type Session,
+  type TontineSummary,
+} from "./api.js";
 import { Charge, useDonnees } from "./ui.js";
-import { Icone } from "../composants/Icones.js";
+import { Icone, type NomIcone } from "../composants/Icones.js";
 import { useTextes, type CleTexte } from "./textes.js";
 import { destinationNotification, entreeNotification } from "./notifications.js";
-import { AvatarGroupe } from "./PhotoGroupe.js";
+import { initiales } from "./PhotoGroupe.js";
 
 const CONFIRME = ["treasurer", "treasurer_deputy", "animator", "vice_president"];
 
 interface DonneesAccueil {
+  readonly prenom: string | null;
   readonly reste: bigint;
   readonly enRetard: boolean;
   readonly prochaineEcheance: string | null;
@@ -25,23 +39,31 @@ interface DonneesAccueil {
   readonly controle: boolean;
   readonly votes: readonly DecisionView[];
   readonly seance: { readonly date: string; readonly lieu: string | null } | null;
+  readonly tour: { readonly rang: number; readonly total: number; readonly round: RoundView } | null;
+  readonly membres: number;
+  readonly noms: readonly string[];
   readonly recentes: readonly NotificationView[];
 }
 
 async function chargerAccueil(session: Session, g: TontineSummary): Promise<DonneesAccueil> {
   const confirme = g.roles.some((r) => CONFIRME.includes(r));
   const controle = g.roles.includes("auditor");
-  const [echeances, detail, miennes, scrutins, notifs, aTraiter] = await Promise.all([
+  const [moi, echeances, detail, miennes, scrutins, notifs, aTraiter, membres] = await Promise.all([
+    acces.moi(session).catch(() => null),
     acces.mesEcheances(session, g.groupId),
     tontines.detail(session, g.groupId),
     argent.mouvements(session, g.groupId, { mine: true, state: "declared" }),
     decisions.liste(session, g.groupId),
     acces.notifications(session),
     confirme || controle ? argent.mouvements(session, g.groupId, { state: controle ? "confirmed" : "declared" }) : Promise.resolve([]),
+    tontines.membres(session, g.groupId).catch(() => []),
   ]);
   const ouvertes = echeances.filter((e) => BigInt(e.remaining) > 0n);
   const dates = ouvertes.map((e) => e.date).sort();
+  const cy = detail.cycle;
+  const cr = detail.currentRound;
   return {
+    prenom: moi?.displayName ? (moi.displayName.trim().split(/\s+/)[0] ?? null) : null,
     reste: ouvertes.reduce((s, e) => s + BigInt(e.remaining), 0n),
     enRetard: ouvertes.some((e) => e.lateness === "late"),
     prochaineEcheance: dates[0] ?? null,
@@ -52,6 +74,9 @@ async function chargerAccueil(session: Session, g: TontineSummary): Promise<Donn
     controle,
     votes: scrutins.filter((d) => d.state === "open" && d.myChoice === null && d.can.vote),
     seance: detail.nextMeeting ? { date: detail.nextMeeting.date, lieu: detail.nextMeeting.location } : null,
+    tour: cy && cr ? { rang: cr.seq - cy.firstSeq + 1, total: cy.lastSeq - cy.firstSeq + 1, round: cr } : null,
+    membres: detail.memberCount,
+    noms: membres.filter((m) => m.state === "active").map((m) => m.displayName),
     recentes: notifs.filter((n) => n.groupId === g.groupId).slice(0, 3),
   };
 }
@@ -66,7 +91,6 @@ export function Accueil({
   readonly session: Session;
   readonly groupe: TontineSummary | null;
   readonly enChargement: boolean;
-  /** Adhésions en attente d'accord du bureau. */
   readonly enAttente: readonly TontineSummary[];
   readonly aller: (r: Route) => void;
 }) {
@@ -105,117 +129,303 @@ export function Accueil({
 function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; readonly groupe: TontineSummary; readonly aller: (r: Route) => void }) {
   const { tx, dyn, xaf, date } = useTextes();
   const { etat, recharger } = useDonnees(() => chargerAccueil(session, groupe), [session.sessionId, groupe.groupId]);
+  const vers = (onglet: string) => () => aller({ ecran: "groupe", groupId: groupe.groupId, onglet });
+  const visuel = useVisuelGroupe(session, groupe);
   return (
-    <div className="pile ecran accueil">
+    <div className="accueil-premium">
       <Charge etat={etat} recharger={recharger} squelette={<SqueletteAccueil />}>
         {(d) => (
           <>
-            <section className={d.enRetard ? "carte-cotisation carte-cotisation--retard" : "carte-cotisation"} aria-labelledby="situation-titre">
-              <div className="carte-cotisation__groupe">
-                <AvatarGroupe session={session} groupId={groupe.groupId} nom={groupe.name} version={groupe.photoVersion} taille={40} />
-                <span>{groupe.name}</span>
-              </div>
-              {d.reste > 0n ? (
-                <>
-                  <h1 id="situation-titre" className="carte-cotisation__libelle">
-                    {tx("ho.aRegler")}
-                  </h1>
-                  <p className="carte-cotisation__montant">{xaf(d.reste.toString())}</p>
-                  <p className="carte-cotisation__echeance">
-                    {d.enRetard ? tx("ho.enRetard") : d.prochaineEcheance ? tx("ho.avant", { date: date(d.prochaineEcheance) }) : tx("ho.tourEnCours")}
-                  </p>
-                  <button type="button" className="bouton bouton-or bouton-large" onClick={() => aller({ ecran: "groupe", groupId: groupe.groupId, onglet: "argent" })}>
-                    <Icone nom="declarer" taille={20} />
-                    {tx("ho.declarer")}
+            {/* Téléphone : bandeau forêt sous la barre (salutation, marque). */}
+            <section className="bandeau-accueil" aria-label={tx("ho.bonjour")}>
+              <p className="bandeau-accueil__salut">{d.prenom ? `${tx("ho.bonjourNom", { nom: d.prenom })} 👋` : `${tx("ho.bonjour")} 👋`}</p>
+              <p className="bandeau-accueil__marque">KÓMBE</p>
+              <p className="bandeau-accueil__groupe">{tx("ho.signatureMarque")}</p>
+            </section>
+
+            <div className="accueil-grille">
+              <div className="accueil-principal">
+                <section className={d.enRetard ? "hero-cotisation is-retard apparition" : "hero-cotisation apparition"} aria-labelledby="situation-titre">
+                  <div className="hero-cotisation__contenu">
+                    <p className="hero-cotisation__sur">
+                      <Icone nom="cagnotte" taille={22} />
+                      {tx("ho.cotisationTour")}
+                    </p>
+                    {d.reste > 0n ? (
+                      <>
+                        <h1 id="situation-titre" className="hero-cotisation__libelle">
+                          {tx("ho.aRegler")}
+                        </h1>
+                        <p className="hero-cotisation__montant">{xaf(d.reste.toString())}</p>
+                        <p className="hero-cotisation__echeance">
+                          <Icone nom="seance" taille={18} />
+                          {d.enRetard ? (
+                            tx("ho.enRetard")
+                          ) : d.prochaineEcheance ? (
+                            <>
+                              <span className="seulement-bureau">{tx("ho.aReglerAvant", { date: date(d.prochaineEcheance) })}</span>
+                              <span className="seulement-telephone">{tx("ho.avant", { date: date(d.prochaineEcheance) })}</span>
+                            </>
+                          ) : (
+                            tx("ho.tourEnCours")
+                          )}
+                        </p>
+                        <button type="button" className="bouton hero-cotisation__cta" onClick={vers("argent")}>
+                          <Icone nom="declarer" taille={20} />
+                          {tx("ho.declarer")}
+                        </button>
+                      </>
+                    ) : (
+                      <h1 id="situation-titre" className="hero-cotisation__ajour">
+                        <Icone nom="coche" taille={26} />
+                        {tx("ho.aJour")}
+                      </h1>
+                    )}
+                  </div>
+                  <span className="hero-cotisation__pieces" aria-hidden="true">
+                    <Icone nom="cagnotte" taille={30} />
+                  </span>
+                  <span className="hero-cotisation__visuel" aria-hidden="true" style={{ backgroundImage: `url("${visuel}")` }} />
+                </section>
+
+                {d.declare > 0n ? (
+                  <button type="button" className="ligne-attente apparition" onClick={() => aller({ ecran: "cotisations" })}>
+                    <Icone nom="attente" taille={20} />
+                    <span>{tx("ho.enAttente", { montant: xaf(d.declare.toString()) })}</span>
+                    <Icone nom="chevron" taille={18} />
                   </button>
-                </>
-              ) : (
-                <h1 id="situation-titre" className="carte-cotisation__ajour">
-                  <Icone nom="coche" taille={26} />
-                  {tx("ho.aJour")}
-                </h1>
-              )}
-              <dl className="carte-cotisation__etats">
-                <div>
-                  <dt>{tx("ho.declareAttente")}</dt>
-                  <dd>{xaf(d.declare.toString())}</dd>
-                </div>
-                <div>
-                  <dt>{tx("ho.confirmeTresorerie")}</dt>
-                  <dd>{xaf(d.confirme.toString())}</dd>
-                </div>
-              </dl>
-              {groupe.myPayoutDate ? <p className="carte-cotisation__remise">{tx("ho.remise", { date: date(groupe.myPayoutDate) })}</p> : null}
-            </section>
-            {d.aValider > 0 || d.votes.length > 0 ? (
-              <section aria-labelledby="afaire-titre">
-                <h2 id="afaire-titre" className="titre-section">
-                  {tx("ho.aFaire")}
-                </h2>
-                <ul className="lignes">
-                  {d.aValider > 0 ? (
-                    <Ligne
-                      icone="validations"
-                      titre={tx(d.controle ? "ho.aControler" : "ho.aConfirmer", { n: d.aValider })}
-                      sousTitre={tx("ho.votreFonction")}
-                      onClick={() => aller({ ecran: "validations" })}
-                    />
+                ) : null}
+
+                <nav className="actions-rapides apparition" aria-label={tx("ho.actionsRapides")}>
+                  <Tuile icone="declarer" libelle={tx("ho.declarer")} onClick={vers("argent")} accent />
+                  {groupe.roles.some((r) => CONFIRME.includes(r) || r === "auditor") ? (
+                    <Tuile icone="validations" libelle={tx(d.controle ? "ho.tuileControler" : "ho.tuileConfirmer")} badge={d.aValider} onClick={() => aller({ ecran: "validations" })} />
+                  ) : (
+                    <Tuile icone="registre" libelle={tx("ho.tuileHistorique")} onClick={() => aller({ ecran: "cotisations" })} />
+                  )}
+                  <Tuile icone="vote" libelle={tx("ho.tuileVoter")} badge={d.votes.length} onClick={vers("decisions")} />
+                  <Tuile icone="seance" libelle={tx("ho.tuileSeances")} onClick={vers("seances")} />
+                </nav>
+
+                <div className="accueil-duo">
+                  <Section
+                    titre={tx("ho.aFaire")}
+                    icone="alerte"
+                    compte={d.aValider + d.votes.length}
+                    action={
+                      <button type="button" className="bouton-texte" onClick={() => aller({ ecran: "notifications" })}>
+                        {tx("ho.toutVoir")}
+                      </button>
+                    }
+                  >
+                    {d.aValider > 0 || d.votes.length > 0 ? (
+                      <ul className="lignes carte-liste">
+                        {d.aValider > 0 ? (
+                          <Ligne
+                            icone="validations"
+                            titre={tx(d.controle ? "ho.aControler" : "ho.aConfirmer", { n: d.aValider })}
+                            sousTitre={tx("ho.votreFonction")}
+                            onClick={() => aller({ ecran: "validations" })}
+                          />
+                        ) : null}
+                        {d.votes.map((v) => (
+                          <Ligne
+                            key={v.decisionId}
+                            icone="vote"
+                            titre={tx("ho.vote", { titre: dyn(`dc.k.${v.kind}`) })}
+                            sousTitre={tx("ho.jusquAu", { date: date(v.closesAt) })}
+                            onClick={vers("decisions")}
+                          />
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="aide-champ carte-liste carte-liste--vide">{tx("ho.rienDeNeuf")}</p>
+                    )}
+                  </Section>
+
+                  {d.seance ? (
+                    <Section titre={tx("ho.seance")} icone="seance">
+                      <button type="button" className="carte-seance" onClick={vers("seances")}>
+                        <span className="carte-seance__vignette" aria-hidden="true" />
+                        <span className="carte-seance__icone" aria-hidden="true">
+                          <Icone nom="seance" taille={24} />
+                        </span>
+                        <span className="carte-seance__texte">
+                          <span className="carte-seance__sur">{tx("ho.seance")}</span>
+                          <span className="carte-seance__date">{date(d.seance.date)}</span>
+                          {d.seance.lieu ? (
+                            <span className="carte-seance__lieu">
+                              <Icone nom="monde" taille={16} />
+                              {d.seance.lieu}
+                            </span>
+                          ) : null}
+                        </span>
+                        <Icone nom="chevron" taille={20} />
+                      </button>
+                    </Section>
                   ) : null}
-                  {d.votes.map((v) => (
-                    <Ligne
-                      key={v.decisionId}
-                      icone="vote"
-                      titre={tx("ho.vote", { titre: dyn(`dc.k.${v.kind}`) })}
-                      sousTitre={tx("ho.jusquAu", { date: date(v.closesAt) })}
-                      onClick={() => aller({ ecran: "groupe", groupId: groupe.groupId, onglet: "decisions" })}
-                    />
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+                </div>
 
-            {d.seance ? (
-              <section aria-labelledby="seance-titre">
-                <h2 id="seance-titre" className="titre-section">
-                  {tx("ho.seance")}
-                </h2>
-                <ul className="lignes">
-                  <Ligne
-                    icone="seance"
-                    titre={date(d.seance.date)}
-                    sousTitre={d.seance.lieu ?? undefined}
-                    onClick={() => aller({ ecran: "groupe", groupId: groupe.groupId, onglet: "seances" })}
-                  />
-                </ul>
-              </section>
-            ) : null}
-
-            <section aria-labelledby="activite-titre">
-              <div className="titre-section titre-section--action">
-                <h2 id="activite-titre">{tx("ho.activite")}</h2>
-                <button type="button" className="bouton-texte" onClick={() => aller({ ecran: "notifications" })}>
-                  {tx("ho.toutVoir")}
-                </button>
+                <Section
+                  titre={tx("ho.activite")}
+                  icone="historique"
+                  action={
+                    <button type="button" className="bouton-texte" onClick={() => aller({ ecran: "notifications" })}>
+                      {tx("ho.toutVoir")} →
+                    </button>
+                  }
+                >
+                  {d.recentes.length === 0 ? (
+                    <p className="aide-champ carte-liste carte-liste--vide">{tx("ho.rienDeNeuf")}</p>
+                  ) : (
+                    <ul className="lignes carte-liste">
+                      {d.recentes.map((n) => (
+                        <LigneNotification key={n.notificationId} n={n} session={session} aller={aller} />
+                      ))}
+                    </ul>
+                  )}
+                </Section>
               </div>
-              {d.recentes.length === 0 ? (
-                <p className="aide-champ">{tx("ho.rienDeNeuf")}</p>
-              ) : (
-                <ul className="lignes">
-                  {d.recentes.map((n) => (
-                    <LigneNotification key={n.notificationId} n={n} session={session} aller={aller} />
-                  ))}
-                </ul>
-              )}
-            </section>
 
-            <p>
-              <button type="button" className="bouton bouton-secondaire" onClick={() => aller({ ecran: "groupe", groupId: groupe.groupId })}>
-                {tx("sh.toutLeGroupe")}
-              </button>
-            </p>
+              <aside className="accueil-rail" aria-label={tx("ho.cycleEnCours")}>
+                {d.tour ? (
+                  <section className="carte-rail">
+                    <h2 className="carte-rail__titre">
+                      <Icone nom="cycle" taille={20} />
+                      {tx("ho.cycleEnCours")}
+                    </h2>
+                    <p className="carte-rail__grand">{tx("ho.cycleN", { n: d.tour.rang, total: d.tour.total })}</p>
+                    <Progression valeur={d.tour.rang} max={d.tour.total} libelle={tx("ho.progressionCycle")} />
+                    <ul className="carte-rail__chiffres">
+                      <li>
+                        <span className="carte-rail__pastille carte-rail__pastille--or" aria-hidden="true">
+                          <Icone nom="cagnotte" taille={18} />
+                        </span>
+                        <span>
+                          <span className="carte-rail__libelle">{tx("ho.totalTour")}</span>
+                          <span className="carte-rail__valeur">{xaf(d.tour.round.expectedPot)}</span>
+                        </span>
+                      </li>
+                      <li>
+                        <span className="carte-rail__pastille carte-rail__pastille--jade" aria-hidden="true">
+                          <Icone nom="coche" taille={18} />
+                        </span>
+                        <span>
+                          <span className="carte-rail__libelle">{tx("ho.dejaConfirme")}</span>
+                          <span className="carte-rail__valeur">{xaf(d.tour.round.collected)}</span>
+                        </span>
+                      </li>
+                      <li>
+                        <span className="carte-rail__pastille carte-rail__pastille--or" aria-hidden="true">
+                          <Icone nom="attente" taille={18} />
+                        </span>
+                        <span>
+                          <span className="carte-rail__libelle">{tx("ho.restantTour")}</span>
+                          <span className="carte-rail__valeur">
+                            {xaf((BigInt(d.tour.round.expectedPot) > BigInt(d.tour.round.collected) ? BigInt(d.tour.round.expectedPot) - BigInt(d.tour.round.collected) : 0n).toString())}
+                          </span>
+                        </span>
+                      </li>
+                    </ul>
+                  </section>
+                ) : null}
+                <button type="button" className="carte-rail carte-rail--membres" onClick={vers("membres")}>
+                  <span className="carte-rail__titre">
+                    <Icone nom="personnes" taille={20} />
+                    {tx("ho.membresN", { n: d.membres })}
+                    <Icone nom="chevron" taille={18} />
+                  </span>
+                  <span className="pile-avatars" aria-hidden="true">
+                    {d.noms.slice(0, 4).map((n, i) => (
+                      <span key={i} className="pile-avatars__un">
+                        {initiales(n)}
+                      </span>
+                    ))}
+                    {d.membres > 4 ? <span className="pile-avatars__un pile-avatars__plus">+{d.membres - 4}</span> : null}
+                  </span>
+                </button>
+                <section className="carte-promo">
+                  <Icone nom="personnes" taille={26} />
+                  <h2>{tx("ho.promoTitre")}</h2>
+                  <p>{tx("ho.promoTexte")}</p>
+                </section>
+              </aside>
+            </div>
           </>
         )}
       </Charge>
+    </div>
+  );
+}
+
+/** Visuel du héros : la photo du groupe si elle existe, sinon une illustration de la marque (jamais des personnes). */
+function useVisuelGroupe(session: Session, groupe: TontineSummary): string {
+  const [url, setUrl] = useState("/brand/fonds/yaounde.webp");
+  useEffect(() => {
+    const v = groupe.photoVersion;
+    if (!v) return;
+    let vivant = true;
+    lirePhotoGroupe(session, groupe.groupId, v, 512).then(
+      (b) => b && vivant && setUrl(URL.createObjectURL(b)),
+      () => undefined,
+    );
+    return () => {
+      vivant = false;
+    };
+  }, [session, groupe.groupId, groupe.photoVersion]);
+  return url;
+}
+
+function Section({
+  titre,
+  icone,
+  compte,
+  action,
+  children,
+}: {
+  readonly titre: string;
+  readonly icone?: NomIcone;
+  readonly compte?: number;
+  readonly action?: ReactNode;
+  readonly children: ReactNode;
+}) {
+  return (
+    <section className="section-accueil apparition">
+      <div className="titre-section titre-section--action">
+        <h2>
+          {icone ? <Icone nom={icone} taille={22} /> : null}
+          {titre}
+          {compte ? <span className="pastille-compte">{compte}</span> : null}
+        </h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Tuile({ icone, libelle, onClick, badge, accent }: { readonly icone: NomIcone; readonly libelle: string; readonly onClick: () => void; readonly badge?: number; readonly accent?: boolean }) {
+  return (
+    <button type="button" className={accent ? "tuile-action tuile-action--accent" : "tuile-action"} onClick={onClick}>
+      <span className="tuile-action__icone" aria-hidden="true">
+        <Icone nom={icone} taille={24} />
+        {badge ? <span className="tuile-action__badge">{badge}</span> : null}
+      </span>
+      <span className="tuile-action__libelle">{libelle}</span>
+      {badge ? <span className="visuellement-cache">({badge})</span> : null}
+    </button>
+  );
+}
+
+/** Barre de progression accessible (rôle et valeurs, pas la couleur seule). */
+function Progression({ valeur, max, libelle }: { readonly valeur: number; readonly max: number; readonly libelle: string }) {
+  const pct = max > 0 ? Math.round((valeur / max) * 100) : 0;
+  return (
+    <div className="progression" role="progressbar" aria-label={libelle} aria-valuemin={0} aria-valuemax={max} aria-valuenow={valeur}>
+      <span className="progression__piste">
+        <span className="progression__barre" style={{ transform: `scaleX(${pct / 100})` }} />
+      </span>
+      <span className="progression__pct">{pct} %</span>
     </div>
   );
 }
@@ -227,7 +437,7 @@ function Ligne({
   onClick,
   nonLue,
 }: {
-  readonly icone: Parameters<typeof Icone>[0]["nom"];
+  readonly icone: NomIcone;
   readonly titre: string;
   readonly sousTitre?: string | undefined;
   readonly onClick: () => void;
@@ -256,7 +466,7 @@ export function ouvrirNotification(session: Session, n: NotificationView, aller:
   if (d) aller(d);
 }
 
-function LigneNotification({ n, session, aller, onLue }: { readonly n: NotificationView; readonly session: Session; readonly aller: (r: Route) => void; readonly onLue?: () => void }) {
+function LigneNotification({ n, session, aller }: { readonly n: NotificationView; readonly session: Session; readonly aller: (r: Route) => void }) {
   const { tx, date } = useTextes();
   const e = entreeNotification(n);
   return (
@@ -265,58 +475,87 @@ function LigneNotification({ n, session, aller, onLue }: { readonly n: Notificat
       titre={tx(e.cle as CleTexte)}
       sousTitre={[n.groupName ?? "", date(n.createdAt)].filter(Boolean).join(" · ")}
       nonLue={!n.read}
-      onClick={() => {
-        onLue?.();
-        ouvrirNotification(session, n, aller);
-      }}
+      onClick={() => ouvrirNotification(session, n, aller)}
     />
   );
+}
+
+/* ── Activité : filtres et regroupement par jour ───────────────────────── */
+
+type Filtre = "tout" | "argent" | "votes" | "seances" | "groupe";
+const FAMILLE: Readonly<Record<string, Filtre>> = {
+  declared: "argent", toControl: "argent", rejected: "argent", due: "argent", payout: "argent", received: "argent",
+  reserve: "argent", fund: "argent", aid: "argent", aidDecision: "argent", aidPaid: "argent",
+  decision: "votes", "decision-closed": "votes", "decision-lifted": "votes", swap: "votes", "swap-ready": "votes",
+  meetingSoon: "seances", minutes: "seances",
+};
+export const familleNotification = (n: Pick<NotificationView, "topic">): Filtre => FAMILLE[n.topic ?? ""] ?? "groupe";
+
+export function periodeNotification(iso: string, maintenant: Date): "aujourdhui" | "semaine" | "avant" {
+  const d = new Date(iso);
+  const jour = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const ecart = Math.round((jour(maintenant) - jour(d)) / 86_400_000);
+  return ecart <= 0 ? "aujourdhui" : ecart < 7 ? "semaine" : "avant";
 }
 
 export function Notifications({ session, aller }: { readonly session: Session; readonly aller: (r: Route) => void }) {
   const { tx } = useTextes();
   const { etat, recharger } = useDonnees(() => acces.notifications(session), [session.sessionId]);
+  const [filtre, setFiltre] = useState<Filtre>("tout");
+  const filtres: readonly [Filtre, CleTexte][] = [
+    ["tout", "ac.tout"],
+    ["argent", "ac.argent"],
+    ["votes", "ac.votes"],
+    ["seances", "ac.seances"],
+    ["groupe", "ac.decisions"],
+  ];
   return (
-    <div className="pile ecran">
+    <div className="pile ecran activite">
       <div className="titre-section titre-section--action">
-        <h1 className="ecran-titre-simple">{tx("nav.activite")}</h1>
+        <div>
+          <h1 className="ecran-titre-simple">{tx("nav.activite")}</h1>
+          <p className="ecran-sous-titre">{tx("ac.sousTitre")}</p>
+        </div>
         {etat.statut === "ok" && etat.donnees.some((n) => !n.read) ? (
           <button type="button" className="bouton-texte" onClick={() => void acces.marquerLues(session, "all").then(recharger, recharger)}>
             {tx("no.toutLu")}
           </button>
         ) : null}
       </div>
-      <Charge etat={etat} recharger={recharger}>
+      <div className="filtres" role="group" aria-label={tx("ac.filtrer")}>
+        {filtres.map(([f, cle]) => (
+          <button key={f} type="button" className="filtre" aria-pressed={filtre === f} onClick={() => setFiltre(f)}>
+            {tx(cle)}
+          </button>
+        ))}
+      </div>
+      <Charge etat={etat} recharger={recharger} squelette={<SqueletteLignes />}>
         {(liste) => {
-          if (liste.length === 0) return <p className="msg">{tx("no.aucune")}</p>;
-          const nonLues = liste.filter((n) => !n.read);
-          const lues = liste.filter((n) => n.read);
+          const visibles = liste.filter((n) => filtre === "tout" || familleNotification(n) === filtre);
+          if (visibles.length === 0) return <p className="msg">{tx("no.aucune")}</p>;
+          const maintenant = new Date();
+          const groupes: readonly ["aujourdhui" | "semaine" | "avant", CleTexte][] = [
+            ["aujourdhui", "ac.aujourdhui"],
+            ["semaine", "ac.semaine"],
+            ["avant", "ac.avant"],
+          ];
           return (
             <>
-              {nonLues.length ? (
-                <section aria-labelledby="no-nonlues">
-                  <h2 id="no-nonlues" className="titre-section">
-                    {tx("no.nonLues", { n: nonLues.length })}
-                  </h2>
-                  <ul className="lignes">
-                    {nonLues.map((n) => (
-                      <LigneNotification key={n.notificationId} n={n} session={session} aller={aller} />
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-              {lues.length ? (
-                <section aria-labelledby="no-lues">
-                  <h2 id="no-lues" className="titre-section">
-                    {tx("no.plusTot")}
-                  </h2>
-                  <ul className="lignes">
-                    {lues.map((n) => (
-                      <LigneNotification key={n.notificationId} n={n} session={session} aller={aller} />
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
+              {groupes.map(([p, cle]) => {
+                const items = visibles.filter((n) => periodeNotification(n.createdAt, maintenant) === p);
+                return items.length ? (
+                  <section key={p} aria-labelledby={`ac-${p}`}>
+                    <h2 id={`ac-${p}`} className="titre-section">
+                      {tx(cle)}
+                    </h2>
+                    <ul className="lignes">
+                      {items.map((n) => (
+                        <LigneNotification key={n.notificationId} n={n} session={session} aller={aller} />
+                      ))}
+                    </ul>
+                  </section>
+                ) : null;
+              })}
             </>
           );
         }}
@@ -329,12 +568,21 @@ export function Notifications({ session, aller }: { readonly session: Session; r
 function SqueletteAccueil() {
   return (
     <div className="pile" aria-hidden="true">
+      <div className="squelette squelette--titre" />
       <div className="squelette squelette--carte" />
-      <div className="squelette squelette--titre" />
+      <div className="squelette squelette--tuiles" />
       <div className="squelette squelette--ligne" />
       <div className="squelette squelette--ligne" />
-      <div className="squelette squelette--titre" />
-      <div className="squelette squelette--ligne" />
+    </div>
+  );
+}
+
+function SqueletteLignes() {
+  return (
+    <div className="pile" aria-hidden="true">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="squelette squelette--ligne" />
+      ))}
     </div>
   );
 }

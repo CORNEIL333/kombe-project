@@ -109,6 +109,16 @@ export function App() {
   const [jetonNonLues, setJetonNonLues] = useState(0);
   const enLigne = useEnLigne();
   const groupes = useGroupeActif(session);
+  // Nom affiché dans la carte de la personne (menu) ; son absence n'empêche rien.
+  const [nom, setNom] = useState<string | null>(null);
+  useEffect(() => {
+    if (!session) return setNom(null);
+    let vivant = true;
+    acces.moi(session).then((m) => vivant && setNom(m.displayName), () => undefined);
+    return () => {
+      vivant = false;
+    };
+  }, [session]);
 
   useEffect(() => {
     const surHash = () => setRoute(lireRoute(window.location.hash));
@@ -181,7 +191,7 @@ export function App() {
   ];
 
   return (
-    <div className={session ? "app app-tontine app--session" : "app app-tontine app--accueil"}>
+    <div className={session ? `app app-tontine app--session ecran--${route.ecran}` : "app app-tontine app--accueil"}>
       <a href="#contenu" className="evitement" onClick={(e) => (e.preventDefault(), document.getElementById("contenu")?.focus())}>
         {tx("app.accueil")}
       </a>
@@ -206,9 +216,14 @@ export function App() {
                 aria-haspopup="dialog"
                 onClick={() => setChoixGroupe(true)}
               >
-                <AvatarGroupe session={session} groupId={actif.groupId} nom={actif.name} version={actif.photoVersion} taille={28} />
-                <span className="selecteur-groupe__nom">{actif.name}</span>
-                <Icone nom="chevron-bas" taille={18} />
+                <AvatarGroupe session={session} groupId={actif.groupId} nom={actif.name} version={actif.photoVersion} taille={48} />
+                <span className="selecteur-groupe__texte">
+                  <span className="selecteur-groupe__ligne">
+                    <span className="selecteur-groupe__nom">{actif.name}</span>
+                    <Icone nom="chevron-bas" taille={18} />
+                  </span>
+                  <span className="selecteur-groupe__sous">{tx("sh.sousTitreGroupe", { n: actif.memberCount })}</span>
+                </span>
               </button>
             ) : (
               <LogoKombe hauteur={30} />
@@ -250,7 +265,7 @@ export function App() {
         </header>
       )}
       {session ? (
-        <MenuLateral session={session} ouvert={menuOuvert} onFermer={() => setMenuOuvert(false)} groupes={groupes} route={route} aller={aller} onDeconnecter={() => setQuitter(true)} />
+        <MenuLateral session={session} nom={nom} ouvert={menuOuvert} onFermer={() => setMenuOuvert(false)} groupes={groupes} route={route} aller={aller} onDeconnecter={() => setQuitter(true)} />
       ) : null}
       {session && apercuNonLues ? (
         <ApercuNonLues

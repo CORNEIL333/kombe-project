@@ -187,6 +187,15 @@ export async function tontineDetail(db: Db, actor: Actor, nowMs: number): Promis
   };
 }
 
+/** Tour courant dans le cycle en cours (aucune valeur inventée hors cycle). */
+async function cyclePositionOf(db: Db, group: GroupRow): Promise<{ current: number; total: number } | null> {
+  const cy = await currentCycle(db, group.groupId);
+  if (!cy) return null;
+  const cr = currentRound(await loadRounds(db, group));
+  if (!cr) return null;
+  return { current: cr.seq - cy.firstSeq + 1, total: cy.lastSeq - cy.firstSeq + 1 };
+}
+
 async function summaryFor(db: Db, group: GroupRow, membershipId: string, membershipState: "pending" | "active", roles: readonly GroupRole[], nowMs: number): Promise<TontineSummary> {
   const today = todayDouala(nowMs);
   const counts = await db.query(`SELECT count(*) AS a FROM membership WHERE group_id = $1 AND state = 'active'`, [group.groupId]);
@@ -214,6 +223,7 @@ async function summaryFor(db: Db, group: GroupRow, membershipId: string, members
     contributionPerShare: group.settings.contributionPerShare,
     nextMeetingDate: next?.date ?? null,
     photoVersion: await photoVersionOf(db, group.groupId),
+    cyclePosition: await cyclePositionOf(db, group),
     myOpenDue: m(myOpenDue),
     myPayoutDate,
   };

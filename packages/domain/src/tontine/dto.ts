@@ -125,6 +125,8 @@ export interface TontineSummary {
   readonly nextMeetingDate: IsoDate | null;
   /** Version de la photo du groupe (clé de cache) ; null = pas de photo (initiales). */
   readonly photoVersion?: number | null;
+  /** Position dans le cycle en cours (tour courant / nombre de tours) ; null hors cycle. */
+  readonly cyclePosition?: { readonly current: number; readonly total: number } | null;
   /** Ce que je dois encore pour la prochaine échéance (toutes caisses). */
   readonly myOpenDue: Money;
   /** Tour où je reçois la cagnotte, s'il est fixé. */

@@ -53,6 +53,13 @@ export function initiales(nom: string): string {
   return lettres.toUpperCase();
 }
 
+/** Motif de repli stable par groupe (0 : anneau ; 1–2 : tissages de la marque). */
+function motif(cle: string): string {
+  let h = 0;
+  for (let i = 0; i < cle.length; i++) h = (h * 31 + cle.charCodeAt(i)) >>> 0;
+  return String(h % 3);
+}
+
 /** Avatar carré arrondi (ou rond) d'un groupe : photo ou initiales + motif. */
 export function AvatarGroupe({
   session,
@@ -72,7 +79,7 @@ export function AvatarGroupe({
   const url = usePhoto(session, groupId, version, taille > 96 ? 512 : 256);
   const style = { width: taille, height: taille, fontSize: Math.round(taille * 0.38) };
   return (
-    <span className={rond ? "avatar-groupe avatar-groupe--rond" : "avatar-groupe"} style={style} aria-hidden="true">
+    <span className={rond ? "avatar-groupe avatar-groupe--rond" : "avatar-groupe"} style={style} data-motif={url ? undefined : motif(groupId)} aria-hidden="true">
       {url ? <img src={url} alt="" width={taille} height={taille} decoding="async" /> : <span className="avatar-groupe__initiales">{initiales(nom)}</span>}
     </span>
   );

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
@@ -293,6 +294,7 @@ final class TontineGroupRepository implements GroupRepository {
         cycleTotal: cycleTotal,
         contributionAmountXaf: _xaf(g['contributionPerShare']),
         nextDueAtUtc: _date(g['nextMeetingDate']),
+        photoVersion: (g['photoVersion'] as num?)?.toInt(),
       );
 
   @override
@@ -326,6 +328,7 @@ final class TontineGroupRepository implements GroupRepository {
           summary: _summary(<String, dynamic>{
             'groupId': d['groupId'],
             'name': d['name'],
+            'photoVersion': d['photoVersion'],
             'roles': me['roles'],
             'memberCount': d['memberCount'],
             'contributionPerShare': settings['contributionPerShare'],
@@ -410,6 +413,24 @@ final class TontineGroupRepository implements GroupRepository {
         await _api.postOnce('/invitations/${Uri.encodeComponent(code)}/join', <String, dynamic>{
           'displayName': name.isEmpty ? 'Membre' : name,
         });
+      });
+
+  @override
+  Future<Uint8List?> loadPhoto(String groupId, int version, int size) =>
+      _api.getBytes('${_t(groupId)}/photo?size=$size&v=$version');
+
+  @override
+  Future<OperationResult<int>> setPhoto(String groupId, Uint8List jpeg512, Uint8List jpeg256) => _write<int>(() async {
+        final ApiResponse res = await _api.put('${_t(groupId)}/photo', <String, dynamic>{
+          'image512': base64Encode(jpeg512),
+          'image256': base64Encode(jpeg256),
+        });
+        return (res.body['photoVersion'] as num).toInt();
+      });
+
+  @override
+  Future<OperationResult<void>> removePhoto(String groupId) => _write<void>(() async {
+        await _api.delete('${_t(groupId)}/photo');
       });
 
   @override
