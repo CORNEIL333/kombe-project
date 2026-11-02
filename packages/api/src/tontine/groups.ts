@@ -42,6 +42,7 @@ import {
   todayDouala,
 } from "./infra.js";
 import { parseSettings, aidScaleOf, fineScheduleOf } from "./settings.js";
+import { photoVersionOf } from "./photos.js";
 import {
   type GroupRow,
   computeDues,
@@ -170,6 +171,7 @@ export async function tontineDetail(db: Db, actor: Actor, nowMs: number): Promis
   return {
     groupId: group.groupId,
     name: group.name,
+    photoVersion: await photoVersionOf(db, actor.groupId),
     state: group.state,
     settings: group.settings,
     me: { membershipId: actor.membershipId, state: actor.membershipState, roles: actor.roles.filter((r) => r !== "member").length ? actor.roles.filter((r) => r !== "member") : actor.membershipState === "active" ? ["member"] : [] },
@@ -211,6 +213,7 @@ async function summaryFor(db: Db, group: GroupRow, membershipId: string, members
     memberCount: Number(counts.rows[0]?.a ?? 0),
     contributionPerShare: group.settings.contributionPerShare,
     nextMeetingDate: next?.date ?? null,
+    photoVersion: await photoVersionOf(db, group.groupId),
     myOpenDue: m(myOpenDue),
     myPayoutDate,
   };

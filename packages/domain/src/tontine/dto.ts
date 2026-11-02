@@ -123,6 +123,8 @@ export interface TontineSummary {
   readonly memberCount: number;
   readonly contributionPerShare: Money;
   readonly nextMeetingDate: IsoDate | null;
+  /** Version de la photo du groupe (clé de cache) ; null = pas de photo (initiales). */
+  readonly photoVersion?: number | null;
   /** Ce que je dois encore pour la prochaine échéance (toutes caisses). */
   readonly myOpenDue: Money;
   /** Tour où je reçois la cagnotte, s'il est fixé. */
@@ -206,6 +208,7 @@ export interface RoundView {
 export interface TontineDetail {
   readonly groupId: string;
   readonly name: string;
+  readonly photoVersion?: number | null;
   readonly state: TontineState;
   readonly settings: TontineSettings;
   readonly me: { readonly membershipId: string; readonly state: TontineMembershipState; readonly roles: readonly GroupRole[] };

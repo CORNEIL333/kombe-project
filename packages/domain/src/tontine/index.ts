@@ -17,4 +17,5 @@ export * from "./extensions.js";
 export * from "./historyImport.js";
 export * from "./copy.js";
 export * from "./decisions.js";
+export * from "./groupPhoto.js";
 export type * from "./dto.js";

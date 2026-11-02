@@ -1,0 +1,10 @@
+{
+  "branch": "refonte/premium-photos",
+  "base": "refonte/ux-integrale",
+  "step": "B-clients",
+  "done": ["A-photo-serveur"],
+  "remaining": ["B1-pwa-4-onglets-groupes-photo", "B2-flutter-4-onglets-groupes-photo", "C-design-premium-ecrans-prioritaires", "D-recette-captures", "E-rapport-final"],
+  "blocked": ["preuve PostgreSQL réelle (pas de base isolée)", "recette appareil Android/iOS (pas d'émulateur, téléchargement interdit)"],
+  "evidence": {"domain_tests": 444, "api_tests": 249},
+  "next": "PWA : onglet Groupes + photo (affichage authentifié blob, recadrage canvas → JPEG 512/256, envoi PUT)"
+}

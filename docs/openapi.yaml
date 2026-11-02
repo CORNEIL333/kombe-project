@@ -3614,6 +3614,187 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/photo:
+    get:
+      tags:
+      - tontine
+      operationId: getTontinePhoto
+      summary: Photo du groupe (JPEG)
+      description: 'Rôle requis : membre du groupe. Variante `size=256` (défaut) ou `512`. Réponse image/jpeg, `ETag` = version, `Cache-Control: private`. Jamais d''URL publique.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Octets JPEG (métadonnées retirées)
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Inchangée (If-None-Match)
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Pas de photo, ou objet hors portée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+    put:
+      tags:
+      - tontine
+      operationId: putTontinePhoto
+      summary: Remplacer la photo du groupe
+      description: 'Rôle requis : présidence ou secrétariat (group.photo). Corps JSON `{ image512, image256 }` : JPEG carrés 512 et 256 px en base64 (≤ 400 Ko et 150 Ko), préparés par le client ; le serveur vérifie signature, dimensions et taille, retire les métadonnées, limite à 6 changements par heure et journalise. → `{ photoVersion }`.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  photoVersion:
+                    type: integer
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Pas de photo, ou objet hors portée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Image refusée (PHOTO_INVALID)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '429':
+          description: Trop de changements (PHOTO_THROTTLED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+    delete:
+      tags:
+      - tontine
+      operationId: deleteTontinePhoto
+      summary: Retirer la photo (retour aux initiales)
+      description: 'Rôle requis : présidence ou secrétariat. Les octets sont effacés ; la version change (cache invalidé). → `{ photoVersion: null }`.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Pas de photo, ou objet hors portée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /invitations/{code}/photo:
+    get:
+      tags:
+      - tontine
+      operationId: getInvitationPhoto
+      summary: Photo du groupe (JPEG)
+      description: 'Rôle requis : toute session portant un code d''invitation encore valable. Variante `size=256` (défaut) ou `512`. Réponse image/jpeg, `ETag` = version, `Cache-Control: private`. Jamais d''URL publique.'
+      parameters:
+      - name: code
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Octets JPEG (métadonnées retirées)
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Inchangée (If-None-Match)
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Pas de photo, ou objet hors portée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
   /invitations/{code}:
     get:
       tags:

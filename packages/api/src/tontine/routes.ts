@@ -16,6 +16,7 @@ import { DisciplineService } from "./discipline.js";
 import { GroupService } from "./groups.js";
 import { HistoryService, type HistoryImportInput } from "./history.js";
 import { InboxService } from "./inbox.js";
+import { PhotoService } from "./photos.js";
 import { InsightService, type CycleSimulationInput } from "./insights.js";
 import { MeetingService } from "./meetings.js";
 import { MoneyService } from "./money.js";
@@ -195,6 +196,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   const money = new MoneyService(pool, now);
   const discipline = new DisciplineService(pool, now);
   const inbox = new InboxService(pool, now);
+  const photos = new PhotoService(pool, now);
   const decisions = new DecisionService(pool, now);
   const history = new HistoryService(pool, now);
   const insights = new InsightService(pool, now);
@@ -285,6 +287,27 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     return write(req, reply, 204, () => groups.revokeInvitation(H(req), p.id as string, p.iid as string));
   });
   app.get("/v1/invitations/:code", async (req) => groups.previewInvitation(H(req), (req.params as P).code as string));
+
+  /* ── Photo de la tontine (0034) ────────────────────────────────────── */
+  // Octets JPEG servis avec la session (jamais d'URL publique) ; ETag = version.
+  const envoyerPhoto = (req: FastifyRequest, reply: FastifyReply, photo: { bytes: Buffer; version: number } | null, size: number) => {
+    if (!photo) return reply.code(404).send({ code: "NOT_FOUND", message: "Pas de photo pour ce groupe" });
+    const etag = `"p${photo.version}-${size}"`;
+    reply.header("cache-control", "private, max-age=86400").header("etag", etag).header("x-content-type-options", "nosniff");
+    if (req.headers["if-none-match"] === etag) return reply.code(304).send();
+    return reply.type("image/jpeg").send(photo.bytes);
+  };
+  const taille = (req: FastifyRequest): 256 | 512 => ((req.query as Q).size === "512" ? 512 : 256);
+  app.get("/v1/tontines/:id/photo", async (req, reply) =>
+    envoyerPhoto(req, reply, await photos.read(H(req), (req.params as P).id as string, taille(req)), taille(req)),
+  );
+  app.get("/v1/invitations/:code/photo", async (req, reply) =>
+    envoyerPhoto(req, reply, await photos.readForInvitation(H(req), (req.params as P).code as string, taille(req)), taille(req)),
+  );
+  app.put("/v1/tontines/:id/photo", { bodyLimit: 1_300_000 }, async (req, reply) =>
+    write(req, reply, 200, () => photos.replace(H(req), (req.params as P).id as string, (req.body ?? {}) as { image512?: unknown; image256?: unknown })),
+  );
+  app.delete("/v1/tontines/:id/photo", async (req, reply) => write(req, reply, 200, () => photos.remove(H(req), (req.params as P).id as string)));
   app.post("/v1/invitations/:code/join", async (req, reply) =>
     write(req, reply, 201, () => groups.join(H(req), (req.params as P).code as string, S.join.parse(req.body))),
   );

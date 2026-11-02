@@ -47,6 +47,8 @@ async function produceReminders(db: Db, identityId: string, nowMs: number): Prom
 const EVENT_LABELS: Readonly<Record<string, string>> = {
   "tontine.created": "Association créée",
   "tontine.settings_changed": "Règlement modifié",
+  "tontine.photo_changed": "Photo du groupe changée",
+  "tontine.photo_removed": "Photo du groupe retirée",
   "member.requested": "Demande d'adhésion",
   "member.admitted": "Membre admis",
   "member.rejected": "Adhésion refusée",
