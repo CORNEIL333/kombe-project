@@ -1743,7 +1743,7 @@ export function formatXaf(montant: string | bigint | number, langue: "fr" | "en"
   const s = String(montant).trim();
   const neg = s.startsWith("-");
   const digits = (neg ? s.slice(1) : s).replace(/\D/g, "") || "0";
-  const sep = langue === "en" ? "," : " ";
+  const sep = langue === "en" ? "," : " ";
   const groupes = digits.replace(/\B(?=(\d{3})+(?!\d))/g, sep);
   return `${neg ? "−" : ""}${groupes} FCFA`;
 }

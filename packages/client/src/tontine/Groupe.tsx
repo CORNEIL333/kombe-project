@@ -144,16 +144,21 @@ export function Groupe({
                   </button>
                 ))}
               </nav>
-              {onglet === "apercu" ? <Apercu ctx={ctx} allerA={setOnglet} /> : null}
-              {onglet === "membres" ? <Membres ctx={ctx} /> : null}
-              {onglet === "seances" ? <Seances ctx={ctx} /> : null}
-              {onglet === "argent" ? <Argent ctx={ctx} /> : null}
-              {onglet === "tours" ? <Tours ctx={ctx} /> : null}
-              {onglet === "discipline" ? <Discipline ctx={ctx} /> : null}
-              {onglet === "decisions" ? <Decisions ctx={ctx} /> : null}
-              {onglet === "statuts" ? <Statuts ctx={ctx} /> : null}
-              {onglet === "journal" ? <Journal ctx={ctx} /> : null}
-              {onglet === "reglages" ? <Reglages ctx={ctx} /> : null}
+              <div className={`groupe-corps groupe-corps--${onglet}`}>
+                <div className="groupe-principal">
+                  {onglet === "apercu" ? <Apercu ctx={ctx} allerA={setOnglet} /> : null}
+                  {onglet === "membres" ? <Membres ctx={ctx} /> : null}
+                  {onglet === "seances" ? <Seances ctx={ctx} /> : null}
+                  {onglet === "argent" ? <Argent ctx={ctx} /> : null}
+                  {onglet === "tours" ? <Tours ctx={ctx} /> : null}
+                  {onglet === "discipline" ? <Discipline ctx={ctx} /> : null}
+                  {onglet === "decisions" ? <Decisions ctx={ctx} /> : null}
+                  {onglet === "statuts" ? <Statuts ctx={ctx} /> : null}
+                  {onglet === "journal" ? <Journal ctx={ctx} /> : null}
+                  {onglet === "reglages" ? <Reglages ctx={ctx} /> : null}
+                </div>
+                {onglet === "apercu" ? null : <RailGroupe groupe={g} allerA={setOnglet} />}
+              </div>
             </>
           );
         }}
@@ -280,6 +285,51 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
 
       {g.cycleStarted ? <Regularite ctx={ctx} /> : null}
     </div>
+  );
+}
+
+/** Colonne de contexte (grand écran seulement, masquée sur téléphone) :
+   tour en cours, prochaine séance, membres — rien que des données déjà chargées. */
+function RailGroupe({ groupe: g, allerA }: { readonly groupe: TontineDetail; readonly allerA: (o: Onglet) => void }) {
+  const { tx, xaf, date } = useTextes();
+  const tour = g.currentRound;
+  const attendu = tour ? BigInt(tour.expectedPot) : 0n;
+  const pct = tour && attendu > 0n ? Number((BigInt(tour.collected) * 100n) / attendu) : 0;
+  return (
+    <aside className="groupe-rail" aria-label={g.name}>
+      {tour && g.cycle ? (
+        <section className="rail-carte rail-carte--foret">
+          <p className="rail-carte__sur">{tx("imm.tourSur", { n: tour.seq - g.cycle.firstSeq + 1, total: g.cycle.lastSeq - g.cycle.firstSeq + 1 })}</p>
+          {tour.beneficiaryName ? <p className="rail-carte__titre">{tx("imm.beneficiaire", { nom: tour.beneficiaryName })}</p> : null}
+          <p className="rail-carte__montant montant">{xaf(tour.collected)}</p>
+          <div className="rail-carte__piste" aria-hidden="true">
+            <span style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+          </div>
+          <p className="rail-carte__note">{tx("td.collecte", { collecte: xaf(tour.collected), attendu: xaf(tour.expectedPot) })}</p>
+        </section>
+      ) : null}
+      {g.nextMeeting ? (
+        <button type="button" className="rail-carte rail-carte--lien" onClick={() => allerA("seances")}>
+          <span className="ligne-riche__ico ligne-riche__ico--argent" aria-hidden="true">
+            <Icone nom="seance" taille={20} />
+          </span>
+          <span className="rail-carte__texte">
+            <span className="rail-carte__sur">{tx("td.seances")}</span>
+            <strong>{date(g.nextMeeting.date)}</strong>
+            {g.nextMeeting.location ? <span className="rail-carte__note">{g.nextMeeting.location}</span> : null}
+          </span>
+        </button>
+      ) : null}
+      <button type="button" className="rail-carte rail-carte--lien" onClick={() => allerA("membres")}>
+        <span className="ligne-riche__ico ligne-riche__ico--ok" aria-hidden="true">
+          <Icone nom="personnes" taille={20} />
+        </span>
+        <span className="rail-carte__texte">
+          <span className="rail-carte__sur">{tx("td.membres")}</span>
+          <strong>{tx("sh.sousTitreGroupe", { n: g.memberCount })}</strong>
+        </span>
+      </button>
+    </aside>
   );
 }
 

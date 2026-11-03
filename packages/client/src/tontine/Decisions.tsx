@@ -75,7 +75,7 @@ export function Decisions({ ctx }: { readonly ctx: ContexteGroupe }) {
         <Charge etat={liste.etat} recharger={liste.recharger}>
           {(items) =>
             items.length === 0 ? (
-              <p>{tx("app.vide")}</p>
+              <p className="etat-vide-ligne">{tx("app.vide")}</p>
             ) : (
               <ul className="liste">
                 {items.map((d) => (

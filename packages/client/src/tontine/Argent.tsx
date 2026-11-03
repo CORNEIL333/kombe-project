@@ -9,12 +9,21 @@ import type { PaymentChannel } from "@kombe/domain";
 import { argent, tontines, type DueView, type MemberView, type MovementView } from "./api.js";
 import { peut } from "./droits.js";
 import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
-import { Icone } from "../composants/Icones.js";
+import { Icone, type NomIcone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 import { useNomCaisse } from "./Caisses.js";
 
 export const CANAUX: readonly PaymentChannel[] = ["cash", "orange_money", "mtn_momo", "bank", "international_transfer", "other"];
+
+/** Pictogramme du moyen de paiement (pastille de ligne, purement décoratif). */
+const ICONE_CANAL: Partial<Record<PaymentChannel, NomIcone>> = {
+  cash: "especes",
+  orange_money: "mobile-money",
+  mtn_momo: "mobile-money",
+  bank: "banque",
+  international_transfer: "monde",
+};
 
 export function tonMouvement(state: MovementView["state"]): "neutre" | "attente" | "ok" | "alerte" {
   return state === "validated" ? "ok" : state === "rejected" ? "alerte" : state === "confirmed" ? "ok" : "attente";
@@ -126,10 +135,14 @@ export function LigneMouvement({ m, actions }: { readonly m: MovementView; reado
   const nomCaisse = useNomCaisse();
   const pourCompte = m.declaredByName && m.memberName && m.declaredByName !== m.memberName;
   return (
-    <li className="liste__ligne liste__ligne--haute">
+    <li className="liste__ligne liste__ligne--haute ligne-riche">
+      <span className={`ligne-riche__ico ligne-riche__ico--${tonMouvement(m.state)}`} aria-hidden="true">
+        <Icone nom={ICONE_CANAL[m.channel] ?? "especes"} taille={20} />
+      </span>
       <div>
         <strong>
-          {dyn(`ar.type.${m.kind}`)} · {xaf(m.amount)}
+          {dyn(`ar.type.${m.kind}`)}
+          <span className="visuellement-cache"> · {xaf(m.amount)}</span>
         </strong>
         <span className="aide-champ">
           {nomCaisse({ kind: m.fundKind, name: m.fundName ?? "" })} · {m.memberName ?? ""}
@@ -143,6 +156,9 @@ export function LigneMouvement({ m, actions }: { readonly m: MovementView; reado
         </span>
         <Pastille ton={tonMouvement(m.state)}>{dyn(`ar.etat.${m.state}`)}</Pastille>
       </div>
+      <span className="montant ligne-riche__montant" aria-hidden="true">
+        {xaf(m.amount)}
+      </span>
       {actions ? <div className="liste__actions">{actions}</div> : null}
     </li>
   );
@@ -215,7 +231,7 @@ export function Argent({ ctx }: { readonly ctx: ContexteGroupe }) {
         <Charge etat={mouvements.etat} recharger={mouvements.recharger}>
           {(liste) =>
             liste.length === 0 ? (
-              <p>{tx("app.vide")}</p>
+              <p className="etat-vide-ligne">{tx("app.vide")}</p>
             ) : (
               <ul className="liste">
                 {liste.map((m) => (
@@ -273,7 +289,7 @@ export function AConfirmer({ ctx, onFini, meetingId }: { readonly ctx: ContexteG
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
             <>
               <ul className="liste">
@@ -374,7 +390,7 @@ export function AControler({ ctx, onFini }: { readonly ctx: ContexteGroupe; read
         {(liste) => {
           const aControler = liste.filter((m) => m.can.control);
           return aControler.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
             <ul className="liste">
               {aControler.map((m) => (

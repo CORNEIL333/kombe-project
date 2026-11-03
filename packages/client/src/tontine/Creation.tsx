@@ -191,7 +191,10 @@ export function Creation({
           </li>
         ))}
       </ol>
-      <p className="aide-champ">{tx("cr.etape", { n: etape + 1, total: ETAPES.length })}</p>
+      <p className="aide-champ etapes-creation__compteur">
+        {tx("cr.etape", { n: etape + 1, total: ETAPES.length })}
+        {ETAPES[etape] ? <strong> · {tx(ETAPES[etape])}</strong> : null}
+      </p>
 
       <div className="pile">
         {etape === 0 ? (

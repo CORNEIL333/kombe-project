@@ -74,7 +74,7 @@ export function MesCotisations({ session, onOuvrirGroupe }: { readonly session: 
         <Charge etat={historique.etat} recharger={historique.recharger}>
           {(liste: { m: MovementView; groupe: TontineSummary }[]) =>
             liste.length === 0 ? (
-              <p>{tx("app.vide")}</p>
+              <p className="etat-vide-ligne">{tx("app.vide")}</p>
             ) : (
               <ul className="liste">
                 {liste.map(({ m, groupe }) => (

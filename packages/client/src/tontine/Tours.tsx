@@ -23,7 +23,7 @@ export function Tours({ ctx }: { readonly ctx: ContexteGroupe }) {
         <Charge etat={tours.etat} recharger={tours.recharger}>
           {(liste) =>
             liste.length === 0 ? (
-              <p>{tx("app.vide")}</p>
+              <p className="etat-vide-ligne">{tx("app.vide")}</p>
             ) : (
               <ol className="liste">
                 {liste.map((r) => (
