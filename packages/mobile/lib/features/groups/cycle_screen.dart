@@ -11,6 +11,7 @@ import '../../core/state/resource.dart';
 import '../../core/widgets/group_hero_card.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/kombe_visuals.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/cycle.dart';
 import '../../domain/entities/group.dart';
@@ -74,7 +75,7 @@ class _CycleScreenState extends State<CycleScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(centerTitle: true, title: const KombeLogo(size: 38)),
+        appBar: AppBar(title: const Text('Cycle et tours')),
         body: ListenableBuilder(
           listenable: _vm!,
           builder: (BuildContext context, Widget? child) => FutureBuilder<Resource<GroupDetails>>(
@@ -86,7 +87,7 @@ class _CycleScreenState extends State<CycleScreen> {
               };
               final bool bureau = group?.role == GroupRole.administrator || group?.role == GroupRole.secretary;
               return switch (_vm!.state) {
-                ResourceLoading<CycleDetails>() => const Center(child: CircularProgressIndicator()),
+                ResourceLoading<CycleDetails>() => const KombeListSkeleton(),
                 ResourceUnavailable<CycleDetails>() => ListView(
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
                     children: <Widget>[
@@ -97,7 +98,7 @@ class _CycleScreenState extends State<CycleScreen> {
                       ),
                     ],
                   ),
-                ResourceFailure<CycleDetails>(:final Object error) => ErrorState(message: error.toString()),
+                ResourceFailure<CycleDetails>(:final Object error) => ErrorState(message: error.toString(), onRetry: _vm!.load),
                 ResourceReady<CycleDetails>(:final CycleDetails data) => CycleView(
                     cycle: data,
                     group: group,

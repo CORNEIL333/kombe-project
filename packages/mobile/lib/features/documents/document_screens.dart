@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/formatters/labels.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/screen_states.dart';
-import '../../core/widgets/section_card.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../domain/entities/document.dart';
 import '../../domain/repositories/document_repository.dart';
 
@@ -39,34 +39,46 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         appBar: AppBar(title: const Text('Documents')),
         body: ResourceView<List<KombeDocument>>(
           resource: _state,
+          onRetry: _load,
           emptyWhen: (List<KombeDocument> items) => items.isEmpty,
-          builder: (BuildContext context, List<KombeDocument> items) =>
-              ListView.separated(
-            padding: const EdgeInsets.all(20),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (BuildContext context, int index) {
-              final KombeDocument item = items[index];
-              return SectionCard(
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.description_outlined),
-                  ),
-                  title: Text(item.title),
-                  subtitle: Text(KombeLabels.documentKind(item.kind)),
-                  trailing: const Icon(Icons.open_in_new),
-                  onTap: () {
-                    if (item.downloadUri.scheme != 'https') return;
-                    unawaited(launchUrl(
-                      item.downloadUri,
-                      mode: LaunchMode.externalApplication,
-                    ));
-                  },
-                ),
-              );
-            },
+          emptyTitle: 'Aucun document',
+          emptyBody: 'Relevés, rapports de cycle et statuts publiés par le bureau apparaîtront ici.',
+          builder: (BuildContext context, List<KombeDocument> items) => ListView(
+            padding: const EdgeInsets.only(top: 8, bottom: 32),
+            children: <Widget>[
+              KombeGroupedList(
+                children: <Widget>[
+                  for (final KombeDocument item in items)
+                    KombeMenuRow(
+                      icon: _icon(item.kind),
+                      tone: item.kind == DocumentKind.dispute ? KombeTone.danger : KombeTone.brand,
+                      title: item.title,
+                      subtitle: KombeLabels.documentKind(item.kind),
+                      external: true,
+                      onTap: () {
+                        // Lien non sécurisé : on ne l'ouvre pas, et on le dit.
+                        if (item.downloadUri.scheme != 'https') {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Ce document n’est pas disponible au téléchargement pour le moment.')),
+                          );
+                          return;
+                        }
+                        unawaited(launchUrl(item.downloadUri, mode: LaunchMode.externalApplication));
+                      },
+                    ),
+                ],
+              ),
+            ],
           ),
         ),
       );
 }
+
+IconData _icon(DocumentKind k) => switch (k) {
+      DocumentKind.statement => Icons.receipt_long_outlined,
+      DocumentKind.cycleReport => Icons.donut_large_rounded,
+      DocumentKind.export => Icons.table_view_outlined,
+      DocumentKind.rules => Icons.menu_book_outlined,
+      DocumentKind.dispute => Icons.report_gmailerrorred_rounded,
+      DocumentKind.other => Icons.description_outlined,
+    };

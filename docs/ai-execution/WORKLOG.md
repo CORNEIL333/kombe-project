@@ -15,3 +15,9 @@
 - Flutter : 4 onglets (Accueil, Cotisations, Groupes, Activité), cloche → non lues en demi-fenêtre, barre forêt sur l'accueil, menu à en-tête forêt et feuille ivoire, Groupes et Activité de la planche, photo de groupe (galerie/appareil, recadrage, JPEG 512/256 en isolat, EXIF effacé — fuite réelle trouvée par test et corrigée), avatar à couverture tissée.
 - Défauts trouvés par la recette et corrigés : en-tête d'écran à hauteur fixe (débordement en grand texte), ombre peinte à l'intérieur des cartes, retour tactile invisible dans le menu (DecoratedBox), police du bouton principal non fixée.
 - Fond « marché » (personnes) retiré des couvertures et en-têtes ; seuls tissage, vert-or, Yaoundé et paysage restent.
+
+## 2026-11-03 — Mission « Ultra design » : direction « Cercle & Ndop »
+- Canva : dossier « KÓMBE — Direction artistique 2026 » (FAHZwuA9Lm8), planche de direction (12 pages, DAHZwpBLSv4) : 3 orientations comparées, synthèse retenue. Aucune ressource Canva exportée dans l'app (motifs faits en vecteur dans le code).
+- Flutter : thème complet, Fraunces montants/titres, motif Ndop vectoriel, composants partagés ; écrans refaits : accueil, membres, cotisations (liste + détail), validations, bureau, fiche du groupe, votes, documents, statuts, bénéficiaires, carte héro du cycle (plus de photo d'ambiance).
+- PWA (agent) : `src/systeme.css` unifie 6 systèmes de jetons, restyle tous les écrans connectés, colonne de contexte bureau, Ndop à la place des bitmaps ; connexion intacte (0 pixel avant/après en local).
+- Reste : auth (inscription, code, récupération), création/adhésion, caisses, détail membre, invitation, déclaration, hors ligne Flutter ; relecture visuelle des captures PWA qa5 ; comparaison avant/après chiffrée.

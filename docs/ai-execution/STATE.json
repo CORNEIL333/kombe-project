@@ -1,18 +1,20 @@
 {
   "branch": "refonte/premium-photos",
   "base": "refonte/ux-integrale",
-  "step": "E-rapport",
+  "step": "F-ultra-design",
   "done": [
     "A-photo-serveur",
     "B1-pwa-4-onglets-groupes-photo",
     "B1b-pwa-planches-reference",
     "B2-flutter-4-onglets-groupes-photo-planche",
-    "E-rapport-final"
+    "E-rapport-final",
+    "F1-socle-cercle-ndop-flutter+pwa"
   ],
   "remaining": [
-    "D-recette-appareil (Android/iOS)",
-    "PR refonte/premium-photos → refonte/ux-integrale",
-    "écarts PWA bureau (voir FINAL_REPORT.md)"
+    "F2-flutter: auth, création/adhésion, caisses, détail membre, invitation, déclaration, hors ligne",
+    "F3-pwa: relecture captures qa5, Profil montant Fraunces, barre du bas sur bureau",
+    "F4-avant/après chiffré + rapport",
+    "PR refonte/premium-photos"
   ],
   "blocked": [
     "preuve PostgreSQL réelle (pas de base isolée)",
@@ -27,5 +29,5 @@
     "pwa_playwright": "360/390/430/768/1024/1440 sans erreur ni défilement horizontal",
     "login_pwa": "0 pixel de différence avec la production"
   },
-  "next": "Ouvrir la PR refonte/premium-photos → refonte/ux-integrale ; recette sur téléphone réel."
+  "next": "Lire UI_INVENTORY.md (statuts), reprendre F2 ; vérifier flutter test (dernier lancement en arrière-plan non confirmé)."
 }

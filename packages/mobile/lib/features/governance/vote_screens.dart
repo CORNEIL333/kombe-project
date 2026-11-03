@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
+import '../../core/design/kombe_colors.dart';
+import '../../core/design/kombe_theme.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/section_card.dart';
 import '../../core/widgets/server_action_guard.dart';
@@ -40,34 +43,64 @@ class _VotesScreenState extends State<VotesScreen> {
         body: ResourceView<List<VoteSummary>>(
           resource: _state,
           emptyWhen: (List<VoteSummary> votes) => votes.isEmpty,
+          onRetry: _load,
+          emptyTitle: 'Aucun vote en cours',
+          emptyBody: 'Quand le bureau ouvre un vote, il apparaît ici.',
           builder: (BuildContext context, List<VoteSummary> votes) {
-            final String locale =
-                Localizations.localeOf(context).toLanguageTag();
-            return ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: votes.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (BuildContext context, int index) {
-                final VoteSummary vote = votes[index];
-                return SectionCard(
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.how_to_vote_outlined),
-                    ),
-                    title: Text(vote.title),
-                    subtitle: Text(
-                      'Clôture : ${DateFormat.yMMMd(locale).add_Hm().format(vote.closesAtUtc.toLocal())}',
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/app/votes/${vote.id}'),
-                  ),
-                );
-              },
+            final List<VoteSummary> todo = votes.where((VoteSummary v) => !v.hasCurrentUserVoted).toList();
+            final List<VoteSummary> done = votes.where((VoteSummary v) => v.hasCurrentUserVoted).toList();
+            return ListView(
+              padding: const EdgeInsets.only(bottom: 32),
+              children: <Widget>[
+                for (final (String title, List<VoteSummary> items) in <(String, List<VoteSummary>)>[('À voter', todo), ('Déjà voté', done)])
+                  if (items.isNotEmpty) ...<Widget>[
+                    KombeSection('$title · ${items.length}'),
+                    KombeGroupedList(children: <Widget>[for (final VoteSummary v in items) _VoteRow(vote: v)]),
+                  ],
+              ],
             );
           },
         ),
       );
+}
+
+class _VoteRow extends StatelessWidget {
+  const _VoteRow({required this.vote});
+  final VoteSummary vote;
+
+  @override
+  Widget build(BuildContext context) {
+    final String locale = Localizations.localeOf(context).toLanguageTag();
+    final DateTime close = vote.closesAtUtc.toLocal();
+    final int days = close.difference(DateTime.now()).inDays;
+    final String when = close.isBefore(DateTime.now())
+        ? 'Clos le ${DateFormat('d MMM', locale).format(close)}'
+        : days < 1
+            ? 'Clôture aujourd’hui, ${DateFormat.Hm(locale).format(close)}'
+            : 'Clôture le ${DateFormat('d MMM', locale).format(close)} · dans $days j';
+    return ListTile(
+      minTileHeight: 76,
+      leading: KombeIconBadge(Icons.how_to_vote_outlined, tone: vote.hasCurrentUserVoted ? KombeTone.success : KombeTone.info),
+      title: Text(vote.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: <Widget>[
+            if (vote.hasCurrentUserVoted)
+              const StatusPill('Voté', tone: KombeTone.success, icon: Icons.check_rounded)
+            else
+              const StatusPill('À voter', tone: KombeTone.warning),
+            Text(when, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded, color: KombeColors.slate),
+      onTap: () => context.push('/app/votes/${vote.id}'),
+    );
+  }
 }
 
 class VoteDetailScreen extends StatefulWidget {
@@ -136,45 +169,73 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
         resource: _state,
         onRetry: _load,
         builder: (BuildContext context, VoteDetails vote) => ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: <Widget>[
+            StatusPill(vote.open ? 'Vote ouvert' : _outcome(vote.state), tone: vote.open ? KombeTone.info : KombeTone.neutral, icon: Icons.how_to_vote_outlined),
+            const SizedBox(height: 12),
             Text(vote.summary.title, style: t.headlineSmall),
             if (vote.description.isNotEmpty) ...<Widget>[
               const SizedBox(height: 8),
               Text(vote.description, style: t.bodyLarge),
             ],
-            const SizedBox(height: 16),
-            _row(t, l10n.voteElectorate, '${vote.electorate}'),
-            _row(t, l10n.voteMajority, '${vote.requiredYes}'),
-            _row(t, l10n.voteBallots, '${vote.ballots}'),
+            const SizedBox(height: 18),
+            // Participation : bulletins sur électeurs ; majorité requise en clair.
+            KombeCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Text('${vote.ballots}', style: KombeType.amount(size: 26)),
+                      Text(' / ${vote.electorate} ${l10n.voteBallots.toLowerCase()}', style: t.bodyMedium),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  LinearProgressIndicator(value: vote.electorate == 0 ? 0 : (vote.ballots / vote.electorate).clamp(0, 1)),
+                  const SizedBox(height: 10),
+                  Text('${l10n.voteMajority} : ${vote.requiredYes} « pour »', style: t.bodySmall),
+                ],
+              ),
+            ),
             const SizedBox(height: 20),
             if (!vote.open)
-              // Objet déjà traité (ex. ouvert depuis la notification du résultat).
               Semantics(
                 liveRegion: true,
-                child: Text(
-                  vote.result == null
-                      ? 'Ce vote est clos : ${_outcome(vote.state).toLowerCase()}.'
-                      : 'Ce vote est clos : ${_outcome(vote.state).toLowerCase()} '
-                          '(${vote.result!.yes} pour, ${vote.result!.no} contre, ${vote.result!.abstain} abstentions).',
-                  style: t.titleMedium,
-                ),
+                child: vote.result == null
+                    ? Text('Ce vote est clos : ${_outcome(vote.state).toLowerCase()}.', style: t.titleMedium)
+                    : _Result(yes: vote.result!.yes, no: vote.result!.no, abstain: vote.result!.abstain, outcome: _outcome(vote.state)),
               )
             else if (vote.myChoice != null)
-              Text('Vous avez voté : ${_label(vote.myChoice!)}. Le résultat sera publié au dépouillement.', style: t.titleMedium)
+              KombeCard(
+                color: const Color(0xFFE3F2EA),
+                borderColor: null,
+                child: Row(
+                  children: <Widget>[
+                    const Icon(Icons.verified_outlined, color: KombeColors.jade),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text('Vous avez voté : ${_label(vote.myChoice!)}. Le résultat sera publié au dépouillement.', style: t.titleSmall)),
+                  ],
+                ),
+              )
             else if (!vote.canVote)
               Text('Vous ne votez pas sur ce scrutin.', style: t.titleMedium)
             else ...<Widget>[
-              RadioGroup<VoteChoice>(
-                groupValue: _choice,
-                onChanged: (VoteChoice? value) => setState(() => _choice = value),
-                child: Column(
+              Text('Votre choix', style: t.titleMedium),
+              const SizedBox(height: 10),
+              // Bulletin : trois grandes cibles, la sélection est visible (forme + couleur).
+              Semantics(
+                container: true,
+                label: 'Bulletin',
+                child: Row(
                   children: <Widget>[
-                    for (final VoteChoice c in VoteChoice.values) RadioListTile<VoteChoice>(value: c, title: Text(_label(c))),
+                    for (final VoteChoice c in VoteChoice.values) ...<Widget>[
+                      if (c != VoteChoice.values.first) const SizedBox(width: 10),
+                      Expanded(child: _ChoiceTile(label: _label(c), icon: _icon(c), selected: _choice == c, onTap: _sending ? null : () => setState(() => _choice = c))),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               FilledButton(
                 onPressed: _choice == null || _sending ? null : _submit,
                 child: _sending
@@ -182,9 +243,16 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
                     : const Text('Confirmer mon vote'),
               ),
               const SizedBox(height: 12),
-              const Text('Votre bulletin est secret. Il ne compte qu’une fois enregistré : attendez la confirmation.'),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Icon(Icons.lock_outline_rounded, size: 16, color: KombeColors.slate),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Votre bulletin est secret. Il ne compte qu’une fois enregistré : attendez la confirmation.', style: t.bodySmall)),
+                ],
+              ),
             ],
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text('Clôture prévue : ${DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag()).add_Hm().format(vote.summary.closesAtUtc.toLocal())}',
                 style: t.bodySmall),
           ],
@@ -193,8 +261,101 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
     );
   }
 
+  static IconData _icon(VoteChoice c) => switch (c) {
+        VoteChoice.forChoice => Icons.thumb_up_alt_outlined,
+        VoteChoice.against => Icons.thumb_down_alt_outlined,
+        VoteChoice.abstain => Icons.remove_circle_outline_rounded,
+      };
+
   Widget _row(TextTheme t, String k, String v) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(children: <Widget>[Expanded(child: Text(k, style: t.bodyMedium)), Text(v, style: t.titleSmall)]),
       );
+}
+
+class _ChoiceTile extends StatelessWidget {
+  const _ChoiceTile({required this.label, required this.icon, required this.selected, required this.onTap});
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        excludeSemantics: true,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            color: selected ? KombeColors.forest : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: selected ? KombeColors.forest : KombeColors.lineStrong, width: 1.4),
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
+                child: Column(
+                  children: <Widget>[
+                    Icon(selected ? Icons.check_circle_rounded : icon, color: selected ? KombeColors.goldLight : KombeColors.forest),
+                    const SizedBox(height: 6),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: selected ? KombeColors.cream : KombeColors.forest),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+/// Résultat publié : barres proportionnelles, chiffres exacts.
+class _Result extends StatelessWidget {
+  const _Result({required this.yes, required this.no, required this.abstain, required this.outcome});
+  final int yes;
+  final int no;
+  final int abstain;
+  final String outcome;
+
+  @override
+  Widget build(BuildContext context) {
+    final int total = yes + no + abstain;
+    Widget bar(String label, int n, Color c) => Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Row(
+            children: <Widget>[
+              SizedBox(width: 92, child: Text(label, style: Theme.of(context).textTheme.bodyMedium)),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(value: total == 0 ? 0 : n / total, color: c, minHeight: 10),
+                ),
+              ),
+              SizedBox(width: 40, child: Text('$n', textAlign: TextAlign.right, style: KombeType.amount(size: 16))),
+            ],
+          ),
+        );
+    return KombeCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Résultat : $outcome', style: Theme.of(context).textTheme.titleMedium),
+          bar('Pour', yes, KombeColors.jade),
+          bar('Contre', no, KombeColors.danger),
+          bar('Abstention', abstain, KombeColors.slate),
+        ],
+      ),
+    );
+  }
 }
