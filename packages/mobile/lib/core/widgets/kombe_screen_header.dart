@@ -29,7 +29,7 @@ class KombeScreenHeader extends StatelessWidget {
                 child: ShaderMask(
                   blendMode: BlendMode.dstIn,
                   shaderCallback: _fondu,
-                  child: CustomPaint(painter: NdopPainter(color: KombeColors.forest, opacity: .16, variant: 2, tile: 30)),
+                  child: CustomPaint(painter: NdopPainter(color: KombeColors.forest, opacity: .13, tile: 26)),
                 ),
               ),
             ),

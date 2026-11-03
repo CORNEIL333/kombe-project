@@ -448,3 +448,48 @@ class KombeDateBlock extends StatelessWidget {
     );
   }
 }
+
+/// Rangée de menu (dans une [KombeGroupedList]) : picto teinté, titre,
+/// détail facultatif, valeur ; chevron, ou flèche sortante si la tâche
+/// s'ouvre dans KÓMBE Web.
+class KombeMenuRow extends StatelessWidget {
+  const KombeMenuRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+    this.value,
+    this.tone = KombeTone.brand,
+    this.external = false,
+  });
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final String? value;
+  final VoidCallback onTap;
+  final KombeTone tone;
+  final bool external;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+        minTileHeight: subtitle == null ? 60 : 68,
+        leading: KombeIconBadge(icon, tone: tone, size: 38),
+        title: Text(title),
+        subtitle: subtitle == null ? null : Text(subtitle!),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (value != null) Text(value!, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(width: 4),
+            Icon(
+              external ? Icons.open_in_new_rounded : Icons.chevron_right_rounded,
+              size: external ? 18 : 24,
+              color: KombeColors.slate,
+              semanticLabel: external ? 'ouvre KÓMBE Web' : null,
+            ),
+          ],
+        ),
+        onTap: onTap,
+      );
+}

@@ -6,9 +6,11 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/kombe_sheet.dart';
 import '../../core/widgets/kombe_visuals.dart';
 import '../../core/widgets/screen_states.dart';
@@ -17,6 +19,13 @@ import '../../domain/repositories/governance_repository.dart';
 
 /// Libellés selon la responsabilité : la trésorerie CONFIRME qu'elle a
 /// retrouvé le paiement ; le commissaire aux comptes CONTRÔLE ensuite.
+/// Groupe · caisse · moyen (seulement ce que le serveur a rendu).
+String _meta(ValidationItem item) => <String>[
+      if (item.groupName.isNotEmpty) item.groupName,
+      if (item.fundName.isNotEmpty) item.fundName,
+      if (item.channel != null) _channelLabel(item.channel),
+    ].join(' · ');
+
 String _stageTitle(bool control) => control ? 'À contrôler' : 'À confirmer';
 String _approveLabel(bool control) => control ? 'Contrôle conforme' : 'Paiement retrouvé — confirmer';
 
@@ -76,34 +85,57 @@ class _ValidationQueueScreenState extends State<ValidationQueueScreen> {
           onRefresh: _load,
           child: ResourceView<List<ValidationItem>>(
             resource: _state,
+            onRetry: _load,
             emptyWhen: (List<ValidationItem> data) => data.isEmpty,
+            emptyTitle: 'Tout est à jour',
+            emptyBody: 'Aucune déclaration n’attend votre confirmation ou votre contrôle.',
             builder: (BuildContext context, List<ValidationItem> data) {
               final List<ValidationItem> confirm = data.where((ValidationItem v) => !v.control).toList();
               final List<ValidationItem> control = data.where((ValidationItem v) => v.control).toList();
+              final int total = data.fold<int>(0, (int s, ValidationItem v) => s + v.amountXaf);
               return ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.only(bottom: 32),
                 children: <Widget>[
+                  // File d'attente : combien, pour quel total (somme des lignes reçues).
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: KombeCard(
+                      color: KombeColors.goldPale.withValues(alpha: .55),
+                      borderColor: KombeColors.goldPale,
+                      child: Row(
+                        children: <Widget>[
+                          const KombeIconBadge(Icons.fact_check_outlined, tone: KombeTone.money, size: 48),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text('${data.length} déclaration${data.length > 1 ? 's' : ''} en attente', style: Theme.of(context).textTheme.titleMedium),
+                                const SizedBox(height: 4),
+                                FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(total, size: 22, color: KombeColors.goldDark)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   for (final (bool isControl, List<ValidationItem> items) in <(bool, List<ValidationItem>)>[(false, confirm), (true, control)])
                     if (items.isNotEmpty) ...<Widget>[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-                        child: Text('${_stageTitle(isControl)} · ${items.length}', style: Theme.of(context).textTheme.titleSmall),
+                      KombeSection('${_stageTitle(isControl)} · ${items.length}'),
+                      KombeGroupedList(
+                        children: <Widget>[
+                          for (final ValidationItem item in items)
+                            ListTile(
+                              minTileHeight: 72,
+                              leading: KombeAvatar(name: item.memberDisplayName, size: 42),
+                              title: Text(item.memberDisplayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                              subtitle: _meta(item).isEmpty ? null : Text(_meta(item), maxLines: 2, overflow: TextOverflow.ellipsis),
+                              trailing: Text(Xaf.format(item.amountXaf), style: KombeType.amount(size: 16)),
+                              onTap: () => _open(item),
+                            ),
+                        ],
                       ),
-                      for (final ValidationItem item in items)
-                        ListTile(
-                          minVerticalPadding: 12,
-                          leading: KombeAvatar(name: item.memberDisplayName, size: 44),
-                          title: Text(item.memberDisplayName),
-                          subtitle: Text(
-                            <String>[
-                              if (item.groupName.isNotEmpty) item.groupName,
-                              if (item.fundName.isNotEmpty) item.fundName,
-                              _channelLabel(item.channel),
-                            ].join(' · '),
-                          ),
-                          trailing: Text(Xaf.format(item.amountXaf), style: const TextStyle(fontWeight: FontWeight.w700)),
-                          onTap: () => _open(item),
-                        ),
                     ],
                 ],
               );
@@ -219,29 +251,40 @@ class _DecisionPanelState extends State<DecisionPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              KombeAvatar(name: item.memberDisplayName, size: 48),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // Qui, combien : le montant domine, la personne l'identifie.
+          KombeCard(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
                   children: <Widget>[
-                    Text(item.memberDisplayName, style: t.titleMedium),
-                    Text(
-                      <String>[if (item.groupName.isNotEmpty) item.groupName, if (item.fundName.isNotEmpty) item.fundName].join(' · '),
-                      style: t.bodySmall?.copyWith(color: KombeColors.slate),
+                    KombeAvatar(name: item.memberDisplayName, size: 44),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(item.memberDisplayName, style: t.titleMedium),
+                          Text(
+                            <String>[if (item.groupName.isNotEmpty) item.groupName, if (item.fundName.isNotEmpty) item.fundName].join(' · '),
+                            style: t.bodySmall,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-              Text(Xaf.format(item.amountXaf), style: t.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-            ],
+                const SizedBox(height: 16),
+                FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(item.amountXaf, size: 34)),
+                const SizedBox(height: 10),
+                const Divider(),
+                _row(t, 'Moyen', _channelLabel(item.channel)),
+                _row(t, 'Référence', item.evidenceName ?? 'Aucune (motif donné par le membre)'),
+                _row(t, 'Déclaré le', when),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          _row(t, 'Moyen', _channelLabel(item.channel)),
-          _row(t, 'Référence', item.evidenceName ?? 'Aucune (motif donné par le membre)'),
-          _row(t, 'Déclaré le', when),
           const SizedBox(height: 12),
           Text(
             item.control

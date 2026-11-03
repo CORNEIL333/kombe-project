@@ -6,10 +6,12 @@ import 'package:provider/provider.dart';
 
 import '../../app/active_group_controller.dart';
 import '../../core/design/kombe_colors.dart';
-import '../../core/formatters/xaf.dart';
+import '../../core/design/kombe_theme.dart';
+import '../../core/formatters/labels.dart';
 import '../../core/state/resource.dart';
 import '../../core/web/kombe_web.dart';
 import '../../core/widgets/group_avatar.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
@@ -81,18 +83,19 @@ class _Body extends StatelessWidget {
     final ActiveGroupController? active = _maybeActive(context);
     final bool isActive = active?.active?.id == g.id;
     final bool bureau = g.role != GroupRole.member;
+    final int? photo = active?.list.where((GroupSummary x) => x.id == g.id).firstOrNull?.photoVersion ?? g.photoVersion;
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
       children: <Widget>[
-        // Photo du groupe (ou couverture tissée) ; modifiable selon la fonction.
+        // Identité : photo (ou motif Ndop), nom, fonction ; modifiable selon la fonction.
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
           child: Row(
             children: <Widget>[
               Stack(
                 clipBehavior: Clip.none,
                 children: <Widget>[
-                  GroupAvatar(groupId: g.id, name: g.name, photoVersion: active?.list.where((GroupSummary x) => x.id == g.id).firstOrNull?.photoVersion ?? g.photoVersion, size: 88),
+                  GroupAvatar(groupId: g.id, name: g.name, photoVersion: photo, size: 88),
                   if (canEditGroupPhoto(g.role))
                     Positioned(
                       right: -8,
@@ -104,38 +107,59 @@ class _Body extends StatelessWidget {
                           tooltip: 'Modifier la photo',
                           visualDensity: VisualDensity.compact,
                           onPressed: () => showGroupPhotoSheet(context, g),
-                          icon: const Icon(Icons.edit_outlined, size: 18, color: KombeColors.ink),
+                          icon: const Icon(Icons.photo_camera_outlined, size: 18, color: KombeColors.ink),
                         ),
                       ),
                     ),
                 ],
               ),
               const SizedBox(width: 18),
-              Expanded(child: Text(g.name, style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: KombeColors.forest))),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text('${Xaf.format(g.contributionAmountXaf)} par part', style: t.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-              const SizedBox(height: 4),
-              Text(
-                '${g.memberCount} membres · ${_roleLabel(g.role)}',
-                style: t.bodyMedium?.copyWith(color: KombeColors.slate),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(g.name, style: t.headlineSmall),
+                    const SizedBox(height: 6),
+                    StatusPill(
+                      bureau ? KombeLabels.role(g.role) : 'Membre',
+                      tone: bureau ? KombeTone.money : KombeTone.brand,
+                      icon: bureau ? Icons.star_rounded : Icons.person_outline_rounded,
+                    ),
+                  ],
+                ),
               ),
-              if (details.description.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 8),
-                Text(details.description, style: t.bodySmall?.copyWith(color: KombeColors.slate)),
-              ],
             ],
           ),
         ),
+        // L'essentiel en trois chiffres réels.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: KombeCard(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: IntrinsicHeight(
+              child: Row(
+                children: <Widget>[
+                  _Stat(label: 'Par part', child: KombeAmount(g.contributionAmountXaf, size: 19)),
+                  const VerticalDivider(width: 1),
+                  _Stat(label: 'Membres', child: Text('${g.memberCount}', style: KombeType.amount(size: 22))),
+                  const VerticalDivider(width: 1),
+                  _Stat(
+                    label: 'Tour',
+                    child: Text(g.cycleTotal > 0 && g.cycleIndex > 0 ? '${g.cycleIndex}/${g.cycleTotal}' : '—', style: KombeType.amount(size: 22)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (details.description.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+            child: Text(details.description, style: t.bodyMedium),
+          ),
         if (active != null && !isActive)
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: OutlinedButton.icon(
               onPressed: () {
                 unawaited(active.select(g.id));
@@ -145,27 +169,37 @@ class _Body extends StatelessWidget {
               label: const Text('Afficher ce groupe à l’accueil'),
             ),
           ),
-        const _Section('Le groupe'),
-        _Row(icon: Icons.people_outline_rounded, title: 'Membres', subtitle: '${g.memberCount}', onTap: () => context.push('/app/groups/$gid/members')),
-        _Row(icon: Icons.autorenew_rounded, title: 'Cycle et ordre des tours', onTap: () => context.push('/app/groups/$gid/cycle')),
-        _Row(icon: Icons.account_balance_wallet_outlined, title: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
-        _Row(icon: Icons.description_outlined, title: 'Statuts', onTap: () => context.push('/app/groups/$gid/rules')),
-        _Row(
-          icon: Icons.event_outlined,
-          title: 'Séances et procès-verbaux',
-          web: true,
-          onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/seances', title: 'Séances'),
-        ),
-        _Row(
-          icon: Icons.gavel_outlined,
-          title: 'Amendes, contestations et secours',
-          web: true,
-          onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/discipline', title: 'Amendes et secours'),
+        const KombeSection('Le groupe'),
+        KombeGroupedList(
+          children: <Widget>[
+            KombeMenuRow(icon: Icons.groups_2_outlined, title: 'Membres', value: '${g.memberCount}', onTap: () => context.push('/app/groups/$gid/members')),
+            KombeMenuRow(icon: Icons.donut_large_rounded, tone: KombeTone.success, title: 'Cycle et ordre des tours', onTap: () => context.push('/app/groups/$gid/cycle')),
+            KombeMenuRow(icon: Icons.account_balance_wallet_outlined, tone: KombeTone.money, title: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
+            KombeMenuRow(icon: Icons.menu_book_outlined, tone: KombeTone.neutral, title: 'Statuts', onTap: () => context.push('/app/groups/$gid/rules')),
+            KombeMenuRow(
+              icon: Icons.event_outlined,
+              tone: KombeTone.info,
+              title: 'Séances et procès-verbaux',
+              external: true,
+              onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/seances', title: 'Séances'),
+            ),
+            KombeMenuRow(
+              icon: Icons.gavel_outlined,
+              tone: KombeTone.warning,
+              title: 'Amendes, contestations et secours',
+              external: true,
+              onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/discipline', title: 'Amendes et secours'),
+            ),
+          ],
         ),
         if (bureau) ...<Widget>[
-          const _Section('Bureau'),
-          _Row(icon: Icons.work_outline_rounded, title: 'Outils du bureau', onTap: () => context.push('/app/groups/$gid/bureau')),
-          _Row(icon: Icons.tune_rounded, title: 'Paramètres du groupe', onTap: () => context.push('/app/groups/$gid/settings')),
+          const KombeSection('Bureau'),
+          KombeGroupedList(
+            children: <Widget>[
+              KombeMenuRow(icon: Icons.work_outline_rounded, tone: KombeTone.money, title: 'Outils du bureau', onTap: () => context.push('/app/groups/$gid/bureau')),
+              KombeMenuRow(icon: Icons.tune_rounded, tone: KombeTone.neutral, title: 'Paramètres du groupe', onTap: () => context.push('/app/groups/$gid/settings')),
+            ],
+          ),
         ],
       ],
     );
@@ -180,48 +214,23 @@ class _Body extends StatelessWidget {
   }
 }
 
-String _roleLabel(GroupRole r) => switch (r) {
-      GroupRole.member => 'vous êtes membre',
-      GroupRole.treasurer => 'vous tenez la trésorerie',
-      GroupRole.controller => 'vous êtes commissaire aux comptes',
-      GroupRole.secretary => 'vous tenez le secrétariat',
-      GroupRole.administrator => 'vous présidez',
-    };
-
-class _Section extends StatelessWidget {
-  const _Section(this.text);
-  final String text;
+/// Chiffre clé : valeur au-dessus, libellé discret dessous.
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.child});
+  final String label;
+  final Widget child;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 4),
-        child: Semantics(
-          header: true,
-          child: Text(text, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: KombeColors.slate)),
+  Widget build(BuildContext context) => Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Column(
+            children: <Widget>[
+              FittedBox(fit: BoxFit.scaleDown, child: child),
+              const SizedBox(height: 4),
+              Text(label, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
         ),
-      );
-}
-
-class _Row extends StatelessWidget {
-  const _Row({required this.icon, required this.title, required this.onTap, this.subtitle, this.web = false});
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final VoidCallback onTap;
-  final bool web;
-
-  @override
-  Widget build(BuildContext context) => ListTile(
-        leading: Icon(icon, color: KombeColors.forest),
-        title: Text(title),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (subtitle != null) Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: KombeColors.slate)),
-            const SizedBox(width: 4),
-            Icon(web ? Icons.open_in_new_rounded : Icons.chevron_right_rounded, semanticLabel: web ? 'ouvre KÓMBE Web' : null),
-          ],
-        ),
-        onTap: onTap,
       );
 }

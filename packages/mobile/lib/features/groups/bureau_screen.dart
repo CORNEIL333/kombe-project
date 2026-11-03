@@ -5,8 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/active_group_controller.dart';
 import '../../app/router/main_shell.dart';
-import '../../core/design/kombe_colors.dart';
+import '../../core/formatters/labels.dart';
 import '../../core/web/kombe_web.dart';
+import '../../core/widgets/group_avatar.dart';
+import '../../core/widgets/kombe_components.dart';
+import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import 'invite_member_screen.dart';
 
@@ -20,11 +23,10 @@ class ActiveBureauScreen extends StatelessWidget {
     return Scaffold(
       appBar: const KombeTopBar(title: Text('Bureau')),
       body: g == null || g.role == GroupRole.member
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text('Vous n’avez pas de fonction au bureau de ce groupe.', textAlign: TextAlign.center),
-              ),
+          ? const EmptyState(
+              icon: Icons.work_outline_rounded,
+              title: 'Pas de fonction au bureau',
+              body: 'Les outils du bureau apparaissent ici quand vous tenez une fonction dans ce groupe.',
             )
           : BureauTools(group: g),
     );
@@ -42,7 +44,12 @@ class BureauScreen extends StatelessWidget {
         context.watch<ActiveGroupController>().list.where((GroupSummary x) => x.id == groupId).firstOrNull;
     return Scaffold(
       appBar: AppBar(title: Text(g == null ? 'Bureau' : 'Bureau · ${g.name}')),
-      body: g == null ? const Center(child: CircularProgressIndicator()) : BureauTools(group: g),
+      // Groupe absent de la liste : squelette pendant le chargement, puis état explicite.
+      body: g == null
+          ? (context.watch<ActiveGroupController>().list.isEmpty
+              ? const KombeListSkeleton()
+              : const EmptyState(icon: Icons.lock_outline_rounded, title: 'Bureau indisponible', body: 'Ce groupe ne figure pas parmi les vôtres.'))
+          : BureauTools(group: g),
     );
   }
 }
@@ -70,75 +77,89 @@ class BureauTools extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
       children: <Widget>[
-        _Section('Argent'),
-        if (money)
-          _Row(
-            icon: Icons.fact_check_outlined,
-            title: group.role == GroupRole.controller ? 'Paiements à contrôler' : 'Déclarations à confirmer',
-            onTap: () => context.push('/app/validations'),
+        // Pour quel groupe, avec quelle fonction : jamais d'ambiguïté.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+          child: Row(
+            children: <Widget>[
+              GroupAvatar(groupId: group.id, name: group.name, photoVersion: group.photoVersion, size: 52),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    StatusPill(KombeLabels.role(group.role), tone: KombeTone.money, icon: Icons.star_rounded),
+                  ],
+                ),
+              ),
+            ],
           ),
-        _Row(icon: Icons.account_balance_wallet_outlined, title: 'Caisses et soldes', onTap: () => context.push('/app/groups/$gid/funds')),
-        _Section('Membres'),
-        _Row(icon: Icons.person_add_alt_1_outlined, title: 'Inviter un membre', onTap: () => showInviteSheet(context, id)),
-        _Row(icon: Icons.people_outline_rounded, title: 'Membres et fonctions', onTap: () => context.push('/app/groups/$gid/members')),
-        _Section('Tours et séances'),
-        _Row(icon: Icons.autorenew_rounded, title: 'Cycle et ordre des tours', onTap: () => context.push('/app/groups/$gid/cycle')),
-        _Row(icon: Icons.emoji_events_outlined, title: 'Bénéficiaires', onTap: () => context.push('/app/groups/$gid/beneficiaries')),
-        _Row(
-          icon: Icons.event_outlined,
-          title: 'Séances et présences',
-          web: true,
-          onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/seances', title: 'Séances'),
         ),
-        _Row(
-          icon: Icons.gavel_outlined,
-          title: 'Amendes et secours',
-          web: true,
-          onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/discipline', title: 'Amendes et secours'),
+        const KombeSection('Argent'),
+        KombeGroupedList(
+          children: <Widget>[
+            if (money)
+              KombeMenuRow(
+                icon: Icons.fact_check_outlined,
+                tone: KombeTone.money,
+                title: group.role == GroupRole.controller ? 'Paiements à contrôler' : 'Déclarations à confirmer',
+                onTap: () => context.push('/app/validations'),
+              ),
+            KombeMenuRow(icon: Icons.account_balance_wallet_outlined, tone: KombeTone.money, title: 'Caisses et soldes', onTap: () => context.push('/app/groups/$gid/funds')),
+          ],
         ),
-        _Section('Règles'),
-        _Row(icon: Icons.description_outlined, title: 'Statuts du groupe', onTap: () => context.push('/app/groups/$gid/rules')),
-        _Row(icon: Icons.tune_rounded, title: 'Paramètres du groupe', onTap: () => context.push('/app/groups/$gid/settings')),
+        const KombeSection('Membres'),
+        KombeGroupedList(
+          children: <Widget>[
+            KombeMenuRow(icon: Icons.person_add_alt_1_outlined, title: 'Inviter un membre', onTap: () => showInviteSheet(context, id)),
+            KombeMenuRow(icon: Icons.groups_2_outlined, title: 'Membres et fonctions', onTap: () => context.push('/app/groups/$gid/members')),
+          ],
+        ),
+        const KombeSection('Tours et séances'),
+        KombeGroupedList(
+          children: <Widget>[
+            KombeMenuRow(icon: Icons.donut_large_rounded, tone: KombeTone.success, title: 'Cycle et ordre des tours', onTap: () => context.push('/app/groups/$gid/cycle')),
+            KombeMenuRow(icon: Icons.emoji_events_outlined, tone: KombeTone.money, title: 'Bénéficiaires', onTap: () => context.push('/app/groups/$gid/beneficiaries')),
+            KombeMenuRow(
+              icon: Icons.event_outlined,
+              tone: KombeTone.info,
+              title: 'Séances et présences',
+              external: true,
+              onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/seances', title: 'Séances'),
+            ),
+            KombeMenuRow(
+              icon: Icons.gavel_outlined,
+              tone: KombeTone.warning,
+              title: 'Amendes et secours',
+              external: true,
+              onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/discipline', title: 'Amendes et secours'),
+            ),
+          ],
+        ),
+        const KombeSection('Règles'),
+        KombeGroupedList(
+          children: <Widget>[
+            KombeMenuRow(icon: Icons.menu_book_outlined, tone: KombeTone.neutral, title: 'Statuts du groupe', onTap: () => context.push('/app/groups/$gid/rules')),
+            KombeMenuRow(icon: Icons.tune_rounded, tone: KombeTone.neutral, title: 'Paramètres du groupe', onTap: () => context.push('/app/groups/$gid/settings')),
+          ],
+        ),
         if (web != null) ...<Widget>[
-          const SizedBox(height: 12),
-          _Row(
-            icon: Icons.dashboard_outlined,
-            title: 'Tableau de bord complet du bureau',
-            web: true,
-            onTap: () => launchUrl(web, mode: LaunchMode.externalApplication),
+          const SizedBox(height: 20),
+          KombeGroupedList(
+            children: <Widget>[
+              KombeMenuRow(
+                icon: Icons.dashboard_outlined,
+                title: 'Tableau de bord complet du bureau',
+                subtitle: 'Sur ordinateur, dans le navigateur',
+                external: true,
+                onTap: () => launchUrl(web, mode: LaunchMode.externalApplication),
+              ),
+            ],
           ),
         ],
       ],
     );
   }
-}
-
-class _Section extends StatelessWidget {
-  const _Section(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-        child: Semantics(
-          header: true,
-          child: Text(text, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: KombeColors.slate)),
-        ),
-      );
-}
-
-class _Row extends StatelessWidget {
-  const _Row({required this.icon, required this.title, required this.onTap, this.web = false});
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-  final bool web;
-
-  @override
-  Widget build(BuildContext context) => ListTile(
-        leading: Icon(icon, color: KombeColors.forest),
-        title: Text(title),
-        trailing: Icon(web ? Icons.open_in_new_rounded : Icons.chevron_right_rounded, semanticLabel: web ? 'ouvre KÓMBE Web' : null),
-        onTap: onTap,
-      );
 }
