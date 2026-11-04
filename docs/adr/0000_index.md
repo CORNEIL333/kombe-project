@@ -54,6 +54,8 @@ Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats ac
 | [0040](./0040_neon_auth_connexion_email_mvp.md) | Connexion par e-mail via Neon Auth pendant le MVP (relayée par l'API) | **ACCEPTÉ** (porteur, 15/10/2026) | — |
 | [0041](./0041_telephones_anciens_et_demarrage.md) | Téléphones anciens : bundle abaissé (Chrome 67 / iOS 14), polices locales, filet de démarrage | **ACCEPTÉ** (correctif de mise en ligne) | — |
 | [0042](./0042_echeances_relances_notifications.md) | Échéance d'acceptation des statuts, relances accentuées, exclusion des retardataires, notifications cliquables | **ACCEPTÉ** (porteur, 20/10/2026) | — |
+| [0043](./0043_securite_operateurs_otp_idempotence.md) | Opérateurs à fonctions et second facteur TOTP, codes OTP poivrés, limites partagées, idempotence atomique | **ACCEPTÉ** (mission production, 04/11/2026) | — |
+| [0044](./0044_livraison_notifications.md) | Livraison des notifications hors application : outbox, bail, consentement, heures de silence | **ACCEPTÉ** (mission production, 04/11/2026) | Ouverture des envois : porteur |
 
 > Correction d'index : 0020 était listé ci-dessus comme « réservé » avant
 > l'adoption de l'ADR Flutter ; la ligne n'avait pas été mise à jour au moment
