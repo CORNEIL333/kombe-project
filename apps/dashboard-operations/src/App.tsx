@@ -51,7 +51,7 @@ function Console({ ctx }: { readonly ctx: DashboardContext }) {
   const badge = <span className="k-hint">{ctx.session.phase.kind === 'authenticated' ? ctx.session.phase.identityId : ''} <button type="button" className="k-button k-button-secondary" onClick={ctx.session.logout}>Se déconnecter</button></span>;
   return (
     <DashboardShell product="Opérations & Support" nav={NAV} activePath={path} onNavigate={navigate} userBadge={badge} {...(ctx.config.environment ? { environment: ctx.config.environment } : {})}>
-      {path === '/runbooks' ? page : <OperatorGate api={ctx.api}>{page}</OperatorGate>}
+      {path === '/runbooks' ? page : <OperatorGate api={ctx.api} roles={['operations', 'support']}>{page}</OperatorGate>}
     </DashboardShell>
   );
 }
