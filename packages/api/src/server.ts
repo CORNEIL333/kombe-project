@@ -8,6 +8,7 @@
  *    stores PostgreSQL sous RLS. Une route sans implémentation PG n'existe PAS
  *    en mode réel (404 Fastify) : aucune donnée fictive n'est jamais servie.
  */
+import { randomUUID } from "node:crypto";
 import type { DispatcherOptions } from "./tontine/delivery.js";
 import type { NeonAuthConfig } from "./tontine/auth.js";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -45,7 +46,7 @@ import {
 import { resolveSession, resolveGroupActor, type GroupActor } from "./db/pgSessionResolver.js";
 import { NullEmailSender, ResendEmailSender, type EmailSender } from "./email/emailSender.js";
 import { registerTontineRoutes } from "./tontine/routes.js";
-import { registerOpsRoutes } from "./ops/opsRoutes.js";
+import { EXPECTED_LATEST_MIGRATION, registerOpsRoutes } from "./ops/opsRoutes.js";
 import type { CodeSender } from "./tontine/sms.js";
 import {
   FictitiousCommandStore,
@@ -1017,10 +1018,31 @@ export function registeredRoutes(app: FastifyInstance): readonly { method: strin
   return ROUTE_REGISTRY.get(app) ?? [];
 }
 
+/**
+ * Journaux structurés (JSON, pino) : niveau `KOMBE_LOG_LEVEL` (défaut « warn » :
+ * erreurs et refus anormaux seulement, jamais chaque requête). Jetons,
+ * cookies et clés d'idempotence masqués ; aucun corps de requête journalisé.
+ * Silencieux sous test.
+ */
+export function loggerOptions(env: NodeJS.ProcessEnv = process.env): false | Record<string, unknown> {
+  const level = env.KOMBE_LOG_LEVEL ?? (env.NODE_ENV === "test" ? "silent" : "warn");
+  if (level === "silent") return false;
+  return {
+    level,
+    redact: { paths: ["req.headers.authorization", "req.headers.cookie", 'req.headers["idempotency-key"]', 'req.headers["x-kombe-session"]'], censor: "[masqué]" },
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   // Poivre serveur des codes de connexion (ADR-0043) : hors base, jamais journalisé.
   configureCodePepper(process.env.KOMBE_TOKEN_PEPPER);
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: loggerOptions(), genReqId: () => randomUUID(), requestIdHeader: false });
+  // Identifiant de corrélation : renvoyé sur CHAQUE réponse et présent dans
+  // chaque ligne de journal (reqId) — un incident se retrouve sans données
+  // personnelles (les consoles l'affichent avec l'erreur).
+  app.addHook("onRequest", async (request, reply) => {
+    reply.header("x-correlation-id", request.id);
+  });
   const declared: { method: string; url: string }[] = [];
   ROUTE_REGISTRY.set(app, declared);
   app.addHook("onRoute", (r) => {
@@ -1108,7 +1130,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     if (typeof proto === "number" && proto >= 400 && proto < 500) {
       return reply.code(proto).send({ code: "INVALID_REQUEST", message: "Requête invalide" });
     }
-    app.log.error(error);
+    _request.log.error({ err: error }, "erreur interne");
     return reply.code(500).send({ code: "INTERNAL", message: "Erreur interne" });
   });
 
@@ -1119,8 +1141,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/health/ready", async (request, reply) => {
     if (!pool) return { status: "ready", mode: "fictif" };
     try {
-      await pool.query("SELECT 1");
-      return { status: "ready", mode: "réel" };
+      // Schéma attendu par CE build appliqué ? (sinon : déploiement sans migration)
+      const r = await pool.query("SELECT kombe_schema_has($1) AS ok", [EXPECTED_LATEST_MIGRATION]);
+      const upToDate = r.rows[0]?.ok === true;
+      if (!upToDate) {
+        request.log.error({ expected: EXPECTED_LATEST_MIGRATION }, "readiness : schéma en retard sur le build");
+        return reply.code(503).send({ status: "degraded", mode: "réel", schema: { expected: EXPECTED_LATEST_MIGRATION, upToDate } });
+      }
+      return { status: "ready", mode: "réel", schema: { expected: EXPECTED_LATEST_MIGRATION, upToDate } };
     } catch (error) {
       request.log.error({ err: error }, "readiness : PostgreSQL injoignable");
       return reply.code(503).send({ status: "degraded", mode: "réel" });

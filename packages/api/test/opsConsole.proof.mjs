@@ -88,6 +88,10 @@ try {
   };
   await ok(O.token, "POST", "/v1/tontines", { name: `Groupe console ${run}`, founderDisplayName: "Opératrice", settings });
 
+  // Disponibilité : schéma attendu par le build appliqué ; corrélation sur chaque réponse.
+  const readyRes = await app.inject({ method: "GET", url: "/v1/health/ready" });
+  check("READY-SCHEMA-UP-TO-DATE", readyRes.statusCode === 200 && readyRes.json().schema?.upToDate === true, readyRes.json());
+  check("CORRELATION-ID-HEADER", /^[0-9a-f-]{36}$/.test(String(readyRes.headers["x-correlation-id"])), readyRes.headers["x-correlation-id"]);
   const me1 = await ok(O.token, "GET", "/v1/ops/me");
   check("OPS-ME-NOT-OPERATOR", me1.operator === false && me1.identityId === O.login, me1);
   const refused = await Promise.all(["/v1/ops/overview", "/v1/ops/kpis", "/v1/ops/groups", "/v1/ops/engineering", "/v1/ops/support-requests"].map((p) => call(O.token, "GET", p)));

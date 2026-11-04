@@ -1,0 +1,59 @@
+# KÓMBE — TOUTES les preuves base réelle (PostgreSQL 16) à chaque poussée.
+#
+# Exécute scripts/proofs-local.sh : pour chaque preuve, base recréée, rôles
+# provisionnés, schéma appliqué par le vrai runner (migrate.mjs), puis la
+# preuve (RLS, idempotence atomique, second facteur opérateur, livraison des
+# notifications, échéances…). Aucun succès simulé : une seule preuve en échec
+# rend le job rouge. Les journaux de chaque preuve sont joints en artefact.
+name: Preuves PostgreSQL (suite complète)
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proofs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proofs:
+    name: Preuves base réelle (PostgreSQL 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      KOMBE_PG_SUPERUSER_URL: postgresql://postgres:postgres@localhost:5432
+      KOMBE_PROOF_LOGS: ${{ github.workspace }}/proof-logs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm -r --if-present run build
+      - name: Toutes les preuves
+        run: bash scripts/proofs-local.sh
+      - name: Journaux des preuves
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preuves-postgres
+          path: proof-logs
+          if-no-files-found: warn

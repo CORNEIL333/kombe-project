@@ -23,5 +23,12 @@ CREATE POLICY create_any ON identity FOR INSERT WITH CHECK (true);
 REVOKE UPDATE, DELETE, TRUNCATE ON identity FROM kombe_app;
 
 REVOKE ALL ON kombe_migration FROM kombe_app;
+-- Sonde de disponibilité : « tel jalon est-il appliqué ? » (oui/non, rien d'autre).
+CREATE FUNCTION kombe_schema_has(name_in text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+  SELECT EXISTS (SELECT 1 FROM public.kombe_migration WHERE name = name_in)
+$$;
+REVOKE ALL ON FUNCTION kombe_schema_has(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION kombe_schema_has(text) TO kombe_app;
 
 COMMIT;

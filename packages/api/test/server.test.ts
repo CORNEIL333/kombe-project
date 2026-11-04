@@ -200,3 +200,17 @@ describe("POST declaration de cotisation (squelette)", () => {
     expect(res.json().message).toBe("Requête refusée");
   });
 });
+
+describe("journaux structurés (observabilité)", () => {
+  it("masque jetons, cookies et clés d'idempotence ; silencieux sous test ; warn par défaut", async () => {
+    const { loggerOptions } = await import("../src/server.js");
+    expect(loggerOptions({ NODE_ENV: "test" })).toBe(false);
+    const o = loggerOptions({ NODE_ENV: "production" }) as { level: string; redact: { paths: string[] } };
+    expect(o.level).toBe("warn");
+    expect(o.redact.paths).toEqual(expect.arrayContaining(["req.headers.authorization", "req.headers.cookie", 'req.headers["idempotency-key"]']));
+  });
+  it("renvoie un identifiant de corrélation sur chaque réponse", async () => {
+    const res = await buildApp().inject({ method: "GET", url: "/v1/health/live" });
+    expect(res.headers["x-correlation-id"]).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});
