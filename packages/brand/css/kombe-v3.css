@@ -2,7 +2,7 @@
    CHARTE VISUELLE du projet (pages 01 à 04) :
      · Couleurs — vert forêt #103C32, vert actif #176B52, vert soutien #2A8A68,
        or chaud #C7922E, sable clair #FBF8F1, sable doux #F3ECDD, encre #13211C,
-       texte secondaire #66746E ; sémantiques succès #147A54, attention #A15C00,
+       texte secondaire #5B6963 (ink-600) ; sémantiques succès #147A54, attention #A15C00,
        erreur #B42318, information #1D4ED8.
      · Règles d'usage — la couleur de marque n'est pas une couleur de statut ;
        l'or est un accent (jamais de texte doré sur fond blanc) ; un statut =
@@ -33,7 +33,7 @@
   --c-sable-trait: #e7dcc6;
   --c-blanc: #ffffff;
   --c-encre: #13211c;
-  --c-texte-2: #66746e;
+  --c-texte-2: #5b6963; /* ink-600 : ≥ 4,5:1 sur sable (#F3ECDD) et sur blanc (WCAG AA) */
   --c-trait: rgba(19, 33, 28, 0.1);
   /* Sémantiques (statut = couleur + icône + libellé) */
   --c-succes: #147a54;

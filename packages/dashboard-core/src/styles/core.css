@@ -198,3 +198,4 @@ body{font-feature-settings:"tnum" 1;-webkit-font-smoothing:antialiased}
 .k-button{border-radius:12px}
 .k-chip-ok{background:#e2f3ea;color:#147a54}.k-chip-warn{background:#fbeed8;color:#a15c00}.k-chip-danger{background:#fdebe7;color:#b42318}
 .k-code-list{list-style:none;padding:0;margin:12px 0 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}.k-code-list code{display:block;text-align:center;font-size:1rem;letter-spacing:.06em;background:#eef1ef;border-radius:8px;padding:8px}
+.k-table-wrap:focus-visible{outline:3px solid rgba(21,116,85,.24);outline-offset:2px}
