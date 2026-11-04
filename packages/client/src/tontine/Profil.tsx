@@ -8,6 +8,7 @@ import { estBureau, ouvrirBureau } from "./bureau.js";
 import { lireFile, surChangementFile } from "./fileAttenteMoteur.js";
 import { BoutonIcone, Carte, Charge, Retour, useAction, useDonnees } from "./ui.js";
 import { useTextes } from "./textes.js";
+import { PreferencesNotifications } from "./PreferencesNotifications.js";
 import { useLangue } from "../i18n/ContexteLangue.js";
 import type { Langue } from "../i18n/dictionnaires.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
@@ -184,6 +185,8 @@ export function Profil({
           </div>
         </div>
       </Carte>
+
+      <PreferencesNotifications session={session} />
 
       <Carte titre={tx("pf.securite")}>
         <ul className="profil-lignes">

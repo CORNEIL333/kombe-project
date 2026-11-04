@@ -106,6 +106,8 @@ REVOKE UPDATE, DELETE ON operator_audit_log FROM kombe_app;
 REVOKE ALL ON auth_rate_limit FROM kombe_app;
 REVOKE UPDATE, DELETE ON identity FROM kombe_app;
 REVOKE ALL ON kombe_migration FROM kombe_app;
+REVOKE DELETE, TRUNCATE ON member_notification_preference, push_device FROM kombe_app;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON notification_outbox FROM kombe_app;
 
 -- kombe_worker : lecture/maJ de l'outbox et du registre de commandes seulement.
 GRANT USAGE ON SCHEMA public TO kombe_worker;

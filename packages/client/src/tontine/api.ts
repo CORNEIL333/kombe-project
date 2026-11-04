@@ -205,7 +205,24 @@ export const acces = {
   notifications: (s: Session, nonLues = false) =>
     appel<NotificationView[]>(s, "GET", "/v1/me/notifications", undefined, nonLues ? { unread: "1" } : {}),
   marquerLues: (s: Session, ids: string[] | "all") => appel<void>(s, "POST", "/v1/me/notifications/read", { ids }),
+  /** Préférences de livraison hors application (ADR-0044). */
+  preferencesNotif: (s: Session) => appel<PreferencesNotif>(s, "GET", "/v1/me/notification-preferences"),
+  majPreferencesNotif: (s: Session, p: PreferencesNotifSaisie) => appel<PreferencesNotif>(s, "PUT", "/v1/me/notification-preferences", p),
 };
+
+export interface PreferencesNotifSaisie {
+  readonly pushEnabled: boolean;
+  readonly smsEnabled: boolean;
+  readonly emailEnabled: boolean;
+  readonly quietStart: string | null;
+  readonly quietEnd: string | null;
+  readonly mutedKinds: readonly string[];
+}
+export interface PreferencesNotif extends PreferencesNotifSaisie {
+  readonly available: { readonly push: boolean; readonly sms: boolean; readonly email: boolean };
+  readonly devices: number;
+  readonly unread: number;
+}
 
 /* ── Association ───────────────────────────────────────────────────────── */
 

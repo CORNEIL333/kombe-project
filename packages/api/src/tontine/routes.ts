@@ -25,6 +25,8 @@ import { MeetingService } from "./meetings.js";
 import { MoneyService } from "./money.js";
 import { cadenceSchema, settingsSchema } from "./settings.js";
 import { EmailCodeSender, codeSenderFromEnv, type CodeSender } from "./sms.js";
+import { NotificationDispatcher, afterResponse, dispatcherOptionsFromEnv, type DispatcherOptions } from "./delivery.js";
+import { NotificationPrefs } from "./notificationPrefs.js";
 import { translatePgError } from "./infra.js";
 
 const id = z.string().min(3).max(200);
@@ -171,6 +173,15 @@ const S = {
     rows: z.array(z.object({ memberName: z.string().max(120), date: z.string().max(40), amount: z.number().finite().min(0).max(1_000_000_000) })).max(5000).optional(),
   }),
   notificationsRead: z.object({ ids: z.union([z.array(z.string().max(20)).max(500), z.literal("all")]) }),
+  notificationPrefs: z.object({
+    pushEnabled: z.boolean(),
+    smsEnabled: z.boolean(),
+    emailEnabled: z.boolean(),
+    quietStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(),
+    quietEnd: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(),
+    mutedKinds: z.array(z.string().regex(/^[a-z_]{2,40}$/)).max(40),
+  }),
+  pushDevice: z.object({ platform: z.enum(["android", "ios", "web"]), token: z.string().min(16).max(4096) }),
   reason,
 };
 
@@ -186,15 +197,18 @@ export interface TontineRoutesOptions {
   /** Faux si la production n'a pas de clé Resend : voie e-mail fermée. */
   readonly emailAvailable?: boolean;
   readonly codeSender?: CodeSender;
+  /** Livraison hors application (ADR-0044) ; absent = lue dans l'environnement. */
+  readonly delivery?: DispatcherOptions;
   /** Neon Auth (ADR-0040) ; `null` = désactivé ; absent = lu dans l'environnement. */
   readonly neonAuth?: NeonAuthConfig | null;
 }
 
 export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesOptions): void {
   const { pool, now } = opts;
+  const codeSender = opts.codeSender ?? codeSenderFromEnv();
   const auth = new TontineAuth(
     pool,
-    opts.codeSender ?? codeSenderFromEnv(),
+    codeSender,
     new EmailCodeSender(opts.emailSender, opts.emailSimulated, opts.emailAvailable !== false),
     now,
     opts.neonAuth === undefined ? neonAuthFromEnv() : opts.neonAuth,
@@ -205,6 +219,15 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   const money = new MoneyService(pool, now);
   const discipline = new DisciplineService(pool, now);
   const inbox = new InboxService(pool, now);
+  const prefs = new NotificationPrefs(pool, now);
+  const dispatcher = new NotificationDispatcher(
+    pool,
+    now,
+    opts.delivery ??
+      dispatcherOptionsFromEnv({ codeSender, emailSender: opts.emailSender, emailSimulated: opts.emailSimulated, emailAvailable: opts.emailAvailable !== false }),
+  );
+  /** Après une écriture validée : les notifications créées partent sans attendre la tâche planifiée. */
+  const kick = () => afterResponse(() => dispatcher.drain({ rounds: 1, batch: 20, budgetMs: 3000 }));
   const photos = new PhotoService(pool, now);
   const decisions = new DecisionService(pool, now);
   const history = new HistoryService(pool, now);
@@ -242,9 +265,11 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
         return { replay: false as const, status, body: out };
       });
       if (result.replay) reply.header("idempotent-replay", "true");
+      else kick();
       return reply.code(result.status).send(result.body === undefined ? null : result.body);
     }
     const out = await run();
+    kick();
     return reply.code(status).send(out === undefined ? null : out);
   }
 
@@ -269,8 +294,25 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   app.get("/v1/internal/cron/echeances", async (req, reply) => {
     const secret = process.env.CRON_SECRET;
     if (!secret || req.headers.authorization !== `Bearer ${secret}`) return reply.code(404).send({ code: "OBJET_INTROUVABLE", message: "Introuvable" });
-    return inTx(pool, (db) => processAllGroups(db, now()));
+    const echeances = await inTx(pool, (db) => processAllGroups(db, now()));
+    const delivery = await dispatcher.drain({ rounds: 20, batch: 100, budgetMs: 20_000 });
+    return { ...(echeances as object), delivery };
   });
+  // Filet de sécurité de la livraison (même secret) : reprend les lignes dues
+  // (heures de silence écoulées, nouvelles tentatives, baux expirés).
+  app.get("/v1/internal/cron/notifications", async (req, reply) => {
+    const secret = process.env.CRON_SECRET;
+    if (!secret || req.headers.authorization !== `Bearer ${secret}`) return reply.code(404).send({ code: "OBJET_INTROUVABLE", message: "Introuvable" });
+    return dispatcher.drain({ rounds: 20, batch: 100, budgetMs: 20_000 });
+  });
+  app.get("/v1/me/notification-preferences", async (req) => prefs.get(H(req)));
+  app.put("/v1/me/notification-preferences", async (req, reply) => write(req, reply, 200, () => prefs.put(H(req), S.notificationPrefs.parse(req.body))));
+  app.post("/v1/me/push-devices", async (req, reply) => {
+    const b = S.pushDevice.parse(req.body);
+    return write(req, reply, 201, () => prefs.registerDevice(H(req), b.platform, b.token));
+  });
+  app.delete("/v1/me/push-devices/:deviceId", async (req, reply) => write(req, reply, 200, () => prefs.revokeDevice(H(req), (req.params as P).deviceId as string)));
+  app.get("/v1/me/notifications/unread-count", async (req) => prefs.unreadCount(H(req)));
   app.get("/v1/me/notifications", async (req) => inbox.notifications(H(req), { unreadOnly: (req.query as Q).unread === "1" }));
   app.post("/v1/me/notifications/read", async (req, reply) => write(req, reply, 200, () => inbox.markRead(H(req), S.notificationsRead.parse(req.body).ids)));
 

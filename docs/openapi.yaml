@@ -2863,6 +2863,25 @@ paths:
                 properties:
                   groups:
                     type: integer
+                  delivery:
+                    type: object
+                    description: '{ claimed, sent, retry, suppressed, dead } — livraison hors application (ADR-0044)'
+        '404':
+          description: Secret absent ou incorrect
+  /internal/cron/notifications:
+    get:
+      tags:
+      - tontine
+      operationId: getInternalCronNotifications
+      summary: Filet de sécurité de la livraison des notifications
+      description: 'Authorization: Bearer CRON_SECRET. Reprend les envois dus (heures de silence écoulées, nouvelles tentatives, baux expirés). 404 sans le secret. ADR-0044.'
+      responses:
+        '200':
+          description: '{ claimed, sent, retry, suppressed, dead }'
+          content:
+            application/json:
+              schema:
+                type: object
         '404':
           description: Secret absent ou incorrect
   /me/notifications:
@@ -2907,6 +2926,155 @@ paths:
                 $ref: '#/components/schemas/TontineError'
         '422':
           description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /me/notifications/unread-count:
+    get:
+      tags:
+      - tontine
+      operationId: getMyUnreadCount
+      summary: 'Pastille : nombre de notifications non lues'
+      description: 'Rôle requis : toute session. → { unread }. ADR-0044.'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: 'Requête invalide'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: 'Session absente ou invalide'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /me/notification-preferences:
+    get:
+      tags:
+      - tontine
+      operationId: getMyNotificationPreferences
+      summary: 'Préférences de notification'
+      description: 'Rôle requis : toute session. → { pushEnabled, smsEnabled, emailEnabled, quietStart, quietEnd, mutedKinds, available, devices, unread }. ADR-0044.'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: 'Requête invalide'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: 'Session absente ou invalide'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+    put:
+      tags:
+      - tontine
+      operationId: putMyNotificationPreferences
+      summary: 'Modifier les préférences de notification'
+      description: 'SMS et e-mail désactivés par défaut (consentement explicite) ; heures de silence en heure du Cameroun. ADR-0044.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ pushEnabled, smsEnabled, emailEnabled, quietStart, quietEnd, mutedKinds }'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: 'Requête invalide'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: 'Session absente ou invalide'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /me/push-devices:
+    post:
+      tags:
+      - tontine
+      operationId: postMyPushDevice
+      summary: 'Enregistrer un appareil pour les notifications push'
+      description: 'Enregistrer un appareil vaut accord pour le push ; un jeton déjà connu est rattaché au compte connecté. ADR-0044.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ platform: android|ios|web, token }'
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: 'Requête invalide'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: 'Session absente ou invalide'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /me/push-devices/{deviceId}:
+    delete:
+      tags:
+      - tontine
+      operationId: deleteMyPushDevice
+      summary: 'Retirer un appareil'
+      description: 'Seulement un appareil du compte connecté (404 sinon). ADR-0044.'
+      parameters:
+      - name: deviceId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: 'Requête invalide'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: 'Session absente ou invalide'
           content:
             application/json:
               schema:

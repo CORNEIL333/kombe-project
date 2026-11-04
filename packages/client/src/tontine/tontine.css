@@ -727,3 +727,5 @@ fieldset.champ legend {
 .notif-bouton .pastille {
   flex-shrink: 0;
 }
+.pn-silence{border:0;padding:0;margin:0;display:grid;gap:8px}.pn-silence legend{font-weight:700;padding:0;margin-bottom:4px}.pn-plage{display:flex;gap:16px;flex-wrap:wrap;align-items:center}.pn-plage select{min-height:44px;padding:8px 10px;border-radius:10px;border:1px solid var(--bordure,#c9d1cc);background:#fff}
+.pn-case{display:flex;align-items:flex-start}.pn-case input{margin-top:2px;flex:none}.pn-case small{line-height:1.4}

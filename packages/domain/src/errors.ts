@@ -123,6 +123,7 @@ export type DomainErrorCode =
   | "IMPORT_INVALID"
   | "DECISION_INVALID"
   | "DECISION_STATE_INVALID"
+  | "PREFERENCE_INVALID"
   | "PAYOUT_SUSPENDED"
   /* API produit (0026). */
   | "STATE_CONFLICT"
