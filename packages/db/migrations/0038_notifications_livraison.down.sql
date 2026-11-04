@@ -16,5 +16,7 @@ DO $$ BEGIN
   DROP TABLE IF EXISTS notification_outbox;
   DROP TABLE IF EXISTS push_device;
   DROP TABLE IF EXISTS member_notification_preference;
+  DROP INDEX IF EXISTS inbox_notification_unread;
+  DROP INDEX IF EXISTS inbox_notification_by_identity_recent;
 EXCEPTION WHEN undefined_table THEN NULL; END $$;
 COMMIT;

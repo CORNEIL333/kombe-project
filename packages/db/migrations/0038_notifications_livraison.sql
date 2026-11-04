@@ -22,6 +22,13 @@ BEGIN;
 SET LOCAL statement_timeout = '30s';
 SET LOCAL lock_timeout = '5s';
 
+-- Boîte de réception : lecture « mes 100 dernières » et pastille sans tri ni
+-- parcours complet quand une personne accumule beaucoup de notifications.
+CREATE INDEX IF NOT EXISTS inbox_notification_by_identity_recent
+  ON inbox_notification (identity_id, created_at DESC, notification_id DESC);
+CREATE INDEX IF NOT EXISTS inbox_notification_unread
+  ON inbox_notification (identity_id) WHERE read_at IS NULL;
+
 CREATE TABLE member_notification_preference (
   identity_id   text PRIMARY KEY REFERENCES identity(identity_id),
   push_enabled  boolean NOT NULL DEFAULT true,

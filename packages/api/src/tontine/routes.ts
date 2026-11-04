@@ -312,7 +312,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     return write(req, reply, 201, () => prefs.registerDevice(H(req), b.platform, b.token));
   });
   app.delete("/v1/me/push-devices/:deviceId", async (req, reply) => write(req, reply, 200, () => prefs.revokeDevice(H(req), (req.params as P).deviceId as string)));
-  app.get("/v1/me/notifications/unread-count", async (req) => prefs.unreadCount(H(req)));
+  app.get("/v1/me/notifications/unread-count", async (req) => inbox.unreadCount(H(req)));
   app.get("/v1/me/notifications", async (req) => inbox.notifications(H(req), { unreadOnly: (req.query as Q).unread === "1" }));
   app.post("/v1/me/notifications/read", async (req, reply) => write(req, reply, 200, () => inbox.markRead(H(req), S.notificationsRead.parse(req.body).ids)));
 

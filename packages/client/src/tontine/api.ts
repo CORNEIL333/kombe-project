@@ -205,6 +205,8 @@ export const acces = {
   notifications: (s: Session, nonLues = false) =>
     appel<NotificationView[]>(s, "GET", "/v1/me/notifications", undefined, nonLues ? { unread: "1" } : {}),
   marquerLues: (s: Session, ids: string[] | "all") => appel<void>(s, "POST", "/v1/me/notifications/read", { ids }),
+  /** Pastille légère (sondée chaque minute) : un nombre, pas la liste. */
+  nonLues: (s: Session) => appel<{ unread: number }>(s, "GET", "/v1/me/notifications/unread-count"),
   /** Préférences de livraison hors application (ADR-0044). */
   preferencesNotif: (s: Session) => appel<PreferencesNotif>(s, "GET", "/v1/me/notification-preferences"),
   majPreferencesNotif: (s: Session, p: PreferencesNotifSaisie) => appel<PreferencesNotif>(s, "PUT", "/v1/me/notification-preferences", p),

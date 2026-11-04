@@ -28,8 +28,19 @@ export function createApiPool(opts: PgPoolOptions): pg.Pool {
   return new pg.Pool({
     connectionString: opts.connectionString,
     options: "-c role=kombe_app",
-    max: opts.max ?? 10,
+    max: opts.max ?? readPoolMax(),
+    // Une connexion inactive est rendue vite (serverless : beaucoup d'instances,
+    // plafond de connexions directes côté Neon) ; une attente de connexion
+    // bornée échoue proprement plutôt que d'empiler les requêtes.
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 10_000,
   });
+}
+
+/** Taille du pool par instance : `KOMBE_PG_POOL_MAX` (1–50, défaut 10). */
+export function readPoolMax(env: NodeJS.ProcessEnv = process.env): number {
+  const n = Number(env.KOMBE_PG_POOL_MAX);
+  return Number.isInteger(n) && n >= 1 && n <= 50 ? n : 10;
 }
 
 /**

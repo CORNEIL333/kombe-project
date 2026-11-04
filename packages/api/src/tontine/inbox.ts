@@ -30,6 +30,20 @@ async function produceReminders(db: Db, identityId: string, nowMs: number): Prom
   }
 }
 
+/* Pastille (sondée chaque minute par la PWA) : les relances sont produites au
+   plus une fois par fenêtre et par personne SUR CETTE INSTANCE. Les paliers
+   de relance sont au jour ou à l'heure près (j7…h6) : 10 minutes suffisent,
+   et l'ouverture de la liste, elle, produit toujours. */
+const REMINDER_WINDOW_MS = 10 * 60_000;
+const lastReminderRun = new Map<string, number>();
+async function produceRemindersThrottled(db: Db, identityId: string, nowMs: number): Promise<void> {
+  const last = lastReminderRun.get(identityId);
+  if (last !== undefined && nowMs - last >= 0 && nowMs - last < REMINDER_WINDOW_MS) return;
+  if (lastReminderRun.size > 50_000) lastReminderRun.clear();
+  lastReminderRun.set(identityId, nowMs);
+  await produceReminders(db, identityId, nowMs);
+}
+
 const EVENT_LABELS: Readonly<Record<string, string>> = {
   "tontine.created": "Association créée",
   "tontine.settings_changed": "Règlement modifié",
@@ -106,6 +120,17 @@ export class InboxService {
     private readonly pool: pg.Pool,
     private readonly now: () => number,
   ) {}
+
+  /** Pastille : nombre de non-lues (relances produites au plus toutes les 10 min). */
+  async unreadCount(headers: Record<string, unknown>): Promise<{ unread: number }> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const id = await sessionIdentity(db, headers, nowMs);
+      await produceRemindersThrottled(db, id, nowMs);
+      const r = await db.query(`SELECT count(*) AS n FROM inbox_notification WHERE identity_id = $1 AND read_at IS NULL`, [id]);
+      return { unread: Number(r.rows[0]?.n ?? 0) };
+    });
+  }
 
   async notifications(headers: Record<string, unknown>, opts: { unreadOnly?: boolean | undefined } = {}): Promise<NotificationView[]> {
     const nowMs = this.now();

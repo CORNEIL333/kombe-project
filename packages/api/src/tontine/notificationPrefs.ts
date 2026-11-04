@@ -101,11 +101,4 @@ export class NotificationPrefs {
     });
   }
 
-  async unreadCount(headers: Record<string, unknown>): Promise<{ unread: number }> {
-    return inTx(this.pool, async (db) => {
-      const id = await sessionIdentity(db, headers, this.now());
-      const r = await db.query(`SELECT count(*) AS n FROM inbox_notification WHERE identity_id = $1 AND read_at IS NULL`, [id]);
-      return { unread: Number(r.rows[0]?.n ?? 0) };
-    });
-  }
 }

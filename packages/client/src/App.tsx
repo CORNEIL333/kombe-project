@@ -140,8 +140,8 @@ export function App() {
     if (!session) return;
     let actif = true;
     const lire = () =>
-      acces.notifications(session, true).then(
-        (l) => actif && setNonLues(l.length),
+      acces.nonLues(session).then(
+        (l) => actif && setNonLues(l.unread),
         (e: unknown) => {
           if (actif && e && typeof e === "object" && (e as { status?: number }).status === 401) {
             memoriserSession(null);
