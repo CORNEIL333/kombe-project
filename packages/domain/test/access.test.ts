@@ -288,3 +288,25 @@ describe("anti-énumération — gabarit identique, aucun effet sur compte incon
     expect(known.token).not.toBeNull();
   });
 });
+
+describe("poivre serveur des codes (ADR-0043)", () => {
+  it("empreinte HMAC liée au jeton, vérifiable, distincte pour un même code", async () => {
+    const { configureCodePepper, issueVerificationToken, verifyTokenCode } = await import("../src/index.js");
+    configureCodePepper("un-poivre-de-test-suffisamment-long");
+    try {
+      const a = issueVerificationToken({ tokenId: "t1", identityId: "x", purpose: "login", channel: "phone", code: "123456", now: 0, ttlSeconds: 600 });
+      const b = issueVerificationToken({ tokenId: "t2", identityId: "x", purpose: "login", channel: "phone", code: "123456", now: 0, ttlSeconds: 600 });
+      expect(a.codeHash.startsWith("h2:")).toBe(true);
+      expect(a.codeHash).not.toBe(b.codeHash);
+      expect(verifyTokenCode(a, "123456", 1).kind).toBe("verified");
+      expect(verifyTokenCode(a, "654321", 1).kind).toBe("mismatch");
+      configureCodePepper(null);
+      expect(verifyTokenCode(a, "123456", 1).kind).toBe("mismatch"); // sans poivre : jamais vérifiable
+      const legacy = issueVerificationToken({ tokenId: "t3", identityId: "x", purpose: "login", channel: "phone", code: "123456", now: 0, ttlSeconds: 600 });
+      expect(legacy.codeHash.startsWith("h2:")).toBe(false);
+      expect(verifyTokenCode(legacy, "123456", 1).kind).toBe("verified");
+    } finally {
+      configureCodePepper(null);
+    }
+  });
+});

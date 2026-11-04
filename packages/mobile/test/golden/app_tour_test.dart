@@ -13,7 +13,6 @@ import 'package:kombe_mobile/app/di/app_dependencies.dart';
 import 'package:kombe_mobile/app/kombe_app.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../support/fake_repositories.dart';
 
@@ -48,11 +47,11 @@ const List<(String, String)> _routes = <(String, String)>[
   ('10_validation', '/app/validations/essai-val-1'),
   ('11_votes', '/app/votes'),
   ('12_vote', '/app/votes/essai-vote-1'),
-  ('13_amendes', '/app/fines'),
-  ('14_statuts', '/app/groups/essai-etoiles/rules'),
+  ('13_bureau', '/app/bureau'),
+  ('14_inviter', '/app/groups/essai-bamileke/invite'),
   ('15_notifications', '/app/notifications'),
   ('16_profil', '/app/profile'),
-  ('17_plus', '/app/more'),
+  ('17_amendes', '/app/fines'),
   ('18_documents', '/app/documents'),
   ('19_rejoindre', '/app/groups/join'),
   ('20_hors_ligne', '/app/offline'),
@@ -69,8 +68,6 @@ void main() {
       (MethodCall call) async => tmp,
     );
     SharedPreferencesAsyncPlatform.instance = InMemorySharedPreferencesAsync.empty();
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
     await _loadFonts();
   });
 
@@ -78,7 +75,7 @@ void main() {
     tester.view.physicalSize = const Size(390 * 2, 844 * 2);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    final AppDependencies deps = fakeDependencies();
+    final AppDependencies deps = fakeDependencies(drafts: InMemoryDraftRepository());
     await tester.pumpWidget(KombeApp(dependencies: deps));
     // Ouverture animée de la marque, saisie en plein mouvement.
     for (int i = 0; i < 9; i++) {
@@ -97,6 +94,20 @@ void main() {
     for (int i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
+    // Accueil d'un simple membre, puis changement de groupe (trésorerie).
+    for (int i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await expectLater(find.byType(KombeApp), matchesGoldenFile('tour/01a_accueil_membre.png'));
+    await tester.tap(find.descendant(of: find.byType(AppBar), matching: find.text('Les Étoiles de Yaoundé')).first);
+    for (int i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await expectLater(find.byType(KombeApp), matchesGoldenFile('tour/22_changer_groupe.png'));
+    await tester.tap(find.text('Solidarité Bamiléké').last);
+    for (int i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     for (final (String name, String route) in _routes) {
       // ignore: avoid_print
       print('tour → $name');
@@ -108,5 +119,15 @@ void main() {
       }
       await expectLater(find.byType(KombeApp), matchesGoldenFile('tour/$name.png'));
     }
+    // Menu latéral et changement de groupe, depuis l'accueil.
+    GoRouter.of(tester.element(find.byType(Scaffold).first)).go('/app');
+    for (int i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(find.byTooltip('Menu'));
+    for (int i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await expectLater(find.byType(KombeApp), matchesGoldenFile('tour/21_menu.png'));
   }, skip: !enabled);
 }

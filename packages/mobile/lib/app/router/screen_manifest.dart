@@ -6,7 +6,6 @@ abstract final class ScreenManifest {
     'verify_code',
     'display_name',
     'recovery_request',
-    'biometric_setup',
     'server_required',
     'dashboard',
     'groups',
@@ -21,8 +20,8 @@ abstract final class ScreenManifest {
     'cycle',
     'beneficiaries',
     'rules',
-    'contribution_information',
-    'contribution_review',
+    'bureau',
+    'contribution_declare',
     'contribution_history',
     'contribution_detail',
     'validation_queue',
@@ -42,6 +41,5 @@ abstract final class ScreenManifest {
     'contact_support',
     'offline_status',
     'about',
-    'more',
   ];
 }

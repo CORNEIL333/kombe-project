@@ -20,6 +20,7 @@ import 'package:kombe_mobile/domain/entities/notification.dart';
 import 'package:kombe_mobile/features/auth/welcome_screen.dart';
 import 'package:kombe_mobile/features/contributions/contribution_sent_sheet.dart';
 import 'package:kombe_mobile/features/groups/cycle_screen.dart';
+import 'package:kombe_mobile/domain/entities/contribution.dart';
 import 'package:kombe_mobile/features/home/dashboard_content.dart';
 import 'package:kombe_mobile/l10n/app_localizations.dart';
 
@@ -88,40 +89,40 @@ void main() {
     await _phone(tester);
     await tester.pumpWidget(_app(Scaffold(
       body: SafeArea(
-        child: DashboardContent(
-          onRefresh: () async {},
-          displayName: 'Amina Ngué',
+        child: HomeContent(
           now: _now,
-          data: DashboardData(
-            primaryGroup: _group,
-            nextContributionAtUtc: _due,
-            currentMonthDeclaredXaf: 275000,
-            progressPercent: 92,
-            recentActivity: <KombeNotification>[
-              KombeNotification(id: '1', kind: NotificationKind.validation, title: 'Paul A. — cotisation validée', body: 'Par le trésorier', createdAtUtc: _now, read: false),
-              KombeNotification(id: '2', kind: NotificationKind.contribution, title: 'Marie A. a déclaré sa cotisation', body: 'En attente de validation', createdAtUtc: _now.subtract(const Duration(days: 1)), read: true),
-              KombeNotification(id: '3', kind: NotificationKind.vote, title: 'Règles v3 acceptées', body: '12 membres sur 12', createdAtUtc: _now.subtract(const Duration(days: 5)), read: true),
+          data: HomeData(
+            group: _group,
+            dues: const <OpenDue>[
+              OpenDue(fundId: 'f_rot', fundName: 'Cagnotte', fundKind: 'rotation', roundSeq: 4, remainingXaf: 25000, late: false),
+              OpenDue(fundId: 'f_sec', fundName: 'Secours', fundKind: 'solidarity', roundSeq: 4, remainingXaf: 1000, late: false),
+            ],
+            nextDueDate: _due,
+            pendingDeclaredXaf: 15000,
+            pendingDeclarations: 1,
+            toValidate: 2,
+            votes: <PendingVote>[PendingVote(id: 'd1', title: 'Pause des séances', closesAtUtc: _due)],
+            nextMeetingDate: _due,
+            nextMeetingPlace: 'Chez Mme Ngo, Bonamoussadi',
+            recent: <KombeNotification>[
+              KombeNotification(id: '1', kind: NotificationKind.validation, title: 'Une déclaration attend votre confirmation', body: _group.name, createdAtUtc: _now, read: false, groupId: _group.id, topic: 'declared'),
+              KombeNotification(id: '2', kind: NotificationKind.vote, title: 'Un vote est ouvert', body: _group.name, createdAtUtc: _now.subtract(const Duration(days: 1)), read: true, groupId: _group.id, topic: 'decision'),
             ],
           ),
         ),
       ),
     )));
     await tester.pumpAndSettle();
+    expect(find.text('Déclarer un versement'), findsOneWidget);
+    expect(find.text('2 déclarations à confirmer'), findsOneWidget);
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/home_active_group.png'));
   });
 
-  testWidgets('accueil — aucun groupe (état vide de marque)', (WidgetTester tester) async {
+  testWidgets('accueil — aucun groupe', (WidgetTester tester) async {
     await _phone(tester);
-    await tester.pumpWidget(_app(Scaffold(
-      body: SafeArea(
-        child: DashboardContent(
-          onRefresh: () async {},
-          data: const DashboardData(primaryGroup: null, nextContributionAtUtc: null, currentMonthDeclaredXaf: 0, progressPercent: 0, recentActivity: <KombeNotification>[]),
-        ),
-      ),
-    )));
+    await tester.pumpWidget(_app(const Scaffold(body: SafeArea(child: NoGroupHome()))));
     await tester.pumpAndSettle();
-    expect(find.text('Rejoindre une tontine'), findsOneWidget);
+    expect(find.text('Rejoindre avec un code'), findsOneWidget);
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/home_no_group.png'));
   });
 

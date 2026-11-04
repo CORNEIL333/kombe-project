@@ -2,8 +2,7 @@
    Amendes & secours, Statuts, Registre, Règlement. Chaque bouton n'apparaît
    que pour la fonction qui peut l'exercer ; le serveur reste seul juge. */
 
-import { BandeauPhoto, photoPour } from "../composants/Scene.js";
-import { Orbite } from "../composants/Orbite.js";
+import { AvatarGroupe, DialoguePhoto, peutChangerPhoto } from "./PhotoGroupe.js";
 import { useState } from "react";
 import type { GroupRole } from "@kombe/domain";
 import {
@@ -21,7 +20,9 @@ import {
   type TontineDetail,
 } from "./api.js";
 import { peut } from "./droits.js";
-import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees, aujourdhui } from "./ui.js";
+import { BoutonIcone, Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees, aujourdhui } from "./ui.js";
+import { estBureau, ouvrirBureau } from "./bureau.js";
+import { Icone, type NomIcone } from "../composants/Icones.js";
 import type { PaymentChannel } from "@kombe/domain";
 import { useTextes, type CleTexte } from "./textes.js";
 import { Membres } from "./Membres.js";
@@ -36,17 +37,17 @@ import { Reglages } from "./Reglages.js";
 import { EnFileAttente } from "./fileAttenteMoteur.js";
 
 type Onglet = "apercu" | "membres" | "seances" | "argent" | "tours" | "discipline" | "decisions" | "statuts" | "journal" | "reglages";
-const ONGLETS: { id: Onglet; cle: CleTexte }[] = [
-  { id: "apercu", cle: "td.apercu" },
-  { id: "argent", cle: "td.argent" },
-  { id: "seances", cle: "td.seances" },
-  { id: "tours", cle: "td.tours" },
-  { id: "membres", cle: "td.membres" },
-  { id: "discipline", cle: "td.discipline" },
-  { id: "decisions", cle: "td.decisions" },
-  { id: "statuts", cle: "td.statuts" },
-  { id: "journal", cle: "td.journal" },
-  { id: "reglages", cle: "td.reglages" },
+const ONGLETS: { id: Onglet; cle: CleTexte; icone: NomIcone }[] = [
+  { id: "apercu", cle: "td.apercu", icone: "accueil" },
+  { id: "argent", cle: "td.argent", icone: "cagnotte" },
+  { id: "seances", cle: "td.seances", icone: "seance" },
+  { id: "tours", cle: "td.tours", icone: "cycle" },
+  { id: "membres", cle: "td.membres", icone: "personnes" },
+  { id: "discipline", cle: "td.discipline", icone: "balance" },
+  { id: "decisions", cle: "td.decisions", icone: "vote" },
+  { id: "statuts", cle: "td.statuts", icone: "document" },
+  { id: "journal", cle: "td.journal", icone: "registre" },
+  { id: "reglages", cle: "td.reglages", icone: "reglages" },
 ];
 
 export interface ContexteGroupe {
@@ -56,37 +57,24 @@ export interface ContexteGroupe {
   readonly rafraichir: () => void;
 }
 
-export function estOnglet(x: string | undefined): x is Onglet {
-  return x !== undefined && ONGLETS.some((o) => o.id === x);
-}
-
 export function Groupe({
   session,
   groupId,
-  onglet: ongletRoute,
-  onOnglet,
   onRetour,
+  ongletInitial,
 }: {
   readonly session: Session;
   readonly groupId: string;
-  /** Onglet demandé par l'adresse (#/groupe/<id>/<onglet>), ex. depuis une notification. */
-  readonly onglet?: string | undefined;
-  readonly onOnglet?: (onglet: string) => void;
   readonly onRetour: () => void;
+  readonly ongletInitial?: string;
 }) {
   const { tx, dyn } = useTextes();
-  const onglet: Onglet = estOnglet(ongletRoute) ? ongletRoute : "apercu";
-  const setOnglet = (o: Onglet) => {
-    onOnglet?.(o);
-    window.scrollTo?.(0, 0);
-  };
+  const [onglet, setOnglet] = useState<Onglet>(() => (ONGLETS.some((o) => o.id === ongletInitial) ? (ongletInitial as Onglet) : "apercu"));
   const { etat, recharger } = useDonnees(() => tontines.detail(session, groupId), [session.sessionId, groupId]);
+  const [editionPhoto, setEditionPhoto] = useState(false);
 
   return (
     <div className="pile ecran">
-      <button type="button" className="lien-retour" onClick={onRetour}>
-        ← {tx("app.accueil")}
-      </button>
       <Charge etat={etat} recharger={recharger}>
         {(g) => {
           const ctx: ContexteGroupe = { session, groupe: g, roles: g.me.roles, rafraichir: recharger };
@@ -97,45 +85,62 @@ export function Groupe({
               : null;
           return (
             <>
-              <BandeauPhoto
-                photo={photoPour(g.groupId)}
-                surtitre={tx("imm.grpSur")}
-                titre={g.name}
-                orbite={
-                  tourActuel ? (
-                    <Orbite
-                      total={tourActuel.total}
-                      courant={tourActuel.index}
-                      variante="marque"
-                      taille={170}
-                      libelle={tx("imm.tourSur", { n: tourActuel.index + 1, total: tourActuel.total })}
-                    />
-                  ) : undefined
-                }
-              >
-                <p className="bandeau-photo__meta">
-                  {tx("td.etat", { etat: dyn(`etat.${g.state}`) })}
-                  {g.cycle ? ` · ${tx("td.cycleN", { n: g.cycle.number })}` : ""} · {g.me.roles.map((r) => dyn(`role.${r}`)).join(" · ")}
-                </p>
-                {tourActuel ? (
-                  <ul className="bandeau-photo__chiffres">
-                    <li>{tx("imm.tourSur", { n: tourActuel.index + 1, total: tourActuel.total })}</li>
-                    {g.currentRound?.beneficiaryName ? (
-                      <li data-ton="accent">{tx("imm.beneficiaire", { nom: g.currentRound.beneficiaryName })}</li>
+              <header className="entete-groupe">
+                <div className="entete-groupe__barre">
+                  <BoutonIcone icone="retour" libelle={tx("app.accueil")} onClick={onRetour} />
+                  {estBureau(g.me.roles) ? (
+                    <BoutonIcone icone="bureau" ton="or" legende libelle={tx("app.bureau")} onClick={() => ouvrirBureau(session, g.groupId)} />
+                  ) : null}
+                </div>
+                <div className="entete-groupe__identite">
+                  <span className="entete-groupe__avatar">
+                    <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={88} />
+                    {peutChangerPhoto(g.me.roles) ? (
+                      <button type="button" className="entete-groupe__photo" aria-label={tx("ph.modifier")} title={tx("ph.modifier")} onClick={() => setEditionPhoto(true)}>
+                        <Icone nom="modifier" taille={16} />
+                      </button>
                     ) : null}
-                  </ul>
-                ) : null}
-              </BandeauPhoto>
+                  </span>
+                  <div className="entete-groupe__texte">
+                    <h1 className="entete-groupe__nom">{g.name}</h1>
+                    <p className="entete-groupe__meta">
+                      {tx("td.etat", { etat: dyn(`etat.${g.state}`) })}
+                      {g.cycle ? ` · ${tx("td.cycleN", { n: g.cycle.number })}` : ""} · {g.me.roles.map((r) => dyn(`role.${r}`)).join(" · ")}
+                    </p>
+                    {tourActuel ? (
+                      <p className="entete-groupe__tour">
+                        {tx("imm.tourSur", { n: tourActuel.index + 1, total: tourActuel.total })}
+                        {g.currentRound?.beneficiaryName ? ` · ${tx("imm.beneficiaire", { nom: g.currentRound.beneficiaryName })}` : ""}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </header>
+              {editionPhoto ? (
+                <DialoguePhoto
+                  session={session}
+                  groupId={g.groupId}
+                  nom={g.name}
+                  version={g.photoVersion}
+                  onFermer={() => setEditionPhoto(false)}
+                  onChange={() => {
+                    recharger();
+                    window.dispatchEvent(new Event("kombe:groupes"));
+                  }}
+                />
+              ) : null}
               <nav className="onglets-groupe" aria-label={g.name}>
                 {ONGLETS.filter((o) => o.id !== "reglages" || peut(g.me.roles, "group.manage")).map((o) => (
                   <button
                     key={o.id}
                     type="button"
                     aria-current={onglet === o.id ? "page" : undefined}
-                    className={onglet === o.id ? "onglet onglet--actif" : "onglet"}
+                    className={onglet === o.id ? "onglet onglet--icone onglet--actif" : "onglet onglet--icone"}
+                    title={tx(o.cle)}
                     onClick={() => setOnglet(o.id)}
                   >
-                    {tx(o.cle)}
+                    <Icone nom={o.icone} taille={20} />
+                    <span className="onglet__libelle">{tx(o.cle)}</span>
                   </button>
                 ))}
               </nav>
@@ -174,8 +179,9 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
       {g.statutes && !g.statutes.acceptedByMe ? (
         <div className="msg msg--attente" role="status">
           <p>{tx("td.statutsAAccepter", { v: g.statutes.version })}</p>
-          <button type="button" className="bouton bouton-compact" onClick={() => allerA("statuts")}>
-            {tx("td.lireAccepter")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => allerA("statuts")} title={tx("td.lireAccepter")}>
+            <Icone nom="document" taille={18} />
+            <span className="bouton-libelle">{tx("td.lireAccepter")}</span>
           </button>
         </div>
       ) : null}
@@ -190,8 +196,9 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
       {g.pendingCount > 0 && peut(ctx.roles, "member.admit") ? (
         <div className="msg msg--attente" role="status">
           <p>{tx("td.adhesions", { n: g.pendingCount })}</p>
-          <button type="button" className="bouton bouton-compact" onClick={() => allerA("membres")}>
-            {tx("td.membres")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone" onClick={() => allerA("membres")} title={tx("td.membres")}>
+            <Icone nom="personnes" taille={18} />
+            <span className="bouton-libelle">{tx("td.membres")}</span>
           </button>
         </div>
       ) : null}
@@ -217,8 +224,9 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
             {dyn(`se.etat.${g.nextMeeting.state}`)}
             {g.nextMeeting.location ? ` · ${g.nextMeeting.location}` : ""}
           </p>
-          <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => allerA("seances")}>
-            {tx("td.seances")}
+          <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => allerA("seances")} title={tx("td.seances")}>
+            <Icone nom="seance" taille={18} />
+            <span className="bouton-libelle">{tx("td.seances")}</span>
           </button>
         </Carte>
       ) : null}
@@ -250,8 +258,9 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
                       <Pastille ton={d.lateness === "late" ? "alerte" : d.lateness === "grace" ? "attente" : "neutre"}>{dyn(`ar.retard.${d.lateness}`)}</Pastille>
                     </div>
                     {BigInt(d.remaining) > 0n ? (
-                      <button type="button" className="bouton bouton-compact" onClick={() => setADeclarer(d)}>
-                        {tx("acc.declarer")}
+                      <button type="button" className="bouton bouton-compact bouton-avec-icone" onClick={() => setADeclarer(d)} title={tx("acc.declarer")}>
+                        <Icone nom="declarer" taille={18} />
+                        <span className="bouton-libelle">{tx("acc.declarer")}</span>
                       </button>
                     ) : null}
                   </li>

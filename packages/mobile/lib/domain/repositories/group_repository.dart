@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../entities/cycle.dart';
@@ -14,9 +16,18 @@ abstract interface class GroupRepository {
   Future<Resource<List<String>>> getRules(String groupId);
   Future<OperationResult<void>> joinGroup(String invitationCode);
 
-  /// Crée un lien d'invitation (`POST /v1/tontines/:id/invitations`) et rend
-  /// le code, le lien et le texte WhatsApp à partager.
+  /// Crée une invitation (`POST /v1/tontines/:id/invitations`, à usage
+  /// unique, 14 jours) et rend le code, le lien et le texte WhatsApp : le
+  /// bureau la partage lui-même — KÓMBE n'envoie rien en son nom.
   Future<OperationResult<GroupInvitation>> createInvitation(String groupId);
+
+  /// Photo du groupe (JPEG carré 256 ou 512 px) ; null = pas de photo.
+  Future<Uint8List?> loadPhoto(String groupId, int version, int size);
+
+  /// JPEG carrés 512 et 256 px préparés par l'app ; le serveur revalide.
+  Future<OperationResult<int>> setPhoto(String groupId, Uint8List jpeg512, Uint8List jpeg256);
+
+  Future<OperationResult<void>> removePhoto(String groupId);
 
   /// Crée une tontine via l'API réelle `POST /v1/tontines` : le bureau
   /// fournit les vrais paramètres (nom, cotisation par part, rythme, date

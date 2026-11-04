@@ -9,6 +9,7 @@ import { useState } from "react";
 import { argent, type CreateFundInput, type DueView, type FundView } from "./api.js";
 import { peut } from "./droits.js";
 import { Carte, Champ, ChampMontant, Pastille, Retour, useAction } from "./ui.js";
+import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 
@@ -233,8 +234,9 @@ export function Caisses({ ctx }: { readonly ctx: ContexteGroupe }) {
       titre={tx("cs.titre")}
       actions={
         bureau && !creer ? (
-          <button type="button" className="bouton bouton-compact" onClick={() => setCreer(true)}>
-            {tx("cs.nouvelle")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setCreer(true)} title={tx("cs.nouvelle")}>
+            <Icone nom="plus" taille={18} />
+            <span className="bouton-libelle">{tx("cs.nouvelle")}</span>
           </button>
         ) : null
       }
@@ -264,8 +266,9 @@ export function Caisses({ ctx }: { readonly ctx: ContexteGroupe }) {
               </div>
               {bureau && f.custom && !f.custom.closedOn && edition !== f.fundId ? (
                 <div className="liste__actions">
-                  <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setEdition(f.fundId)}>
-                    {tx("cs.modifier")}
+                  <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setEdition(f.fundId)} title={tx("cs.modifier")}>
+                    <Icone nom="modifier" taille={18} />
+                    <span className="bouton-libelle">{tx("cs.modifier")}</span>
                   </button>
                 </div>
               ) : null}

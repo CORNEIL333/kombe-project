@@ -11,7 +11,6 @@ import '../../core/widgets/operation_feedback.dart';
 import '../../domain/entities/auth.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../l10n/app_localizations.dart';
-import 'auth_validators.dart';
 
 /// Les TROIS entrées (créer un compte, se connecter, accès perdu) aboutissent
 /// au même geste serveur : un code vérifié OUVRE la session. Un seul écran de
@@ -62,6 +61,10 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   bool _resending = false;
   String? _error;
 
+  /// Chiffres seuls : un code collé depuis l'e-mail arrive souvent avec des
+  /// espaces (« 123 456 ») ou un retour à la ligne.
+  String get _digits => _code.text.replaceAll(RegExp(r'\D'), '');
+
   @override
   void initState() {
     super.initState();
@@ -102,7 +105,8 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
 
   Future<void> _verify() async {
     if (_submitting) return;
-    if (!AuthValidators.isChallengeCode(_code.text)) {
+    final String code = _digits;
+    if (code.length != 6) {
       setState(() => _error = 'Le code comporte 6 chiffres.');
       return;
     }
@@ -111,7 +115,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       _error = null;
     });
     final OperationResult<AuthSession> result =
-        await context.read<AuthRepository>().verifyCode(login: widget.identityId, code: _code.text.trim());
+        await context.read<AuthRepository>().verifyCode(login: widget.identityId, code: code);
     if (!mounted) return;
     setState(() => _submitting = false);
     final String? problem = outcomeMessage(result);
@@ -169,9 +173,10 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
               inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
               autofillHints: const <String>[AutofillHints.oneTimeCode],
               textInputAction: TextInputAction.done,
-              onChanged: (String v) {
+              onChanged: (_) {
                 if (_error != null) setState(() => _error = null);
-                if (v.length == 6) _verify();
+                // Six chiffres saisis ou collés : vérification immédiate.
+                if (_digits.length == 6) _verify();
               },
               onSubmitted: (_) => _verify(),
               style: t.headlineSmall?.copyWith(letterSpacing: 8),

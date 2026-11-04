@@ -33,7 +33,7 @@ class ServerRequiredScreen extends StatelessWidget {
                     const SizedBox(height: 10),
                     const Text(
                       'Cette version de l’application n’est reliée à aucun serveur KÓMBE : rien ne peut s’afficher. '
-                      'Installez la version officielle de KÓMBE pour vous connecter.',
+                      'Installez la version officielle depuis kombe.vercel.app/telecharger.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),

@@ -123,6 +123,10 @@ export interface TontineSummary {
   readonly memberCount: number;
   readonly contributionPerShare: Money;
   readonly nextMeetingDate: IsoDate | null;
+  /** Version de la photo du groupe (clé de cache) ; null = pas de photo (initiales). */
+  readonly photoVersion?: number | null;
+  /** Position dans le cycle en cours (tour courant / nombre de tours) ; null hors cycle. */
+  readonly cyclePosition?: { readonly current: number; readonly total: number } | null;
   /** Ce que je dois encore pour la prochaine échéance (toutes caisses). */
   readonly myOpenDue: Money;
   /** Tour où je reçois la cagnotte, s'il est fixé. */
@@ -206,6 +210,7 @@ export interface RoundView {
 export interface TontineDetail {
   readonly groupId: string;
   readonly name: string;
+  readonly photoVersion?: number | null;
   readonly state: TontineState;
   readonly settings: TontineSettings;
   readonly me: {
@@ -425,6 +430,11 @@ export interface NotificationView {
   readonly target: string | null;
   /** Détail lisible après authentification (échéance, n° de tour, nom…). */
   readonly params: Readonly<Record<string, string | number | boolean | null>> | null;
+  /** Nature précise (préfixe de la clé de dédoublonnage : `declared`,
+   *  `rejected`, `decision`, `contest`…) — pour un libellé exact. */
+  readonly topic: string;
+  /** Objet visé (mouvement, décision, amende…) quand la clé le porte. */
+  readonly subjectId: string | null;
   readonly createdAt: IsoInstant;
   readonly read: boolean;
 }

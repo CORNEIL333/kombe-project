@@ -5,12 +5,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
-import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/operation_feedback.dart';
+import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/section_card.dart';
 import '../../domain/entities/governance.dart';
-import '../../l10n/app_localizations.dart';
 import '../../domain/repositories/governance_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 class VotesScreen extends StatefulWidget {
   const VotesScreen({super.key});
@@ -81,101 +81,117 @@ class VoteDetailScreen extends StatefulWidget {
 class _VoteDetailScreenState extends State<VoteDetailScreen> {
   Resource<VoteDetails> _state = const ResourceLoading<VoteDetails>();
   VoteChoice? _choice;
+  bool _sending = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void initState() {
+    super.initState();
     _load();
   }
 
   Future<void> _load() async {
-    final Resource<VoteDetails> state =
-        await context.read<GovernanceRepository>().getVote(widget.voteId);
+    final Resource<VoteDetails> state = await context.read<GovernanceRepository>().getVote(widget.voteId);
     if (mounted) setState(() => _state = state);
   }
 
   Future<void> _submit() async {
     final VoteChoice? choice = _choice;
-    if (choice == null) return;
-    final OperationResult<void> result =
-        await context.read<GovernanceRepository>().castVote(
-              voteId: widget.voteId,
-              choice: choice,
-            );
+    if (choice == null || _sending) return;
+    setState(() => _sending = true);
+    final OperationResult<void> result = await context.read<GovernanceRepository>().castVote(voteId: widget.voteId, choice: choice);
     if (!mounted) return;
+    setState(() => _sending = false);
     if (reportOutcome(context, result)) {
       showKombeMessage(context, 'Votre bulletin est enregistré (vote secret).');
       await _load();
     }
   }
 
+  static String _label(VoteChoice c) => switch (c) {
+        VoteChoice.forChoice => 'Pour',
+        VoteChoice.against => 'Contre',
+        VoteChoice.abstain => 'Abstention',
+      };
+
+  static String _outcome(String state) => switch (state) {
+        'adopted' => 'Adopté',
+        'rejected' => 'Rejeté',
+        'cancelled' => 'Annulé',
+        'lifted' => 'Adopté, puis levé',
+        _ => 'Clos',
+      };
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Vote')),
-        body: ResourceView<VoteDetails>(
-          resource: _state,
-          builder: (BuildContext context, VoteDetails vote) => ListView(
-            padding: const EdgeInsets.all(20),
-            children: <Widget>[
-              Text(vote.summary.title, style: Theme.of(context).textTheme.headlineMedium),
+  Widget build(BuildContext context) {
+    final TextTheme t = Theme.of(context).textTheme;
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Vote')),
+      body: ResourceView<VoteDetails>(
+        resource: _state,
+        onRetry: _load,
+        builder: (BuildContext context, VoteDetails vote) => ListView(
+          padding: const EdgeInsets.all(20),
+          children: <Widget>[
+            Text(vote.summary.title, style: t.headlineSmall),
+            if (vote.description.isNotEmpty) ...<Widget>[
               const SizedBox(height: 8),
-              Text(vote.description, style: Theme.of(context).textTheme.bodyLarge),
-              const SizedBox(height: 18),
-              SectionCard(
-                child: Column(
-                  children: <Widget>[
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(AppLocalizations.of(context).voteElectorate),
-                      trailing: Text('${vote.electorate}'),
-                    ),
-                    const Divider(),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(AppLocalizations.of(context).voteMajority),
-                      trailing: Text('${vote.requiredYes}'),
-                    ),
-                    const Divider(),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(AppLocalizations.of(context).voteBallots),
-                      trailing: Text('${vote.ballots}'),
-                    ),
-                  ],
+              Text(vote.description, style: t.bodyLarge),
+            ],
+            const SizedBox(height: 16),
+            _row(t, l10n.voteElectorate, '${vote.electorate}'),
+            _row(t, l10n.voteMajority, '${vote.requiredYes}'),
+            _row(t, l10n.voteBallots, '${vote.ballots}'),
+            const SizedBox(height: 20),
+            if (!vote.open)
+              // Objet déjà traité (ex. ouvert depuis la notification du résultat).
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  vote.result == null
+                      ? 'Ce vote est clos : ${_outcome(vote.state).toLowerCase()}.'
+                      : 'Ce vote est clos : ${_outcome(vote.state).toLowerCase()} '
+                          '(${vote.result!.yes} pour, ${vote.result!.no} contre, ${vote.result!.abstain} abstentions).',
+                  style: t.titleMedium,
                 ),
-              ),
-              const SizedBox(height: 20),
+              )
+            else if (vote.myChoice != null)
+              Text('Vous avez voté : ${_label(vote.myChoice!)}. Le résultat sera publié au dépouillement.', style: t.titleMedium)
+            else if (!vote.canVote)
+              Text('Vous ne votez pas sur ce scrutin.', style: t.titleMedium)
+            else ...<Widget>[
               RadioGroup<VoteChoice>(
                 groupValue: _choice,
                 onChanged: (VoteChoice? value) => setState(() => _choice = value),
                 child: Column(
                   children: <Widget>[
-                    RadioListTile<VoteChoice>(
-                      value: VoteChoice.forChoice,
-                      title: const Text('Pour'),
-                    ),
-                    RadioListTile<VoteChoice>(
-                      value: VoteChoice.against,
-                      title: const Text('Contre'),
-                    ),
-                    RadioListTile<VoteChoice>(
-                      value: VoteChoice.abstain,
-                      title: const Text('Abstention'),
-                    ),
+                    for (final VoteChoice c in VoteChoice.values) RadioListTile<VoteChoice>(value: c, title: Text(_label(c))),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: _choice == null ? null : _submit,
-                child: const Text('Confirmer mon vote'),
+                onPressed: _choice == null || _sending ? null : _submit,
+                child: _sending
+                    ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
+                    : const Text('Confirmer mon vote'),
               ),
               const SizedBox(height: 12),
               const Text(
                 'Votre bulletin est secret : personne ne voit ce que vous avez voté, seulement le résultat.',
               ),
             ],
-          ),
+            const SizedBox(height: 8),
+            Text('Clôture prévue : ${DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag()).add_Hm().format(vote.summary.closesAtUtc.toLocal())}',
+                style: t.bodySmall),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _row(TextTheme t, String k, String v) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(children: <Widget>[Expanded(child: Text(k, style: t.bodyMedium)), Text(v, style: t.titleSmall)]),
       );
 }

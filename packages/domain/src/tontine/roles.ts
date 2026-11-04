@@ -49,6 +49,7 @@ export const TONTINE_ACTIONS = [
   "member.remove",
   "role.assign",
   "rules.publish",
+  "group.photo",
   "schedule.manage",
   "meeting.manage",
   "meeting.attendance",
@@ -83,6 +84,8 @@ const MATRIX: Readonly<Record<TontineAction, readonly GroupRole[]>> = {
   "member.remove": PRESIDENCY,
   "role.assign": PRESIDENCY,
   "rules.publish": ADMIN,
+  // Photo du groupe : présidence et secrétariat (comme le règlement).
+  "group.photo": ADMIN,
   "schedule.manage": ADMIN,
   "meeting.manage": ADMIN,
   "meeting.attendance": ["animator", "vice_president", "secretary", "censor"],

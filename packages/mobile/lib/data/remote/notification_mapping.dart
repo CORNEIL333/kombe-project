@@ -2,6 +2,7 @@ import '../../core/formatters/douala_time.dart';
 import '../../core/formatters/xaf.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
+import '../../features/notifications/notification_catalog.dart';
 
 // ── Notifications de l'API tontine (NotificationView) ────────────────────
 // Le serveur envoie un type (`kind`), une cible (`target`) et des paramètres
@@ -67,7 +68,7 @@ String _meetingStage(String stage) => switch (stage) {
       'aid_decided' => (kind: NotificationKind.system, title: 'Décision sur une demande de secours'),
       'decision' => (kind: NotificationKind.vote, title: 'Vote ouvert'),
       'vote_reminder' => (kind: NotificationKind.vote, title: 'Vote : dernier délai'),
-      _ => (kind: NotificationKind.system, title: 'Information du groupe'),
+      _ => (kind: NotificationKind.system, title: _unknownTitle),
     };
 
 /// Ligne de détail : nom du groupe puis les paramètres utiles au type.
@@ -129,15 +130,34 @@ String notificationDetail(String code, Map<String, Object?> p, String? groupName
 
 DateTime _instant(Object? v) => DateTime.tryParse('${v ?? ''}')?.toUtc() ?? DateTime.now().toUtc();
 
+/// Types serveur génériques : la nature précise (`topic`) dit mieux de quoi
+/// il s'agit (déclaration à confirmer ou paiements à contrôler, vote ouvert
+/// ou clos…).
+const Set<String> _topicFirstCodes = <String>{'general', 'validation_waiting', 'decision', 'membership'};
+
+/// Titre : le type précis du serveur, sinon la nature (`topic`), sinon la
+/// catégorie générale.
+({NotificationKind kind, String title}) _labelFor(String code, String topic, Map<String, Object?> p) {
+  final NotificationEntry? byTopic = notificationCatalog[topic];
+  if (byTopic != null && _topicFirstCodes.contains(code)) return (kind: byTopic.kind, title: byTopic.title);
+  final ({NotificationKind kind, String title}) byCode = notificationLabel(code, p);
+  if (byCode.title != _unknownTitle) return byCode;
+  final NotificationEntry fallback = entryFor(topic, code);
+  return (kind: fallback.kind, title: fallback.title);
+}
+
+const String _unknownTitle = 'Information du groupe';
+
 /// `NotificationView` → [KombeNotification] : rien n'est jeté (groupe,
-/// cible, paramètres) ; titre et détail lisibles.
+/// cible, paramètres, nature, objet) ; titre et détail lisibles.
 KombeNotification notificationFromApi(Map<String, dynamic> n) {
   final String code = _s(n['kind']).isEmpty ? 'general' : _s(n['kind']);
+  final String topic = _s(n['topic']);
   final Map<String, Object?> params = <String, Object?>{
     ...?(n['params'] as Map<String, dynamic>?),
   };
   final String? groupName = (n['groupName'] as String?) ?? (params['groupName'] as String?);
-  final ({NotificationKind kind, String title}) label = notificationLabel(code, params);
+  final ({NotificationKind kind, String title}) label = _labelFor(code, topic, params);
   return KombeNotification(
     id: '${n['notificationId']}',
     kind: label.kind,
@@ -150,5 +170,7 @@ KombeNotification notificationFromApi(Map<String, dynamic> n) {
     groupName: groupName,
     target: n['target'] as String?,
     params: params,
+    topic: topic,
+    subjectId: n['subjectId'] as String?,
   );
 }

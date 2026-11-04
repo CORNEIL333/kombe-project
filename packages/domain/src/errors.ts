@@ -36,6 +36,7 @@ export type DomainErrorCode =
   | "SESSION_INVALID"
   | "CHANNEL_NOT_VERIFIED"
   | "PRIVILEGE_NOT_GRANTED"
+  | "OPERATOR_MFA_REQUIRED"
   | "GROUP_STATE_INVALID"
   | "GROUP_READ_ONLY"
   | "CYCLE_START_NOT_READY"
@@ -143,7 +144,10 @@ export type DomainErrorCode =
   | "SPONSOR_NOT_ACTIVE_MEMBER"
   | "SPONSOR_SELF_FORBIDDEN"
   | "SPONSORSHIP_ALREADY_OPEN"
-  | "SPONSORSHIP_STATE_INVALID";
+  | "SPONSORSHIP_STATE_INVALID"
+  /* Photo de profil d'une tontine (0034). */
+  | "PHOTO_INVALID"
+  | "PHOTO_THROTTLED";
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;

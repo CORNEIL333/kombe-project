@@ -1,0 +1,148 @@
+# KÓMBE — publication des versions de l'application mobile et mise à jour
+# directe des applications déjà installées.
+#
+# À chaque push qui change la version de packages/mobile/pubspec.yaml
+# (version: X.Y.Z+BUILD), ce pipeline :
+#   1. teste l'application (flutter test) ;
+#   2. construit les APK release signés avec la clé KÓMBE (secrets) ;
+#   3. publie la release immuable  mobile-vX.Y.Z-bBUILD  (APK + manifeste) ;
+#   4. met à jour la release fixe  mobile-latest  : adresse stable lue par
+#      l'application (kombe-update.json) et par la page /telecharger/.
+# Les téléphones vérifient le manifeste au démarrage (au plus toutes les
+# 12 h) et proposent la mise à jour ; Android demande toujours confirmation.
+#
+# Une version déjà publiée n'est jamais republiée : pour diffuser, augmentez
+# le numéro de build dans pubspec.yaml et décrivez-la dans NOTES_VERSION.md.
+#
+# Secrets requis (Settings → Secrets and variables → Actions) :
+#   KOMBE_ANDROID_KEYSTORE_BASE64   keystore de signature (base64)
+#   KOMBE_ANDROID_KEYSTORE_PASSWORD mot de passe du keystore
+#   KOMBE_ANDROID_KEY_ALIAS         alias de la clé
+#   KOMBE_ANDROID_KEY_PASSWORD      mot de passe de la clé
+# La clé DOIT être celle des APK déjà installés : Android refuse une mise à
+# jour signée par une autre clé. Sans ces secrets, rien n'est publié
+# (avertissement) : jamais d'APK impossible à installer par-dessus.
+#
+# Variable optionnelle : KOMBE_API_BASE_URL (défaut https://kombe.vercel.app/v1).
+name: Mobile — publication et mise à jour directe
+
+on:
+  push:
+    branches: [master, design/immersif-v3]
+    paths: ["packages/mobile/**", ".github/workflows/mobile-release.yml", "scripts/mobile/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mobile-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Construire et publier
+    runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: ${{ vars.KOMBE_API_BASE_URL || 'https://kombe.vercel.app/v1' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version à publier
+        id: version
+        run: |
+          line=$(grep -E '^version:' packages/mobile/pubspec.yaml)
+          v=$(echo "$line" | sed -E 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+).*/\1/')
+          b=$(echo "$line" | sed -E 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+).*/\2/')
+          tag="mobile-v${v}-b${b}"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "build=$b" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$tag déjà publiée — augmentez le build dans pubspec.yaml pour diffuser une mise à jour."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Clé de signature
+        id: signature
+        if: steps.version.outputs.publish == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.KOMBE_ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.KOMBE_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KOMBE_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KOMBE_ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::warning::Secrets de signature absents : rien n'est publié (un APK signé par une autre clé ne s'installerait pas par-dessus les versions installées)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/kombe.keystore"
+          {
+            echo "storeFile=$RUNNER_TEMP/kombe.keystore"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > packages/mobile/android/key.properties
+
+      - uses: actions/setup-java@v4
+        if: steps.version.outputs.publish == 'true' && steps.signature.outputs.ok == 'true'
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        if: steps.version.outputs.publish == 'true' && steps.signature.outputs.ok == 'true'
+        with:
+          channel: stable
+          cache: true
+
+      - name: Tests
+        if: steps.version.outputs.publish == 'true' && steps.signature.outputs.ok == 'true'
+        working-directory: packages/mobile
+        run: |
+          flutter pub get
+          flutter test
+
+      - name: APK release
+        if: steps.version.outputs.publish == 'true' && steps.signature.outputs.ok == 'true'
+        working-directory: packages/mobile
+        run: |
+          flutter build apk --release --split-per-abi --dart-define=KOMBE_API_BASE_URL="$API_BASE_URL"
+          mkdir -p "$RUNNER_TEMP/apk"
+          out=build/app/outputs/flutter-apk
+          cp "$out/app-arm64-v8a-release.apk"   "$RUNNER_TEMP/apk/kombe-arm64.apk"
+          cp "$out/app-armeabi-v7a-release.apk" "$RUNNER_TEMP/apk/kombe-armv7.apk"
+          cp "$out/app-x86_64-release.apk"      "$RUNNER_TEMP/apk/kombe-x86_64.apk"
+
+      - name: Manifeste de mise à jour
+        if: steps.version.outputs.publish == 'true' && steps.signature.outputs.ok == 'true'
+        run: node scripts/mobile/update-manifest.mjs "$RUNNER_TEMP/apk" "$GITHUB_REPOSITORY" "${{ steps.version.outputs.tag }}" packages/mobile/NOTES_VERSION.md
+
+      - name: Release versionnée
+        if: steps.version.outputs.publish == 'true' && steps.signature.outputs.ok == 'true'
+        run: |
+          awk 'BEGIN{n=0} /^## /{n++} n==1' packages/mobile/NOTES_VERSION.md > "$RUNNER_TEMP/notes.md"
+          gh release create "${{ steps.version.outputs.tag }}" "$RUNNER_TEMP"/apk/* \
+            --target "$GITHUB_SHA" \
+            --title "KÓMBE mobile ${{ steps.version.outputs.version }} (build ${{ steps.version.outputs.build }})" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --latest=false
+
+      - name: Adresse stable « mobile-latest »
+        if: steps.version.outputs.publish == 'true' && steps.signature.outputs.ok == 'true'
+        run: |
+          if ! gh release view mobile-latest >/dev/null 2>&1; then
+            gh release create mobile-latest --title "KÓMBE mobile — dernière version" \
+              --notes "Adresse stable de la dernière version publiée (manifeste de mise à jour directe et APK)." \
+              --latest=false
+          fi
+          gh release upload mobile-latest "$RUNNER_TEMP"/apk/* --clobber
+
+      - name: Nettoyage
+        if: always()
+        run: rm -f packages/mobile/android/key.properties "$RUNNER_TEMP/kombe.keystore"

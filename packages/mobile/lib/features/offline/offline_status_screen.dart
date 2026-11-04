@@ -42,7 +42,7 @@ class _OfflineStatusScreenState extends State<OfflineStatusScreen> {
                     leading: Icon(Icons.edit_note_outlined),
                     title: Text('Brouillons locaux'),
                     subtitle: Text(
-                      'Autorisés. Ils sont envoyés quand la connexion revient.',
+                      'Possibles : ils restent sur ce téléphone jusqu’à leur envoi.',
                     ),
                   ),
                   const Divider(),
@@ -113,7 +113,7 @@ class _CapabilityRow extends StatelessWidget {
           // d'écran annonce le verdict en toutes lettres (a11y seniors).
           semanticLabel: allowed
               ? 'Autorisé hors connexion'
-              : 'Connexion nécessaire',
+              : 'Impossible hors connexion : la décision doit être enregistrée en ligne',
         ),
       );
 }

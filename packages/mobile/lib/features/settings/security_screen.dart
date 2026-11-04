@@ -1,81 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../../core/security/biometric_service.dart';
-import '../../core/widgets/section_card.dart';
-import '../../domain/repositories/preferences_repository.dart';
+import '../../core/design/kombe_colors.dart';
+import '../../core/widgets/kombe_sign_out.dart';
 
-class SecurityScreen extends StatefulWidget {
+/// Sécurité : ce que KÓMBE fait réellement. Pas d'interrupteur sans effet
+/// (le verrou biométrique n'existe pas encore : il n'est pas proposé).
+class SecurityScreen extends StatelessWidget {
   const SecurityScreen({super.key});
-
-  @override
-  State<SecurityScreen> createState() => _SecurityScreenState();
-}
-
-class _SecurityScreenState extends State<SecurityScreen> {
-  bool _supported = false;
-  bool _enabled = false;
-  bool _loading = true;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final bool supported = await context.read<BiometricService>().isSupported();
-    final bool enabled =
-        await context.read<PreferencesRepository>().loadBiometricPreference();
-    if (mounted) {
-      setState(() {
-        _supported = supported;
-        _enabled = enabled;
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _toggle(bool next) async {
-    if (next && !_supported) return;
-    if (next) {
-      final bool ok = await context.read<BiometricService>().authenticate(
-            'Confirmez votre identité pour activer la biométrie KÓMBE.',
-          );
-      if (!ok || !mounted) return;
-    }
-    await context.read<PreferencesRepository>().saveBiometricPreference(next);
-    if (mounted) setState(() => _enabled = next);
-  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Sécurité')),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.all(20),
-                children: <Widget>[
-                  SectionCard(
-                    child: SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      secondary: const Icon(Icons.fingerprint),
-                      title: const Text('Authentification biométrique'),
-                      subtitle: Text(
-                        _supported
-                            ? 'Utilise la biométrie fournie par le système.'
-                            : 'Indisponible sur cet appareil.',
-                      ),
-                      value: _enabled && _supported,
-                      onChanged: _supported ? _toggle : null,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'KÓMBE ne lit ni ne stocke les gabarits biométriques. '
-                    'La biométrie protège l’ouverture de l’application sur ce téléphone.',
-                  ),
-                ],
-              ),
+        body: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: const <Widget>[
+            ListTile(
+              leading: Icon(Icons.password_rounded, color: KombeColors.forest),
+              title: Text('Connexion par code à usage unique'),
+              subtitle: Text('Pas de mot de passe : un code reçu par e-mail, valable une seule fois.'),
+            ),
+            ListTile(
+              leading: Icon(Icons.phonelink_lock_outlined, color: KombeColors.forest),
+              title: Text('Session gardée sur ce téléphone'),
+              subtitle: Text('Protégée par le coffre sécurisé du système. Une session expirée demande un nouveau code.'),
+            ),
+            ListTile(
+              leading: Icon(Icons.verified_user_outlined, color: KombeColors.forest),
+              title: Text('Contrôles croisés'),
+              subtitle: Text('Personne ne confirme ni ne contrôle ses propres déclarations : KÓMBE l’interdit.'),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(20, 24, 20, 0),
+              child: KombeBoutonDeconnexion(),
+            ),
+          ],
+        ),
       );
 }

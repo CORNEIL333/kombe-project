@@ -37,9 +37,9 @@ class PrivacyScreen extends StatelessWidget {
                   Divider(),
                   ListTile(
                     leading: Icon(Icons.verified_user_outlined),
-                    title: Text('Ce qui fait foi'),
+                    title: Text('Décisions enregistrées en ligne'),
                     subtitle: Text(
-                      'Confirmations, votes, fonctions et statuts ne comptent qu’une fois enregistrés par KÓMBE, jamais depuis un téléphone hors ligne.',
+                      'Confirmations, votes, fonctions et règles ne comptent qu’une fois enregistrés au registre du groupe.',
                     ),
                   ),
                 ],

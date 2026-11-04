@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/state/safe_notifier.dart';
+
 import '../../core/state/resource.dart';
 import '../../domain/entities/cycle.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
 
-final class GroupsViewModel extends ChangeNotifier {
+final class GroupsViewModel extends ChangeNotifier with SafeNotifier {
   GroupsViewModel(this._repository);
   final GroupRepository _repository;
 
@@ -19,7 +21,7 @@ final class GroupsViewModel extends ChangeNotifier {
   }
 }
 
-final class GroupDetailViewModel extends ChangeNotifier {
+final class GroupDetailViewModel extends ChangeNotifier with SafeNotifier {
   GroupDetailViewModel(this._repository, this.groupId);
   final GroupRepository _repository;
   final String groupId;
@@ -46,7 +48,7 @@ final class GroupDetailViewModel extends ChangeNotifier {
   }
 }
 
-final class MembersViewModel extends ChangeNotifier {
+final class MembersViewModel extends ChangeNotifier with SafeNotifier {
   MembersViewModel(this._repository, this.groupId);
   final GroupRepository _repository;
   final String groupId;
@@ -61,7 +63,7 @@ final class MembersViewModel extends ChangeNotifier {
   }
 }
 
-final class MemberDetailViewModel extends ChangeNotifier {
+final class MemberDetailViewModel extends ChangeNotifier with SafeNotifier {
   MemberDetailViewModel(this._repository, this.groupId, this.identityId);
   final GroupRepository _repository;
   final String groupId;
@@ -77,7 +79,7 @@ final class MemberDetailViewModel extends ChangeNotifier {
   }
 }
 
-final class CycleViewModel extends ChangeNotifier {
+final class CycleViewModel extends ChangeNotifier with SafeNotifier {
   CycleViewModel(this._repository, this.groupId);
   final GroupRepository _repository;
   final String groupId;

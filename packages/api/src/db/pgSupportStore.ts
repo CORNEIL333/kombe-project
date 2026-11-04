@@ -23,6 +23,7 @@ import type pg from "pg";
 import {
   DomainError,
   approveSupportAccess,
+  assertExpectedVersion,
   assertSupportActionAllowed,
   createSupportAccessRequest,
   recordSecurityEvent,
@@ -146,6 +147,33 @@ export class PgSupportStore {
     );
   }
 
+  /**
+   * Trace DURABLE d'un refus : écrite dans sa PROPRE transaction, après
+   * l'annulation de la transaction refusée (sinon le ROLLBACK l'emporterait
+   * avec lui et le 403 ne laisserait aucune trace). Un échec d'écriture du
+   * journal ne masque jamais le refus d'origine.
+   */
+  private async logRefusal(ctx: SupportContext, groupId: string, eventType: string, detail: string): Promise<void> {
+    try {
+      await withGroupTx(this.pool, groupId, (client) => this.writeLog(client, ctx, groupId, eventType, redactProviderError(detail)));
+    } catch (e) {
+      process.stderr.write(`[support] journal de refus non écrit : ${e instanceof Error ? e.message : String(e)}\n`);
+    }
+  }
+
+  /** Exécute une commande support ; tout refus métier est consigné durablement puis relancé. */
+  private async guarded<T>(ctx: SupportContext, groupId: string, label: string, fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (e) {
+      if (e instanceof DomainError) {
+        const eventType = e.code === "SUPPORT_FINANCIAL_FORBIDDEN" ? "support_financial_action_refused" : "support_access_denied";
+        await this.logRefusal(ctx, groupId, eventType, `${label} : ${e.code} ${e.message}`);
+      }
+      throw e;
+    }
+  }
+
   async request(ctx: SupportContext, input: CreateAccessCommand): Promise<SupportAccessView> {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
     return withGroupTx(this.pool, input.targetGroupId, async (client) => {
@@ -185,10 +213,12 @@ export class PgSupportStore {
     });
   }
 
-  async approve(ctx: SupportContext, groupId: string, requestId: string, ttlSeconds: number): Promise<SupportAccessView> {
+  async approve(ctx: SupportContext, groupId: string, requestId: string, ttlSeconds: number, expectedVersion?: number): Promise<SupportAccessView> {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
-    return withGroupTx(this.pool, groupId, async (client) => {
+    return this.guarded(ctx, groupId, `approve ${requestId}`, () => withGroupTx(this.pool, groupId, async (client) => {
       const { request, version } = await this.loadForUpdate(client, requestId);
+      // Deux administrateurs sur la même demande : la version vue doit être la courante.
+      if (expectedVersion !== undefined) assertExpectedVersion(version, expectedVersion);
       const wasPending = request.status === "pending_approval";
       // Décision pure : approbateur distinct de l'applicant et des précédents,
       // seuil REQUIRED_APPROVALS pour passer granted (jamais par cette couche).
@@ -208,32 +238,26 @@ export class PgSupportStore {
         await this.writeLog(client, ctx, groupId, "support_access_approved", requestId);
       }
       return toView(next, newVersion);
-    });
+    }));
   }
 
   async act(ctx: SupportContext, groupId: string, requestId: string, action: string): Promise<ActionReceipt> {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
-    return withGroupTx(this.pool, groupId, async (client) => {
+    // Refus (action financière, accès expiré, hors périmètre) : consigné par
+    // `guarded` dans une transaction distincte, donc durable malgré le 403.
+    return this.guarded(ctx, groupId, action, () => withGroupTx(this.pool, groupId, async (client) => {
       const { request, version } = await this.loadForUpdate(client, requestId);
-      try {
-        assertSupportActionAllowed(request, action, groupId, ctx.serverNow);
-      } catch (e) {
-        if (e instanceof DomainError) {
-          const eventType =
-            e.code === "SUPPORT_FINANCIAL_FORBIDDEN" ? "support_financial_action_refused" : "support_access_denied";
-          await this.writeLog(client, ctx, groupId, eventType, `${action} : ${redactProviderError(e.message)}`);
-        }
-        throw e;
-      }
+      assertSupportActionAllowed(request, action, groupId, ctx.serverNow);
       // Action autorisée : AUCUNE mutation, AUCUN log superflu (parité fictif).
       return { requestId, action, groupId, accessAllowed: true, version };
-    });
+    }));
   }
 
-  async revoke(ctx: SupportContext, groupId: string, requestId: string): Promise<SupportAccessView> {
+  async revoke(ctx: SupportContext, groupId: string, requestId: string, expectedVersion?: number): Promise<SupportAccessView> {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
-    return withGroupTx(this.pool, groupId, async (client) => {
+    return this.guarded(ctx, groupId, `revoke ${requestId}`, () => withGroupTx(this.pool, groupId, async (client) => {
       const { request, version } = await this.loadForUpdate(client, requestId);
+      if (expectedVersion !== undefined) assertExpectedVersion(version, expectedVersion);
       const next = revokeSupportAccess(request, ctx.serverNow);
       const newVersion = version + 1;
       await client.query(`UPDATE support_access_request SET status=$2, revoked_at=$3, version=$4 WHERE request_id=$1`, [
@@ -242,9 +266,9 @@ export class PgSupportStore {
         new Date(ctx.serverNow * 1000),
         newVersion,
       ]);
-      await this.writeLog(client, ctx, groupId, "support_access_denied", `revoke ${requestId}`);
+      await this.writeLog(client, ctx, groupId, "support_access_revoked", `revoke ${requestId}`);
       return toView(next, newVersion);
-    });
+    }));
   }
 
   async view(ctx: SupportContext, groupId: string, requestId: string): Promise<SupportAccessView> {

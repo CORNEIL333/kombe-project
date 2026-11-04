@@ -8,6 +8,7 @@
  * erreur annule l'ensemble : jamais d'effet partiel.
  */
 import { randomUUID } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type pg from "pg";
 import {
   DomainError,
@@ -75,7 +76,54 @@ export function isoInstant(value: unknown): string | null {
 
 /* ── Transactions ─────────────────────────────────────────────────────── */
 
+/**
+ * Transaction de commande idempotente en cours (si la requête porte une
+ * `Idempotency-Key`) : tout `inTx` imbriqué se déroule DANS cette transaction
+ * (point de sauvegarde), si bien que l'effet métier et l'enregistrement de la
+ * réponse sont validés ou annulés ENSEMBLE — jamais d'effet sans trace
+ * rejouable, jamais de trace sans effet.
+ */
+const ambient = new AsyncLocalStorage<{ readonly db: Db; depth: number }>();
+
+/** Ouvre la transaction d'une commande idempotente (voir `write` dans routes.ts). */
+export async function inCommandTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promise<T> {
+  if (ambient.getStore()) throw new Error("inCommandTx imbriqué");
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+    await db.query("SET LOCAL idle_in_transaction_session_timeout = '9s'");
+    await db.query("SET LOCAL lock_timeout = '3s'");
+    await db.query("SET LOCAL statement_timeout = '9s'");
+    const out = await ambient.run({ db, depth: 0 }, () => fn(db));
+    await db.query("COMMIT");
+    return out;
+  } catch (error) {
+    try {
+      await db.query("ROLLBACK");
+    } catch {
+      /* connexion perdue : le pool la recrée */
+    }
+    throw translatePgError(error);
+  } finally {
+    db.release();
+  }
+}
+
 export async function inTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promise<T> {
+  const amb = ambient.getStore();
+  if (amb) {
+    // Imbriqué dans une commande idempotente : même connexion, point de sauvegarde.
+    const sp = `kombe_sp_${++amb.depth}`;
+    await amb.db.query(`SAVEPOINT ${sp}`);
+    try {
+      const out = await fn(amb.db);
+      await amb.db.query(`RELEASE SAVEPOINT ${sp}`);
+      return out;
+    } catch (error) {
+      await amb.db.query(`ROLLBACK TO SAVEPOINT ${sp}`).catch(() => undefined);
+      throw translatePgError(error);
+    }
+  }
   const db = await pool.connect();
   try {
     await db.query("BEGIN");

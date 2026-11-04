@@ -16,6 +16,8 @@ const n = (kind: string, params: NotificationView["params"], target: string | nu
   kind,
   target,
   params,
+  topic: "",
+  subjectId: null,
   createdAt: "2026-10-20T10:00:00Z",
   read: false,
 });

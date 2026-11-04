@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 // Dépôts FACTICES pour les tests visuels (golden, visite d'écrans).
 // Vivent dans test/ : jamais embarqués dans l'application.
 import 'dart:async';
@@ -24,6 +25,7 @@ import 'package:kombe_mobile/domain/entities/governance.dart';
 import 'package:kombe_mobile/domain/entities/group.dart';
 import 'package:kombe_mobile/domain/entities/notification.dart';
 import 'package:kombe_mobile/domain/entities/profile.dart';
+import 'package:kombe_mobile/domain/repositories/draft_repository.dart';
 import 'package:kombe_mobile/domain/repositories/auth_repository.dart';
 import 'package:kombe_mobile/domain/repositories/contribution_repository.dart';
 import 'package:kombe_mobile/domain/repositories/dashboard_repository.dart';
@@ -118,6 +120,7 @@ final class FakeWorld {
 
 final class FakeAuthRepository implements AuthRepository {
   FakeAuthRepository();
+
   final StreamController<Resource<AuthSession?>> _ctrl = StreamController<Resource<AuthSession?>>.broadcast();
   AuthSession? _session;
 
@@ -257,6 +260,8 @@ final class FakeGroupRepository implements GroupRepository {
     return const OperationSuccess<void>(null);
   }
 
+  final Map<String, Uint8List> photos = <String, Uint8List>{};
+
   @override
   Future<OperationResult<GroupInvitation>> createInvitation(String groupId) async {
     await _lag();
@@ -269,6 +274,22 @@ final class FakeGroupRepository implements GroupRepository {
       maxUses: 30,
       usedCount: 0,
     ));
+  }
+
+  @override
+  Future<Uint8List?> loadPhoto(String groupId, int version, int size) async => photos['$groupId:$size'];
+
+  @override
+  Future<OperationResult<int>> setPhoto(String groupId, Uint8List jpeg512, Uint8List jpeg256) async {
+    photos['$groupId:512'] = jpeg512;
+    photos['$groupId:256'] = jpeg256;
+    return const OperationSuccess<int>(1);
+  }
+
+  @override
+  Future<OperationResult<void>> removePhoto(String groupId) async {
+    photos.removeWhere((String k, _) => k.startsWith('$groupId:'));
+    return const OperationSuccess<void>(null);
   }
 
   @override
@@ -429,27 +450,36 @@ final class FakeContributionRepository implements ContributionRepository {
     return const ResourceUnavailable<Contribution>();
   }
 
+  @override
+  Future<Resource<List<OpenDue>>> openDues(String groupId) async => const ResourceReady<List<OpenDue>>(<OpenDue>[
+        OpenDue(fundId: 'f_rot', fundName: 'Cagnotte', fundKind: 'rotation', roundSeq: 3, remainingXaf: 25000, late: false),
+        OpenDue(fundId: 'f_sec', fundName: 'Secours', fundKind: 'solidarity', roundSeq: 3, remainingXaf: 1000, late: false),
+      ]);
+
   /// La déclaration rejoint l'historique « en attente » — jamais « validée ».
   @override
-  Future<OperationResult<Contribution>> submitDraft(ContributionDraft draft) async {
+  Future<DeclarationReceipt> sendDeclaration(ContributionDraft draft) async {
     await _lag(700);
-    final Contribution c = Contribution(
-      id: w.nextId('cot'),
-      groupId: draft.groupId,
-      obligationId: w.nextId('obl'),
-      amountXaf: draft.amountXaf,
-      status: ContributionStatus.submitted,
-      channel: draft.channel,
-      declaredAtUtc: DateTime.now().toUtc(),
-      note: draft.note,
-      evidenceName: draft.evidencePath?.split(RegExp(r'[\\/]')).last,
-    );
-    w.history.add(c);
-    w.notifications.insert(
-      0,
-      KombeNotification(id: w.nextId('n'), kind: NotificationKind.contribution, title: 'Votre déclaration a été envoyée', body: 'En attente de validation', createdAtUtc: DateTime.now().toUtc(), read: false),
-    );
-    return OperationSuccess<Contribution>(c);
+    final List<DeclarationLine> lines = <DeclarationLine>[];
+    for (final DeclarationLine l in draft.plan) {
+      if (l.recorded) {
+        lines.add(l);
+        continue;
+      }
+      final String id = w.nextId('cot');
+      w.history.add(Contribution(
+        id: id,
+        groupId: draft.groupId,
+        obligationId: w.nextId('obl'),
+        amountXaf: l.amountXaf,
+        status: ContributionStatus.submitted,
+        channel: draft.channel,
+        declaredAtUtc: DateTime.now().toUtc(),
+        note: draft.reference,
+      ));
+      lines.add(l.recordedAs(id));
+    }
+    return DeclarationReceipt(lines: lines);
   }
 }
 
@@ -558,7 +588,18 @@ final class FakeNotificationRepository implements NotificationRepository {
     final int i = w.notifications.indexWhere((KombeNotification n) => n.id == notificationId);
     if (i >= 0) {
       final KombeNotification n = w.notifications[i];
-      w.notifications[i] = n.copyWith(read: true);
+      w.notifications[i] = n.markedRead();
+    }
+    return const OperationSuccess<void>(null);
+  }
+
+  @override
+  Future<int> unreadCount() async => w.notifications.where((KombeNotification n) => !n.read).length;
+
+  @override
+  Future<OperationResult<void>> markAllRead() async {
+    for (int i = 0; i < w.notifications.length; i++) {
+      w.notifications[i] = w.notifications[i].markedRead();
     }
     return const OperationSuccess<void>(null);
   }
@@ -581,23 +622,43 @@ final class FakeDashboardRepository implements DashboardRepository {
   final FakeWorld w;
 
   @override
-  Future<Resource<DashboardData>> loadDashboard() async {
+  Future<Resource<HomeData>> loadHome(GroupSummary group) async {
     await _lag(500);
-    final int declared = w.history
-        .where((Contribution c) => c.declaredAtUtc != null && c.declaredAtUtc!.month == DateTime.now().toUtc().month)
-        .fold<int>(0, (int s, Contribution c) => s + c.amountXaf);
-    return ResourceReady<DashboardData>(DashboardData(
-      primaryGroup: w.groups.first,
-      nextContributionAtUtc: w.nextDue,
-      currentMonthDeclaredXaf: declared,
-      progressPercent: declared == 0 ? 0 : 100,
-      recentActivity: w.notifications.take(4).toList(),
+    return ResourceReady<HomeData>(HomeData(
+      group: group,
+      dues: const <OpenDue>[
+        OpenDue(fundId: 'f_rot', fundName: 'Cagnotte', fundKind: 'rotation', roundSeq: 3, remainingXaf: 25000, late: false),
+        OpenDue(fundId: 'f_sec', fundName: 'Secours', fundKind: 'solidarity', roundSeq: 3, remainingXaf: 1000, late: false),
+      ],
+      nextDueDate: w.nextDue,
+      pendingDeclaredXaf: 15000,
+      pendingDeclarations: 1,
+      toValidate: group.role == GroupRole.member ? 0 : 2,
+      votes: <PendingVote>[PendingVote(id: 'essai-vote-1', title: 'Pause des séances', closesAtUtc: w.nextDue)],
+      nextMeetingDate: w.nextDue,
+      nextMeetingPlace: 'Chez Mme Ngo, Bonamoussadi',
+      recent: w.notifications.take(3).toList(),
     ));
   }
 }
 
 /// Dépendances complètes de l'app branchées sur les dépôts factices (tests uniquement).
-AppDependencies fakeDependencies() {
+/// Brouillons en mémoire (pas de SQLite dans les tests de widgets).
+final class InMemoryDraftRepository implements ContributionDraftRepository {
+  final Map<String, ContributionDraft> store = <String, ContributionDraft>{};
+  @override
+  Future<List<ContributionDraft>> listDrafts() async => store.values.toList();
+  @override
+  Future<ContributionDraft?> getDraft(String localId) async => store[localId];
+  @override
+  Future<void> upsertDraft(ContributionDraft draft) async => store[draft.localId] = draft;
+  @override
+  Future<void> deleteDraft(String localId) async => store.remove(localId);
+  @override
+  Future<void> purgeAll() async => store.clear();
+}
+
+AppDependencies fakeDependencies({ContributionDraftRepository? drafts}) {
   final FakeWorld world = FakeWorld();
   return AppDependencies(
     authRepository: FakeAuthRepository(),
@@ -609,9 +670,9 @@ AppDependencies fakeDependencies() {
     notificationRepository: FakeNotificationRepository(world),
     documentRepository: FakeDocumentRepository(),
     dashboardRepository: FakeDashboardRepository(world),
-    draftRepository: ContributionDraftDatabase(),
+    draftRepository: drafts ?? ContributionDraftDatabase(),
     preferencesRepository: PreferencesRepositoryImpl(SharedPreferencesAsync()),
     biometricService: BiometricService(LocalAuthentication()),
-    secureSessionStore: const SecureSessionStore(FlutterSecureStorage()),
+    secureSessionStore: SecureSessionStore(const FlutterSecureStorage()),
   );
 }

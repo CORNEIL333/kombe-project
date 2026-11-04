@@ -1,8 +1,11 @@
 enum NotificationKind { contribution, validation, meeting, vote, dispute, security, system }
 
 /// Notification de l'application (`NotificationView` serveur) : titre selon le
-/// type, ligne de détail construite à partir des paramètres (échéance, tour,
-/// nom…), et cible à ouvrir au toucher.
+/// type (`code`) ou la nature précise (`topic`), ligne de détail construite à
+/// partir des paramètres (échéance, tour, nom…), et cible à ouvrir au toucher.
+/// `topic` et `subjectId` disent précisément de quoi il s'agit ; `groupId`
+/// borne la destination. Ouvrir une notification ne décide jamais rien à la
+/// place de la personne : elle mène à l'écran où l'action se fait.
 final class KombeNotification {
   const KombeNotification({
     required this.id,
@@ -16,6 +19,8 @@ final class KombeNotification {
     this.groupName,
     this.target,
     this.params = const <String, Object?>{},
+    this.topic = '',
+    this.subjectId,
   });
 
   final String id;
@@ -37,6 +42,13 @@ final class KombeNotification {
   final String? target;
   final Map<String, Object?> params;
 
+  /// Nature précise (préfixe de la clé de dédoublonnage : `declared`,
+  /// `rejected`, `decision`, `contest`…).
+  final String topic;
+
+  /// Objet visé (mouvement, décision, amende…) quand la clé le porte.
+  final String? subjectId;
+
   KombeNotification copyWith({bool? read}) => KombeNotification(
         id: id,
         kind: kind,
@@ -49,7 +61,11 @@ final class KombeNotification {
         groupName: groupName,
         target: target,
         params: params,
+        topic: topic,
+        subjectId: subjectId,
       );
+
+  KombeNotification markedRead() => copyWith(read: true);
 }
 
 /// Route de l'application à ouvrir pour une notification : la cible serveur

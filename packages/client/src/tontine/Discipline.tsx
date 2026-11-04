@@ -9,6 +9,7 @@ import { argent, discipline, tontines, type DebtView, type FineView } from "./ap
 import { peut } from "./droits.js";
 import { CANAUX } from "./Argent.js";
 import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, aujourdhui, useAction, useDonnees } from "./ui.js";
+import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 
@@ -47,8 +48,9 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
       titre={tx("di.amendes")}
       actions={
         peut(ctx.roles, "fine.issue") && !nouvelle ? (
-          <button type="button" className="bouton bouton-compact" onClick={() => setNouvelle({ membershipId: "", kind: "meeting_absence", amount: "", reason: "" })}>
-            {tx("di.infliger")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setNouvelle({ membershipId: "", kind: "meeting_absence", amount: "", reason: "" })} title={tx("di.infliger")}>
+            <Icone nom="alerte" taille={18} />
+            <span className="bouton-libelle">{tx("di.infliger")}</span>
           </button>
         ) : null
       }
@@ -134,24 +136,28 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
                     </div>
                     <div className="liste__actions">
                       {f.state === "issued" && concerne ? (
-                        <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setMotif({ id: f.fineId, quoi: "contester", texte: "" })}>
-                          {tx("di.contester")}
+                        <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => setMotif({ id: f.fineId, quoi: "contester", texte: "" })} title={tx("di.contester")}>
+                          <Icone nom="balance" taille={18} />
+                          <span className="bouton-libelle">{tx("di.contester")}</span>
                         </button>
                       ) : null}
                       {f.state === "issued" && caisseAmendes && (concerne || peut(ctx.roles, "movement.confirm")) ? (
-                        <button type="button" className="bouton bouton-compact" onClick={() => setPaiement(f)}>
-                          {tx("di.payer")}
+                        <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setPaiement(f)} title={tx("di.payer")}>
+                          <Icone nom="especes" taille={18} />
+                          <span className="bouton-libelle">{tx("di.payer")}</span>
                         </button>
                       ) : null}
                       {(f.state === "contested" || f.state === "issued") && peut(ctx.roles, "member.admit") && !concerne ? (
                         <>
                           {f.state === "contested" ? (
-                            <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setMotif({ id: f.fineId, quoi: "maintenir", texte: "" })}>
-                              {tx("di.maintenir")}
+                            <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => setMotif({ id: f.fineId, quoi: "maintenir", texte: "" })} title={tx("di.maintenir")}>
+                              <Icone nom="balance" taille={18} />
+                              <span className="bouton-libelle">{tx("di.maintenir")}</span>
                             </button>
                           ) : null}
-                          <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setMotif({ id: f.fineId, quoi: "annuler", texte: "" })}>
-                            {tx("di.annuler")}
+                          <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => setMotif({ id: f.fineId, quoi: "annuler", texte: "" })} title={tx("di.annuler")}>
+                            <Icone nom="fermer" taille={18} />
+                            <span className="bouton-libelle">{tx("di.annuler")}</span>
                           </button>
                         </>
                       ) : null}
@@ -236,8 +242,9 @@ function Secours({ ctx }: { readonly ctx: ContexteGroupe }) {
       titre={tx("di.secours")}
       actions={
         demande ? null : (
-          <button type="button" className="bouton bouton-compact" onClick={() => setDemande({ pour: "", event: "illness", eventDate: aujourdhui(), note: "" })}>
-            {tx("di.demander")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setDemande({ pour: "", event: "illness", eventDate: aujourdhui(), note: "" })} title={tx("di.demander")}>
+            <Icone nom="plus" taille={18} />
+            <span className="bouton-libelle">{tx("di.demander")}</span>
           </button>
         )
       }
@@ -330,8 +337,9 @@ function Secours({ ctx }: { readonly ctx: ContexteGroupe }) {
                     <div className="liste__actions">
                       {a.state === "requested" && peut(ctx.roles, "aid.decide") && !beneficiaire ? (
                         <>
-                          <button type="button" className="bouton bouton-compact" onClick={() => void action.lancer(() => discipline.deciderSecours(ctx.session, gid, a.aidId, "approve")).then(apres)}>
-                            {tx("di.accorder")}
+                          <button type="button" className="bouton bouton-compact bouton-avec-icone" onClick={() => void action.lancer(() => discipline.deciderSecours(ctx.session, gid, a.aidId, "approve")).then(apres)} title={tx("di.accorder")}>
+                            <Icone nom="coche" taille={18} />
+                            <span className="bouton-libelle">{tx("di.accorder")}</span>
                           </button>
                           <button
                             type="button"
@@ -343,8 +351,9 @@ function Secours({ ctx }: { readonly ctx: ContexteGroupe }) {
                         </>
                       ) : null}
                       {a.state === "approved" && peut(ctx.roles, "movement.confirm") ? (
-                        <button type="button" className="bouton bouton-compact" onClick={() => setRemise(a.aidId)}>
-                          {tx("di.remettre")}
+                        <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setRemise(a.aidId)} title={tx("di.remettre")}>
+                          <Icone nom="cagnotte" taille={18} />
+                          <span className="bouton-libelle">{tx("di.remettre")}</span>
                         </button>
                       ) : null}
                     </div>
@@ -410,13 +419,15 @@ function Dettes({ ctx }: { readonly ctx: ContexteGroupe }) {
                   {d.state === "open" ? (
                     <div className="liste__actions">
                       {moi?.membershipId === d.debtorMembershipId || peut(ctx.roles, "movement.confirm") ? (
-                        <button type="button" className="bouton bouton-compact" onClick={() => (setRegler(d), setMontant(d.remaining))}>
-                          {tx("di.regler")}
+                        <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => (setRegler(d), setMontant(d.remaining))} title={tx("di.regler")}>
+                          <Icone nom="especes" taille={18} />
+                          <span className="bouton-libelle">{tx("di.regler")}</span>
                         </button>
                       ) : null}
                       {peut(ctx.roles, "member.admit") && moi?.membershipId !== d.debtorMembershipId ? (
-                        <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setAbandon({ id: d.debtId, motif: "" })}>
-                          {tx("di.abandonner")}
+                        <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setAbandon({ id: d.debtId, motif: "" })} title={tx("di.abandonner")}>
+                          <Icone nom="fermer" taille={18} />
+                          <span className="bouton-libelle">{tx("di.abandonner")}</span>
                         </button>
                       ) : null}
                     </div>

@@ -10,9 +10,10 @@ import type pg from "pg";
 import { z } from "zod";
 import { DomainError } from "@kombe/domain";
 import { inTx, sessionIdentity } from "../tontine/infra.js";
+import { activateMfa, assertOperator, enrollMfa, operatorStatus, verifyMfa, type OperatorRole } from "./operatorAccess.js";
 
 /** Dernier jalon de schéma attendu par CE build de l'API (test : = dernier fichier de migrations/). */
-export const EXPECTED_LATEST_MIGRATION = "migrations/0034_echeances_notifications.sql";
+export const EXPECTED_LATEST_MIGRATION = "migrations/0036_securite_operateurs.sql";
 
 export interface OpsRoutesOptions {
   readonly pool: pg.Pool;
@@ -25,8 +26,12 @@ export function registerOpsRoutes(app: FastifyInstance, opts: OpsRoutesOptions):
   const { pool, now } = opts;
   const H = (r: FastifyRequest): Record<string, unknown> => r.headers as Record<string, unknown>;
 
-  /** Ouvre une transaction sous l'identité de la session et exige un opérateur. */
-  async function asOperator<T>(req: FastifyRequest, fn: (db: pg.PoolClient) => Promise<T>): Promise<T> {
+  /**
+   * Exige un opérateur tenant l'une des fonctions demandées, second facteur
+   * vérifié (ADR-0043), puis ouvre la transaction de lecture sous son identité.
+   */
+  async function asOperator<T>(req: FastifyRequest, roles: readonly OperatorRole[], fn: (db: pg.PoolClient) => Promise<T>): Promise<T> {
+    await assertOperator(pool, H(req), now(), roles);
     return inTx(pool, async (db) => {
       await sessionIdentity(db, H(req), now());
       const r = await db.query("SELECT kombe_is_operator() AS ok");
@@ -35,17 +40,18 @@ export function registerOpsRoutes(app: FastifyInstance, opts: OpsRoutesOptions):
     });
   }
 
-  // Qui suis-je pour la console ? (toute session ; ne révèle rien d'autre)
-  app.get("/v1/ops/me", async (req) =>
-    inTx(pool, async (db) => {
-      const identityId = await sessionIdentity(db, H(req), now());
-      const r = await db.query("SELECT kombe_is_operator() AS ok");
-      return { identityId, operator: r.rows[0]?.ok === true };
-    }),
-  );
+  // Qui suis-je pour la console ? (toute session ; ne révèle que son propre
+  // statut : opérateur, fonctions, état du second facteur).
+  app.get("/v1/ops/me", async (req) => inTx(pool, (db) => operatorStatus(db, H(req), now())));
+
+  // Second facteur des opérateurs (TOTP) : inscription, activation, vérification.
+  const codeBody = z.object({ code: z.string().regex(/^\d{6}$/).optional(), recoveryCode: z.string().min(6).max(20).optional() });
+  app.post("/v1/ops/mfa/enrollment", async (req, reply) => reply.code(201).send(await enrollMfa(pool, H(req), now())));
+  app.post("/v1/ops/mfa/activation", async (req) => activateMfa(pool, H(req), now(), z.object({ code: z.string().regex(/^\d{6}$/) }).parse(req.body).code));
+  app.post("/v1/ops/mfa/verification", async (req) => verifyMfa(pool, H(req), now(), codeBody.parse(req.body)));
 
   app.get("/v1/ops/overview", async (req) =>
-    asOperator(req, async (db) => {
+    asOperator(req, ["operations"], async (db) => {
       const r = await db.query("SELECT kombe_ops_overview() AS o");
       return r.rows[0]?.o ?? {};
     }),
@@ -53,7 +59,7 @@ export function registerOpsRoutes(app: FastifyInstance, opts: OpsRoutesOptions):
 
   app.get("/v1/ops/kpis", async (req) => {
     const weeks = z.coerce.number().int().min(1).max(104).default(12).parse((req.query as { weeks?: string }).weeks);
-    return asOperator(req, async (db) => {
+    return asOperator(req, ["operations", "direction"], async (db) => {
       const r = await db.query("SELECT * FROM kombe_ops_kpis($1)", [weeks]);
       return r.rows.map((x) => ({
         weekStart: String(x.week_start instanceof Date ? isoDay(x.week_start) : x.week_start).slice(0, 10),
@@ -73,7 +79,7 @@ export function registerOpsRoutes(app: FastifyInstance, opts: OpsRoutesOptions):
 
   app.get("/v1/ops/groups", async (req) => {
     const limit = z.coerce.number().int().min(1).max(500).default(100).parse((req.query as { limit?: string }).limit);
-    return asOperator(req, async (db) => {
+    return asOperator(req, ["operations", "support"], async (db) => {
       const r = await db.query("SELECT * FROM kombe_ops_groups($1)", [limit]);
       return r.rows.map((x) => ({
         groupId: String(x.group_id),
@@ -94,7 +100,7 @@ export function registerOpsRoutes(app: FastifyInstance, opts: OpsRoutesOptions):
 
   app.get("/v1/ops/support-requests", async (req) => {
     const limit = z.coerce.number().int().min(1).max(500).default(100).parse((req.query as { limit?: string }).limit);
-    return asOperator(req, async (db) => {
+    return asOperator(req, ["support", "operations"], async (db) => {
       const r = await db.query("SELECT * FROM kombe_ops_support_requests($1)", [limit]);
       return r.rows.map((x) => ({
         requestId: String(x.request_id),
@@ -114,7 +120,7 @@ export function registerOpsRoutes(app: FastifyInstance, opts: OpsRoutesOptions):
   });
 
   app.get("/v1/ops/engineering", async (req) =>
-    asOperator(req, async (db) => {
+    asOperator(req, ["engineering"], async (db) => {
       const r = await db.query("SELECT kombe_ops_engineering() AS e");
       const e = (r.rows[0]?.e ?? {}) as { migrations?: { name: string }[] };
       const names = (e.migrations ?? []).map((m) => m.name);

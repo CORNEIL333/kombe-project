@@ -39,9 +39,9 @@ export const fixtures = [
   ["GET", /\/v1\/me$/, { identityId: "me", login: "amina@exemple.cm", displayName: "Amina Ngué", language: "fr" }],
   ["GET", /\/v1\/me\/tontines/, [summary(G, "Les Étoiles de Yaoundé", 12, "25000", 5, "25000", ["animator"]), summary("grp-bam", "Solidarité Bamiléké", 10, "15000", 10, "0", ["treasurer"]), summary("grp-vis", "Vision Entrepreneurs", 8, "50000", 3, "0")]],
   ["GET", /\/v1\/me\/notifications/, [
-    { notificationId: "n1", groupId: G, groupName: "Les Étoiles de Yaoundé", kind: "validation_waiting", target: null, createdAt: at(-0.1), read: false },
-    { notificationId: "n2", groupId: G, groupName: "Les Étoiles de Yaoundé", kind: "meeting_reminder", target: null, createdAt: at(-1), read: false },
-    { notificationId: "n3", groupId: "grp-bam", groupName: "Solidarité Bamiléké", kind: "payout_recorded", target: null, createdAt: at(-3), read: true },
+    { notificationId: "n1", groupId: G, groupName: "Les Étoiles de Yaoundé", kind: "validation_waiting", target: null, topic: "declared", subjectId: "mv9", createdAt: at(-0.1), read: false },
+    { notificationId: "n2", groupId: G, groupName: "Les Étoiles de Yaoundé", kind: "meeting_reminder", target: null, topic: "meetingSoon", subjectId: "mt4", createdAt: at(-1), read: false },
+    { notificationId: "n3", groupId: "grp-bam", groupName: "Solidarité Bamiléké", kind: "payout_recorded", target: null, topic: "payout", subjectId: "mv3", createdAt: at(-3), read: true },
   ]],
   ["GET", /\/v1\/me\/dues/, [{ groupId: G, fundId: "f1", fundKind: "rotation", fundName: "Tontine", roundSeq: 4, date: iso(5), due: "25000", confirmed: "0", declared: "0", remaining: "25000", lateness: "upcoming" },
     { groupId: G, fundId: "f2", fundKind: "solidarity", fundName: "Caisse de secours", roundSeq: 4, date: iso(5), due: "1000", confirmed: "0", declared: "0", remaining: "1000", lateness: "upcoming" }]],

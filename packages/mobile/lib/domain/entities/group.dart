@@ -188,6 +188,7 @@ final class GroupSummary {
     required this.nextDueAtUtc,
     this.coverUrl,
     this.apiRoles = const <String>{},
+    this.photoVersion,
   });
 
   final String id;
@@ -217,6 +218,9 @@ final class GroupSummary {
           };
     return mine.intersection(act.roles).isNotEmpty;
   }
+
+  /// Version de la photo du groupe (clé de cache) ; null = initiales.
+  final int? photoVersion;
 }
 
 final class GroupDetails {

@@ -1,0 +1,15 @@
+#!/bin/sh
+# KÓMBE — publication automatique de l'application mobile au push.
+# Si la version de packages/mobile/pubspec.yaml n'a pas encore de release
+# GitHub, la publication (tests, APK signés, manifeste, mobile-latest) part
+# en arrière-plan une fois le push arrivé. Journal : .git/kombe-publication.log
+# Activer : git config core.hooksPath .githooks
+racine=$(git rev-parse --show-toplevel)
+version=$(sed -n -E 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+).*/mobile-v\1-b\2/p' "$racine/packages/mobile/pubspec.yaml")
+[ -z "$version" ] && exit 0
+command -v gh >/dev/null 2>&1 || exit 0
+if gh release view "$version" >/dev/null 2>&1; then exit 0; fi
+journal="$(git rev-parse --git-dir)/kombe-publication.log"
+echo "KÓMBE : nouvelle version mobile $version — publication en arrière-plan (journal : $journal)"
+nohup node "$racine/scripts/mobile/publier.mjs" --apres-push > "$journal" 2>&1 &
+exit 0

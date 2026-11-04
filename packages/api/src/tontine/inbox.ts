@@ -33,6 +33,8 @@ async function produceReminders(db: Db, identityId: string, nowMs: number): Prom
 const EVENT_LABELS: Readonly<Record<string, string>> = {
   "tontine.created": "Association créée",
   "tontine.settings_changed": "Règlement modifié",
+  "tontine.photo_changed": "Photo du groupe changée",
+  "tontine.photo_removed": "Photo du groupe retirée",
   "member.requested": "Demande d'adhésion",
   "member.admitted": "Membre admis",
   "member.rejected": "Adhésion refusée",
@@ -91,6 +93,14 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   "history.imported": "Historique repris (cahier ou ancienne application)",
 };
 
+/** `rejected:mv_1:+2376…` → topic `rejected`, objet `mv_1` (le suffixe
+ *  d'identité ajouté par `notify` n'est jamais exposé). */
+export function topicOf(dedupKey: string): { topic: string; subjectId: string | null } {
+  const parts = dedupKey.split(":");
+  const subject = parts.length > 2 ? (parts[1] ?? "") : "";
+  return { topic: parts[0] ?? "", subjectId: subject && /^[A-Za-z0-9_-]{1,80}$/.test(subject) ? subject : null };
+}
+
 export class InboxService {
   constructor(
     private readonly pool: pg.Pool,
@@ -105,7 +115,7 @@ export class InboxService {
       const groups = await db.query(`SELECT group_id, group_name FROM kombe_my_memberships()`);
       const nameOf = new Map(groups.rows.map((x) => [String(x.group_id), String(x.group_name ?? "")]));
       const r = await db.query(
-        `SELECT notification_id, group_id, kind, target, params, created_at, read_at FROM inbox_notification
+        `SELECT notification_id, group_id, kind, target, params, dedup_key, created_at, read_at FROM inbox_notification
           WHERE identity_id = $1 ${opts.unreadOnly ? "AND read_at IS NULL" : ""} ORDER BY created_at DESC, notification_id DESC LIMIT 100`,
         [id],
       );
@@ -116,6 +126,7 @@ export class InboxService {
         kind: String(row.kind),
         target: row.target ?? null,
         params: (row.params as NotificationView["params"]) ?? null,
+        ...topicOf(String(row.dedup_key ?? "")),
         createdAt: isoInstant(row.created_at) as string,
         read: row.read_at !== null,
       }));

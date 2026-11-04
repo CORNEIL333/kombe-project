@@ -92,6 +92,12 @@ export function neonAuthFromEnv(env: NodeJS.ProcessEnv = process.env): NeonAuthC
 /** Délai maximal d'un appel à Neon Auth : au-delà, on répond plutôt qu'attendre. */
 const NEON_TIMEOUT_MS = 10_000;
 
+/** Borne horaire par adresse IP des demandes de code (réglable : NAT des opérateurs, recettes locales). */
+function ipLimit(env: NodeJS.ProcessEnv = process.env): number {
+  const n = Number(env.KOMBE_OTP_IP_LIMIT);
+  return Number.isInteger(n) && n > 0 ? n : 120;
+}
+
 export class TontineAuth {
   constructor(
     private readonly pool: pg.Pool,
@@ -191,8 +197,33 @@ export class TontineAuth {
     return this.openSession(login);
   }
 
-  async requestCode(input: { login: string; channel?: "sms" | "whatsapp" | "email" | undefined }): Promise<AuthCodeRequestResult> {
+  /**
+   * Limitation PARTAGÉE (PostgreSQL, toutes instances) des demandes et
+   * vérifications de code (ADR-0043) : borne les envois en rafale, la force
+   * brute et les coûts SMS. L'adresse IP a une borne large (réseaux mobiles
+   * camerounais partagés derrière un même NAT) ; l'identifiant, une borne
+   * stricte. Réponse 429 uniforme, sans dire si le compte existe.
+   */
+  private async throttle(kind: "request" | "verify", login: string, ip: string | undefined): Promise<void> {
+    const at = new Date(this.now());
+    const rules: [string, number, number][] =
+      kind === "request"
+        ? [[`otp:req:login:${login}`, 3600, 6], ...(ip ? ([[`otp:req:ip:${ip}`, 3600, ipLimit()]] as [string, number, number][]) : [])]
+        : [[`otp:ver:login:${login}`, 3600, 20], ...(ip ? ([[`otp:ver:ip:${ip}`, 3600, ipLimit() * 3]] as [string, number, number][]) : [])];
+    const allowed = await inTx(this.pool, async (db) => {
+      let ok = true;
+      for (const [key, win, max] of rules) {
+        const r = await db.query("SELECT kombe_rate_hit($1,$2,$3,$4) AS ok", [key, win, max, at]);
+        if (r.rows[0]?.ok !== true) ok = false;
+      }
+      return ok;
+    });
+    if (!allowed) throw new DomainError("AUTH_THROTTLED", "Trop de demandes : patientez avant de réessayer");
+  }
+
+  async requestCode(input: { login: string; channel?: "sms" | "whatsapp" | "email" | undefined; ip?: string | undefined }): Promise<AuthCodeRequestResult> {
     const { login, kind } = canonicalLogin(input.login);
+    await this.throttle("request", login, input.ip);
     if (this.viaNeon(kind)) {
       await this.neonRequestCode(login);
       return { accepted: true, login, channel: "email" };
@@ -263,9 +294,10 @@ export class TontineAuth {
     return { accepted: true, login, channel, ...(devCode ? { devCode } : {}) };
   }
 
-  async verifyCode(input: { login: string; code: string }): Promise<AuthSessionResult> {
+  async verifyCode(input: { login: string; code: string; ip?: string | undefined }): Promise<AuthSessionResult> {
     const { login, kind } = canonicalLogin(input.login);
     if (!/^\d{6}$/.test(input.code)) throw new DomainError("TOKEN_INVALID", "Code invalide");
+    await this.throttle("verify", login, input.ip);
     if (this.viaNeon(kind)) return this.neonVerifyCode(login, input.code);
     // Phase 1 : vérification durable (le compteur d'essais survit à l'échec).
     const outcome = await inTx(this.pool, async (db) => {

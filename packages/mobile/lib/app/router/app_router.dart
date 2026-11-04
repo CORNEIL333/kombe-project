@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/auth.dart';
-import '../../features/auth/biometric_setup_screen.dart';
 import '../../features/auth/display_name_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/recovery_request_screen.dart';
@@ -11,7 +10,6 @@ import '../../features/auth/verify_code_screen.dart';
 import '../../features/auth/welcome_screen.dart';
 import '../../features/contributions/contribution_detail_screen.dart';
 import '../../features/contributions/contribution_history_screen.dart';
-import '../../features/contributions/contribution_review_screen.dart';
 import '../../features/contributions/contribution_start_screen.dart';
 import '../../features/documents/document_screens.dart';
 import '../../features/fines/fine_screens.dart';
@@ -21,7 +19,6 @@ import '../../features/groups/create_group_screen.dart';
 import '../../features/groups/cycle_screen.dart';
 import '../../features/groups/group_detail_screen.dart';
 import '../../features/groups/group_settings_screen.dart';
-import '../../features/groups/groups_screen.dart';
 import '../../features/groups/invite_member_screen.dart';
 import '../../features/groups/join_group_screen.dart';
 import '../../features/groups/member_detail_screen.dart';
@@ -32,12 +29,12 @@ import '../../features/home/dashboard_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/offline/offline_status_screen.dart';
 import '../../features/offline/server_required_screen.dart';
+import '../../features/groups/bureau_screen.dart';
 import '../../features/groups/funds_screen.dart';
 import '../../features/profile/edit_profile_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/settings/about_screen.dart';
 import '../../features/settings/language_screen.dart';
-import '../../features/settings/more_screen.dart';
 import '../../features/settings/notification_preferences_screen.dart';
 import '../../features/settings/privacy_screen.dart';
 import '../../features/settings/security_screen.dart';
@@ -73,10 +70,6 @@ final class AppRouter {
           builder: (_, __) => const RecoveryRequestScreen(),
         ),
         GoRoute(
-          path: '/biometric-setup',
-          builder: (_, __) => const BiometricSetupScreen(),
-        ),
-        GoRoute(
           path: '/app/welcome-name',
           builder: (_, __) => const DisplayNameScreen(),
         ),
@@ -99,8 +92,16 @@ final class AppRouter {
             StatefulShellBranch(
               routes: <RouteBase>[
                 GoRoute(
+                  path: '/app/contributions',
+                  builder: (_, __) => const ContributionHistoryScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: <RouteBase>[
+                GoRoute(
                   path: '/app/groups',
-                  builder: (_, __) => const GroupsScreen(),
+                  builder: (_, __) => const MyGroupsScreen(),
                 ),
               ],
             ),
@@ -112,15 +113,11 @@ final class AppRouter {
                 ),
               ],
             ),
-            StatefulShellBranch(
-              routes: <RouteBase>[
-                GoRoute(
-                  path: '/app/more',
-                  builder: (_, __) => const MoreScreen(),
-                ),
-              ],
-            ),
           ],
+        ),
+        GoRoute(
+          path: '/app/bureau',
+          builder: (_, __) => const ActiveBureauScreen(),
         ),
         GoRoute(
           path: '/app/groups/join',
@@ -130,10 +127,7 @@ final class AppRouter {
           path: '/app/groups/create',
           builder: (_, __) => const CreateGroupScreen(),
         ),
-        GoRoute(
-          path: '/app/groups/mine',
-          builder: (_, __) => const MyGroupsScreen(),
-        ),
+        GoRoute(path: '/app/groups/mine', redirect: (_, __) => '/app/groups'),
         GoRoute(
           path: '/app/groups/:groupId',
           builder: (_, state) =>
@@ -162,6 +156,11 @@ final class AppRouter {
               BeneficiariesScreen(groupId: state.pathParameters['groupId']!),
         ),
         GoRoute(
+          path: '/app/groups/:groupId/bureau',
+          builder: (_, state) =>
+              BureauScreen(groupId: state.pathParameters['groupId']!),
+        ),
+        GoRoute(
           path: '/app/groups/:groupId/funds',
           builder: (_, state) =>
               FundsScreen(groupId: state.pathParameters['groupId']!),
@@ -187,17 +186,6 @@ final class AppRouter {
             groupId: state.pathParameters['groupId']!,
             draftId: state.uri.queryParameters['draft'],
           ),
-        ),
-        GoRoute(
-          path: '/app/groups/:groupId/contributions/:draftId/review',
-          builder: (_, state) => ContributionReviewScreen(
-            groupId: state.pathParameters['groupId']!,
-            draftId: state.pathParameters['draftId']!,
-          ),
-        ),
-        GoRoute(
-          path: '/app/contributions',
-          builder: (_, __) => const ContributionHistoryScreen(),
         ),
         GoRoute(
           path: '/app/contributions/:contributionId',
@@ -281,8 +269,7 @@ final class AppRouter {
         path == '/login' ||
         path == '/register' ||
         path == '/verify-code' ||
-        path == '/recovery-request' ||
-        path == '/biometric-setup';
+        path == '/recovery-request';
 
     final bool signedIn = sessionController.kind == SessionStateKind.signedIn;
     // Compte sans nom : on le demande avant d'entrer (« Comment vous

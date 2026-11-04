@@ -6,8 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/design/kombe_colors.dart';
 import '../../core/formatters/douala_time.dart';
 import '../../core/state/operation_result.dart';
+import '../../core/widgets/kombe_sheet.dart';
 import '../../core/widgets/operation_feedback.dart';
-import '../../core/widgets/section_card.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
 
@@ -18,31 +18,57 @@ Uri? whatsappShareUri(String text) {
   return uri.scheme == 'https' && uri.host == 'wa.me' ? uri : null;
 }
 
-/// Invitation de nouveaux membres : le serveur crée un lien et un code ; on
-/// les partage (copie, WhatsApp). Aucun numéro de téléphone n'est demandé :
-/// la personne rejoint avec le code, puis le bureau l'admet.
-class InviteMemberScreen extends StatefulWidget {
+/// Ouvre l'invitation en demi-fenêtre, sans quitter l'écran du groupe.
+Future<void> showInviteSheet(BuildContext context, String groupId) =>
+    showKombeSheet<void>(context, title: 'Inviter un membre', builder: (_) => InvitePanel(groupId: groupId));
+
+/// Route directe (`/app/groups/:id/invite`) : même contenu en plein écran.
+class InviteMemberScreen extends StatelessWidget {
   const InviteMemberScreen({required this.groupId, super.key});
   final String groupId;
 
   @override
-  State<InviteMemberScreen> createState() => _InviteMemberScreenState();
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Inviter un membre')),
+        body: SafeArea(
+          child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: InvitePanel(groupId: groupId)),
+        ),
+      );
 }
 
-class _InviteMemberScreenState extends State<InviteMemberScreen> {
+/// Invitation de nouveaux membres : le serveur crée un lien et un code
+/// (action réelle, écrite au registre) ; on les partage (copie, WhatsApp).
+/// Aucun numéro de téléphone n'est demandé et KÓMBE n'envoie aucun message
+/// en votre nom : la personne rejoint avec le code, puis le bureau l'admet.
+class InvitePanel extends StatefulWidget {
+  const InvitePanel({required this.groupId, super.key});
+  final String groupId;
+
+  @override
+  State<InvitePanel> createState() => _InvitePanelState();
+}
+
+class _InvitePanelState extends State<InvitePanel> {
   GroupInvitation? _invitation;
-  bool _busy = false;
+  bool _creating = false;
+  String? _error;
 
   Future<void> _create() async {
-    setState(() => _busy = true);
+    if (_creating) return;
+    setState(() {
+      _creating = true;
+      _error = null;
+    });
     final OperationResult<GroupInvitation> r = await context.read<GroupRepository>().createInvitation(widget.groupId);
     if (!mounted) return;
-    setState(() => _busy = false);
-    if (r case OperationSuccess<GroupInvitation>(:final GroupInvitation value)) {
-      setState(() => _invitation = value);
-    } else {
-      reportOutcome(context, r);
-    }
+    setState(() {
+      _creating = false;
+      if (r case OperationSuccess<GroupInvitation>(:final GroupInvitation value)) {
+        _invitation = value;
+      } else {
+        _error = outcomeMessage(r);
+      }
+    });
   }
 
   Future<void> _copy(String text, String what) async {
@@ -64,76 +90,69 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
   Widget build(BuildContext context) {
     final TextTheme t = Theme.of(context).textTheme;
     final GroupInvitation? inv = _invitation;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Inviter des membres')),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+    if (inv == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            'Créez un lien d’invitation, valable 14 jours, et envoyez-le à la personne à inviter. Elle ouvre le lien '
+            '(ou saisit le code), puis le président ou le vice-président admet sa demande.',
+            style: t.bodyMedium,
+          ),
+          if (_error != null) ...<Widget>[
+            const SizedBox(height: 12),
+            Semantics(liveRegion: true, child: Text(_error!, style: t.bodyMedium?.copyWith(color: KombeColors.danger))),
+          ],
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: _creating ? null : _create,
+            icon: _creating
+                ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2.4))
+                : const Icon(Icons.link_rounded),
+            label: const Text('Créer un lien d’invitation'),
+          ),
+        ],
+      );
+    }
+    final String uses = inv.maxUses <= 1 ? 'pour une personne' : '${inv.maxUses} personnes au plus';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text('Code d’invitation', style: t.labelLarge?.copyWith(color: KombeColors.slate)),
+        const SizedBox(height: 4),
+        Row(
           children: <Widget>[
-            Text(
-              'Créez un lien d’invitation et envoyez-le aux personnes à inviter. Elles ouvrent le lien (ou saisissent le code), '
-              'puis le président ou le vice-président admet chaque demande.',
-              style: t.bodyLarge,
+            Expanded(
+              child: SelectableText(
+                inv.code,
+                style: t.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: 3, color: KombeColors.forest),
+              ),
             ),
-            const SizedBox(height: 22),
-            if (inv == null)
-              FilledButton.icon(
-                onPressed: _busy ? null : _create,
-                icon: _busy
-                    ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.link_rounded),
-                label: const Text('Créer un lien d’invitation'),
-              )
-            else ...<Widget>[
-              SectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text('Code', style: t.labelLarge),
-                    const SizedBox(height: 4),
-                    SelectableText(inv.code, style: t.headlineMedium?.copyWith(letterSpacing: 4, color: KombeColors.forest)),
-                    const SizedBox(height: 14),
-                    Text('Lien', style: t.labelLarge),
-                    const SizedBox(height: 4),
-                    SelectableText(inv.url, style: t.bodyMedium),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Valable jusqu’au ${DoualaTime.date(inv.expiresAtUtc)} · ${inv.maxUses} personnes au plus',
-                      style: t.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () => _shareWhatsApp(inv),
-                icon: const Icon(Icons.chat_outlined),
-                label: const Text('Partager sur WhatsApp'),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _copy(inv.url, 'Lien'),
-                      icon: const Icon(Icons.copy_rounded),
-                      label: const Text('Copier le lien'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _copy(inv.code, 'Code'),
-                      icon: const Icon(Icons.copy_rounded),
-                      label: const Text('Copier le code'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            IconButton(tooltip: 'Copier le code', onPressed: () => _copy(inv.code, 'Code'), icon: const Icon(Icons.copy_rounded)),
           ],
         ),
-      ),
+        const SizedBox(height: 8),
+        Text('Lien', style: t.labelLarge?.copyWith(color: KombeColors.slate)),
+        const SizedBox(height: 4),
+        SelectableText(inv.url, style: t.bodyMedium),
+        const SizedBox(height: 8),
+        Text(
+          'Valable jusqu’au ${DoualaTime.date(inv.expiresAtUtc)}, $uses.',
+          style: t.bodySmall?.copyWith(color: KombeColors.slate),
+        ),
+        const SizedBox(height: 18),
+        FilledButton.icon(
+          onPressed: () => _shareWhatsApp(inv),
+          icon: const Icon(Icons.chat_rounded),
+          label: const Text('Partager sur WhatsApp'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => _copy(inv.url, 'Lien'),
+          icon: const Icon(Icons.link_rounded),
+          label: const Text('Copier le lien'),
+        ),
+      ],
     );
   }
 }

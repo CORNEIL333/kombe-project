@@ -1,0 +1,307 @@
+/* KÓMBE — direction « African Contemporary Premium » (refonte 2026-11).
+   Jetons centralisés ; l'or souligne, il ne remplit pas. Contrastes vérifiés
+   (WCAG AA) : ivoire sur forêt ≈ 12,9:1 ; encre sur or ≈ 5,9:1 ; jade sur
+   ivoire ≈ 5,6:1. Pas de dégradé omniprésent : un seul fond texturé (image
+   de marque légère, chargée après le contenu) sous la carte principale. */
+
+:root {
+  --p-foret: #103c32;
+  --p-jade: #16765e;
+  --p-ivoire: #fbf8f1;
+  --p-menthe: #dcefe6;
+  --p-or: #c99439;
+  --p-or-pale: #f4e6c9;
+  --p-encre: #13211c;
+  --p-texte-2: #56645e;
+  --p-trait: #e7dcc6;
+  --p-alerte: #b42318;
+  --p-rayon-s: 10px;
+  --p-rayon-m: 16px;
+  --p-rayon-l: 24px;
+  --p-ombre-1: 0 1px 2px rgba(16, 60, 50, 0.06), 0 4px 14px -6px rgba(16, 60, 50, 0.16);
+  --p-ombre-2: 0 2px 4px rgba(16, 60, 50, 0.08), 0 14px 36px -14px rgba(16, 60, 50, 0.32);
+  --p-espace-1: 4px;
+  --p-espace-2: 8px;
+  --p-espace-3: 12px;
+  --p-espace-4: 16px;
+  --p-espace-6: 24px;
+  --p-duree: 180ms;
+}
+
+/* ── Avatar de groupe ─────────────────────────────────────────────────── */
+.avatar-groupe {
+  position: relative; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  overflow: hidden; border-radius: 28%;
+  /* Repli : initiales sur l'anneau KÓMBE (motif vectoriel, pas de photo d'illustration). */
+  background:
+    radial-gradient(circle at 50% 50%, transparent 52%, rgba(201, 148, 57, 0.35) 53%, rgba(201, 148, 57, 0.35) 60%, transparent 61%),
+    var(--p-foret);
+  color: var(--p-ivoire); font-weight: 800; letter-spacing: 0.02em;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.avatar-groupe--rond { border-radius: 999px; }
+.avatar-groupe img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-groupe__initiales { line-height: 1; }
+
+/* ── Barre supérieure : avatar dans le sélecteur ─────────────────────── */
+.selecteur-groupe .avatar-groupe { margin-right: 8px; }
+
+/* ── Carte de cotisation (accueil) ───────────────────────────────────── */
+.carte-cotisation {
+  position: relative; overflow: hidden; margin-top: var(--p-espace-2);
+  padding: var(--p-espace-4) var(--p-espace-4) var(--p-espace-6);
+  border-radius: var(--p-rayon-l); color: var(--p-ivoire);
+  background-color: var(--p-foret);
+  background-image: linear-gradient(180deg, rgba(16, 60, 50, 0.55), rgba(16, 60, 50, 0.92)), url("/brand/fonds/confirmation.webp");
+  background-size: cover; background-position: center;
+  box-shadow: var(--p-ombre-2);
+}
+.carte-cotisation::after {
+  /* Filet d'or : le seul accent de la carte. */
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--p-or);
+}
+.carte-cotisation--retard::after { background: var(--p-alerte); }
+.carte-cotisation__groupe { display: flex; align-items: center; margin-bottom: var(--p-espace-4); font-weight: 700; }
+.carte-cotisation__groupe .avatar-groupe { margin-right: 10px; box-shadow: 0 0 0 2px rgba(251, 248, 241, 0.6); }
+.carte-cotisation__libelle { margin: 0; font: 600 0.95rem/1.3 var(--f-ui, Manrope, sans-serif); color: rgba(251, 248, 241, 0.86); }
+.carte-cotisation__montant { margin: 2px 0 0; font: 800 2.5rem/1.05 var(--f-ui, Manrope, sans-serif); letter-spacing: -0.03em; }
+.carte-cotisation__echeance { margin: 6px 0 16px; color: rgba(251, 248, 241, 0.9); }
+.carte-cotisation--retard .carte-cotisation__echeance { color: #ffd9d2; font-weight: 700; }
+.carte-cotisation__ajour { display: flex; align-items: center; margin: 4px 0 12px; font: 700 1.2rem/1.3 var(--f-ui, Manrope, sans-serif); }
+.carte-cotisation__ajour svg { margin-right: 10px; color: var(--p-or); }
+.carte-cotisation__etats { display: flex; flex-wrap: wrap; margin: var(--p-espace-4) 0 0; padding-top: var(--p-espace-3); border-top: 1px solid rgba(251, 248, 241, 0.18); }
+.carte-cotisation__etats > div { flex: 1 1 140px; margin: 4px 12px 4px 0; }
+.carte-cotisation__etats dt { font-size: 0.82rem; color: rgba(251, 248, 241, 0.78); }
+.carte-cotisation__etats dd { margin: 2px 0 0; font-weight: 800; font-size: 1.05rem; }
+.carte-cotisation__remise { margin: var(--p-espace-2) 0 0; font-size: 0.9rem; color: var(--p-or-pale); }
+.bouton-or {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--p-or); color: var(--p-encre); border-color: var(--p-or);
+  font-weight: 800; box-shadow: 0 6px 18px -8px rgba(201, 148, 57, 0.8);
+}
+.bouton-or svg { margin-right: 8px; }
+.bouton-or:hover { background: #d6a54d; }
+.bouton-or:focus-visible { outline: 3px solid var(--p-ivoire); outline-offset: 2px; }
+
+/* Titre d'écran dans une ligne d'actions : garde la taille d'un titre. */
+.titre-section--action h1.ecran-titre-simple { font: 800 1.6rem/1.15 var(--f-ui, Manrope, sans-serif); letter-spacing: -0.02em; color: var(--p-encre); }
+
+/* ── Groupes ──────────────────────────────────────────────────────────── */
+.actions-ligne { display: flex; flex-wrap: wrap; margin: 0 0 var(--p-espace-3); }
+.actions-ligne > * { margin: 0 8px 8px 0; display: inline-flex; align-items: center; }
+.actions-ligne svg { margin-right: 6px; }
+.cartes-groupes { list-style: none; margin: 0; padding: 0; }
+.carte-groupe {
+  position: relative; display: flex; align-items: stretch; margin-bottom: var(--p-espace-3);
+  background: #fff; border: 1px solid var(--p-trait); border-radius: var(--p-rayon-m); box-shadow: var(--p-ombre-1);
+  transition: box-shadow var(--p-duree) ease, transform var(--p-duree) ease;
+}
+.carte-groupe.is-actif { border-color: var(--p-jade); box-shadow: 0 0 0 1px var(--p-jade), var(--p-ombre-1); }
+.carte-groupe__corps {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; padding: 14px;
+  border: 0; background: transparent; text-align: left; font: inherit; color: var(--p-encre); cursor: pointer; border-radius: var(--p-rayon-m);
+}
+.carte-groupe__corps:disabled { cursor: default; opacity: 0.75; }
+.carte-groupe__corps:hover:not(:disabled) { background: rgba(16, 60, 50, 0.03); }
+.carte-groupe__corps > .avatar-groupe { margin-right: 14px; }
+.carte-groupe__texte { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.carte-groupe__nom { font-weight: 800; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.carte-groupe__meta { margin-top: 2px; font-size: 0.88rem; color: var(--p-texte-2); }
+.carte-groupe__infos { display: flex; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.carte-groupe__infos > * { margin: 0 8px 4px 0; }
+.carte-groupe__date { font-size: 0.85rem; color: var(--p-texte-2); }
+.carte-groupe__bureau {
+  flex: 0 0 auto; align-self: center; width: 48px; height: 48px; margin-right: 8px; border: 0; border-radius: 14px;
+  background: var(--p-or-pale); color: #7a5410; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.etiquette { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
+.etiquette--ok { background: var(--p-menthe); color: #0d5a43; }
+.etiquette--attente { background: var(--p-or-pale); color: #6b4a0e; }
+
+/* ── En-tête de la fiche groupe ───────────────────────────────────────── */
+.entete-groupe {
+  margin: 0 -16px var(--p-espace-3); padding: 8px 16px 20px;
+  background-color: var(--p-foret);
+  background-image: linear-gradient(180deg, rgba(16, 60, 50, 0.62), rgba(16, 60, 50, 0.95)), url("/brand/fonds/yaounde.webp");
+  background-size: cover; background-position: center 40%;
+  color: var(--p-ivoire); border-radius: 0 0 var(--p-rayon-l) var(--p-rayon-l);
+}
+@media (min-width: 900px) { .entete-groupe { margin: 0 0 var(--p-espace-4); border-radius: var(--p-rayon-l); } }
+.entete-groupe__barre { display: flex; justify-content: space-between; align-items: center; min-height: 48px; }
+.entete-groupe__barre .bouton-ico, .entete-groupe__barre button { color: var(--p-ivoire); }
+.entete-groupe__identite { display: flex; align-items: center; margin-top: 4px; }
+.entete-groupe__avatar { position: relative; margin-right: 16px; }
+.entete-groupe__avatar .avatar-groupe { box-shadow: 0 0 0 3px rgba(251, 248, 241, 0.85), var(--p-ombre-2); }
+.entete-groupe__photo {
+  position: absolute; right: -6px; bottom: -6px; width: 36px; height: 36px; border-radius: 999px; border: 2px solid var(--p-foret);
+  background: var(--p-or); color: var(--p-encre); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.entete-groupe__photo:focus-visible { outline: 3px solid var(--p-ivoire); outline-offset: 2px; }
+.entete-groupe__texte { min-width: 0; }
+.entete-groupe__nom { margin: 0; font: 800 1.6rem/1.15 var(--f-ui, Manrope, sans-serif); letter-spacing: -0.02em; color: var(--p-ivoire); }
+.entete-groupe__meta { margin: 6px 0 0; font-size: 0.9rem; color: rgba(251, 248, 241, 0.86); }
+.entete-groupe__tour { margin: 4px 0 0; font-size: 0.9rem; color: var(--p-or-pale); font-weight: 700; }
+
+/* ── Dialogue photo ───────────────────────────────────────────────────── */
+.photo-edition { display: flex; flex-direction: column; align-items: center; padding: 8px 12px 4px; }
+.photo-edition > * + * { margin-top: 12px; }
+.photo-edition__apercu { width: 240px; height: 240px; border-radius: 28%; box-shadow: var(--p-ombre-2); }
+.photo-edition__zoom { display: flex; align-items: center; width: 100%; max-width: 280px; }
+.photo-edition__zoom span { margin-right: 10px; font-weight: 600; }
+.photo-edition__zoom input { flex: 1 1 auto; min-height: 44px; accent-color: var(--p-jade); }
+.photo-edition__choisir { display: inline-flex; align-items: center; cursor: pointer; }
+.photo-edition__choisir svg { margin-right: 8px; }
+.photo-edition__choisir:focus-within { outline: 3px solid var(--p-or); outline-offset: 2px; }
+.photo-edition .aide-champ { text-align: center; max-width: 360px; }
+.photo-edition .actions-formulaire { width: 100%; justify-content: flex-end; }
+.bouton-danger-texte { color: var(--p-alerte); }
+
+/* ── Squelettes ───────────────────────────────────────────────────────── */
+.squelette {
+  display: block; border-radius: var(--p-rayon-m);
+  background: linear-gradient(90deg, #efe8da 0%, #f7f2e8 50%, #efe8da 100%);
+  background-size: 200% 100%; animation: kombe-squelette 1.4s ease-in-out infinite;
+}
+.squelette--carte { height: 220px; border-radius: var(--p-rayon-l); }
+.squelette--titre { height: 16px; width: 40%; margin-top: 18px; }
+.squelette--ligne { height: 56px; margin-top: 8px; }
+.carte-groupe.squelette { height: 92px; border: 0; box-shadow: none; }
+@keyframes kombe-squelette { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* ── Barre du bas à quatre destinations : libellés jamais tronqués ───── */
+.nav-basse__libelle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+@media (max-width: 359px) { .nav-basse__libelle { font-size: 0.68rem; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .squelette { animation: none; }
+  .carte-groupe { transition: none; }
+}
+
+/* Destinations principales dans la colonne (grand écran seulement). */
+.menu-lateral__principal { display: none; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--p-trait); }
+@media (min-width: 900px) { .menu-lateral__principal { display: block; } }
+
+/* Boutons de l'en-tête du groupe : lisibles sur fond forêt. */
+.entete-groupe .entete-groupe__barre .bouton-ico .bouton-ico__pastille { background: rgba(251, 248, 241, 0.16); color: var(--p-ivoire); border-color: transparent; }
+.entete-groupe .entete-groupe__barre .bouton-ico--or .bouton-ico__pastille { background: var(--p-or); color: var(--p-encre); }
+.entete-groupe .entete-groupe__barre .bouton-ico__legende { color: var(--p-ivoire); }
+
+/* ══ Accueil premium (planches de référence 2026-11) ══════════════════════ */
+:root { --p-ressort: cubic-bezier(0.32, 0.72, 0, 1); }
+
+/* Bandeau d'accueil : salutation sur forêt, motif tissé discret à droite. */
+.bandeau-accueil {
+  margin: 0 -16px; padding: 18px 16px 56px;
+  background-color: var(--p-foret);
+  background-image: linear-gradient(90deg, var(--p-foret) 45%, rgba(16, 60, 50, 0.4)), url("/brand/fonds/creation.webp");
+  background-size: cover; background-position: right center;
+  color: var(--p-ivoire);
+}
+.bandeau-accueil__salut { margin: 0; font: 800 1.5rem/1.2 var(--f-ui, Manrope, sans-serif); letter-spacing: -0.02em; }
+.bandeau-accueil__groupe { margin: 4px 0 0; color: rgba(251, 248, 241, 0.82); font-size: 0.92rem; }
+@media (min-width: 900px) { .bandeau-accueil { margin: 0; border-radius: var(--p-rayon-l); padding-bottom: 56px; } }
+
+/* Coque (double cadre) : la carte repose dans un plateau, rayons concentriques. */
+.coque { position: relative; margin-top: -40px; padding: 6px; border-radius: 30px; background: rgba(16, 60, 50, 0.06); box-shadow: inset 0 0 0 1px rgba(16, 60, 50, 0.06); }
+.coque > .carte-cotisation, .coque > .carte-rail { margin: 0; border-radius: 24px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), var(--p-ombre-2); }
+.accueil-rail .coque { margin-top: 0; }
+
+/* Bouton « îlot » : pilule, icône dans sa propre pastille. */
+.bouton-ilot { display: inline-flex; align-items: center; justify-content: space-between; width: 100%; max-width: 420px; min-height: 54px; padding: 6px 6px 6px 22px; border-radius: 999px; transition: transform 160ms var(--p-ressort), background 160ms var(--p-ressort); }
+.bouton-ilot:active { transform: scale(0.98); }
+.bouton-ilot__icone { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; margin-left: 12px; border-radius: 999px; background: rgba(19, 33, 28, 0.12); transition: transform 220ms var(--p-ressort); }
+.bouton-ilot:hover .bouton-ilot__icone { transform: translate(2px, -1px) scale(1.05); }
+.bouton-ilot svg { margin: 0; }
+
+/* Actions rapides : 2 × 2 sur téléphone, 4 de front dès 600 px. */
+.actions-rapides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-gap: 10px; margin-top: 16px; }
+@media (min-width: 600px) { .actions-rapides { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.tuile-action {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 92px; padding: 12px 8px;
+  border: 0; border-radius: var(--p-rayon-m); background: #fff; box-shadow: var(--p-ombre-1);
+  font: 700 0.85rem/1.25 var(--f-ui, Manrope, sans-serif); color: var(--p-encre); text-align: center; cursor: pointer;
+  transition: transform 160ms var(--p-ressort), box-shadow 160ms var(--p-ressort);
+}
+.tuile-action:hover { box-shadow: var(--p-ombre-2); }
+.tuile-action:active { transform: scale(0.97); }
+.tuile-action:focus-visible { outline: 3px solid var(--p-or); outline-offset: 2px; }
+.tuile-action--accent { background: var(--p-menthe); }
+.tuile-action__icone { position: relative; display: inline-flex; color: var(--p-jade); margin-bottom: 6px; }
+.tuile-action__badge { position: absolute; top: -8px; right: -12px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--p-or); color: var(--p-encre); font: 800 11px/18px var(--f-ui, Manrope, sans-serif); }
+
+.section-accueil { margin-top: 8px; }
+.titre-section--action h2 { display: inline-flex; align-items: center; }
+.pastille-compte { margin-left: 8px; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: var(--p-or-pale); color: #6b4a0e; font: 800 0.78rem/22px var(--f-ui, Manrope, sans-serif); text-align: center; }
+
+/* Prochaine séance : carte forêt au motif tissé. */
+.carte-seance {
+  display: flex; align-items: center; width: 100%; margin-top: 18px; padding: 16px; border: 0; border-radius: var(--p-rayon-l); text-align: left; cursor: pointer;
+  color: var(--p-ivoire); font: inherit;
+  background-color: var(--p-foret);
+  background-image: linear-gradient(90deg, var(--p-foret) 55%, rgba(16, 60, 50, 0.35)), url("/brand/fonds/creation.webp");
+  background-size: cover; background-position: right center; box-shadow: var(--p-ombre-1);
+}
+.carte-seance:focus-visible { outline: 3px solid var(--p-or); outline-offset: 2px; }
+.carte-seance__icone { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; margin-right: 14px; border-radius: 14px; background: rgba(251, 248, 241, 0.14); color: var(--p-or); }
+.carte-seance__texte { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+.carte-seance__sur { font-size: 0.8rem; color: rgba(251, 248, 241, 0.8); }
+.carte-seance__date { font: 800 1.15rem/1.3 var(--f-ui, Manrope, sans-serif); }
+.carte-seance__lieu { font-size: 0.88rem; color: rgba(251, 248, 241, 0.86); }
+
+/* Colonne « Tour en cours ». */
+.carte-rail { display: block; width: 100%; padding: 16px; border: 0; border-radius: var(--p-rayon-l); background: #fff; color: var(--p-encre); text-align: left; font: inherit; box-shadow: var(--p-ombre-1); }
+.carte-rail__titre { display: flex; align-items: center; margin: 0; font: 800 1rem/1.3 var(--f-ui, Manrope, sans-serif); }
+.carte-rail__titre svg { margin-right: 8px; color: var(--p-jade); }
+.carte-rail__grand { margin: 10px 0 8px; font: 800 1.5rem/1.1 var(--f-ui, Manrope, sans-serif); letter-spacing: -0.02em; }
+.carte-rail__chiffres { margin: 14px 0 0; }
+.carte-rail__chiffres > div { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--p-trait); }
+.carte-rail__chiffres dt { color: var(--p-texte-2); font-size: 0.88rem; }
+.carte-rail__chiffres dd { margin: 0; font-weight: 800; }
+.carte-rail--lien { display: flex; align-items: center; margin-top: 12px; min-height: 56px; cursor: pointer; }
+.carte-rail--lien > span { flex: 1 1 auto; margin: 0 10px; font-weight: 700; }
+.carte-rail--lien svg:first-child { color: var(--p-jade); }
+.carte-rail--lien:focus-visible { outline: 3px solid var(--p-or); outline-offset: 2px; }
+.progression { display: flex; align-items: center; }
+.progression__piste { flex: 1 1 auto; height: 8px; border-radius: 999px; background: var(--p-menthe); overflow: hidden; margin-right: 10px; }
+.progression__barre { display: block; height: 100%; background: var(--p-jade); transform-origin: left center; transition: transform 700ms var(--p-ressort); }
+.progression__pct { font-weight: 800; color: var(--p-jade); font-size: 0.9rem; }
+
+/* Bento : contenu principal + colonne à droite dès 1024 px. */
+.accueil-grille { display: block; }
+.accueil-rail { margin-top: 18px; }
+@media (min-width: 1024px) {
+  .accueil-premium { max-width: 1180px; }
+  .accueil-grille { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-column-gap: 24px; align-items: start; }
+  .accueil-rail { margin-top: -40px; position: -webkit-sticky; position: sticky; top: 72px; }
+}
+
+/* Filtres d'activité (pilules). */
+.filtres { display: flex; overflow-x: auto; margin: 0 -16px 8px; padding: 2px 16px 8px; scrollbar-width: none; }
+.filtres::-webkit-scrollbar { display: none; }
+.filtre { flex: 0 0 auto; min-height: 40px; margin-right: 8px; padding: 0 16px; border: 1px solid var(--p-trait); border-radius: 999px; background: #fff; color: var(--p-encre); font: 700 0.9rem/1 var(--f-ui, Manrope, sans-serif); cursor: pointer; }
+.filtre[aria-pressed="true"] { background: var(--p-foret); border-color: var(--p-foret); color: var(--p-ivoire); }
+.filtre:focus-visible { outline: 3px solid var(--p-or); outline-offset: 2px; }
+
+.squelette--tuiles { height: 92px; margin-top: 16px; }
+
+/* Apparition : fondu montant, ressort ; aucun mouvement si réduit. */
+.apparition { animation: kombe-apparition 520ms var(--p-ressort) both; }
+.accueil-principal > .apparition:nth-child(2) { animation-delay: 60ms; }
+.accueil-principal > .apparition:nth-child(3) { animation-delay: 120ms; }
+.accueil-principal > .apparition:nth-child(4) { animation-delay: 180ms; }
+@keyframes kombe-apparition { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .apparition { animation: none; }
+  .progression__barre, .bouton-ilot, .bouton-ilot__icone, .tuile-action { transition: none; }
+}
+
+/* Repli des avatars : initiales sur un motif tissé de la marque (jamais une personne). */
+.avatar-groupe[data-motif="1"] { background-image: linear-gradient(rgba(16, 60, 50, 0.72), rgba(16, 60, 50, 0.72)), url("/brand/fonds/creation.webp"); background-size: cover; }
+.avatar-groupe[data-motif="2"] { background-image: linear-gradient(rgba(16, 60, 50, 0.6), rgba(16, 60, 50, 0.6)), url("/brand/fonds/confirmation.webp"); background-size: cover; }
+
+/* Grand écran : la coquille occupe la largeur ; le contenu reste centré et lisible. */
+@media (min-width: 900px) {
+  .app--session.app-tontine { max-width: none; }
+  .app--session .contenu-tontine { max-width: 1240px; margin-left: auto; margin-right: auto; }
+  .app--session .barre-haut { padding-left: 24px; padding-right: 24px; }
+}

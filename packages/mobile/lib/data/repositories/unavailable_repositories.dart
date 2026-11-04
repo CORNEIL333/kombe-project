@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import '../../core/api/api_failure.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../../domain/entities/auth.dart';
@@ -126,6 +129,16 @@ final class UnavailableGroupRepository implements GroupRepository {
       const OperationBlocked<TontineStatutes>(_reason);
 
   @override
+  Future<Uint8List?> loadPhoto(String groupId, int version, int size) async => null;
+
+  @override
+  Future<OperationResult<int>> setPhoto(String groupId, Uint8List jpeg512, Uint8List jpeg256) async =>
+      const OperationBlocked<int>(_reason);
+
+  @override
+  Future<OperationResult<void>> removePhoto(String groupId) async => const OperationBlocked<void>(_reason);
+
+  @override
   Future<OperationResult<TontineStatutes>> extendStatutesDeadline({
     required String groupId,
     required int extendDays,
@@ -147,7 +160,12 @@ final class UnavailableContributionRepository implements ContributionRepository 
   Future<Resource<Contribution>> getContribution(String contributionId) async => const ResourceUnavailable<Contribution>();
 
   @override
-  Future<OperationResult<Contribution>> submitDraft(ContributionDraft draft) async => const OperationBlocked<Contribution>(_reason);
+  Future<Resource<List<OpenDue>>> openDues(String groupId) async =>
+      const ResourceUnavailable<List<OpenDue>>();
+
+  @override
+  Future<DeclarationReceipt> sendDeclaration(ContributionDraft draft) async =>
+      DeclarationReceipt(lines: draft.plan, error: const ApiFailure(statusCode: 0, code: 'UNCONFIGURED', message: _reason));
 }
 
 final class UnavailableGovernanceRepository implements GovernanceRepository {
@@ -197,7 +215,14 @@ final class UnavailableNotificationRepository implements NotificationRepository 
   Future<Resource<List<KombeNotification>>> listNotifications() async => const ResourceUnavailable<List<KombeNotification>>();
 
   @override
-  Future<OperationResult<void>> markRead(String notificationId) async => const OperationBlocked<void>(_reason);
+  Future<OperationResult<void>> markRead(String notificationId) async =>
+      const OperationBlocked<void>(_reason);
+
+  @override
+  Future<int> unreadCount() async => 0;
+
+  @override
+  Future<OperationResult<void>> markAllRead() async => const OperationBlocked<void>(_reason);
 }
 
 final class UnavailableDocumentRepository implements DocumentRepository {
@@ -211,5 +236,6 @@ final class UnavailableDashboardRepository implements DashboardRepository {
   const UnavailableDashboardRepository();
 
   @override
-  Future<Resource<DashboardData>> loadDashboard() async => const ResourceUnavailable<DashboardData>();
+  Future<Resource<HomeData>> loadHome(GroupSummary group) async =>
+      const ResourceUnavailable<HomeData>();
 }

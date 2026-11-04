@@ -52,6 +52,7 @@ function blocked(reason) {
   process.exit(2);
 }
 
+process.env.KOMBE_OPERATOR_MFA ??= "off";
 const url = process.env.KOMBE_API_DATABASE_URL;
 if (!url) blocked("KOMBE_API_DATABASE_URL absente : aucune base PostgreSQL joignable (jamais simulé).");
 
@@ -110,7 +111,8 @@ try {
   `);
 
   const DOWN = [
-    "migrations/0034_echeances_notifications.down.sql", "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
+    "migrations/0036_securite_operateurs.down.sql",
+    "migrations/0035_group_photo.down.sql", "migrations/0034_echeances_notifications.down.sql", "migrations/0033_custom_funds.down.sql", "migrations/0032_audit_indexes.down.sql", "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
     "migrations/0016_privacy_law.down.sql", "migrations/0015_export_manifest.down.sql",
     "migrations/0014_support_security.down.sql", "migrations/0013_outbox.down.sql",
     "migrations/0012_proposal.down.sql", "migrations/0011_disbursement.down.sql",
@@ -130,7 +132,7 @@ try {
     "migrations/0010_dispute_cases.sql", "migrations/0011_disbursement.sql", "migrations/0012_proposal.sql",
     "migrations/0013_outbox.sql", "migrations/0014_support_security.sql", "migrations/0015_export_manifest.sql",
     "migrations/0016_privacy_law.sql", "migrations/0017_pilot_metrics.sql",
-    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "provision/roles.sql",
+    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "migrations/0032_audit_indexes.sql", "migrations/0033_custom_funds.sql", "migrations/0034_echeances_notifications.sql", "migrations/0035_group_photo.sql", "migrations/0036_securite_operateurs.sql", "provision/roles.sql",
   ];
   for (const f of UP) await runSql(migrator, f);
 
@@ -729,6 +731,11 @@ try {
   await migrator.query(
     `UPDATE identity_access SET is_operator = true WHERE identity_id IN ('alice@example.test','bob@example.test','carol@example.test')`,
   );
+  // Fonction d'opérateur « support » (ADR-0043) ; le second facteur est prouvé
+  // par operatorSecurity.proof.mjs (ici KOMBE_OPERATOR_MFA=off, hors production).
+  await migrator.query(
+    `INSERT INTO operator_role (identity_id, role, granted_by) SELECT id, 'support', 'proof' FROM unnest(ARRAY['alice@example.test','bob@example.test','carol@example.test']) AS id ON CONFLICT DO NOTHING`,
+  );
   const c17Request = await inject({
     method: "POST",
     url: "/v1/support/access-requests",
@@ -752,7 +759,7 @@ try {
   const c17Approve1 = await inject({
     method: "POST",
     url: "/v1/support/access-requests/sup_a4/approvals",
-    headers: bobAuth,
+    headers: { ...bobAuth, "if-match-version": String(c17Request.json().version) },
     payload: { ttlSeconds: 3600 },
   });
   check(
@@ -766,7 +773,7 @@ try {
   const c17Approve2 = await inject({
     method: "POST",
     url: "/v1/support/access-requests/sup_a4/approvals",
-    headers: carolAuth,
+    headers: { ...carolAuth, "if-match-version": String(c17Approve1.json().version) },
     payload: { ttlSeconds: 3600 },
   });
   check(

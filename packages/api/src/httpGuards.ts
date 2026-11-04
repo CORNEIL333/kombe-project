@@ -48,7 +48,7 @@ class FixedWindow {
  *  tiers). On lit `x-real-ip` — posé par la plateforme, jamais transmis tel
  *  quel par le client — et on retombe sur l'adresse socket en exécution
  *  directe (dev, conteneur local). */
-function clientIp(request: FastifyRequest): string {
+export function clientIp(request: FastifyRequest): string {
   const real = request.headers["x-real-ip"];
   if (typeof real === "string" && real.trim() !== "") return real.trim();
   return request.ip;

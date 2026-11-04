@@ -91,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const _SectionTitle('Sécurité du compte'),
                 _Card(children: <Widget>[
-                  _Row(icon: Icons.fingerprint_rounded, title: 'Authentification biométrique', subtitle: 'Connectez-vous avec votre empreinte',
+                  _Row(icon: Icons.password_rounded, title: 'Connexion et session', subtitle: 'Code à usage unique, session sur ce téléphone',
                       onTap: () => context.push('/app/settings/security')),
                   _Row(icon: Icons.shield_rounded, iconColor: KombeColors.goldDark, title: 'Sécurité et confidentialité', subtitle: 'Gérer mes informations',
                       onTap: () => context.push('/app/settings/privacy'), last: true),
@@ -106,7 +106,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const _SectionTitle('Aide & support'),
                 _Card(children: <Widget>[
                   _Row(icon: Icons.help_outline_rounded, title: 'Centre d’aide', subtitle: 'FAQ et guides d’utilisation', onTap: () => context.push('/app/help')),
-                  _Row(icon: Icons.headset_mic_outlined, title: 'Nous contacter', subtitle: 'Assistance', onTap: () => context.push('/app/support'), last: true),
+                  _Row(icon: Icons.headset_mic_outlined, title: 'Nous contacter', subtitle: 'Assistance', onTap: () => context.push('/app/support')),
+                  _Row(icon: Icons.cloud_off_outlined, title: 'Hors connexion', subtitle: 'Ce qui reste possible sans réseau', onTap: () => context.push('/app/offline')),
+                  _Row(icon: Icons.info_outline_rounded, title: 'À propos et mise à jour', subtitle: 'Version installée, rechercher une mise à jour',
+                      onTap: () => context.push('/app/about'), last: true),
                 ]),
                 const SizedBox(height: 22),
                 const KombeBoutonDeconnexion(),
@@ -123,10 +126,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: <Widget>[
                         Row(children: <Widget>[
                           const Expanded(child: _SectionTitle('Notifications récentes')),
-                          TextButton(
+                          IconButton(
+                            tooltip: 'Voir tout',
                             onPressed: () => context.go('/app/notifications'),
-                            style: TextButton.styleFrom(foregroundColor: KombeColors.goldDark),
-                            child: const Text('Voir tout'),
+                            icon: const Icon(Icons.arrow_forward_rounded, color: KombeColors.goldDark),
                           ),
                         ]),
                         for (final KombeNotification n in items)

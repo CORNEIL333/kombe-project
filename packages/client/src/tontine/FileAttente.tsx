@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { envoyerEnAttente, type Session } from "./api.js";
 import { lireFile, retirerDeFile, surChangementFile, type OperationEnAttente } from "./fileAttenteMoteur.js";
+import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 
 export function FileAttente({ session, enLigne }: { readonly session: Session; readonly enLigne: boolean }) {
@@ -63,8 +64,9 @@ export function FileAttente({ session, enLigne }: { readonly session: Session; r
       {refusees.map((o) => (
         <p key={o.id} className="msg msg--erreur">
           {o.libelle} — {tx("fa.refus", { motif: o.erreur ?? "" })}{" "}
-          <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => retirerDeFile(o.id)}>
-            {tx("fa.retirer")}
+          <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => retirerDeFile(o.id)} title={tx("fa.retirer")}>
+            <Icone nom="fermer" taille={18} />
+            <span className="bouton-libelle">{tx("fa.retirer")}</span>
           </button>
         </p>
       ))}

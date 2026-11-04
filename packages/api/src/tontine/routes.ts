@@ -12,12 +12,14 @@ import type { EmailSender } from "../email/emailSender.js";
 import { TontineAuth, neonAuthFromEnv, type NeonAuthConfig } from "./auth.js";
 import { CycleService } from "./cycle.js";
 import { processAllGroups } from "./echeances.js";
-import { inTx } from "./infra.js";
+import { inCommandTx, inTx } from "./infra.js";
+import { clientIp } from "../httpGuards.js";
 import { DecisionService } from "./decisions.js";
 import { DisciplineService } from "./discipline.js";
 import { GroupService } from "./groups.js";
 import { HistoryService, type HistoryImportInput } from "./history.js";
 import { InboxService } from "./inbox.js";
+import { PhotoService } from "./photos.js";
 import { InsightService, type CycleSimulationInput } from "./insights.js";
 import { MeetingService } from "./meetings.js";
 import { MoneyService } from "./money.js";
@@ -203,6 +205,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   const money = new MoneyService(pool, now);
   const discipline = new DisciplineService(pool, now);
   const inbox = new InboxService(pool, now);
+  const photos = new PhotoService(pool, now);
   const decisions = new DecisionService(pool, now);
   const history = new HistoryService(pool, now);
   const insights = new InsightService(pool, now);
@@ -217,32 +220,29 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
    *  pour une clé (l'ancien enchaînement replay→run admettait la double
    *  exécution entre le SELECT et l'INSERT). Sans en-tête : comportement
    *  inchangé, aucune mémorisation. */
+  /**
+   * Commande d'écriture. Avec `Idempotency-Key` : UNE transaction PostgreSQL
+   * réunit le verrou de la clé, la relecture d'une réponse déjà donnée, l'effet
+   * métier et l'enregistrement de la réponse (atomicité : une coupure avant le
+   * COMMIT n'a rien produit, après le COMMIT la relance rejoue la réponse). Deux
+   * requêtes simultanées portant la même clé : la seconde attend la première
+   * (verrou transactionnel), puis rejoue sa réponse ; un corps différent sous la
+   * même clé est refusé (409).
+   */
   async function write<T>(req: FastifyRequest, reply: FastifyReply, status: number, run: () => Promise<T>): Promise<unknown> {
     const key = typeof req.headers["idempotency-key"] === "string" ? req.headers["idempotency-key"] : undefined;
     const route = `${req.method} ${req.url.split("?")[0]}`;
     if (key) {
-      const lock = await pool.connect();
-      try {
-        // 5 s : au-delà, le client retente (409 explicite) plutôt que de
-        // risquer le kill de la fonction serverless (~10 s).
-        await lock.query("SET lock_timeout = '5s'");
-        await lock.query("SELECT pg_advisory_lock(hashtext($1), hashtext($2))", [route, key]);
+      const result = await inCommandTx(pool, async (db) => {
+        await db.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [route, key]);
         const prior = await inbox.replay(H(req), key, route, req.body);
-        if (prior) {
-          reply.header("idempotent-replay", "true");
-          return reply.code(prior.status).send(prior.body);
-        }
+        if (prior) return { replay: true as const, status: prior.status, body: prior.body };
         const out = await run();
         await inbox.remember(H(req), key, route, req.body, status, out);
-        return reply.code(status).send(out === undefined ? null : out);
-      } catch (error) {
-        throw translatePgError(error);
-      } finally {
-        await lock.query("SELECT pg_advisory_unlock(hashtext($1), hashtext($2))", [route, key]).catch(() => {});
-        // RESET : la connexion retourne au pool sans réglage résiduel.
-        await lock.query("RESET lock_timeout").catch(() => {});
-        lock.release();
-      }
+        return { replay: false as const, status, body: out };
+      });
+      if (result.replay) reply.header("idempotent-replay", "true");
+      return reply.code(result.status).send(result.body === undefined ? null : result.body);
     }
     const out = await run();
     return reply.code(status).send(out === undefined ? null : out);
@@ -250,8 +250,8 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
 
   /* ── Connexion ─────────────────────────────────────────────────────── */
   app.get("/v1/auth/channels", async () => auth.channels());
-  app.post("/v1/auth/code-requests", async (req, reply) => reply.code(202).send(await auth.requestCode(S.codeRequest.parse(req.body))));
-  app.post("/v1/auth/code-verifications", async (req, reply) => reply.code(201).send(await auth.verifyCode(S.codeVerify.parse(req.body))));
+  app.post("/v1/auth/code-requests", async (req, reply) => reply.code(202).send(await auth.requestCode({ ...S.codeRequest.parse(req.body), ip: clientIp(req) })));
+  app.post("/v1/auth/code-verifications", async (req, reply) => reply.code(201).send(await auth.verifyCode({ ...S.codeVerify.parse(req.body), ip: clientIp(req) })));
   app.post("/v1/auth/neon-exchange", async (req, reply) => reply.code(201).send(await auth.exchangeNeonToken(S.neonExchange.parse(req.body))));
   app.post("/v1/auth/logout", async (req, reply) => {
     await auth.logout(H(req));
@@ -301,6 +301,27 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     return write(req, reply, 204, () => groups.revokeInvitation(H(req), p.id as string, p.iid as string));
   });
   app.get("/v1/invitations/:code", async (req) => groups.previewInvitation(H(req), (req.params as P).code as string));
+
+  /* ── Photo de la tontine (0034) ────────────────────────────────────── */
+  // Octets JPEG servis avec la session (jamais d'URL publique) ; ETag = version.
+  const envoyerPhoto = (req: FastifyRequest, reply: FastifyReply, photo: { bytes: Buffer; version: number } | null, size: number) => {
+    if (!photo) return reply.code(404).send({ code: "NOT_FOUND", message: "Pas de photo pour ce groupe" });
+    const etag = `"p${photo.version}-${size}"`;
+    reply.header("cache-control", "private, max-age=86400").header("etag", etag).header("x-content-type-options", "nosniff");
+    if (req.headers["if-none-match"] === etag) return reply.code(304).send();
+    return reply.type("image/jpeg").send(photo.bytes);
+  };
+  const taille = (req: FastifyRequest): 256 | 512 => ((req.query as Q).size === "512" ? 512 : 256);
+  app.get("/v1/tontines/:id/photo", async (req, reply) =>
+    envoyerPhoto(req, reply, await photos.read(H(req), (req.params as P).id as string, taille(req)), taille(req)),
+  );
+  app.get("/v1/invitations/:code/photo", async (req, reply) =>
+    envoyerPhoto(req, reply, await photos.readForInvitation(H(req), (req.params as P).code as string, taille(req)), taille(req)),
+  );
+  app.put("/v1/tontines/:id/photo", { bodyLimit: 1_300_000 }, async (req, reply) =>
+    write(req, reply, 200, () => photos.replace(H(req), (req.params as P).id as string, (req.body ?? {}) as { image512?: unknown; image256?: unknown })),
+  );
+  app.delete("/v1/tontines/:id/photo", async (req, reply) => write(req, reply, 200, () => photos.remove(H(req), (req.params as P).id as string)));
   app.post("/v1/invitations/:code/join", async (req, reply) =>
     write(req, reply, 201, () => groups.join(H(req), (req.params as P).code as string, S.join.parse(req.body))),
   );

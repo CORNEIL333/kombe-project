@@ -7,6 +7,7 @@ import { cycle, tontines, type RoundView } from "./api.js";
 import { peut } from "./droits.js";
 import { CANAUX } from "./Argent.js";
 import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { Icone } from "../composants/Icones.js";
 import { useTextes, type CleTexte } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 
@@ -303,13 +304,15 @@ function Echanges({ ctx, tours }: { readonly ctx: ContexteGroupe; readonly tours
                   </div>
                   <div className="liste__actions">
                     {c.needsMyAcceptance ? (
-                      <button type="button" className="bouton bouton-compact" onClick={() => void action.lancer(() => cycle.accepterEchange(ctx.session, gid, c.changeId)).then(recharger)}>
-                        {tx("to.accepter")}
+                      <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => void action.lancer(() => cycle.accepterEchange(ctx.session, gid, c.changeId)).then(recharger)} title={tx("to.accepter")}>
+                        <Icone nom="coche" taille={18} />
+                        <span className="bouton-libelle">{tx("to.accepter")}</span>
                       </button>
                     ) : null}
                     {c.state === "requested" && peut(ctx.roles, "order.manage") && !c.needsMyAcceptance ? (
-                      <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => void action.lancer(() => cycle.approuverEchange(ctx.session, gid, c.changeId)).then(recharger)}>
-                        {tx("to.approuver")}
+                      <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => void action.lancer(() => cycle.approuverEchange(ctx.session, gid, c.changeId)).then(recharger)} title={tx("to.approuver")}>
+                        <Icone nom="confirmer" taille={18} />
+                        <span className="bouton-libelle">{tx("to.approuver")}</span>
                       </button>
                     ) : null}
                   </div>

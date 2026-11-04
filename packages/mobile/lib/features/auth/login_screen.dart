@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/design/kombe_colors.dart';
-import '../../core/widgets/kombe_orbit_band.dart';
+import '../../core/update/kombe_update_sheet.dart';
 import '../../core/widgets/kombe_logo.dart';
+import '../../core/widgets/kombe_orbit_band.dart';
 import '../../l10n/app_localizations.dart';
 import 'code_request_form.dart';
 import 'verify_code_screen.dart';
@@ -14,7 +15,8 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    return Scaffold(
+    return KombeUpdateCheck(
+      child: Scaffold(
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -90,6 +92,7 @@ class LoginScreen extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

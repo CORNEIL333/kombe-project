@@ -13,7 +13,8 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import type pg from "pg";
 import { registerHttpGuards } from "./httpGuards.js";
-import { DISPLAY_TZ, DomainError, assertCanAct, type DomainErrorCode } from "@kombe/domain";
+import { DISPLAY_TZ, DomainError, assertCanAct, configureCodePepper, type DomainErrorCode } from "@kombe/domain";
+import { assertOperator } from "./ops/operatorAccess.js";
 import type { CycleSchedule, ContributionDeclaration } from "@kombe/domain";
 import { PgContributionStore } from "./db/pgContributionStore.js";
 import { PgAccessStore } from "./db/pgAccessStore.js";
@@ -163,6 +164,7 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   APPROVER_NOT_DISTINCT: 403,
   CHANNEL_NOT_VERIFIED: 403,
   PRIVILEGE_NOT_GRANTED: 403,
+  OPERATOR_MFA_REQUIRED: 403,
   RESERVATION_INCOHERENTE: 404,
   EVENT_CHAIN_BREAK: 409,
   ROLE_ACCEPTANCE_REQUIRED: 409,
@@ -246,6 +248,8 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   OBJET_INTROUVABLE: 404,
   STATE_CONFLICT: 409,
   AUTH_THROTTLED: 429,
+  PHOTO_THROTTLED: 429,
+  PHOTO_INVALID: 422,
   REQUEST_INVALID: 400,
   SMS_DELIVERY_FAILED: 502,
   PHONE_INVALID: 422,
@@ -992,29 +996,10 @@ function realExportCtxFrom(identityId: string, nowMs: number): PgExportContext {
  *  horloge SERVEUR en secondes d'époque (§27 — jamais `x-server-date`) ;
  *  `actorRole` ne participe à aucune décision du store mesure (inerte). */
 /**
- * X-08 : en mode réel, la console support et les indicateurs globaux de la
- * plateforme sont réservés aux OPÉRATEURS (identity_access.is_operator, état
- * actif — 0029_ops_console). Un membre ordinaire reçoit 403, quelle que soit
- * l'interface utilisée.
+ * X-08 / ADR-0043 : en mode réel, la console support et les indicateurs de la
+ * plateforme sont réservés aux OPÉRATEURS tenant la fonction voulue, second
+ * facteur vérifié — voir `ops/operatorAccess.ts` (`assertOperator`).
  */
-async function assertRealOperator(dbPool: pg.Pool, identityId: string): Promise<void> {
-  const client = await dbPool.connect();
-  try {
-    await client.query("BEGIN");
-    await client.query("SELECT set_config('kombe.identity_id', $1, true)", [identityId]);
-    const r = await client.query("SELECT kombe_is_operator() AS ok");
-    await client.query("COMMIT");
-    if (r.rows[0]?.ok !== true) {
-      throw new DomainError("PRIVILEGE_NOT_GRANTED", "Réservé aux opérateurs de la plateforme");
-    }
-  } catch (e) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw e;
-  } finally {
-    client.release();
-  }
-}
-
 function realMetricsCtxFrom(identityId: string, nowMs: number): MetricsContext {
   return {
     actorIdentityId: identityId,
@@ -1030,6 +1015,8 @@ export function registeredRoutes(app: FastifyInstance): readonly { method: strin
 }
 
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
+  // Poivre serveur des codes de connexion (ADR-0043) : hors base, jamais journalisé.
+  configureCodePepper(process.env.KOMBE_TOKEN_PEPPER);
   const app = Fastify({ logger: false });
   const declared: { method: string; url: string }[] = [];
   ROUTE_REGISTRY.set(app, declared);
@@ -2410,7 +2397,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     };
     if (pool && realSupport) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["support"]);
       const ctx = realSupportCtxFrom(identityId, now());
       return reply.code(201).send(await realSupport.request(ctx, input));
     }
@@ -2427,9 +2414,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       const identityId = await realIdentityFrom(pool, request, now);
       const groupId = await supportRequestGroup(pool, requestId);
       if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["support"]);
       const ctx = realSupportCtxFrom(identityId, now());
-      return reply.code(200).send(await realSupport.approve(ctx, groupId, requestId, body.ttlSeconds));
+      // Version vue par l'approbateur EXIGÉE : deux administrateurs ne
+      // peuvent pas agir sur des états différents de la même demande (409).
+      return reply.code(200).send(await realSupport.approve(ctx, groupId, requestId, body.ttlSeconds, expectedVersion.parse(request.headers["if-match-version"])));
     }
     const ctx = supportCtxFrom(request);
     return reply.code(200).send(support.approve(ctx, requestId, body.ttlSeconds));
@@ -2446,7 +2435,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       const identityId = await realIdentityFrom(pool, request, now);
       const groupId = await supportRequestGroup(pool, requestId);
       if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["support"]);
       const ctx = realSupportCtxFrom(identityId, now());
       return reply.code(200).send(await realSupport.act(ctx, groupId, requestId, body.action));
     }
@@ -2461,9 +2450,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       const identityId = await realIdentityFrom(pool, request, now);
       const groupId = await supportRequestGroup(pool, requestId);
       if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["support"]);
       const ctx = realSupportCtxFrom(identityId, now());
-      return reply.code(200).send(await realSupport.revoke(ctx, groupId, requestId));
+      return reply.code(200).send(await realSupport.revoke(ctx, groupId, requestId, expectedVersion.parse(request.headers["if-match-version"])));
     }
     const ctx = supportCtxFrom(request);
     return reply.code(200).send(support.revoke(ctx, requestId));
@@ -2475,7 +2464,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { groupId, requestId } = request.params as { groupId: string; requestId: string };
     if (pool && realSupport) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["support"]);
       const ctx = realSupportCtxFrom(identityId, now());
       return reply.code(200).send(await realSupport.view(ctx, groupId, requestId));
     }
@@ -2792,7 +2781,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       const identityId = await realIdentityFrom(pool, request, now);
       // Analyse plateforme : même porte opérateur que economics/risks (un
       // membre ne consulte pas les entonnoirs, fussent ceux de son groupe).
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.analyticsFunnel(ctx, cohortId, query.groupId));
     }
@@ -2809,7 +2798,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       const identityId = await realIdentityFrom(pool, request, now);
       // Écriture d'une cohorte pilote : réservée aux opérateurs (RLS ou non,
       // un membre ne façonne pas les métriques de son propre groupe).
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(201).send(await realMetrics.upsertCohort(ctx, body));
     }
@@ -2822,7 +2811,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { groupId } = request.params as { groupId: string };
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.getCohort(ctx, groupId));
     }
@@ -2837,7 +2826,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const body = economicsBody.parse(request.body);
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.computeEconomics(ctx, body));
     }
@@ -2851,7 +2840,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const body = riskBody.parse(request.body);
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(201).send(await realMetrics.addRisk(ctx, body));
     }
@@ -2863,7 +2852,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/metrics/risks", async (request, reply) => {
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.listRisks(ctx));
     }
@@ -2876,7 +2865,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/metrics/extension-check", async (request, reply) => {
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.extensionStatus(ctx));
     }
@@ -2890,7 +2879,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/metrics/extension-check", async (request, reply) => {
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.extensionStatus(ctx));
     }

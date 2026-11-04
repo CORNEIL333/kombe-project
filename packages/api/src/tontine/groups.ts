@@ -44,6 +44,7 @@ import {
   todayDouala,
 } from "./infra.js";
 import { parseSettings, aidScaleOf, fineScheduleOf } from "./settings.js";
+import { photoVersionOf } from "./photos.js";
 import {
   type GroupRow,
   computeDues,
@@ -173,6 +174,7 @@ export async function tontineDetail(db: Db, actor: Actor, nowMs: number): Promis
   return {
     groupId: group.groupId,
     name: group.name,
+    photoVersion: await photoVersionOf(db, actor.groupId),
     state: group.state,
     settings: group.settings,
     me: {
@@ -196,6 +198,15 @@ export async function tontineDetail(db: Db, actor: Actor, nowMs: number): Promis
     cycle: await currentCycle(db, actor.groupId),
     flags: flags(),
   };
+}
+
+/** Tour courant dans le cycle en cours (aucune valeur inventée hors cycle). */
+async function cyclePositionOf(db: Db, group: GroupRow): Promise<{ current: number; total: number } | null> {
+  const cy = await currentCycle(db, group.groupId);
+  if (!cy) return null;
+  const cr = currentRound(await loadRounds(db, group));
+  if (!cr) return null;
+  return { current: cr.seq - cy.firstSeq + 1, total: cy.lastSeq - cy.firstSeq + 1 };
 }
 
 async function summaryFor(db: Db, group: GroupRow, membershipId: string, membershipState: "pending" | "active", roles: readonly GroupRole[], nowMs: number): Promise<TontineSummary> {
@@ -224,6 +235,8 @@ async function summaryFor(db: Db, group: GroupRow, membershipId: string, members
     memberCount: Number(counts.rows[0]?.a ?? 0),
     contributionPerShare: group.settings.contributionPerShare,
     nextMeetingDate: next?.date ?? null,
+    photoVersion: await photoVersionOf(db, group.groupId),
+    cyclePosition: await cyclePositionOf(db, group),
     myOpenDue: m(myOpenDue),
     myPayoutDate,
   };

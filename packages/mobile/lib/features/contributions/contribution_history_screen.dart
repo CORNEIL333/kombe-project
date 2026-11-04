@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/active_group_controller.dart';
+import '../../app/router/main_shell.dart';
+import '../../domain/entities/group.dart';
 import '../../core/formatters/labels.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/state/resource.dart';
+import '../../core/widgets/kombe_screen_header.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/repositories/contribution_repository.dart';
@@ -31,7 +35,7 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
     final ContributionDraftRepository draftsRepo = context.read<ContributionDraftRepository>();
     final Resource<List<Contribution>> remote =
         await context.read<ContributionRepository>().listHistory();
-    // L'historique serveur s'affiche même si la lecture des brouillons locaux échoue.
+    // L'historique enregistré s'affiche même si la lecture des brouillons locaux échoue.
     if (mounted) setState(() => _remote = remote);
     try {
       final List<ContributionDraft> drafts = await draftsRepo.listDrafts();
@@ -43,21 +47,31 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Historique des cotisations')),
+        appBar: KombeTopBar(
+          actions: <Widget>[
+            if (context.watch<ActiveGroupController>().active case final GroupSummary g)
+              IconButton(
+                tooltip: 'Déclarer un versement',
+                onPressed: () => context.push('/app/groups/${Uri.encodeComponent(g.id)}/contributions/new'),
+                icon: const Icon(Icons.add_rounded),
+              ),
+          ],
+        ),
         body: RefreshIndicator(
           onRefresh: _load,
           child: ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             children: <Widget>[
+              const KombeScreenHeader(inset: 0, title: 'Cotisations', subtitle: 'Vos déclarations et leur confirmation par la trésorerie.'),
               if (_drafts.isNotEmpty) ...<Widget>[
-                Text('Brouillons locaux', style: Theme.of(context).textTheme.titleLarge),
+                Text('À terminer', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 10),
                 for (final ContributionDraft draft in _drafts)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const CircleAvatar(child: Icon(Icons.edit_note)),
+                    leading: CircleAvatar(child: Icon(draft.sending ? Icons.sync_problem_rounded : Icons.edit_note)),
                     title: Text(Xaf.format(draft.amountXaf)),
-                    subtitle: const Text('Pas encore envoyé'),
+                    subtitle: Text(draft.sending ? 'Envoi interrompu — à reprendre' : 'Brouillon, pas encore envoyé'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => context.push(
                       '/app/groups/${draft.groupId}/contributions/new?draft=${draft.localId}',

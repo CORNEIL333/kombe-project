@@ -12,6 +12,10 @@ abstract final class KombeColors {
   static const Color emerald = Color(0xFF176B52);
   static const Color leaf = Color(0xFF2A8A68);
   static const Color gold = Color(0xFFC7922E);
+  // Direction premium (2026-11) : jade et or chaud des accents ; or pâle des fonds.
+  static const Color jade = Color(0xFF16765E);
+  static const Color goldWarm = Color(0xFFC99439);
+  static const Color goldPale = Color(0xFFF4E6C9);
   /// Accent des grands titres (maquette « Connectez-vous »).
   static const Color olive = Color(0xFFA8AD3B);
   static const Color goldLight = Color(0xFFE2B868);

@@ -9,6 +9,7 @@ import type { GroupRole, TontineAction } from "@kombe/domain";
 import { decisions, tontines, type DecisionView, type MemberView, type OuvertureDecision } from "./api.js";
 import { peut } from "./droits.js";
 import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 
@@ -51,8 +52,9 @@ export function Decisions({ ctx }: { readonly ctx: ContexteGroupe }) {
         titre={tx("dc.titre")}
         actions={
           !ouverture && permis.length > 0 ? (
-            <button type="button" className="bouton bouton-compact" onClick={() => setOuverture(permis[0] as Genre)}>
-              {tx("dc.nouveau")}
+            <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setOuverture(permis[0] as Genre)} title={tx("dc.nouveau")}>
+              <Icone nom="plus" taille={18} />
+              <span className="bouton-libelle">{tx("dc.nouveau")}</span>
             </button>
           ) : null
         }
@@ -174,18 +176,21 @@ function LigneDecision({ ctx, d, onFini }: { readonly ctx: ContexteGroupe; reado
             ))
           : null}
         {d.can.close ? (
-          <button type="button" className="bouton bouton-secondaire bouton-compact" disabled={action.enCours} onClick={() => lancer(() => decisions.depouiller(ctx.session, gid, d.decisionId))}>
-            {tx("dc.depouiller")}
+          <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" disabled={action.enCours} onClick={() => lancer(() => decisions.depouiller(ctx.session, gid, d.decisionId))} title={tx("dc.depouiller")}>
+            <Icone nom="vote" taille={18} />
+            <span className="bouton-libelle">{tx("dc.depouiller")}</span>
           </button>
         ) : null}
         {d.can.cancel && !motif ? (
-          <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setMotif({ quoi: "annuler", texte: "" })}>
-            {tx("dc.annuler")}
+          <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setMotif({ quoi: "annuler", texte: "" })} title={tx("dc.annuler")}>
+            <Icone nom="fermer" taille={18} />
+            <span className="bouton-libelle">{tx("dc.annuler")}</span>
           </button>
         ) : null}
         {d.can.lift && !motif ? (
-          <button type="button" className="bouton bouton-compact" onClick={() => setMotif({ quoi: "lever", texte: "" })}>
-            {tx("dc.lever")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setMotif({ quoi: "lever", texte: "" })} title={tx("dc.lever")}>
+            <Icone nom="cadenas" taille={18} />
+            <span className="bouton-libelle">{tx("dc.lever")}</span>
           </button>
         ) : null}
       </div>
