@@ -29,8 +29,11 @@ INSERT INTO operator_role (identity_id, role, granted_by)
   SELECT identity_id, 'admin', 'migration-0036' FROM identity_access WHERE is_operator = true
   ON CONFLICT DO NOTHING;
 ALTER TABLE operator_role ENABLE ROW LEVEL SECURITY;
-CREATE POLICY self_scope ON operator_role USING (identity_id = current_setting('kombe.identity_id', true));
+-- Lecture seule de SES fonctions : jamais d'auto-attribution, même si un
+-- provisionnement ultérieur accordait l'écriture (roles.sql : GRANT ALL TABLES).
+CREATE POLICY self_read ON operator_role FOR SELECT USING (identity_id = current_setting('kombe.identity_id', true));
 GRANT SELECT ON operator_role TO kombe_app;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON operator_role FROM kombe_app;
 
 CREATE TABLE operator_mfa (
   identity_id       text PRIMARY KEY REFERENCES identity(identity_id),
@@ -113,6 +116,8 @@ GRANT EXECUTE ON FUNCTION kombe_rate_peek(text, integer, integer, timestamptz) T
 REVOKE ALL ON FUNCTION kombe_rate_hit(text, integer, integer, timestamptz) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION kombe_rate_hit(text, integer, integer, timestamptz) TO kombe_app;
 REVOKE ALL ON auth_rate_limit FROM kombe_app;
+-- Aucune politique : seules les fonctions SECURITY DEFINER (propriétaire) y touchent.
+ALTER TABLE auth_rate_limit ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE security_log DROP CONSTRAINT IF EXISTS security_log_event_type_check;
 ALTER TABLE security_log ADD CONSTRAINT security_log_event_type_check CHECK (

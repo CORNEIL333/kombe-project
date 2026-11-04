@@ -51,6 +51,7 @@ function check(name, cond, detail) {
 
 // Même liste canonique que migrate.mjs / isolation.pg.mjs ( Down : inversé ).
 const DOWN = [
+  "migrations/0037_rls_identite.down.sql",
   "migrations/0036_securite_operateurs.down.sql",
   "migrations/0035_group_photo.down.sql", "migrations/0034_echeances_notifications.down.sql", "migrations/0033_custom_funds.down.sql", "migrations/0032_audit_indexes.down.sql", "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql",
   "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql",
@@ -66,7 +67,7 @@ const DOWN = [
   "migrations/0001_init.down.sql",
 ];
 
-const EXPECTED_JALONS = 38; // roles_create.sql + 36 migrations (0001..0036) + roles.sql
+const EXPECTED_JALONS = 39; // roles_create.sql + 37 migrations (0001..0037) + roles.sql
 
 try {
   await client.connect();

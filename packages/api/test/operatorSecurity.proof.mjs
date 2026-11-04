@@ -159,6 +159,39 @@ try {
   const logs = await admin.query(`SELECT event_type FROM security_log WHERE group_id = $1 ORDER BY log_id`, [gid]);
   const types = logs.rows.map((r) => r.event_type);
   check("REFUSALS-DURABLE-AFTER-403", types.filter((t) => t === "support_access_denied").length >= 2 && types.includes("support_financial_action_refused"), types);
+
+  // ── Défense en profondeur en base (rôle applicatif, sous RLS) ──────────
+  // Même avec un accès SQL arbitraire sous la session d'un membre ordinaire,
+  // ni énumération des identifiants de connexion, ni auto-attribution d'une
+  // fonction d'opérateur, ni écriture des compteurs de débit.
+  const appDb = await pool.connect();
+  try {
+    await appDb.query("BEGIN");
+    await appDb.query("SELECT set_config('kombe.identity_id', $1, true)", [M.login]);
+    const seen = await appDb.query("SELECT identity_id FROM identity");
+    check("RLS-IDENTITY-NO-ENUMERATION", seen.rows.length === 1 && seen.rows[0].identity_id === M.login, seen.rows.length);
+    let selfGrant = "accepted";
+    try {
+      await appDb.query("SAVEPOINT g");
+      await appDb.query("INSERT INTO operator_role (identity_id, role, granted_by) VALUES ($1, 'admin', 'self')", [M.login]);
+    } catch (e) { selfGrant = e.code; await appDb.query("ROLLBACK TO SAVEPOINT g"); }
+    check("RLS-NO-OPERATOR-SELF-GRANT", selfGrant === "42501", selfGrant);
+    let rate = "accepted";
+    try {
+      await appDb.query("SAVEPOINT r");
+      await appDb.query("DELETE FROM auth_rate_limit");
+    } catch (e) { rate = e.code; await appDb.query("ROLLBACK TO SAVEPOINT r"); }
+    check("RATE-LIMIT-TABLE-CLOSED", rate === "42501", rate);
+    let mig = "accepted";
+    try {
+      await appDb.query("SAVEPOINT m");
+      await appDb.query("SELECT count(*) FROM kombe_migration");
+    } catch (e) { mig = e.code; await appDb.query("ROLLBACK TO SAVEPOINT m"); }
+    check("MIGRATION-LEDGER-CLOSED", mig === "42501", mig);
+  } finally {
+    await appDb.query("ROLLBACK");
+    appDb.release();
+  }
 } catch (err) {
   failures += 1;
   observations.EXCEPTION = String(err?.stack ?? err);
