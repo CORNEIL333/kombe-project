@@ -107,7 +107,7 @@ class NdopSurface extends StatelessWidget {
           begin: Alignment(-fade.x, -fade.y),
           end: fade,
           colors: const <Color>[Color(0xFFFFFFFF), Color(0x00FFFFFF)],
-          stops: const <double>[.15, .9],
+          stops: const <double>[.05, .72],
         ).createShader(r),
         child: pattern,
       );

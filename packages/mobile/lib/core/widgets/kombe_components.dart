@@ -493,3 +493,67 @@ class KombeMenuRow extends StatelessWidget {
         onTap: onTap,
       );
 }
+
+/// Fait en lecture seule (fiches, reçus) : picto neutre, libellé, valeur.
+class KombeFact extends StatelessWidget {
+  const KombeFact({super.key, required this.icon, required this.label, required this.value});
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+        minTileHeight: 62,
+        leading: KombeIconBadge(icon, tone: KombeTone.neutral, size: 38),
+        title: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        subtitle: Text(value, style: Theme.of(context).textTheme.titleMedium),
+      );
+}
+
+/// Tête de formulaire : picto de la tâche, titre Fraunces, une phrase utile.
+class KombeFormHeader extends StatelessWidget {
+  const KombeFormHeader({super.key, required this.icon, required this.title, required this.body, this.tone = KombeTone.brand});
+  final IconData icon;
+  final String title;
+  final String body;
+  final KombeTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme t = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        KombeIconBadge(icon, tone: tone, size: 54),
+        const SizedBox(height: 18),
+        Semantics(header: true, child: Text(title, style: t.headlineMedium)),
+        const SizedBox(height: 8),
+        Text(body, style: t.bodyLarge?.copyWith(color: KombeColors.slate)),
+        const SizedBox(height: 26),
+      ],
+    );
+  }
+}
+
+/// Message d'erreur en ligne, sous le champ concerné, annoncé au lecteur d'écran.
+class KombeInlineError extends StatelessWidget {
+  const KombeInlineError(this.message, {super.key});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        liveRegion: true,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(color: KombeTone.danger.bg, borderRadius: BorderRadius.circular(KombeSpacing.tileRadius)),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Icon(Icons.error_outline_rounded, size: 18, color: KombeColors.danger),
+              const SizedBox(width: 10),
+              Expanded(child: Text(message, style: const TextStyle(color: KombeColors.danger, fontWeight: FontWeight.w600, fontSize: 14))),
+            ],
+          ),
+        ),
+      );
+}

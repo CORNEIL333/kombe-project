@@ -9,7 +9,6 @@ import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_theme.dart';
 import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/screen_states.dart';
-import '../../core/widgets/section_card.dart';
 import '../../core/widgets/server_action_guard.dart';
 import '../../domain/entities/governance.dart';
 import '../../l10n/app_localizations.dart';
@@ -171,7 +170,10 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
         builder: (BuildContext context, VoteDetails vote) => ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: <Widget>[
-            StatusPill(vote.open ? 'Vote ouvert' : _outcome(vote.state), tone: vote.open ? KombeTone.info : KombeTone.neutral, icon: Icons.how_to_vote_outlined),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: StatusPill(vote.open ? 'Vote ouvert' : _outcome(vote.state), tone: vote.open ? KombeTone.info : KombeTone.neutral, icon: Icons.how_to_vote_outlined),
+            ),
             const SizedBox(height: 12),
             Text(vote.summary.title, style: t.headlineSmall),
             if (vote.description.isNotEmpty) ...<Widget>[
@@ -184,11 +186,13 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Text('${vote.ballots}', style: KombeType.amount(size: 26)),
-                      Text(' / ${vote.electorate} ${l10n.voteBallots.toLowerCase()}', style: t.bodyMedium),
-                    ],
+                  Text.rich(
+                    TextSpan(
+                      children: <InlineSpan>[
+                        TextSpan(text: '${vote.ballots}', style: KombeType.amount(size: 26)),
+                        TextSpan(text: ' / ${vote.electorate} ${l10n.voteBallots.toLowerCase()}', style: t.bodyMedium),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 10),
                   LinearProgressIndicator(value: vote.electorate == 0 ? 0 : (vote.ballots / vote.electorate).clamp(0, 1)),
@@ -266,11 +270,6 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
         VoteChoice.against => Icons.thumb_down_alt_outlined,
         VoteChoice.abstain => Icons.remove_circle_outline_rounded,
       };
-
-  Widget _row(TextTheme t, String k, String v) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(children: <Widget>[Expanded(child: Text(k, style: t.bodyMedium)), Text(v, style: t.titleSmall)]),
-      );
 }
 
 class _ChoiceTile extends StatelessWidget {

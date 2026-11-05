@@ -48,7 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(centerTitle: true, title: const Text('Mon profil')),
+        appBar: AppBar(title: const Text('Mon profil')),
         body: ListenableBuilder(
           listenable: _vm!,
           builder: (BuildContext context, Widget? child) => ResourceView<UserProfile>(
@@ -176,7 +176,7 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text('Bonjour $first 👋', style: t.titleLarge?.copyWith(fontSize: 21)),
+              Text('Bonjour $first', style: t.headlineSmall),
               const SizedBox(height: 4),
               Text(profile.displayName, style: t.bodyMedium),
               Text(profile.phoneE164, style: t.bodyMedium),
@@ -273,7 +273,12 @@ class _Row extends StatelessWidget {
         decoration: BoxDecoration(border: last ? null : const Border(bottom: BorderSide(color: KombeColors.line))),
         child: Row(
           children: <Widget>[
-            Icon(icon, color: iconColor ?? KombeColors.ink),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(color: (iconColor ?? KombeColors.forest).withValues(alpha: .1), borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, size: 20, color: iconColor ?? KombeColors.forest),
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/state/operation_result.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/server_action_guard.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../l10n/app_localizations.dart';
@@ -60,21 +61,12 @@ class _RecoveryRequestScreenState extends State<RecoveryRequestScreen> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.recoverAccount)),
+      appBar: AppBar(),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: <Widget>[
-            Text(
-              l10n.recoverAccount,
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              l10n.recoverAccountIntro,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 24),
+            KombeFormHeader(icon: Icons.lock_reset_rounded, title: l10n.recoverAccount, body: l10n.recoverAccountIntro),
             Form(
               key: _formKey,
               child: LoginIdField(controller: _email),

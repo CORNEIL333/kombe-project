@@ -9,7 +9,6 @@ import '../../core/formatters/labels.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/group_hero_card.dart';
-import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/kombe_visuals.dart';
 import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/screen_states.dart';

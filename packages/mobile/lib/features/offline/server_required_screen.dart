@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/kombe_logo.dart';
 
 class ServerRequiredScreen extends StatelessWidget {
@@ -19,11 +20,7 @@ class ServerRequiredScreen extends StatelessWidget {
                   children: <Widget>[
                     const KombeLogo(size: 54),
                     const SizedBox(height: 28),
-                    Icon(
-                      Icons.cloud_off_outlined,
-                      size: 54,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                    const KombeEmptyArt(icon: Icons.cloud_off_outlined, tone: KombeTone.warning),
                     const SizedBox(height: 18),
                     Text(
                       'Connexion impossible pour le moment',

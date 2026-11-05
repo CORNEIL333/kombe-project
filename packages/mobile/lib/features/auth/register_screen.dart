@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/design/kombe_colors.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/server_action_guard.dart';
@@ -62,17 +63,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: <Widget>[
-            const Center(child: KombeLogo(size: 48)),
-            const SizedBox(height: 36),
-            Text(
-              l10n.createAccount,
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
+            const KombeLogo(size: 40),
+            const SizedBox(height: 30),
+            Semantics(header: true, child: Text(l10n.createAccount, style: Theme.of(context).textTheme.headlineLarge)),
             const SizedBox(height: 10),
-            Text(
-              l10n.registerIntro,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
+            Text(l10n.registerIntro, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: KombeColors.slate)),
             const SizedBox(height: 28),
             Form(
               key: _formKey,

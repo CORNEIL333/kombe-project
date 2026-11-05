@@ -55,9 +55,7 @@ class KombeBoutonDeconnexionState extends State<KombeBoutonDeconnexion> {
           style: OutlinedButton.styleFrom(
             foregroundColor: KombeColors.danger,
             side: const BorderSide(color: KombeColors.danger),
-            minimumSize: const Size.fromHeight(54),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            backgroundColor: Colors.transparent,
           ),
         ),
       );

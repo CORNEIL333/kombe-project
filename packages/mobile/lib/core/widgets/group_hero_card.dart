@@ -28,8 +28,7 @@ class GroupHeroCard extends StatelessWidget {
           '${group.memberCount} membres, cotisation ${Xaf.format(group.contributionAmountXaf)}',
       child: ExcludeSemantics(
         child: NdopSurface(
-          variant: 2,
-          opacity: .12,
+          opacity: .1,
           tile: 30,
           fadeTo: Alignment.centerLeft,
           borderRadius: BorderRadius.circular(24),

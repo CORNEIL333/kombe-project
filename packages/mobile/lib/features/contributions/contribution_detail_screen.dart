@@ -67,15 +67,15 @@ class _ContributionDetailScreenState extends State<ContributionDetailScreen> {
                 const KombeSection('Détails'),
                 KombeGroupedList(
                   children: <Widget>[
-                    _Fact(icon: Icons.smartphone_rounded, label: 'Canal déclaré', value: KombeLabels.channel(c.channel)),
-                    _Fact(
+                    KombeFact(icon: Icons.smartphone_rounded, label: 'Canal déclaré', value: KombeLabels.channel(c.channel)),
+                    KombeFact(
                       icon: Icons.event_outlined,
                       label: 'Déclarée le',
                       // Horodatage du serveur ; « — » s'il n'est pas rendu (jamais inventé).
                       value: d == null ? '—' : DateFormat('d MMMM y, HH:mm', locale).format(d.toLocal()),
                     ),
-                    if (c.evidenceName != null) _Fact(icon: Icons.attach_file_rounded, label: 'Justificatif', value: c.evidenceName!),
-                    if (c.note != null && c.note!.trim().isNotEmpty) _Fact(icon: Icons.notes_rounded, label: 'Note', value: c.note!),
+                    if (c.evidenceName != null) KombeFact(icon: Icons.attach_file_rounded, label: 'Justificatif', value: c.evidenceName!),
+                    if (c.note != null && c.note!.trim().isNotEmpty) KombeFact(icon: Icons.notes_rounded, label: 'Note', value: c.note!),
                   ],
                 ),
               ],
@@ -133,19 +133,4 @@ class _Journey extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Fact extends StatelessWidget {
-  const _Fact({required this.icon, required this.label, required this.value});
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => ListTile(
-        minTileHeight: 62,
-        leading: KombeIconBadge(icon, tone: KombeTone.neutral, size: 38),
-        title: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-        subtitle: Text(value, style: Theme.of(context).textTheme.titleMedium),
-      );
 }

@@ -11,10 +11,6 @@ import '../../core/design/kombe_tokens.g.dart';
 Future<void> showContributionSentSheet(BuildContext context) => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      backgroundColor: KombeColors.cream,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(KombeTokens.radiusXl)),
-      ),
       builder: (BuildContext context) => const ContributionSentView(),
     );
 

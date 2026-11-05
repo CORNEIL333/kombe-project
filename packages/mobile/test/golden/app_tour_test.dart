@@ -54,6 +54,19 @@ const List<(String, String)> _routes = <(String, String)>[
   ('18_documents', '/app/documents'),
   ('19_rejoindre', '/app/groups/join'),
   ('20_hors_ligne', '/app/offline'),
+  ('23_caisses', '/app/groups/essai-etoiles/funds'),
+  ('24_beneficiaires', '/app/groups/essai-etoiles/beneficiaries'),
+  ('25_membre', '/app/groups/essai-etoiles/members/essai-membre-1'),
+  ('26_creer', '/app/groups/create'),
+  ('27_reglages_groupe', '/app/groups/essai-bamileke/settings'),
+  ('28_securite', '/app/settings/security'),
+  ('29_langue', '/app/settings/language'),
+  ('30_alertes', '/app/settings/notifications'),
+  ('31_confidentialite', '/app/settings/privacy'),
+  ('32_aide', '/app/help'),
+  ('33_support', '/app/support'),
+  ('34_a_propos', '/app/about'),
+  ('35_modifier_profil', '/app/profile/edit'),
 ];
 
 void main() {
@@ -129,4 +142,43 @@ void main() {
     }
     await expectLater(find.byType(KombeApp), matchesGoldenFile('tour/21_menu.png'));
   }, skip: !enabled);
+
+  // Contrôle mesuré, pas seulement visuel : tout écran du tour, sur le plus
+  // petit téléphone visé et avec un texte agrandi, sans aucun débordement
+  // (un RenderFlex qui déborde fait échouer ce test).
+  for (final (double width, double scale) in const <(double, double)>[(320, 1), (360, 1.3)]) {
+    testWidgets('aucun débordement à $width px, texte × $scale', (WidgetTester tester) async {
+      tester.view.physicalSize = Size(width * 2, 640 * 2);
+      tester.view.devicePixelRatio = 2;
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final AppDependencies deps = fakeDependencies(drafts: InMemoryDraftRepository());
+      await tester.pumpWidget(KombeApp(dependencies: deps));
+      for (int i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      final Future<Object?> login = deps.authRepository.completeLogin(identityId: 'essai@kombe.app', code: '000000');
+      await tester.pump(const Duration(seconds: 1));
+      await login;
+      for (int i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      final List<String> defauts = <String>[];
+      for (final (String name, String route) in _routes) {
+        GoRouter.of(tester.element(find.byType(Scaffold).first)).go(route);
+        await tester.pump(const Duration(milliseconds: 100));
+        final Object? a = tester.takeException();
+        await tester.pump(const Duration(seconds: 2));
+        final Object? b = tester.takeException();
+        for (int i = 0; i < 12; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        final Object? c = tester.takeException();
+        final Object? e = a ?? b ?? c;
+        if (e != null) defauts.add('$name : ${e.toString().split('\n').first}');
+      }
+      expect(defauts, isEmpty);
+    });
+  }
 }

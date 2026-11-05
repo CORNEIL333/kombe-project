@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/design/kombe_theme.dart';
 import '../../core/state/operation_result.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/server_action_guard.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../l10n/app_localizations.dart';
@@ -124,22 +126,18 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.verifyCodeTitle)),
+      appBar: AppBar(),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: <Widget>[
-            Text(
-              l10n.verifyCodeTitle,
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
-            const SizedBox(height: 10),
-            Text(l10n.codeSent, style: Theme.of(context).textTheme.bodyLarge),
-            const SizedBox(height: 26),
+            KombeFormHeader(icon: Icons.sms_outlined, title: l10n.verifyCodeTitle, body: l10n.codeSent),
             TextField(
               controller: _code,
               keyboardType: TextInputType.number,
               autofillHints: const <String>[AutofillHints.oneTimeCode],
+              textAlign: TextAlign.center,
+              style: KombeType.amount(size: 30).copyWith(letterSpacing: 8),
               decoration: InputDecoration(labelText: l10n.code, errorText: _error),
               onChanged: (_) {
                 if (_error != null) setState(() => _error = null);
