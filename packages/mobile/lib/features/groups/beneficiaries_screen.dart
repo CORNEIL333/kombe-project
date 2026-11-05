@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/design/kombe_colors.dart';
+import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/labels.dart';
+import '../../core/widgets/kombe_components.dart';
+import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/cycle.dart';
 import '../../domain/repositories/group_repository.dart';
@@ -33,30 +37,52 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Ordre des bénéficiaires')),
+        appBar: AppBar(title: const Text('Qui reçoit, et quand')),
         body: ListenableBuilder(
           listenable: _vm!,
           builder: (BuildContext context, Widget? child) =>
               ResourceView<CycleDetails>(
             resource: _vm!.state,
-            builder: (BuildContext context, CycleDetails cycle) => ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: cycle.beneficiaries.length,
-              separatorBuilder: (_, __) => const Divider(),
-              itemBuilder: (BuildContext context, int index) {
-                final BeneficiaryTurn item = cycle.beneficiaries[index];
-                return ListTile(
-                  minTileHeight: 68,
-                  leading: CircleAvatar(child: Text('${item.turnNumber}')),
-                  title: Text(item.displayName),
-                  subtitle: Text(
-                    DateFormat.yMMMd(
-                      Localizations.localeOf(context).toLanguageTag(),
-                    ).format(item.dueAtUtc.toLocal()),
-                  ),
-                  trailing: Text(KombeLabels.beneficiaryStatus(item.status)),
-                );
-              },
+            onRetry: _vm!.load,
+            emptyWhen: (CycleDetails c) => c.beneficiaries.isEmpty,
+            emptyTitle: 'Ordre pas encore fixé',
+            emptyBody: 'L’ordre apparaîtra au démarrage du cycle.',
+            builder: (BuildContext context, CycleDetails cycle) => ListView(
+              padding: const EdgeInsets.only(top: 8, bottom: 32),
+              children: <Widget>[
+                KombeGroupedList(
+                  children: <Widget>[
+                    for (final BeneficiaryTurn item in cycle.beneficiaries)
+                      ListTile(
+                        minTileHeight: 72,
+                        tileColor: item.status == BeneficiaryStatus.current ? KombeColors.goldPale.withValues(alpha: .45) : null,
+                        leading: SizedBox(
+                          width: 76,
+                          child: Row(
+                            children: <Widget>[
+                              SizedBox(
+                                width: 26,
+                                child: Text('${item.turnNumber}', style: KombeType.amount(size: 18, color: KombeColors.slate)),
+                              ),
+                              MemberAvatar(groupId: item.groupId, memberId: item.identityId, name: item.displayName, photoVersion: item.photoVersion, size: 42),
+                            ],
+                          ),
+                        ),
+                        title: Text(item.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag()).format(item.dueAtUtc.toLocal())),
+                        trailing: StatusPill(
+                          KombeLabels.beneficiaryStatus(item.status),
+                          tone: switch (item.status) {
+                            BeneficiaryStatus.received => KombeTone.success,
+                            BeneficiaryStatus.current => KombeTone.money,
+                            BeneficiaryStatus.upcoming => KombeTone.neutral,
+                          },
+                          icon: item.status == BeneficiaryStatus.received ? Icons.check_rounded : null,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

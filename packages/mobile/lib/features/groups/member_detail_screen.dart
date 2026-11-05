@@ -4,10 +4,10 @@ import 'package:provider/provider.dart';
 
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
-import '../../core/widgets/kombe_visuals.dart';
+import '../../core/widgets/group_avatar.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/operation_feedback.dart';
 import '../../core/widgets/screen_states.dart';
-import '../../core/widgets/section_card.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
 import 'members_screen.dart';
@@ -98,76 +98,89 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
         appBar: AppBar(title: const Text('Membre')),
         body: ResourceView<GroupMember>(
           resource: _member,
+          onRetry: _load,
           builder: (BuildContext context, GroupMember member) {
             final TextTheme t = Theme.of(context).textTheme;
             final bool canAssign =
                 (_group?.can(TontineAct.assignRole) ?? false) && !member.pending && !member.offline;
+            final bool bureau = member.apiRoles.isNotEmpty;
             return ListView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(0, 16, 0, 32),
               children: <Widget>[
-                Center(child: KombeAvatar(name: member.displayName, size: 84)),
-                const SizedBox(height: 16),
-                Text(member.displayName, textAlign: TextAlign.center, style: t.headlineMedium),
-                const SizedBox(height: 6),
-                Text(memberRolesLabel(member), textAlign: TextAlign.center, style: t.bodyLarge),
+                Center(
+                  child: MemberAvatar(
+                    groupId: widget.groupId,
+                    memberId: member.identityId,
+                    name: member.displayName,
+                    photoVersion: member.photoVersion,
+                    size: 112,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(member.displayName, textAlign: TextAlign.center, style: t.headlineMedium),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: StatusPill(
+                    member.pending ? 'Demande en attente' : memberRolesLabel(member),
+                    tone: bureau ? KombeTone.money : KombeTone.brand,
+                    icon: bureau ? Icons.star_rounded : Icons.person_outline_rounded,
+                  ),
+                ),
                 const SizedBox(height: 24),
-                SectionCard(
-                  child: Column(
-                    children: <Widget>[
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.badge_outlined),
-                        title: const Text('Fonctions'),
-                        subtitle: Text(memberRolesLabel(member)),
+                KombeGroupedList(
+                  children: <Widget>[
+                    KombeFact(icon: Icons.badge_outlined, label: 'Fonctions', value: memberRolesLabel(member)),
+                    if (member.pendingRoles.isNotEmpty)
+                      KombeFact(
+                        icon: Icons.hourglass_top_rounded,
+                        label: 'Proposée, pas encore acceptée',
+                        value: member.pendingRoles.map(apiRoleLabel).join(', '),
                       ),
-                      if (member.pendingRoles.isNotEmpty) ...<Widget>[
-                        const Divider(),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.hourglass_top_rounded),
-                          title: const Text('Proposée, pas encore acceptée'),
-                          subtitle: Text(member.pendingRoles.map(apiRoleLabel).join(', ')),
+                    KombeFact(
+                      icon: Icons.event_available_outlined,
+                      label: member.pending ? 'Demande d’adhésion' : 'Membre depuis',
+                      value: member.pending
+                          ? 'en attente'
+                          : DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag()).format(member.joinedAtUtc.toLocal()),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      if (member.isMe)
+                        for (final String role in member.pendingRoles) ...<Widget>[
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: _busy
+                                ? null
+                                : () => _run(
+                                      (GroupRepository repo) => repo.acceptRole(groupId: widget.groupId, role: role),
+                                      'Vous êtes désormais ${apiRoleLabel(role)}.',
+                                    ),
+                            child: Text('Accepter la fonction de ${apiRoleLabel(role)}'),
+                          ),
+                        ],
+                      if (canAssign) ...<Widget>[
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: _busy ? null : () => _propose(member),
+                          icon: const Icon(Icons.manage_accounts_outlined),
+                          label: const Text('Proposer une fonction'),
                         ),
                       ],
-                      const Divider(),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.calendar_today_outlined),
-                        title: Text(member.pending ? 'Demande d’adhésion' : 'Membre depuis'),
-                        trailing: Text(
-                          member.pending
-                              ? 'en attente'
-                              : DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag()).format(member.joinedAtUtc.toLocal()),
-                        ),
-                      ),
+                      if (member.offline) ...<Widget>[
+                        const SizedBox(height: 12),
+                        Text('Membre sans téléphone, représenté par un proche : il ne tient pas de fonction du bureau.', style: t.bodySmall),
+                      ],
                     ],
                   ),
                 ),
-                if (member.isMe)
-                  for (final String role in member.pendingRoles) ...<Widget>[
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _run(
-                                (GroupRepository repo) => repo.acceptRole(groupId: widget.groupId, role: role),
-                                'Vous êtes désormais ${apiRoleLabel(role)}.',
-                              ),
-                      child: Text('Accepter la fonction de ${apiRoleLabel(role)}'),
-                    ),
-                  ],
-                if (canAssign) ...<Widget>[
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: _busy ? null : () => _propose(member),
-                    icon: const Icon(Icons.manage_accounts_outlined),
-                    label: const Text('Proposer une fonction'),
-                  ),
-                ],
-                if (member.offline) ...<Widget>[
-                  const SizedBox(height: 12),
-                  Text('Membre sans téléphone, représenté par un proche : il ne tient pas de fonction du bureau.', style: t.bodySmall),
-                ],
               ],
             );
           },

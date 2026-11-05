@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/design/kombe_spacing.dart';
+import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/state/resource.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/kombe_sheet.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/repositories/contribution_repository.dart';
@@ -34,6 +39,9 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
   final TextEditingController _reference = TextEditingController();
   final TextEditingController _reason = TextEditingController();
   PaymentChannel _channel = PaymentChannel.orangeMoney;
+  final GlobalKey _amountKey = GlobalKey();
+  final GlobalKey _referenceKey = GlobalKey();
+  final GlobalKey _reasonKey = GlobalKey();
   bool _noReference = false;
   bool _showErrors = false;
   late final ContributionDraftViewModel _vm;
@@ -86,11 +94,11 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
   bool get _needsReference => _channel != PaymentChannel.cash;
 
   void _save() => _vm.edit(
-        amountXaf: ContributionDraftViewModel.parseAmount(_amount.text),
-        channel: _channel,
-        reference: _needsReference && !_noReference ? _reference.text : null,
-        reason: _needsReference && _noReference ? _reason.text : null,
-      );
+    amountXaf: ContributionDraftViewModel.parseAmount(_amount.text),
+    channel: _channel,
+    reference: _needsReference && !_noReference ? _reference.text : null,
+    reason: _needsReference && _noReference ? _reason.text : null,
+  );
 
   String? get _amountError {
     final int? v = ContributionDraftViewModel.parseAmount(_amount.text);
@@ -107,8 +115,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
     return null;
   }
 
-  String? get _reasonError =>
-      _needsReference && _noReference && _reason.text.trim().isEmpty ? 'Expliquez pourquoi il n’y a pas de référence.' : null;
+  String? get _reasonError => _needsReference && _noReference && _reason.text.trim().isEmpty ? 'Expliquez pourquoi il n’y a pas de référence.' : null;
 
   bool get _valid => _amountError == null && _referenceError == null && _reasonError == null;
 
@@ -116,6 +123,15 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
     _save();
     if (!_valid) {
       setState(() => _showErrors = true);
+      // Le champ en erreur peut être hors écran (petit téléphone, clavier) :
+      // on l'amène sous les yeux, sinon « Vérifier » semblerait ne rien faire.
+      final GlobalKey target = _amountError != null ? _amountKey : (_referenceError != null ? _referenceKey : _reasonKey);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final BuildContext? c = target.currentContext;
+        if (c != null && c.mounted) {
+          unawaited(Scrollable.ensureVisible(c, duration: const Duration(milliseconds: 250), curve: Curves.easeOut, alignment: .2));
+        }
+      });
       return;
     }
     _openReview();
@@ -146,12 +162,14 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
       appBar: AppBar(title: Text(l10n.declareContribution)),
       body: SafeArea(
         child: switch (_vm.dues) {
-          ResourceLoading<List<OpenDue>>() => const Center(child: CircularProgressIndicator()),
+          ResourceLoading<List<OpenDue>>() => const KombeListSkeleton(rows: 3),
           ResourceReady<List<OpenDue>>(:final List<OpenDue> data) when data.isEmpty && !locked => _NothingDue(onBack: () => context.pop()),
           ResourceFailure<List<OpenDue>>(:final Object error) when !locked => _LoadError(message: '$error', onRetry: () => _vm.load()),
           ResourceUnavailable<List<OpenDue>>() when !locked => _LoadError(message: l10n.serviceUnavailableBody, onRetry: () => _vm.load()),
-          _ => ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+          _ => SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 if (_vm.dues case ResourceReady<List<OpenDue>>(:final List<OpenDue> data)) _DueSummary(dues: data),
                 const SizedBox(height: 20),
@@ -159,15 +177,12 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                   const _LockedNotice()
                 else ...<Widget>[
                   TextField(
+                    key: _amountKey,
                     controller: _amount,
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
-                    style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-                    decoration: InputDecoration(
-                      labelText: 'Montant versé',
-                      suffixText: 'FCFA',
-                      errorText: _showErrors ? _amountError : null,
-                    ),
+                    style: KombeType.amount(size: 26),
+                    decoration: InputDecoration(labelText: 'Montant versé', suffixText: 'FCFA', errorText: _showErrors ? _amountError : null),
                     onChanged: (_) => setState(_save),
                   ),
                   const SizedBox(height: 22),
@@ -198,6 +213,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                     const SizedBox(height: 22),
                     if (!_noReference)
                       TextField(
+                        key: _referenceKey,
                         controller: _reference,
                         textCapitalization: TextCapitalization.characters,
                         autocorrect: false,
@@ -212,6 +228,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                       )
                     else
                       TextField(
+                        key: _reasonKey,
                         controller: _reason,
                         maxLength: 500,
                         maxLines: 2,
@@ -242,7 +259,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Gardez la capture ou le reçu du paiement : la trésorerie peut vous le demander.',
+                          'Gardez votre reçu.',
                           style: t.bodySmall?.copyWith(color: KombeColors.slate),
                         ),
                       ),
@@ -251,16 +268,14 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                 ],
               ],
             ),
+          ),
         },
       ),
       bottomNavigationBar: _vm.dues is ResourceReady<List<OpenDue>> && ((_vm.dues as ResourceReady<List<OpenDue>>).data.isNotEmpty || locked)
           ? SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: FilledButton(
-                  onPressed: locked ? _openReview : _review,
-                  child: Text(locked ? 'Reprendre l’envoi' : 'Vérifier'),
-                ),
+                child: FilledButton(onPressed: locked ? _openReview : _review, child: Text(locked ? 'Reprendre l’envoi' : 'Vérifier')),
               ),
             )
           : null,
@@ -269,14 +284,14 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
 }
 
 String _channelLabel(AppLocalizations l10n, PaymentChannel c) => switch (c) {
-      PaymentChannel.orangeMoney => l10n.orangeMoney,
-      PaymentChannel.mtnMomo => l10n.mtnMomo,
-      PaymentChannel.bankTransfer => l10n.bankTransfer,
-      // Libellé court (puce) ; le montant déclaré est celui reçu en FCFA.
-      PaymentChannel.internationalTransfer => 'Transfert international',
-      PaymentChannel.cash => l10n.cash,
-      PaymentChannel.mobileMoney => 'Mobile Money',
-    };
+  PaymentChannel.orangeMoney => l10n.orangeMoney,
+  PaymentChannel.mtnMomo => l10n.mtnMomo,
+  PaymentChannel.bankTransfer => l10n.bankTransfer,
+  // Libellé court (puce) ; le montant déclaré est celui reçu en FCFA.
+  PaymentChannel.internationalTransfer => 'Transfert international',
+  PaymentChannel.cash => l10n.cash,
+  PaymentChannel.mobileMoney => 'Mobile Money',
+};
 
 /// Ce qui reste à régler, caisse par caisse, tour par tour.
 class _DueSummary extends StatelessWidget {
@@ -287,29 +302,33 @@ class _DueSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextTheme t = Theme.of(context).textTheme;
     final int total = dues.fold<int>(0, (int s, OpenDue d) => s + d.remainingXaf);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text('Reste à régler', style: t.labelLarge?.copyWith(color: KombeColors.slate)),
-        const SizedBox(height: 2),
-        Text(Xaf.format(total), style: t.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        for (final OpenDue d in dues)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: Row(
-              children: <Widget>[
-                Expanded(child: Text('${d.fundName} · tour ${d.roundSeq}', style: t.bodyMedium)),
-                if (d.late)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Text('en retard', style: t.labelMedium?.copyWith(color: KombeColors.danger)),
-                  ),
-                Text(Xaf.format(d.remainingXaf), style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-              ],
+    return KombeCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Reste à régler', style: t.bodyMedium),
+          const SizedBox(height: 2),
+          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(total, size: 32)),
+          const SizedBox(height: 10),
+          const Divider(),
+          const SizedBox(height: 6),
+          for (final OpenDue d in dues)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: <Widget>[
+                  Expanded(child: Text('${d.fundName} · tour ${d.roundSeq}', style: t.bodyMedium)),
+                  if (d.late)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: StatusPill('en retard', tone: KombeTone.danger),
+                    ),
+                  Text(Xaf.format(d.remainingXaf), style: KombeType.amount(size: 15, color: KombeColors.ink)),
+                ],
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -319,10 +338,9 @@ class _LockedNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        'L’envoi de cette déclaration a commencé. Reprenez-le pour terminer : '
-        'les lignes déjà enregistrées ne seront pas envoyées deux fois.',
-        style: Theme.of(context).textTheme.bodyLarge,
-      );
+    'L’envoi a commencé. Reprenez-le : rien ne sera envoyé deux fois.',
+    style: Theme.of(context).textTheme.bodyLarge,
+  );
 }
 
 class _NothingDue extends StatelessWidget {
@@ -331,22 +349,22 @@ class _NothingDue extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Icon(Icons.check_circle_outline_rounded, size: 48, color: KombeColors.forest),
-              const SizedBox(height: 12),
-              Text('Rien à régler pour le moment', style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
-              const SizedBox(height: 6),
-              const Text('Vos cotisations ouvertes sont déjà déclarées ou réglées.', textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              OutlinedButton(onPressed: onBack, child: const Text('Retour')),
-            ],
-          ),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Icon(Icons.check_circle_outline_rounded, size: 48, color: KombeColors.forest),
+          const SizedBox(height: 12),
+          Text('Rien à régler pour le moment', style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
+          const SizedBox(height: 6),
+          const Text('Tout est payé.', textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          OutlinedButton(onPressed: onBack, child: const Text('Retour')),
+        ],
+      ),
+    ),
+  );
 }
 
 class _LoadError extends StatelessWidget {
@@ -356,18 +374,18 @@ class _LoadError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(message, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              OutlinedButton(onPressed: onRetry, child: const Text('Réessayer')),
-            ],
-          ),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          OutlinedButton(onPressed: onRetry, child: const Text('Réessayer')),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Récapitulatif + envoi + issue réelle, dans la même demi-fenêtre.
@@ -378,82 +396,84 @@ class _ReviewSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-        listenable: vm,
-        builder: (BuildContext context, _) {
-          final TextTheme t = Theme.of(context).textTheme;
-          final ContributionDraft? d = vm.draft;
-          List<DeclarationLine> lines;
-          try {
-            lines = vm.preview();
-          } on AmountExceedsDue {
-            lines = const <DeclarationLine>[];
-          }
-          if (vm.phase == DeclarationPhase.done) {
-            WidgetsBinding.instance.addPostFrameCallback((_) => Navigator.of(context).maybePop());
-          }
-          final bool sending = vm.phase == DeclarationPhase.sending;
-          final DeclarationReceipt? r = vm.receipt;
-          return PopScope(
-            canPop: !sending,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                for (final DeclarationLine l in lines)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      children: <Widget>[
-                        Icon(
-                          l.recorded ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                          size: 20,
-                          color: l.recorded ? KombeColors.forest : KombeColors.slate,
-                          semanticLabel: l.recorded ? 'enregistrée' : 'à envoyer',
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text('${l.fundName} · tour ${l.roundSeq}', style: t.bodyLarge)),
-                        Text(Xaf.format(l.amountXaf), style: t.bodyLarge?.copyWith(fontWeight: FontWeight.w700)),
-                      ],
-                    ),
-                  ),
-                const Divider(height: 24),
-                _kv(t, 'Moyen', channelLabel),
-                if (d?.reference != null) _kv(t, 'Référence', d!.reference!),
-                if (d?.reference == null && d?.noReferenceReason != null) _kv(t, 'Sans référence', d!.noReferenceReason!),
-                const SizedBox(height: 14),
-                if (r != null && vm.phase != DeclarationPhase.editing && vm.phase != DeclarationPhase.sending)
-                  _Outcome(phase: vm.phase, receipt: r)
-                else
-                  Text(
-                    'La trésorerie du groupe confirmera après avoir retrouvé le paiement. '
-                    'En attendant, la déclaration apparaît « en attente ».',
-                    style: t.bodySmall?.copyWith(color: KombeColors.slate),
-                  ),
-                const SizedBox(height: 16),
-                if (vm.phase == DeclarationPhase.failed)
-                  OutlinedButton(onPressed: () => Navigator.of(context).maybePop(), child: const Text('Modifier la saisie'))
-                else
-                  FilledButton(
-                    onPressed: sending || lines.isEmpty ? null : vm.send,
-                    child: sending
-                        ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
-                        : Text(d?.sending ?? false ? 'Reprendre l’envoi' : 'Envoyer la déclaration'),
-                  ),
-              ],
-            ),
-          );
-        },
-      );
-
-  Widget _kv(TextTheme t, String k, String v) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    listenable: vm,
+    builder: (BuildContext context, _) {
+      final TextTheme t = Theme.of(context).textTheme;
+      final ContributionDraft? d = vm.draft;
+      List<DeclarationLine> lines;
+      try {
+        lines = vm.preview();
+      } on AmountExceedsDue {
+        lines = const <DeclarationLine>[];
+      }
+      if (vm.phase == DeclarationPhase.done) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => Navigator.of(context).maybePop());
+      }
+      final bool sending = vm.phase == DeclarationPhase.sending;
+      final DeclarationReceipt? r = vm.receipt;
+      return PopScope(
+        canPop: !sending,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            SizedBox(width: 120, child: Text(k, style: t.bodyMedium?.copyWith(color: KombeColors.slate))),
-            Expanded(child: Text(v, style: t.bodyMedium)),
+            for (final DeclarationLine l in lines)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      l.recorded ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      size: 20,
+                      color: l.recorded ? KombeColors.forest : KombeColors.slate,
+                      semanticLabel: l.recorded ? 'enregistrée' : 'à envoyer',
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text('${l.fundName} · tour ${l.roundSeq}', style: t.bodyLarge)),
+                    Text(Xaf.format(l.amountXaf), style: KombeType.amount(size: 17)),
+                  ],
+                ),
+              ),
+            const Divider(height: 24),
+            _kv(t, 'Moyen', channelLabel),
+            if (d?.reference != null) _kv(t, 'Référence', d!.reference!),
+            if (d?.reference == null && d?.noReferenceReason != null) _kv(t, 'Sans référence', d!.noReferenceReason!),
+            const SizedBox(height: 14),
+            if (r != null && vm.phase != DeclarationPhase.editing && vm.phase != DeclarationPhase.sending)
+              _Outcome(phase: vm.phase, receipt: r)
+            else
+              Text(
+                'La trésorerie confirmera ce paiement.',
+                style: t.bodySmall?.copyWith(color: KombeColors.slate),
+              ),
+            const SizedBox(height: 16),
+            if (vm.phase == DeclarationPhase.failed)
+              OutlinedButton(onPressed: () => Navigator.of(context).maybePop(), child: const Text('Modifier la saisie'))
+            else
+              FilledButton(
+                onPressed: sending || lines.isEmpty ? null : vm.send,
+                child: sending
+                    ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
+                    : Text(d?.sending ?? false ? 'Reprendre l’envoi' : 'Envoyer'),
+              ),
           ],
         ),
       );
+    },
+  );
+
+  Widget _kv(TextTheme t, String k, String v) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SizedBox(
+          width: 120,
+          child: Text(k, style: t.bodyMedium?.copyWith(color: KombeColors.slate)),
+        ),
+        Expanded(child: Text(v, style: t.bodyMedium)),
+      ],
+    ),
+  );
 }
 
 /// Ce qui s'est passé, ce que cela signifie, ce que l'on peut faire.
@@ -467,24 +487,23 @@ class _Outcome extends StatelessWidget {
     final TextTheme t = Theme.of(context).textTheme;
     final (String title, String body) = switch (phase) {
       DeclarationPhase.unknown => (
-          'Réponse non reçue',
-          'Le réseau a coupé pendant l’envoi : la déclaration a peut-être été enregistrée. '
-              'Reprenez l’envoi quand le réseau revient — rien ne sera déclaré deux fois.'
-        ),
+        'Réponse non reçue',
+        'Le réseau a coupé. Reprenez l’envoi : rien ne sera compté deux fois.',
+      ),
       DeclarationPhase.partial => (
-          '${receipt.recordedCount} sur ${receipt.lines.length} enregistrées',
-          'Les lignes cochées sont enregistrées. ${receipt.error ?? ''} '
-              'Reprenez l’envoi pour terminer ; le brouillon est gardé sur ce téléphone.'
-        ),
-      _ => ('Déclaration non enregistrée', '${receipt.error ?? ''} Rien n’a été enregistré : corrigez puis renvoyez.'),
+        '${receipt.recordedCount} sur ${receipt.lines.length} enregistrées',
+        'Les lignes cochées sont enregistrées. ${receipt.error ?? ''} '
+            'Reprenez l’envoi pour terminer ; le brouillon est gardé sur ce téléphone.',
+      ),
+      _ => ('Paiement non enregistré', '${receipt.error ?? ''} Rien n’a été enregistré : corrigez puis renvoyez.'),
     };
     return Semantics(
       liveRegion: true,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: phase == DeclarationPhase.failed ? KombeColors.danger.withValues(alpha: .08) : KombeColors.mint,
-          borderRadius: BorderRadius.circular(14),
+          color: phase == DeclarationPhase.failed ? KombeTone.danger.bg : KombeColors.mint,
+          borderRadius: BorderRadius.circular(KombeSpacing.tileRadius),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

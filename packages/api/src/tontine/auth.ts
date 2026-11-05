@@ -6,6 +6,7 @@
  * code vérifié). Le code n'est jamais journalisé ni renvoyé, sauf par le
  * simulateur de développement.
  */
+import { myPhotoVersion } from "./photos.js";
 import { randomInt, randomUUID } from "node:crypto";
 import type pg from "pg";
 import {
@@ -393,5 +394,6 @@ export async function meOf(db: Db, identityId: string): Promise<MeView> {
     login: identityId,
     displayName: r.rows[0]?.display_name ? String(r.rows[0].display_name) : null,
     language: (r.rows[0]?.language as Language | undefined) ?? "fr",
+    photoVersion: await myPhotoVersion(db, identityId),
   };
 }

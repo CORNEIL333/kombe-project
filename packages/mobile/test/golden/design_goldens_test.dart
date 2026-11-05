@@ -113,8 +113,8 @@ void main() {
       ),
     )));
     await tester.pumpAndSettle();
-    expect(find.text('Déclarer un versement'), findsOneWidget);
-    expect(find.text('2 déclarations à confirmer'), findsOneWidget);
+    expect(find.text('J’ai payé'), findsOneWidget);
+    expect(find.text('2 paiements à confirmer'), findsOneWidget);
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/home_active_group.png'));
   });
 

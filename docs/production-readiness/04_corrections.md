@@ -17,7 +17,7 @@ Toutes les migrations ajoutées sont additives et réversibles. Chaque fichier `
 
 | Migration | Contenu |
 |---|---|
-| `0035_group_photo` | Fusion |
+| `0034_group_photo (+ 0035_member_photo)` | Fusion |
 | `0036_securite_operateurs` | `operator_role`, `operator_mfa`, `operator_audit_log`, `auth_rate_limit`, `kombe_operator_status`, `kombe_rate_hit` et `kombe_rate_peek` |
 | `0037_rls_identite` | RLS sur `identity`, REVOKE sur `kombe_migration`, `kombe_schema_has` |
 | `0038_notifications_livraison` | Préférences, `push_device`, `notification_outbox`, déclencheur, claim et complete, index de la boîte de réception |

@@ -8,8 +8,11 @@ import 'package:provider/provider.dart';
 import '../../app/active_group_controller.dart';
 import '../../app/router/main_shell.dart';
 import '../../core/design/kombe_colors.dart';
+import '../../core/design/kombe_theme.dart';
+import '../../core/design/kombe_ndop.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/group_avatar.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/kombe_screen_header.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
@@ -68,7 +71,7 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
         child: ListView(
           padding: const EdgeInsets.only(bottom: 28),
           children: <Widget>[
-            const KombeScreenHeader(title: 'Mes groupes', subtitle: 'Retrouvez et gérez vos groupes de tontine.'),
+            const KombeScreenHeader(title: 'Mes groupes'),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
               child: Row(
@@ -122,9 +125,9 @@ class _Tile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color fg = strong ? KombeColors.cream : KombeColors.forest;
+    final Color fg = strong ? KombeColors.ink : Colors.white;
     return Material(
-      color: strong ? KombeColors.forest : KombeColors.mint,
+      color: strong ? KombeColors.goldWarm : KombeColors.emerald,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -148,6 +151,8 @@ class _Tile extends StatelessWidget {
   }
 }
 
+/// Coupon de tissu : chaque tontine a sa couleur et son motif ; sa photo, son
+/// nom, les perles du cycle et l'échéance.
 class _GroupCard extends StatelessWidget {
   const _GroupCard({required this.group, required this.active, required this.onOpen});
   final GroupSummary group;
@@ -157,133 +162,82 @@ class _GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final GroupSummary g = group;
+    final GroupHue hue = groupHue(g.id);
     final bool inCycle = g.cycleTotal > 0 && g.cycleIndex > 0;
-    final double pct = inCycle ? (g.cycleIndex / g.cycleTotal).clamp(0, 1).toDouble() : 0;
     final String date = DateFormat('d MMM y', Localizations.localeOf(context).toLanguageTag()).format(g.nextDueAtUtc.toLocal());
+    const TextStyle soft = TextStyle(color: Color(0xE6FFFFFF), fontSize: 14, fontWeight: FontWeight.w600);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        elevation: 0,
-        shadowColor: Colors.transparent,
-        child: Ink(
-          decoration: BoxDecoration(
-            // Couleur propre : sans elle, l'ombre se dessine aussi À L'INTÉRIEUR.
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: active ? Border.all(color: KombeColors.jade, width: 2) : null,
-            boxShadow: const <BoxShadow>[BoxShadow(color: Color(0x1F103C32), blurRadius: 18, offset: Offset(0, 6), spreadRadius: -8)],
-          ),
-          child: Column(
-            children: <Widget>[
-              InkWell(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          NdopSurface(
+            color: hue.bg,
+            variant: hue.variant,
+            opacity: .18,
+            tile: 30,
+            fadeTo: Alignment.centerLeft,
+            borderRadius: BorderRadius.circular(24),
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
                 onTap: onOpen,
                 child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 12, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      GroupAvatar(groupId: g.id, name: g.name, photoVersion: g.photoVersion, size: 84),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(g.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: KombeColors.ink)),
-                            const SizedBox(height: 4),
-                            Wrap(
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 8,
-                              runSpacing: 4,
+                      Row(
+                        children: <Widget>[
+                          GroupAvatar(groupId: g.id, name: g.name, photoVersion: g.photoVersion, size: 60),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    const Icon(Icons.groups_2_outlined, size: 16, color: KombeColors.forest),
-                                    const SizedBox(width: 4),
-                                    Text('${g.memberCount} membres', style: const TextStyle(fontSize: 13, color: KombeColors.slate)),
-                                  ],
-                                ),
-                                if (g.role == GroupRole.member)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(color: KombeColors.mint, borderRadius: BorderRadius.circular(999)),
-                                    child: const Text('Membre', style: TextStyle(color: KombeColors.jade, fontWeight: FontWeight.w700, fontSize: 12)),
-                                  )
-                                else
-                                  RoleBadge(label: roleLabel(g.role)),
+                                Text(g.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: KombeType.display(size: 24, color: Colors.white)),
+                                const SizedBox(height: 4),
+                                Text('${g.memberCount} membres', style: soft),
                               ],
                             ),
-                            if (inCycle) ...<Widget>[
-                              const SizedBox(height: 10),
-                              Text('Cycle ${g.cycleIndex}/${g.cycleTotal}', style: const TextStyle(fontSize: 13, color: KombeColors.ink)),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: Semantics(
-                                      label: 'Progression du cycle',
-                                      value: '${(pct * 100).round()} %',
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(99),
-                                        child: LinearProgressIndicator(value: pct, minHeight: 6, backgroundColor: KombeColors.mint, color: KombeColors.forest),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text('${(pct * 100).round()}%', style: const TextStyle(color: KombeColors.jade, fontWeight: FontWeight.w800, fontSize: 13)),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
+                          ),
+                          if (active) const Icon(Icons.check_circle_rounded, color: KombeColors.goldWarm, semanticLabel: 'Groupe actif'),
+                        ],
                       ),
-                      const Icon(Icons.chevron_right_rounded),
+                      if (inCycle) ...<Widget>[
+                        const SizedBox(height: 14),
+                        KombeCycleBand(index: g.cycleIndex, total: g.cycleTotal, onDark: true, height: 20),
+                        const SizedBox(height: 6),
+                        Text('Cycle ${g.cycleIndex}/${g.cycleTotal}', style: soft),
+                      ],
+                      const SizedBox(height: 12),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                const Text('Prochaine cotisation', style: soft),
+                                Text(date, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                              ],
+                            ),
+                          ),
+                          StatusPill(g.role == GroupRole.member ? 'Membre' : roleLabel(g.role), tone: KombeTone.money, icon: g.role == GroupRole.member ? null : Icons.star_rounded),
+                          if (g.role != GroupRole.member)
+                            IconButton(
+                              tooltip: 'Outils du bureau',
+                              onPressed: () => context.push('/app/groups/${Uri.encodeComponent(g.id)}/bureau'),
+                              icon: const Icon(Icons.work_outline_rounded, color: Colors.white),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ),
-              const Divider(height: 1, indent: 14, endIndent: 14),
-              InkWell(
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(22)),
-                onTap: onOpen,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-                  child: Row(
-                    children: <Widget>[
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(color: KombeColors.goldPale, borderRadius: BorderRadius.circular(12)),
-                        child: const Icon(Icons.calendar_month_outlined, color: KombeColors.goldDark, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            const Text('Prochaine cotisation', style: TextStyle(fontSize: 12.5, color: KombeColors.slate)),
-                            Text(date, style: const TextStyle(fontWeight: FontWeight.w800, color: KombeColors.ink)),
-                          ],
-                        ),
-                      ),
-                      if (g.role != GroupRole.member)
-                        IconButton(
-                          tooltip: 'Outils du bureau',
-                          onPressed: () => context.push('/app/groups/${Uri.encodeComponent(g.id)}/bureau'),
-                          icon: const Icon(Icons.work_outline_rounded, color: KombeColors.goldDark),
-                        )
-                      else
-                        const Icon(Icons.chevron_right_rounded),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

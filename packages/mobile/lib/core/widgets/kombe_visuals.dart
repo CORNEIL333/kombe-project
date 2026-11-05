@@ -1,8 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/group.dart';
 import '../design/kombe_colors.dart';
-import '../design/kombe_tokens.g.dart';
 import '../formatters/labels.dart';
 
 /// Photographies d'ambiance de la marque (décor, jamais une donnée métier :
@@ -23,13 +24,22 @@ abstract final class KombePhotos {
   static String coverFor(String groupId) => _covers[groupId.hashCode.abs() % _covers.length];
 }
 
-/// Avatar : la photo du serveur si elle existe, sinon les initiales.
-/// Jamais un visage inventé pour une vraie personne.
+/// Avatar d'une personne : sa photo de profil, ronde ; les initiales ne sont
+/// qu'un repli tant qu'elle n'en a pas envoyé. Jamais un visage inventé.
+/// `load` lit les octets avec la session (les photos n'ont pas d'URL publique).
 class KombeAvatar extends StatelessWidget {
-  const KombeAvatar({required this.name, super.key, this.url, this.size = 44});
+  const KombeAvatar({required this.name, super.key, this.load, this.size = 44});
   final String name;
-  final Uri? url;
+  final Future<Uint8List?>? load;
   final double size;
+
+  static const List<(Color, Color)> _tints = <(Color, Color)>[
+    (KombeColors.forest, Colors.white),
+    (KombeColors.clay, Colors.white),
+    (KombeColors.jade, Colors.white),
+    (KombeColors.goldWarm, KombeColors.ink),
+    (KombeColors.plum, Colors.white),
+  ];
 
   String get _initials {
     final List<String> parts = name.trim().split(RegExp(r'\s+')).where((String p) => p.isNotEmpty).toList();
@@ -39,27 +49,30 @@ class KombeAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Teinte stable par personne (menthe, or pâle, sable, bleu, argile) :
+    // une liste de membres se lit d'un coup d'œil sans visage inventé.
+    final int h = name.codeUnits.fold<int>(5, (int a, int c) => (a * 31 + c) & 0x7fffffff);
+    final (Color bg, Color fg) = _tints[h % _tints.length];
     final Widget initials = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(color: KombeColors.sand, shape: BoxShape.circle),
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
       child: Text(
         _initials,
-        style: TextStyle(color: KombeColors.forest, fontWeight: FontWeight.w800, fontSize: size * .34),
+        style: TextStyle(fontFamily: 'Fraunces', color: fg, fontWeight: FontWeight.w700, fontSize: size * .4, height: 1),
       ),
     );
-    final Uri? u = url;
-    if (u == null) return ExcludeSemantics(child: initials);
+    final Future<Uint8List?>? bytes = load;
+    if (bytes == null) return ExcludeSemantics(child: initials);
     return ExcludeSemantics(
-      child: ClipOval(
-        child: Image.network(
-          u.toString(),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (BuildContext context, Object error, StackTrace? stack) => initials,
-        ),
+      child: FutureBuilder<Uint8List?>(
+        future: bytes,
+        builder: (BuildContext context, AsyncSnapshot<Uint8List?> snap) {
+          final Uint8List? data = snap.data;
+          if (data == null) return initials;
+          return ClipOval(child: Image.memory(data, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true, cacheWidth: (size * 3).round()));
+        },
       ),
     );
   }
@@ -77,11 +90,11 @@ class KombeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (Color bg, Color fg) = switch (tone) {
-      ChipTone.gold => (KombeTokens.gold100, KombeTokens.gold800),
-      ChipTone.green => (KombeTokens.forest50, KombeTokens.forest800),
-      ChipTone.neutral => (KombeTokens.sand100, KombeTokens.ink700),
-      ChipTone.warning => (KombeTokens.warningSurface, KombeTokens.warning),
-      ChipTone.danger => (KombeTokens.dangerSurface, KombeTokens.danger),
+      ChipTone.gold => (KombeColors.goldPale, KombeColors.goldDark),
+      ChipTone.green => (KombeColors.mint, KombeColors.forest),
+      ChipTone.neutral => (KombeColors.sand, KombeColors.slate),
+      ChipTone.warning => (KombeColors.goldPale, KombeColors.warning),
+      ChipTone.danger => (Color(0xFFFBEAE7), KombeColors.danger),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),

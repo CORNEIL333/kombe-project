@@ -3,6 +3,7 @@
  * groupe courant (RLS `tenant_isolation`) ; aucun total n'est stocké : tout
  * est recalculé depuis les mouvements, les tours et les parts.
  */
+import { memberPhotoVersions } from "./photos.js";
 import {
   DomainError,
   customFundDue,
@@ -170,6 +171,7 @@ export async function loadMembers(db: Db, actor: Actor, opts: { readonly include
       ORDER BY joined_at NULLS LAST, membership_id`,
     [actor.groupId],
   );
+  const photoOf = await memberPhotoVersions(db, actor.groupId);
   const seeFull = may(actor, "member.admit") || may(actor, "group.manage") || may(actor, "movement.confirm");
   return r.rows.map((row) => {
     const id = String(row.membership_id);
@@ -180,6 +182,7 @@ export async function loadMembers(db: Db, actor: Actor, opts: { readonly include
     return {
       membershipId: id,
       displayName: row.display_name ? String(row.display_name) : maskLogin(login),
+      photoVersion: photoOf.get(id) ?? null,
       state: row.state,
       roles: memberRoles.length > 0 ? memberRoles : row.state === "active" ? (["member"] as GroupRole[]) : [],
       pendingRoles: pending.get(id) ?? [],
@@ -355,12 +358,14 @@ export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> 
   }
   const meetings = await db.query(`SELECT meeting_id, round_seq FROM meeting WHERE group_id = $1 AND round_seq IS NOT NULL`, [group.groupId]);
   const meetingOf = new Map(meetings.rows.map((x) => [Number(x.round_seq), String(x.meeting_id)]));
+  const photoOf = await memberPhotoVersions(db, group.groupId);
   return rows.map((r) => ({
     seq: r.seq,
     date: r.date,
     state: r.state,
     beneficiaryMembershipId: r.beneficiaryMembershipId,
     beneficiaryName: r.beneficiaryMembershipId ? (names.byMembership.get(r.beneficiaryMembershipId) ?? null) : null,
+    beneficiaryPhotoVersion: r.beneficiaryMembershipId ? (photoOf.get(r.beneficiaryMembershipId) ?? null) : null,
     meetingId: meetingOf.get(r.seq) ?? null,
     expectedPot: m(potAt(r.seq)),
     collected: collected.get(r.seq) ?? "0",

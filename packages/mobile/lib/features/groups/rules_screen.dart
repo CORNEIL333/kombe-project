@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/design/kombe_spacing.dart';
+import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/douala_time.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/operation_feedback.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/section_card.dart';
@@ -123,16 +126,15 @@ class _RulesScreenState extends State<RulesScreen> {
               return ListView(
                 padding: const EdgeInsets.all(20),
                 children: <Widget>[
-                  Text('Pas encore de statuts', style: t.headlineSmall),
-                  const SizedBox(height: 8),
-                  Text(
-                    bureau
+                  KombeFormHeader(
+                    icon: Icons.menu_book_outlined,
+                    tone: KombeTone.info,
+                    title: 'Pas encore de statuts',
+                    body: bureau
                         ? 'Publiez les statuts dès que le bureau est en place (trésorier désigné) : chaque membre devra les accepter avant le démarrage du cycle.'
                         : 'Le bureau n’a pas encore publié les statuts. Vous serez prévenu pour les lire et les accepter.',
-                    style: t.bodyLarge,
                   ),
                   if (bureau) ...<Widget>[
-                    const SizedBox(height: 20),
                     FilledButton.icon(
                       onPressed: _busy ? null : () => _publish(first: true),
                       icon: const Icon(Icons.publish_rounded),
@@ -145,7 +147,7 @@ class _RulesScreenState extends State<RulesScreen> {
             return ListView(
               padding: const EdgeInsets.all(20),
               children: <Widget>[
-                Text(s.title.isEmpty ? 'Statuts' : s.title, style: t.headlineSmall),
+                Semantics(header: true, child: Text(s.title.isEmpty ? 'Statuts' : s.title, style: KombeType.display(size: 26))),
                 const SizedBox(height: 4),
                 Text('Version ${s.version} · publiée le ${DoualaTime.date(s.publishedAtUtc)}', style: t.bodySmall),
                 const SizedBox(height: 16),
@@ -180,9 +182,7 @@ class _RulesScreenState extends State<RulesScreen> {
                     onRepublish: () => _publish(first: false),
                   ),
                 ],
-                const SizedBox(height: 20),
-                Text('Texte des statuts', style: t.titleLarge),
-                const SizedBox(height: 8),
+                const KombeSection('Texte des statuts', padding: EdgeInsets.fromLTRB(0, 24, 0, 8)),
                 SectionCard(child: SelectableText(s.body, style: t.bodyMedium)),
               ],
             );
@@ -206,7 +206,7 @@ class _MyAcceptance extends StatelessWidget {
     if (s.acceptedByMe) {
       return Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: KombeColors.mint, borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(color: KombeColors.mint, borderRadius: BorderRadius.circular(KombeSpacing.tileRadius)),
         child: Row(children: <Widget>[
           const Icon(Icons.check_circle_rounded, color: KombeColors.forest),
           const SizedBox(width: 10),
@@ -217,7 +217,7 @@ class _MyAcceptance extends StatelessWidget {
     final DateTime? deadline = s.myDeadlineAtUtc ?? s.deadline?.deadlineAtUtc;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: KombeColors.sand, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: KombeColors.sand, borderRadius: BorderRadius.circular(KombeSpacing.tileRadius)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[

@@ -24,6 +24,9 @@ abstract interface class GroupRepository {
   /// Photo du groupe (JPEG carré 256 ou 512 px) ; null = pas de photo.
   Future<Uint8List?> loadPhoto(String groupId, int version, int size);
 
+  /// Photo de profil d'un membre du groupe.
+  Future<Uint8List?> loadMemberPhoto(String groupId, String memberId, int version, int size);
+
   /// JPEG carrés 512 et 256 px préparés par l'app ; le serveur revalide.
   Future<OperationResult<int>> setPhoto(String groupId, Uint8List jpeg512, Uint8List jpeg256);
 

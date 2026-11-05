@@ -100,7 +100,8 @@ async function main() {
       await runSql(migrator, "migrations/0038_notifications_livraison.down.sql");
       await runSql(migrator, "migrations/0037_rls_identite.down.sql");
       await runSql(migrator, "migrations/0036_securite_operateurs.down.sql");
-      await runSql(migrator, "migrations/0035_group_photo.down.sql");
+      await runSql(migrator, "migrations/0035_member_photo.down.sql");
+      await runSql(migrator, "migrations/0034_group_photo.down.sql");
       await runSql(migrator, "migrations/0034_echeances_notifications.down.sql");
       await runSql(migrator, "migrations/0033_custom_funds.down.sql");
       await runSql(migrator, "migrations/0032_audit_indexes.down.sql");
@@ -179,7 +180,7 @@ async function main() {
     await runSql(migrator, "migrations/0029_ops_console.sql");
     await runSql(migrator, "migrations/0030_decisions.sql");
     await runSql(migrator, "migrations/0031_cycles_reserve.sql");
-    for (const m of ["0032_audit_indexes", "0033_custom_funds", "0034_echeances_notifications", "0035_group_photo", "0036_securite_operateurs", "0037_rls_identite", "0038_notifications_livraison"]) {
+    for (const m of ["0032_audit_indexes", "0033_custom_funds", "0034_echeances_notifications", "0034_group_photo", "0035_member_photo", "0036_securite_operateurs", "0037_rls_identite", "0038_notifications_livraison"]) {
       await runSql(migrator, `migrations/${m}.sql`);
     }
     await runSql(migrator, "provision/roles.sql");

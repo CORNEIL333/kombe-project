@@ -12,7 +12,7 @@ import { Icone, type NomIcone } from "../composants/Icones.js";
 import { LogoKombe } from "../composants/Marque.js";
 import type { GroupeActif } from "./groupeActif.js";
 import type { Session, TontineSummary } from "./api.js";
-import { AvatarGroupe, initiales } from "./PhotoGroupe.js";
+import { AvatarGroupe, AvatarPersonne } from "./PhotoGroupe.js";
 import { useTextes } from "./textes.js";
 
 function useEchap(actif: boolean, fermer: () => void) {
@@ -31,6 +31,7 @@ const roleDe = (g: TontineSummary) => g.roles.find((r) => r !== "member") ?? "me
 export function MenuLateral({
   session,
   nom,
+  maPhoto,
   ouvert,
   onFermer,
   groupes,
@@ -40,6 +41,7 @@ export function MenuLateral({
 }: {
   readonly session: Session;
   readonly nom: string | null;
+  readonly maPhoto: number | null | undefined;
   readonly ouvert: boolean;
   readonly onFermer: () => void;
   readonly groupes: GroupeActif;
@@ -83,9 +85,7 @@ export function MenuLateral({
           </button>
         </div>
         <button type="button" className="menu-lateral__personne" onClick={() => aller({ ecran: "profil" })}>
-          <span className="menu-lateral__personne-avatar" aria-hidden="true">
-            {initiales(nom ?? "?")}
-          </span>
+          <AvatarPersonne session={session} nom={nom ?? "?"} version={maPhoto} taille={48} />
           <span className="menu-lateral__personne-texte">
             <span className="menu-lateral__personne-nom">{nom ?? tx("pf.sansNom")}</span>
             {actif ? <span className="menu-lateral__personne-role">{dyn(`role.${roleDe(actif)}`)}</span> : null}
@@ -130,7 +130,9 @@ export function MenuLateral({
           <hr />
           <ul className="menu-lateral__liste menu-lateral__nav">
             {lien({ ecran: "accueil" }, "accueil", tx("nav.accueil"), route.ecran === "accueil")}
+            {lien({ ecran: "cotisations" }, "declarer", tx("nav.cotisations"), route.ecran === "cotisations")}
             {lien({ ecran: "groupes" }, "groupes", tx("nav.groupes"), route.ecran === "groupes" || route.ecran === "groupe")}
+            {lien({ ecran: "notifications" }, "cloche", tx("nav.activite"), route.ecran === "notifications")}
             {actif ? lien({ ecran: "groupe", groupId: actif.groupId, onglet: "decisions" }, "vote", tx("sh.votes"), false) : null}
             {lien({ ecran: "documents" }, "document", tx("doc.titre"), route.ecran === "documents")}
             {lien({ ecran: "aide" }, "aide", tx("sh.aideSupport"), route.ecran === "aide")}

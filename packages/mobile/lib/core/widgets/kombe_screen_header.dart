@@ -1,31 +1,35 @@
 import 'package:flutter/material.dart';
 
 import '../design/kombe_colors.dart';
+import '../design/kombe_ndop.dart';
+import '../design/kombe_theme.dart';
 
-/// En-tête d'écran (planche) : grand titre, sous-titre, motif tissé en coin.
+/// En-tête d'écran : grand titre Fraunces, sous-titre, coin de motif Ndop.
 class KombeScreenHeader extends StatelessWidget {
-  const KombeScreenHeader({super.key, required this.title, required this.subtitle, this.inset = 20});
+  const KombeScreenHeader({super.key, required this.title, this.subtitle, this.inset = 20});
   final String title;
-  final String subtitle;
+  final String? subtitle;
   /// Marge gauche du texte (0 quand la liste porte déjà sa marge).
   final double inset;
 
   @override
   // Hauteur minimale, jamais fixe : le titre grandit avec le texte agrandi.
   Widget build(BuildContext context) => ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 96),
+        constraints: const BoxConstraints(minHeight: 72),
         child: Stack(
           clipBehavior: Clip.hardEdge,
           children: <Widget>[
             const Positioned(
-              right: -30,
-              top: -30,
+              right: -20,
+              top: -24,
+              width: 190,
+              height: 150,
               child: ExcludeSemantics(
-                // Coin tissé fondu dans le fond (pas de bord franc).
+                // Coin Ndop (vectoriel) fondu dans le papier.
                 child: ShaderMask(
                   blendMode: BlendMode.dstIn,
                   shaderCallback: _fondu,
-                  child: Image(image: AssetImage('assets/images/fonds/creation.webp'), width: 170, fit: BoxFit.cover),
+                  child: CustomPaint(painter: NdopPainter(color: KombeColors.forest, opacity: .12, tile: 30)),
                 ),
               ),
             ),
@@ -36,10 +40,12 @@ class KombeScreenHeader extends StatelessWidget {
                 children: <Widget>[
                   Semantics(
                     header: true,
-                    child: Text(title, style: const TextStyle(color: KombeColors.forest, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -.6)),
+                    child: Text(title, style: KombeType.display(size: 36)),
                   ),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: const TextStyle(color: KombeColors.slate, fontSize: 14)),
+                  if (subtitle != null) ...<Widget>[
+                    const SizedBox(height: 4),
+                    Text(subtitle!, style: const TextStyle(color: KombeColors.slate, fontSize: 14)),
+                  ],
                 ],
               ),
             ),

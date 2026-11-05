@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../domain/entities/group.dart';
 import '../design/kombe_colors.dart';
+import '../design/kombe_ndop.dart';
 import '../formatters/xaf.dart';
-import 'kombe_visuals.dart';
+import 'group_avatar.dart';
+import 'kombe_components.dart';
 
-/// Carte héro d'un groupe (maquettes « Tableau de bord » / « Cycle ») :
-/// photo de la marque sous un voile forêt, nom, cycle, membres, montant.
+/// Carte héro d'un groupe : surface forêt au motif Ndop, identité du groupe
+/// (sa photo ou ses initiales — jamais une photo d'ambiance), anneau du
+/// cycle, part de cotisation.
 class GroupHeroCard extends StatelessWidget {
   const GroupHeroCard({required this.group, super.key, this.onTap, this.eyebrow});
 
@@ -18,63 +21,70 @@ class GroupHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme t = Theme.of(context).textTheme;
+    final TextStyle soft = TextStyle(color: KombeColors.cream.withValues(alpha: .78), fontSize: 13.5);
     return Semantics(
       button: onTap != null,
-      label: '${group.name}, cycle ${group.cycleIndex} sur ${group.cycleTotal}, '
+      label: '${group.name}, tour ${group.cycleIndex} sur ${group.cycleTotal}, '
           '${group.memberCount} membres, cotisation ${Xaf.format(group.contributionAmountXaf)}',
       child: ExcludeSemantics(
-        child: Material(
-          color: KombeColors.forest,
-          borderRadius: BorderRadius.circular(22),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: PhotoBackdrop(
-              asset: KombePhotos.coverFor(group.id),
-              alignment: const Alignment(.4, 0),
-              strength: .8,
+        child: NdopSurface(
+          opacity: .16,
+          tile: 30,
+          fadeTo: Alignment.centerLeft,
+          borderRadius: BorderRadius.circular(24),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onTap,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 16, 20),
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Row(
                       children: <Widget>[
-                        if (eyebrow != null) ...<Widget>[
-                          const Icon(Icons.groups_rounded, color: Colors.white, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(eyebrow!, style: t.bodyMedium?.copyWith(color: Colors.white))),
-                        ] else
-                          Expanded(
-                            child: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleLarge?.copyWith(color: Colors.white, fontSize: 22)),
+                        GroupAvatar(groupId: group.id, name: group.name, photoVersion: group.photoVersion, size: 52),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              if (eyebrow != null) Text(eyebrow!, style: soft),
+                              Text(
+                                group.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontFamily: 'Fraunces', color: KombeColors.cream, fontSize: 22, fontWeight: FontWeight.w600, height: 1.15),
+                              ),
+                              const SizedBox(height: 2),
+                              Text('${group.memberCount} membres', style: soft),
+                            ],
                           ),
-                        CycleBadge(index: group.cycleIndex, total: group.cycleTotal),
+                        ),
+                        if (onTap != null) Icon(Icons.chevron_right_rounded, color: KombeColors.cream.withValues(alpha: .8)),
                       ],
                     ),
-                    if (eyebrow != null) ...<Widget>[
-                      const SizedBox(height: 10),
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleLarge?.copyWith(color: Colors.white, fontSize: 22)),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text('PART DE COTISATION', style: soft.copyWith(fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 1.1, color: KombeColors.goldLight)),
+                              const SizedBox(height: 6),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: KombeAmount(group.contributionAmountXaf, size: 30, color: KombeColors.cream),
+                              ),
+                            ],
                           ),
-                          if (onTap != null) const Icon(Icons.chevron_right_rounded, color: Colors.white),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 6),
-                    Text('${group.memberCount} membres', style: t.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: .85))),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: Container(height: 1, width: 220, color: Colors.white.withValues(alpha: .18)),
+                        ),
+                      ],
                     ),
-                    Text('Montant de la cotisation', style: t.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: .85))),
-                    const SizedBox(height: 4),
-                    Text(
-                      Xaf.format(group.contributionAmountXaf),
-                      style: t.headlineLarge?.copyWith(color: Colors.white, fontSize: 30, fontFeatures: const <FontFeature>[FontFeature.tabularFigures()]),
-                    ),
+                    const SizedBox(height: 14),
+                    KombeCycleBand(index: group.cycleIndex, total: group.cycleTotal, onDark: true),
                   ],
                 ),
               ),

@@ -52,6 +52,8 @@ export interface MeView {
   readonly login: string;
   readonly displayName: string | null;
   readonly language: Language;
+  /** Version de ma photo de profil (clé de cache) ; null = pas de photo. */
+  readonly photoVersion?: number | null;
 }
 export interface MeUpdate {
   readonly displayName?: string;
@@ -176,6 +178,8 @@ export interface UpdateFundInput {
 export interface MemberView {
   readonly membershipId: string;
   readonly displayName: string;
+  /** Version de la photo de profil ; null = pas de photo. */
+  readonly photoVersion?: number | null;
   readonly state: TontineMembershipState;
   readonly roles: readonly GroupRole[];
   /** Fonctions proposées, en attente d'acceptation par la personne nommée. */
@@ -199,6 +203,7 @@ export interface RoundView {
   readonly state: "open" | "closed";
   readonly beneficiaryMembershipId: string | null;
   readonly beneficiaryName: string | null;
+  readonly beneficiaryPhotoVersion?: number | null;
   readonly meetingId: string | null;
   /** Cagnotte attendue (parts × cotisation). */
   readonly expectedPot: Money;

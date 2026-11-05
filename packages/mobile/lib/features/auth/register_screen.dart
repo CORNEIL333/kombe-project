@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/design/kombe_colors.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../l10n/app_localizations.dart';
 import 'code_request_form.dart';
@@ -20,11 +21,11 @@ class RegisterScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: <Widget>[
-            const Center(child: KombeLogo(size: 48)),
-            const SizedBox(height: 36),
-            Text(l10n.createAccount, style: Theme.of(context).textTheme.headlineLarge),
+            const KombeLogo(size: 40),
+            const SizedBox(height: 30),
+            Semantics(header: true, child: Text(l10n.createAccount, style: Theme.of(context).textTheme.headlineLarge)),
             const SizedBox(height: 10),
-            Text(l10n.registerIntro, style: Theme.of(context).textTheme.bodyLarge),
+            Text(l10n.registerIntro, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: KombeColors.slate)),
             const SizedBox(height: 28),
             const CodeRequestForm(purpose: VerifyCodePurpose.registration, submitLabel: 'Recevoir mon code'),
             const SizedBox(height: 12),

@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
 
-/// Palette KÓMBE, direction « L'Orbite » v2 (oct. 2026). Mêmes ancres que la
-/// PWA et les tableaux de bord (docs/design-system/tokens.md). Les noms sont
-/// conservés ; seules les valeurs suivent la nouvelle gamme. `gold` (or 500)
-/// est réservé aux formes ; pour du texte or sur fond clair, utiliser
-/// `goldDark` (or 700, 5,3:1 sur sable).
+/// Palette KÓMBE (docs/refonte/DESIGN.md) : le vert forêt domine ; soleil,
+/// corail, émeraude et prune donnent la couleur. Le soleil porte l'argent et
+/// l'action principale. Pour du texte or sur
+/// fond clair, utiliser `goldDark`.
 abstract final class KombeColors {
   static const Color night = Color(0xFF061F1B);
   static const Color forest = Color(0xFF103C32);
   static const Color forestDark = Color(0xFF082C26);
-  static const Color emerald = Color(0xFF176B52);
+  static const Color emerald = Color(0xFF0C8060);
   static const Color leaf = Color(0xFF2A8A68);
-  static const Color gold = Color(0xFFC7922E);
-  // Direction premium (2026-11) : jade et or chaud des accents ; or pâle des fonds.
-  static const Color jade = Color(0xFF16765E);
-  static const Color goldWarm = Color(0xFFC99439);
-  static const Color goldPale = Color(0xFFF4E6C9);
+  static const Color gold = Color(0xFFF2B01E);
+  static const Color jade = Color(0xFF0C8060);
+  static const Color goldWarm = Color(0xFFF2B01E);
+  static const Color goldPale = Color(0xFFFFEDBF);
   /// Accent des grands titres (maquette « Connectez-vous »).
   static const Color olive = Color(0xFFA8AD3B);
-  static const Color goldLight = Color(0xFFE2B868);
+  static const Color goldLight = Color(0xFFFFD262);
   static const Color goldDark = Color(0xFF8A5F14);
-  static const Color clay = Color(0xFFB5603D);
+  static const Color clay = Color(0xFFC8412A);
+  static const Color plum = Color(0xFF6C2A6B);
   static const Color cream = Color(0xFFFBF8F1);
   static const Color sand = Color(0xFFF3ECDD);
   static const Color mint = Color(0xFFDCEFE6);
@@ -30,5 +29,5 @@ abstract final class KombeColors {
   static const Color lineStrong = Color(0xFFD9D0BC);
   static const Color danger = Color(0xFFB42318);
   static const Color warning = Color(0xFF8A5F14);
-  static const Color success = Color(0xFF176B52);
+  static const Color success = Color(0xFF0C8060);
 }

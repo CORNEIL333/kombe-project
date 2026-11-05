@@ -1,7 +1,6 @@
 /* KÓMBE — briques d'interface de l'espace tontine : chargement avec reprise,
    action protégée contre le double appui, messages d'état accessibles. */
 
-import { SymboleKombe } from "../composants/Marque.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { estSessionExpiree, memoriserSession, messageErreur } from "./api.js";
@@ -108,11 +107,20 @@ export function Charge<T>({
     );
   }
   if (etat.statut === "chargement") {
+    // Silhouette générique : trois lignes de liste (pastille, deux lignes de texte).
     return (
-      <p className="msg msg--chargement" role="status" aria-busy="true">
-        <SymboleKombe taille={30} attente />
-        {tx("app.chargement")}
-      </p>
+      <div className="squelette-liste" role="status" aria-busy="true">
+        <span className="visuellement-cache">{tx("app.chargement")}</span>
+        {[0, 1, 2].map((i) => (
+          <span key={i} className="squelette-liste__ligne" aria-hidden="true">
+            <span className="squelette squelette-liste__ico" />
+            <span className="squelette-liste__textes">
+              <span className="squelette squelette-liste__l1" />
+              <span className="squelette squelette-liste__l2" />
+            </span>
+          </span>
+        ))}
+      </div>
     );
   }
   if (etat.statut === "erreur") {

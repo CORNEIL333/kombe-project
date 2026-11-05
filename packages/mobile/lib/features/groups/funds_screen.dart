@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/design/kombe_spacing.dart';
 import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/fund.dart';
 import '../../domain/repositories/fund_repository.dart';
@@ -87,13 +89,11 @@ class _FundsScreenState extends State<FundsScreen> {
       _ => false,
     };
     return Scaffold(
-      appBar: AppBar(title: const Text('Caisses et cotisations')),
+      appBar: AppBar(title: const Text('Caisses')),
       floatingActionButton: canManage
           ? FloatingActionButton.extended(
               key: const Key('nouvelle-caisse'),
               onPressed: _create,
-              backgroundColor: KombeColors.forest,
-              foregroundColor: Colors.white,
               icon: const Icon(Icons.add_rounded),
               label: const Text('Nouvelle caisse'),
             )
@@ -102,17 +102,13 @@ class _FundsScreenState extends State<FundsScreen> {
         onRefresh: _load,
         child: ResourceView<GroupFunds>(
           resource: _state,
+          onRetry: _load,
+          emptyWhen: (GroupFunds d) => d.funds.isEmpty,
+          emptyTitle: 'Aucune caisse',
+          emptyBody: 'Les caisses du groupe apparaîtront ici.',
           builder: (BuildContext context, GroupFunds data) => ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
             children: <Widget>[
-              Text(
-                'Votre tontine ouvre ses propres caisses : projet commun, fête, achat groupé, urgences… '
-                'Chacune a sa règle. Une règle ne s’applique jamais aux séances passées.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 6),
-              Text('Argent tenu par le trésorier, pas par KÓMBE.', style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 16),
               for (final GroupFund f in data.funds)
                 _FundCard(fund: f, onClose: data.canManage && f.custom != null && !f.closed ? () => _close(f) : null),
               if (!data.canManage)
@@ -149,67 +145,62 @@ class _FundCard extends StatelessWidget {
     final TextTheme t = Theme.of(context).textTheme;
     final CustomFundRules? c = fund.custom;
     final int? target = c?.targetXaf;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: c != null && !fund.closed ? KombeColors.emerald.withValues(alpha: .35) : KombeColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(child: Text(fund.name, style: KombeType.titre(size: 19, height: 1.2))),
-              if (c != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: fund.closed ? KombeColors.sand : KombeColors.mint,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    fund.closed ? 'Clôturée' : 'Règle propre',
-                    style: t.labelSmall?.copyWith(color: fund.closed ? KombeColors.slate : KombeColors.emerald, fontWeight: FontWeight.w700),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: KombeCard(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                KombeIconBadge(Icons.account_balance_wallet_outlined, tone: fund.closed ? KombeTone.neutral : KombeTone.money, size: 40),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(fund.name, style: t.titleMedium),
+                      Text(_ruleLabel(fund), style: t.bodySmall),
+                    ],
                   ),
                 ),
+                if (c != null) ...<Widget>[
+                  const SizedBox(width: 8),
+                  StatusPill(fund.closed ? 'Clôturée' : 'Règle propre', tone: fund.closed ? KombeTone.neutral : KombeTone.brand),
+                ],
+              ],
+            ),
+            if ((c?.purpose ?? '').isNotEmpty) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(c!.purpose!, style: t.bodyMedium),
             ],
-          ),
-          const SizedBox(height: 6),
-          Text(_ruleLabel(fund), style: t.bodyMedium?.copyWith(color: KombeColors.ink)),
-          if ((c?.purpose ?? '').isNotEmpty) Text(c!.purpose!, style: t.bodySmall),
-          const SizedBox(height: 8),
-          Text(
-            'Confirmé : ${Xaf.format(fund.confirmedXaf)}${fund.pendingXaf > 0 ? ' · En attente : ${Xaf.format(fund.pendingXaf)}' : ''}',
-            style: t.bodySmall,
-          ),
-          if (target != null && target > 0) ...<Widget>[
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: (fund.confirmedXaf / target).clamp(0, 1).toDouble(),
-                minHeight: 8,
-                backgroundColor: KombeColors.sand,
-                color: KombeColors.emerald,
+            const SizedBox(height: 14),
+            Text('Confirmé', style: t.bodySmall),
+            const SizedBox(height: 2),
+            FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(fund.confirmedXaf, size: 26)),
+            if (fund.pendingXaf > 0) ...<Widget>[
+              const SizedBox(height: 8),
+              StatusPill('En attente : ${Xaf.format(fund.pendingXaf)}', tone: KombeTone.warning, icon: Icons.hourglass_top_rounded),
+            ],
+            if (target != null && target > 0) ...<Widget>[
+              const SizedBox(height: 12),
+              LinearProgressIndicator(value: (fund.confirmedXaf / target).clamp(0, 1).toDouble(), minHeight: 8),
+              const SizedBox(height: 6),
+              Text('Objectif : ${Xaf.format(target)}', style: t.bodySmall),
+            ],
+            if (onClose != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: onClose,
+                  style: TextButton.styleFrom(foregroundColor: KombeColors.danger),
+                  icon: const Icon(Icons.lock_outline_rounded, size: 18),
+                  label: const Text('Clôturer'),
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text('${Xaf.format(fund.confirmedXaf)} sur ${Xaf.format(target)}', style: t.bodySmall),
           ],
-          if (onClose != null)
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onClose,
-                style: TextButton.styleFrom(foregroundColor: KombeColors.danger),
-                icon: const Icon(Icons.lock_outline_rounded, size: 18),
-                label: const Text('Clôturer'),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -286,7 +277,7 @@ class _NewFundSheetState extends State<_NewFundSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text('Nouvelle caisse', style: KombeType.titre(size: 24)),
+            Text('Nouvelle caisse', style: KombeType.display(size: 24)),
             const SizedBox(height: 4),
             Text('Effective dès aujourd’hui : jamais rétroactive.', style: t.bodySmall),
             const SizedBox(height: 16),
@@ -304,19 +295,19 @@ class _NewFundSheetState extends State<_NewFundSheet> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(KombeSpacing.tileRadius),
                   onTap: () => setState(() => _mode = m.key),
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: _mode == m.key ? KombeColors.mint : Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: _mode == m.key ? KombeColors.emerald : KombeColors.line),
+                      borderRadius: BorderRadius.circular(KombeSpacing.tileRadius),
+                      border: Border.all(color: _mode == m.key ? KombeColors.jade : KombeColors.lineStrong),
                     ),
                     child: Row(
                       children: <Widget>[
                         Icon(_mode == m.key ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                            color: _mode == m.key ? KombeColors.emerald : KombeColors.slate),
+                            color: _mode == m.key ? KombeColors.jade : KombeColors.slate),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -354,15 +345,11 @@ class _NewFundSheetState extends State<_NewFundSheet> {
               decoration: const InputDecoration(labelText: 'Objectif à atteindre (facultatif)', suffixText: 'FCFA'),
             ),
             if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(_error!, style: t.bodyMedium?.copyWith(color: KombeColors.danger)),
-              ),
+              Padding(padding: const EdgeInsets.only(top: 12), child: KombeInlineError(_error!)),
             const SizedBox(height: 18),
             FilledButton(
               key: const Key('caisse-creer'),
               onPressed: _valid && !_busy ? _submit : null,
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(54), backgroundColor: KombeColors.forest),
               child: _busy
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Text('Créer la caisse'),

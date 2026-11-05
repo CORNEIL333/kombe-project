@@ -26,7 +26,7 @@ describe("routes par fragment", () => {
 
 describe("montants XAF entiers", () => {
   it("formate sans flottant", () => {
-    expect(formatXaf("25000")).toBe("25 000 FCFA");
+    expect(formatXaf("25000")).toBe("25 000 FCFA");
     expect(formatXaf("1250000", "en")).toBe("1,250,000 FCFA");
     expect(formatXaf("0")).toBe("0 FCFA");
     expect(formatXaf("-500")).toBe("−500 FCFA");

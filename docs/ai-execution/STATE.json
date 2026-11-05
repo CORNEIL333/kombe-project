@@ -1,31 +1,34 @@
 {
   "branch": "refonte/premium-photos",
   "base": "refonte/ux-integrale",
-  "step": "E-rapport",
+  "step": "G-mise-a-jour-0.8.0",
   "done": [
     "A-photo-serveur",
     "B1-pwa-4-onglets-groupes-photo",
     "B1b-pwa-planches-reference",
     "B2-flutter-4-onglets-groupes-photo-planche",
-    "E-rapport-final"
+    "E-rapport-final",
+    "F1-socle-cercle-ndop-flutter+pwa"
   ],
   "remaining": [
-    "D-recette-appareil (Android/iOS)",
-    "PR refonte/premium-photos → refonte/ux-integrale",
-    "écarts PWA bureau (voir FINAL_REPORT.md)"
+    "F2-flutter: auth, création/adhésion, caisses, détail membre, invitation, déclaration, hors ligne",
+    "F3-pwa: relecture captures qa5, Profil montant Fraunces, barre du bas sur bureau",
+    "F4-avant/après chiffré + rapport",
+    "PR refonte/premium-photos"
   ],
   "blocked": [
-    "preuve PostgreSQL réelle (pas de base isolée)",
-    "recette appareil Android/iOS (pas d'émulateur, téléchargement interdit)",
-    "build APK : image_picker ajoute des dépendances Gradle non présentes en cache (téléchargement interdit) — non lancé"
+    "déploiement : CLI Vercel déconnecté (vercel login requis)",
+    "sauvegarde et migrations 0032-0035 : kombe_prod invisible depuis le connecteur Neon",
+    "recette appareil Android/iOS"
   ],
   "evidence": {
     "domain_tests": 444,
     "api_tests": 249,
     "pwa_tests": 30,
-    "mobile_tests": 46,
+    "mobile_tests": 49,
     "pwa_playwright": "360/390/430/768/1024/1440 sans erreur ni défilement horizontal",
-    "login_pwa": "0 pixel de différence avec la production"
+    "login_pwa": "0 pixel de différence avec la production",
+    "apk_0_8_0": "construit en local le 2026-11-05, non publié"
   },
-  "next": "Ouvrir la PR refonte/premium-photos → refonte/ux-integrale ; recette sur téléphone réel."
+  "next": "Après vercel login : sauvegarde Neon, vercel --prod depuis le worktree, vérifier /v1/health/ready et les routes photo, puis node scripts/mobile/publier.mjs."
 }

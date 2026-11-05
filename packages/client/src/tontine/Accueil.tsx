@@ -6,6 +6,7 @@
    « Tour en cours » (progression, cagnotte, bénéficiaire, membres).
    Lectures en parallèle ; une donnée absente reste absente. */
 
+import { BandeCycle } from "./BandeCycle.js";
 import { useEffect, useState, type ReactNode } from "react";
 import type { Route } from "../App.js";
 import {
@@ -24,7 +25,7 @@ import { Charge, useDonnees } from "./ui.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
 import { useTextes, type CleTexte } from "./textes.js";
 import { destinationNotification, entreeNotification, texteNotification } from "./notifications.js";
-import { initiales } from "./PhotoGroupe.js";
+import { AvatarPersonne } from "./PhotoGroupe.js";
 
 const CONFIRME = ["treasurer", "treasurer_deputy", "animator", "vice_president"];
 
@@ -41,7 +42,7 @@ interface DonneesAccueil {
   readonly seance: { readonly date: string; readonly lieu: string | null } | null;
   readonly tour: { readonly rang: number; readonly total: number; readonly round: RoundView } | null;
   readonly membres: number;
-  readonly noms: readonly string[];
+  readonly noms: readonly { readonly nom: string; readonly id: string; readonly version?: number | null | undefined }[];
   readonly recentes: readonly NotificationView[];
 }
 
@@ -76,7 +77,7 @@ async function chargerAccueil(session: Session, g: TontineSummary): Promise<Donn
     seance: detail.nextMeeting ? { date: detail.nextMeeting.date, lieu: detail.nextMeeting.location } : null,
     tour: cy && cr ? { rang: cr.seq - cy.firstSeq + 1, total: cy.lastSeq - cy.firstSeq + 1, round: cr } : null,
     membres: detail.memberCount,
-    noms: membres.filter((m) => m.state === "active").map((m) => m.displayName),
+    noms: membres.filter((m) => m.state === "active").map((m) => ({ nom: m.displayName, id: m.membershipId, version: m.photoVersion })),
     recentes: notifs.filter((n) => n.groupId === g.groupId).slice(0, 3),
   };
 }
@@ -131,6 +132,7 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
   const { etat, recharger } = useDonnees(() => chargerAccueil(session, groupe), [session.sessionId, groupe.groupId]);
   const vers = (onglet: string) => () => aller({ ecran: "groupe", groupId: groupe.groupId, onglet });
   const visuel = useVisuelGroupe(session, groupe);
+  const moi = useDonnees(() => acces.moi(session), [session.sessionId]);
   return (
     <div className="accueil-premium">
       <Charge etat={etat} recharger={recharger} squelette={<SqueletteAccueil />}>
@@ -138,7 +140,7 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
           <>
             {/* Téléphone : bandeau forêt sous la barre (salutation, marque). */}
             <section className="bandeau-accueil" aria-label={tx("ho.bonjour")}>
-              <p className="bandeau-accueil__salut">{d.prenom ? `${tx("ho.bonjourNom", { nom: d.prenom })} 👋` : `${tx("ho.bonjour")} 👋`}</p>
+              <p className="bandeau-accueil__salut">{d.prenom ? tx("ho.bonjourNom", { nom: d.prenom }) : tx("ho.bonjour")}</p>
               <p className="bandeau-accueil__marque">KÓMBE</p>
               <p className="bandeau-accueil__groupe">{tx("ho.signatureMarque")}</p>
             </section>
@@ -181,17 +183,28 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
                         {tx("ho.aJour")}
                       </h1>
                     )}
+                    {groupe.cyclePosition ? (
+                      <div className="hero-cotisation__cycle">
+                        <BandeCycle courant={groupe.cyclePosition.current} total={groupe.cyclePosition.total} libelle={tx("gr.cycle", { n: groupe.cyclePosition.current, total: groupe.cyclePosition.total })} />
+                        <span>{tx("gr.cycle", { n: groupe.cyclePosition.current, total: groupe.cyclePosition.total })}</span>
+                      </div>
+                    ) : null}
                   </div>
-                  <span className="hero-cotisation__pieces" aria-hidden="true">
-                    <Icone nom="cagnotte" taille={30} />
-                  </span>
-                  <span className="hero-cotisation__visuel" aria-hidden="true" style={{ backgroundImage: `url("${visuel}")` }} />
+                  {visuel ? <span className="hero-cotisation__visuel" aria-hidden="true" style={{ backgroundImage: `url("${visuel}")` }} /> : null}
                 </section>
 
                 {d.declare > 0n ? (
                   <button type="button" className="ligne-attente apparition" onClick={() => aller({ ecran: "cotisations" })}>
                     <Icone nom="attente" taille={20} />
                     <span>{tx("ho.enAttente", { montant: xaf(d.declare.toString()) })}</span>
+                    <Icone nom="chevron" taille={18} />
+                  </button>
+                ) : null}
+
+                {moi.etat.statut === "ok" && !moi.etat.donnees.photoVersion ? (
+                  <button type="button" className="ligne-attente apparition" onClick={() => aller({ ecran: "profil" })}>
+                    <Icone nom="plus" taille={20} />
+                    <span>{tx("ho.ajouterPhoto")}</span>
                     <Icone nom="chevron" taille={18} />
                   </button>
                 ) : null}
@@ -295,7 +308,7 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
                       {tx("ho.cycleEnCours")}
                     </h2>
                     <p className="carte-rail__grand">{tx("ho.cycleN", { n: d.tour.rang, total: d.tour.total })}</p>
-                    <Progression valeur={d.tour.rang} max={d.tour.total} libelle={tx("ho.progressionCycle")} />
+                    <BandeCycle courant={d.tour.rang} total={d.tour.total} libelle={tx("ho.progressionCycle")} clair />
                     <ul className="carte-rail__chiffres">
                       <li>
                         <span className="carte-rail__pastille carte-rail__pastille--or" aria-hidden="true">
@@ -336,10 +349,8 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
                     <Icone nom="chevron" taille={18} />
                   </span>
                   <span className="pile-avatars" aria-hidden="true">
-                    {d.noms.slice(0, 4).map((n, i) => (
-                      <span key={i} className="pile-avatars__un">
-                        {initiales(n)}
-                      </span>
+                    {d.noms.slice(0, 4).map((n) => (
+                      <AvatarPersonne key={n.id} session={session} groupId={groupe.groupId} membreId={n.id} nom={n.nom} version={n.version} taille={40} />
                     ))}
                     {d.membres > 4 ? <span className="pile-avatars__un pile-avatars__plus">+{d.membres - 4}</span> : null}
                   </span>
@@ -358,9 +369,9 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
   );
 }
 
-/** Visuel du héros : la photo du groupe si elle existe, sinon une illustration de la marque (jamais des personnes). */
-function useVisuelGroupe(session: Session, groupe: TontineSummary): string {
-  const [url, setUrl] = useState("/brand/fonds/yaounde.webp");
+/** Visuel du héros : la photo du groupe si elle existe ; sinon rien, le motif Ndop de la surface suffit. */
+function useVisuelGroupe(session: Session, groupe: TontineSummary): string | null {
+  const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     const v = groupe.photoVersion;
     if (!v) return;
@@ -417,34 +428,23 @@ function Tuile({ icone, libelle, onClick, badge, accent }: { readonly icone: Nom
   );
 }
 
-/** Barre de progression accessible (rôle et valeurs, pas la couleur seule). */
-function Progression({ valeur, max, libelle }: { readonly valeur: number; readonly max: number; readonly libelle: string }) {
-  const pct = max > 0 ? Math.round((valeur / max) * 100) : 0;
-  return (
-    <div className="progression" role="progressbar" aria-label={libelle} aria-valuemin={0} aria-valuemax={max} aria-valuenow={valeur}>
-      <span className="progression__piste">
-        <span className="progression__barre" style={{ transform: `scaleX(${pct / 100})` }} />
-      </span>
-      <span className="progression__pct">{pct} %</span>
-    </div>
-  );
-}
-
 function Ligne({
   icone,
   titre,
   sousTitre,
   onClick,
   nonLue,
+  famille,
 }: {
   readonly icone: NomIcone;
   readonly titre: string;
   readonly sousTitre?: string | undefined;
   readonly onClick: () => void;
   readonly nonLue?: boolean;
+  readonly famille?: string;
 }) {
   return (
-    <li>
+    <li data-famille={famille}>
       <button type="button" className={nonLue ? "ligne ligne--nonlue" : "ligne"} onClick={onClick}>
         <span className="ligne__icone" aria-hidden="true">
           <Icone nom={icone} taille={22} />
@@ -485,6 +485,7 @@ function LigneNotification({ n, session, aller }: { readonly n: NotificationView
       titre={titre}
       sousTitre={[t.detail || (n.groupName ?? ""), date(n.createdAt)].filter(Boolean).join(" · ")}
       nonLue={!n.read}
+      famille={familleNotification(n)}
       onClick={() => ouvrirNotification(session, n, aller)}
     />
   );

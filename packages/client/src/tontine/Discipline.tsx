@@ -117,16 +117,20 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
             <ul className="liste">
               {liste.map((f) => {
                 const concerne = moi?.membershipId === f.membershipId;
                 return (
-                  <li key={f.fineId} className="liste__ligne liste__ligne--haute">
+                  <li key={f.fineId} className="liste__ligne liste__ligne--haute ligne-riche">
+                    <span className={`ligne-riche__ico ligne-riche__ico--${f.state === "paid" ? "ok" : f.state === "contested" ? "alerte" : f.state === "cancelled" ? "neutre" : "attente"}`} aria-hidden="true">
+                      <Icone nom="balance" taille={20} />
+                    </span>
                     <div>
                       <strong>
-                        {f.memberName} · {xaf(f.amount)}
+                        {f.memberName}
+                        <span className="visuellement-cache"> · {xaf(f.amount)}</span>
                       </strong>
                       <span className="aide-champ">
                         {dyn(`di.k.${f.kind}`)} · {f.reason} · {date(f.issuedAt)}
@@ -134,6 +138,9 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
                       </span>
                       <Pastille ton={f.state === "paid" ? "ok" : f.state === "contested" ? "alerte" : f.state === "cancelled" ? "neutre" : "attente"}>{dyn(`di.e.${f.state}`)}</Pastille>
                     </div>
+                    <span className="montant ligne-riche__montant" aria-hidden="true">
+                      {xaf(f.amount)}
+                    </span>
                     <div className="liste__actions">
                       {f.state === "issued" && concerne ? (
                         <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => setMotif({ id: f.fineId, quoi: "contester", texte: "" })} title={tx("di.contester")}>
@@ -315,17 +322,21 @@ function Secours({ ctx }: { readonly ctx: ContexteGroupe }) {
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
             <ul className="liste">
               {liste.map((a) => {
                 const moi = membres.etat.statut === "ok" ? membres.etat.donnees.find((m) => m.isMe) : undefined;
                 const beneficiaire = moi?.membershipId === a.beneficiaryMembershipId;
                 return (
-                  <li key={a.aidId} className="liste__ligne liste__ligne--haute">
+                  <li key={a.aidId} className="liste__ligne liste__ligne--haute ligne-riche">
+                    <span className={`ligne-riche__ico ligne-riche__ico--${a.state === "paid" ? "ok" : a.state === "rejected" ? "alerte" : "attente"}`} aria-hidden="true">
+                      <Icone nom="secours" taille={20} />
+                    </span>
                     <div>
                       <strong>
-                        {a.beneficiaryName} · {dyn(`di.ev.${a.event}`)} · {xaf(a.amount)}
+                        {a.beneficiaryName} · {dyn(`di.ev.${a.event}`)}
+                        <span className="visuellement-cache"> · {xaf(a.amount)}</span>
                       </strong>
                       <span className="aide-champ">
                         {date(a.eventDate)}
@@ -334,6 +345,9 @@ function Secours({ ctx }: { readonly ctx: ContexteGroupe }) {
                       </span>
                       <Pastille ton={a.state === "paid" ? "ok" : a.state === "rejected" ? "alerte" : "attente"}>{dyn(`di.se.${a.state}`)}</Pastille>
                     </div>
+                    <span className="montant ligne-riche__montant" aria-hidden="true">
+                      {xaf(a.amount)}
+                    </span>
                     <div className="liste__actions">
                       {a.state === "requested" && peut(ctx.roles, "aid.decide") && !beneficiaire ? (
                         <>
@@ -401,14 +415,21 @@ function Dettes({ ctx }: { readonly ctx: ContexteGroupe }) {
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
             <ul className="liste">
               {liste.map((d) => (
-                <li key={d.debtId} className="liste__ligne liste__ligne--haute">
+                <li key={d.debtId} className="liste__ligne liste__ligne--haute ligne-riche">
+                  <span className={`ligne-riche__ico ligne-riche__ico--${d.state === "settled" ? "ok" : d.state === "open" ? "attente" : "neutre"}`} aria-hidden="true">
+                    <Icone nom="historique" taille={20} />
+                  </span>
                   <div>
                     <strong>
-                      {d.debtorName} · {xaf(d.remaining)} / {xaf(d.amount)}
+                      {d.debtorName}
+                      <span className="visuellement-cache">
+                        {" "}
+                        · {xaf(d.remaining)} / {xaf(d.amount)}
+                      </span>
                     </strong>
                     <span className="aide-champ">
                       {dyn(`di.o.${d.origin}`)} · {date(d.createdAt)}
@@ -416,6 +437,10 @@ function Dettes({ ctx }: { readonly ctx: ContexteGroupe }) {
                     </span>
                     <Pastille ton={d.state === "settled" ? "ok" : d.state === "open" ? "attente" : "neutre"}>{dyn(`di.d.${d.state}`)}</Pastille>
                   </div>
+                  <span className="montant ligne-riche__montant" aria-hidden="true">
+                    {xaf(d.remaining)}
+                    <small> / {xaf(d.amount)}</small>
+                  </span>
                   {d.state === "open" ? (
                     <div className="liste__actions">
                       {moi?.membershipId === d.debtorMembershipId || peut(ctx.roles, "movement.confirm") ? (

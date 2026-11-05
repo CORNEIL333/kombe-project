@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/design/kombe_theme.dart';
 import '../../core/state/operation_result.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/operation_feedback.dart';
 import '../../domain/entities/auth.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -143,28 +145,21 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
             ? '/recovery-request'
             : '/login';
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.verifyCodeTitle),
-        leading: BackButton(onPressed: () => context.go(back)),
-      ),
+      appBar: AppBar(leading: BackButton(onPressed: () => context.go(back))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: <Widget>[
-            Text(
-              widget.purpose == VerifyCodePurpose.registration ? 'Dernière étape' : l10n.verifyCodeTitle,
-              style: t.headlineLarge,
+            KombeFormHeader(
+              icon: Icons.sms_outlined,
+              title: widget.purpose == VerifyCodePurpose.registration ? 'Dernière étape' : l10n.verifyCodeTitle,
+              body: 'Saisissez le code à 6 chiffres envoyé ${widget.channel.viaLabel} à ${widget.identityId}.',
             ),
-            const SizedBox(height: 10),
-            Text(
-              'Saisissez le code à 6 chiffres envoyé ${widget.channel.viaLabel} à ${widget.identityId}.',
-              style: t.bodyLarge,
-            ),
-            if (widget.purpose == VerifyCodePurpose.registration) ...<Widget>[
-              const SizedBox(height: 6),
-              Text('Ce premier code crée votre compte.', style: t.bodyMedium?.copyWith(color: KombeColors.slate)),
-            ],
-            const SizedBox(height: 26),
+            if (widget.purpose == VerifyCodePurpose.registration)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 18),
+                child: Text('Ce premier code crée votre compte.', style: t.bodyMedium?.copyWith(color: KombeColors.slate)),
+              ),
             TextField(
               controller: _code,
               autofocus: true,
@@ -173,13 +168,14 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
               inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
               autofillHints: const <String>[AutofillHints.oneTimeCode],
               textInputAction: TextInputAction.done,
+              textAlign: TextAlign.center,
               onChanged: (_) {
                 if (_error != null) setState(() => _error = null);
                 // Six chiffres saisis ou collés : vérification immédiate.
                 if (_digits.length == 6) _verify();
               },
               onSubmitted: (_) => _verify(),
-              style: t.headlineSmall?.copyWith(letterSpacing: 8),
+              style: KombeType.amount(size: 30).copyWith(letterSpacing: 8),
               decoration: InputDecoration(labelText: 'Code à 6 chiffres', errorText: _error, errorMaxLines: 4),
             ),
             const SizedBox(height: 12),

@@ -14,6 +14,7 @@ import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/kombe_sheet.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
+import '../../domain/repositories/profile_repository.dart';
 
 /// Présidence et secrétariat (miroir de `group.photo` ; le serveur tranche).
 bool canEditGroupPhoto(GroupRole role) => role == GroupRole.administrator || role == GroupRole.secretary;
@@ -57,21 +58,69 @@ const int _max256 = 150 * 1024;
   return v512 == null || v256 == null ? null : (v512, v256);
 }
 
-Future<void> showGroupPhotoSheet(BuildContext context, GroupSummary group) => showKombeSheet<void>(
-      context,
-      title: 'Photo du groupe',
-      builder: (_) => _GroupPhotoPanel(group: group),
-    );
-
-class _GroupPhotoPanel extends StatefulWidget {
-  const _GroupPhotoPanel({required this.group});
-  final GroupSummary group;
-
-  @override
-  State<_GroupPhotoPanel> createState() => _GroupPhotoPanelState();
+Future<void> showGroupPhotoSheet(BuildContext context, GroupSummary group) {
+  final GroupRepository repo = context.read<GroupRepository>();
+  final ActiveGroupController groups = context.read<ActiveGroupController>();
+  return showKombeSheet<void>(
+    context,
+    title: 'Photo du groupe',
+    builder: (_) => PhotoPanel(
+      preview: GroupAvatar(groupId: group.id, name: group.name, photoVersion: group.photoVersion, size: 180),
+      hasPhoto: group.photoVersion != null,
+      note: 'Visible par les membres du groupe. La position et les informations de l’appareil sont retirées.',
+      savedMessage: 'Photo du groupe enregistrée.',
+      save: (Uint8List a, Uint8List b) => repo.setPhoto(group.id, a, b),
+      remove: () => repo.removePhoto(group.id),
+      afterChange: () async {
+        forgetGroupPhoto(group.id);
+        await groups.refresh();
+      },
+    ),
+  );
 }
 
-class _GroupPhotoPanelState extends State<_GroupPhotoPanel> {
+/// Ma photo de profil, même parcours que celle du groupe.
+Future<void> showMyPhotoSheet(BuildContext context, {required String name, required int? photoVersion, required Future<void> Function() afterChange}) {
+  final ProfileRepository repo = context.read<ProfileRepository>();
+  return showKombeSheet<void>(
+    context,
+    title: 'Ma photo',
+    builder: (_) => PhotoPanel(
+      preview: MyAvatar(name: name, photoVersion: photoVersion, size: 180),
+      hasPhoto: photoVersion != null,
+      note: 'Visible par les membres de vos groupes. La position et les informations de l’appareil sont retirées.',
+      savedMessage: 'Photo enregistrée.',
+      save: repo.setPhoto,
+      remove: repo.removePhoto,
+      afterChange: afterChange,
+    ),
+  );
+}
+
+class PhotoPanel extends StatefulWidget {
+  const PhotoPanel({
+    super.key,
+    required this.preview,
+    required this.hasPhoto,
+    required this.note,
+    required this.savedMessage,
+    required this.save,
+    required this.remove,
+    required this.afterChange,
+  });
+  final Widget preview;
+  final bool hasPhoto;
+  final String note;
+  final String savedMessage;
+  final Future<OperationResult<Object?>> Function(Uint8List jpeg512, Uint8List jpeg256) save;
+  final Future<OperationResult<Object?>> Function() remove;
+  final Future<void> Function() afterChange;
+
+  @override
+  State<PhotoPanel> createState() => _PhotoPanelState();
+}
+
+class _PhotoPanelState extends State<PhotoPanel> {
   Uint8List? _source;
   double _zoom = 1;
   bool _busy = false;
@@ -112,14 +161,13 @@ class _GroupPhotoPanelState extends State<_GroupPhotoPanel> {
       });
       return;
     }
-    final OperationResult<int> r = await context.read<GroupRepository>().setPhoto(widget.group.id, variants.$1, variants.$2);
-    await _after(r);
+    await _after(await widget.save(variants.$1, variants.$2));
   }
 
   Future<void> _remove() async {
     if (_busy) return;
     setState(() => _busy = true);
-    await _after(await context.read<GroupRepository>().removePhoto(widget.group.id));
+    await _after(await widget.remove());
   }
 
   /// Succès seulement à réception de la réponse ; le cache est invalidé.
@@ -127,13 +175,11 @@ class _GroupPhotoPanelState extends State<_GroupPhotoPanel> {
     if (!mounted) return;
     switch (r) {
       case OperationSuccess<Object?>():
-        forgetGroupPhoto(widget.group.id);
-        final ActiveGroupController groups = context.read<ActiveGroupController>();
         final NavigatorState nav = Navigator.of(context);
         final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-        await groups.refresh();
+        await widget.afterChange();
         nav.pop();
-        messenger.showSnackBar(const SnackBar(content: Text('Photo du groupe enregistrée.')));
+        messenger.showSnackBar(SnackBar(content: Text(widget.savedMessage)));
       case OperationFailure<Object?>(:final Object error):
         setState(() {
           _busy = false;
@@ -157,12 +203,12 @@ class _GroupPhotoPanelState extends State<_GroupPhotoPanel> {
         children: <Widget>[
           Center(
             child: src == null
-                ? GroupAvatar(groupId: widget.group.id, name: widget.group.name, photoVersion: widget.group.photoVersion, size: 180)
+                ? widget.preview
                 : Semantics(
                     label: 'Aperçu de la photo recadrée',
                     image: true,
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(50),
+                      borderRadius: BorderRadius.circular(90),
                       child: SizedBox.square(
                         dimension: 180,
                         child: Transform.scale(scale: _zoom, child: Image.memory(src, fit: BoxFit.cover)),
@@ -206,11 +252,7 @@ class _GroupPhotoPanelState extends State<_GroupPhotoPanel> {
             ],
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Photo carrée, visible par les membres du groupe. La position et les informations de l’appareil sont retirées.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: KombeColors.slate, fontSize: 13),
-          ),
+          Text(widget.note, textAlign: TextAlign.center, style: const TextStyle(color: KombeColors.slate, fontSize: 14)),
           if (_error != null) ...<Widget>[
             const SizedBox(height: 10),
             Semantics(liveRegion: true, child: Text(_error!, style: const TextStyle(color: KombeColors.danger))),
@@ -220,7 +262,7 @@ class _GroupPhotoPanelState extends State<_GroupPhotoPanel> {
             onPressed: src == null || _busy ? null : _save,
             child: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4)) : const Text('Enregistrer la photo'),
           ),
-          if (widget.group.photoVersion != null && src == null)
+          if (widget.hasPhoto && src == null)
             TextButton(
               onPressed: _busy ? null : _remove,
               style: TextButton.styleFrom(foregroundColor: KombeColors.danger),

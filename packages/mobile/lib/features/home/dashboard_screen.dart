@@ -29,6 +29,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       DashboardViewModel(context.read<DashboardRepository>(), context.read<ContributionDraftRepository>());
   String? _loadedFor;
   String? _firstName;
+  bool _photoMissing = false;
+  int? _photoVersion;
+  String _name = '';
 
   @override
   void initState() {
@@ -38,7 +41,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!mounted) return;
       if (r case ResourceReady<UserProfile>(:final UserProfile data)) {
         final String first = data.displayName.trim().split(RegExp(r'\s+')).first;
-        if (first.isNotEmpty) setState(() => _firstName = first);
+        setState(() {
+          if (first.isNotEmpty) _firstName = first;
+          _photoMissing = data.photoVersion == null;
+          _photoVersion = data.photoVersion;
+          _name = data.displayName;
+        });
       }
     });
   }
@@ -84,7 +92,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   : ResourceView<HomeData>(
                       resource: _vm.state,
                       onRetry: _refresh,
-                      builder: (BuildContext context, HomeData data) => HomeContent(data: data, drafts: _vm.drafts, firstName: _firstName),
+                      builder: (BuildContext context, HomeData data) => HomeContent(data: data, drafts: _vm.drafts, firstName: _firstName, photoMissing: _photoMissing, myName: _name, myPhotoVersion: _photoVersion),
                     ),
             ),
           ),

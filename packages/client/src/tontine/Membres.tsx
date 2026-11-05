@@ -6,6 +6,7 @@ import { tontines, type InvitationView, type MemberView } from "./api.js";
 import { ROLES_NOMMABLES, peut } from "./droits.js";
 import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
 import { Icone } from "../composants/Icones.js";
+import { AvatarPersonne } from "./PhotoGroupe.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 
@@ -28,9 +29,10 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
         <Retour erreur={action.erreur} succes={action.succes} />
         <Charge etat={etat} recharger={recharger}>
           {(membres) => (
-            <ul className="liste">
+            <ul className="liste liste--colonnes">
               {membres.map((m) => (
-                <li key={m.membershipId} className="liste__ligne liste__ligne--haute">
+                <li key={m.membershipId} className="liste__ligne liste__ligne--haute ligne-riche">
+                  <AvatarPersonne session={ctx.session} groupId={gid} membreId={m.membershipId} nom={m.displayName} version={m.photoVersion} />
                   <div>
                     <strong>
                       {m.displayName}
@@ -135,6 +137,12 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
   );
 }
 
+/** Deux initiales pour la pastille de la ligne (décoratif ; le nom reste écrit). */
+function initiales(nom: string): string {
+  const mots = nom.trim().split(/\s+/).filter(Boolean);
+  return ((mots[0]?.[0] ?? "") + (mots.length > 1 ? (mots[mots.length - 1]?.[0] ?? "") : "")).toUpperCase() || "·";
+}
+
 function Invitations({ ctx }: { readonly ctx: ContexteGroupe }) {
   const { tx, date } = useTextes();
   const gid = ctx.groupe.groupId;
@@ -192,7 +200,7 @@ function Invitations({ ctx }: { readonly ctx: ContexteGroupe }) {
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
             <ul className="liste">
               {liste.map((inv) => (

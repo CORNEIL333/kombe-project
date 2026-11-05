@@ -12,6 +12,8 @@ import 'package:kombe_mobile/data/local/preferences_repository_impl.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:kombe_mobile/domain/entities/fund.dart';
+import 'package:kombe_mobile/domain/repositories/fund_repository.dart';
 import 'package:kombe_mobile/core/api/api_failure.dart';
 import 'package:kombe_mobile/core/state/operation_result.dart';
 import 'package:kombe_mobile/core/state/resource.dart';
@@ -163,6 +165,15 @@ final class FakeAuthRepository implements AuthRepository {
 }
 
 final class FakeProfileRepository implements ProfileRepository {
+  @override
+  Future<Uint8List?> loadPhoto(int version, int size) async => null;
+
+  @override
+  Future<OperationResult<int>> setPhoto(Uint8List jpeg512, Uint8List jpeg256) async => const OperationSuccess<int>(1);
+
+  @override
+  Future<OperationResult<void>> removePhoto() async => const OperationSuccess<void>(null);
+
   UserProfile _p = const UserProfile(identityId: 'essai@kombe.app', displayName: 'Amina Ngué', phoneE164: '+237670123456', localeCode: 'fr');
 
   @override
@@ -275,6 +286,9 @@ final class FakeGroupRepository implements GroupRepository {
       usedCount: 0,
     ));
   }
+
+  @override
+  Future<Uint8List?> loadMemberPhoto(String groupId, String memberId, int version, int size) async => null;
 
   @override
   Future<Uint8List?> loadPhoto(String groupId, int version, int size) async => photos['$groupId:$size'];
@@ -658,6 +672,48 @@ final class InMemoryDraftRepository implements ContributionDraftRepository {
   Future<void> purgeAll() async => store.clear();
 }
 
+/// Caisses factices : règlement, caisse propre avec objectif, caisse clôturée.
+class FakeFundRepository implements FundRepository {
+  const FakeFundRepository();
+
+  @override
+  Future<Resource<GroupFunds>> listFunds(String groupId) async => const ResourceReady<GroupFunds>(
+        GroupFunds(
+          canManage: true,
+          funds: <GroupFund>[
+            GroupFund(id: 'f_rot', kind: 'rotation', name: 'Cagnotte', closed: false, confirmedXaf: 225000, pendingXaf: 15000, perMeetingXaf: 25000),
+            GroupFund(id: 'f_sec', kind: 'solidarity', name: 'Secours', closed: false, confirmedXaf: 48000, pendingXaf: 0, perMeetingXaf: 1000),
+            GroupFund(
+              id: 'f_fete',
+              kind: 'custom',
+              name: 'Fête de fin d’année',
+              closed: false,
+              confirmedXaf: 180000,
+              pendingXaf: 0,
+              perMeetingXaf: 0,
+              custom: CustomFundRules(mode: FundMode.eachMeeting, currentAmountXaf: 2000, purpose: 'Repas et salle du 27 décembre.', targetXaf: 300000),
+            ),
+            GroupFund(
+              id: 'f_ach',
+              kind: 'custom',
+              name: 'Achat groupé de chaises',
+              closed: true,
+              confirmedXaf: 60000,
+              pendingXaf: 0,
+              perMeetingXaf: 0,
+              custom: CustomFundRules(mode: FundMode.oneTime, currentAmountXaf: 5000, closedOn: '2026-09-30'),
+            ),
+          ],
+        ),
+      );
+
+  @override
+  Future<OperationResult<void>> createFund(String groupId, FundCreation creation) async => const OperationSuccess<void>(null);
+
+  @override
+  Future<OperationResult<void>> closeFund(String groupId, String fundId) async => const OperationSuccess<void>(null);
+}
+
 AppDependencies fakeDependencies({ContributionDraftRepository? drafts}) {
   final FakeWorld world = FakeWorld();
   return AppDependencies(
@@ -669,6 +725,7 @@ AppDependencies fakeDependencies({ContributionDraftRepository? drafts}) {
     fineRepository: FakeFineRepository(world),
     notificationRepository: FakeNotificationRepository(world),
     documentRepository: FakeDocumentRepository(),
+    fundRepository: const FakeFundRepository(),
     dashboardRepository: FakeDashboardRepository(world),
     draftRepository: drafts ?? ContributionDraftDatabase(),
     preferencesRepository: PreferencesRepositoryImpl(SharedPreferencesAsync()),

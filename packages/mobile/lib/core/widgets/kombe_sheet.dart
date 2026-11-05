@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../design/kombe_colors.dart';
+import '../design/kombe_theme.dart';
 
 /// Demi-fenêtre KÓMBE : tâche courte sans quitter l'écran courant.
 ///
@@ -21,6 +22,7 @@ Future<T?> showKombeSheet<T>(
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
+      constraints: const BoxConstraints(maxWidth: 640),
       isDismissible: dismissible,
       enableDrag: dismissible,
       backgroundColor: KombeColors.cream,
@@ -51,7 +53,7 @@ class KombeSheetFrame extends StatelessWidget {
                 Expanded(
                   child: Semantics(
                     header: true,
-                    child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+                    child: Text(title, style: KombeType.display(size: 23)),
                   ),
                 ),
                 if (closable)

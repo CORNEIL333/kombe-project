@@ -247,12 +247,12 @@ final class GroupMember {
     required this.displayName,
     required this.role,
     required this.joinedAtUtc,
-    this.avatarUrl,
     this.state = 'active',
     this.apiRoles = const <String>[],
     this.pendingRoles = const <String>[],
     this.isMe = false,
     this.offline = false,
+    this.photoVersion,
   });
 
   /// Identifiant d'adhésion (`membershipId`).
@@ -260,7 +260,8 @@ final class GroupMember {
   final String displayName;
   final GroupRole role;
   final DateTime joinedAtUtc;
-  final Uri? avatarUrl;
+  /// Version de la photo de profil (null : pas de photo).
+  final int? photoVersion;
 
   /// `active` ou `pending` (demande d'adhésion à examiner).
   final String state;

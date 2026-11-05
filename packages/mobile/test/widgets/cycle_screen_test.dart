@@ -55,7 +55,7 @@ void main() {
 
     // Le cycle est prêt : la progression et l'ordre des bénéficiaires s'affichent.
     expect(find.text('Progression du cycle'), findsOneWidget);
-    expect(find.text('Ordre des bénéficiaires'), findsOneWidget);
+    expect(find.text('Qui reçoit, et quand'), findsOneWidget);
   });
 
   testWidgets('Cycle non démarré : le membre voit l’explication, sans bouton de lancement', (WidgetTester tester) async {

@@ -28,7 +28,8 @@ final class BeneficiaryTurn {
     required this.displayName,
     required this.dueAtUtc,
     required this.status,
-    this.avatarUrl,
+    this.photoVersion,
+    this.groupId = '',
   });
 
   final int turnNumber;
@@ -36,7 +37,8 @@ final class BeneficiaryTurn {
   final String displayName;
   final DateTime dueAtUtc;
   final BeneficiaryStatus status;
-  final Uri? avatarUrl;
+  final int? photoVersion;
+  final String groupId;
 }
 
 final class CycleDetails {

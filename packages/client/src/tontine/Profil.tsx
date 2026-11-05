@@ -2,6 +2,7 @@
    langue, sécurité de la session, aide. Les données viennent du serveur
    (/v1/me, /v1/me/tontines, /v1/me/dues) ; rien n'est inventé. */
 
+import { AvatarPersonne, DialoguePhoto } from "./PhotoGroupe.js";
 import { useEffect, useState } from "react";
 import { acces, type Session } from "./api.js";
 import { estBureau, ouvrirBureau } from "./bureau.js";
@@ -12,11 +13,6 @@ import { PreferencesNotifications } from "./PreferencesNotifications.js";
 import { useLangue } from "../i18n/ContexteLangue.js";
 import type { Langue } from "../i18n/dictionnaires.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
-
-function initiales(nom: string): string {
-  const mots = nom.trim().split(/\s+/).filter(Boolean);
-  return ((mots[0]?.[0] ?? "") + (mots.length > 1 ? (mots[mots.length - 1]?.[0] ?? "") : "")).toUpperCase() || "K";
-}
 
 const LANGUES: { id: Langue; court: string; nom: string }[] = [
   { id: "fr", court: "FR", nom: "Français" },
@@ -41,6 +37,7 @@ export function Profil({
   const tontines = useDonnees(() => acces.mesTontines(session), [session.sessionId]);
   const echeances = useDonnees(() => acces.mesEcheances(session), [session.sessionId]);
   const [edition, setEdition] = useState(false);
+  const [photo, setPhoto] = useState(false);
   const [nom, setNom] = useState("");
   const [enAttente, setEnAttente] = useState(() => lireFile().length);
   const action = useAction();
@@ -68,9 +65,24 @@ export function Profil({
       <Charge etat={moi.etat} recharger={moi.recharger}>
         {(m) => (
           <section className="profil-entete" aria-labelledby="profil-nom">
-            <span className="profil-entete__avatar" aria-hidden="true">
-              {initiales(m.displayName ?? m.login)}
-            </span>
+            <button type="button" className="profil-entete__photo" aria-label={m.photoVersion ? tx("ph.changerMoi") : tx("ph.ajouterMoi")} title={m.photoVersion ? tx("ph.changerMoi") : tx("ph.ajouterMoi")} onClick={() => setPhoto(true)}>
+              <AvatarPersonne session={session} nom={m.displayName ?? m.login} version={m.photoVersion} taille={84} />
+              <span className="profil-entete__photo-ico" aria-hidden="true">
+                <Icone nom="plus" taille={16} />
+              </span>
+            </button>
+            {photo ? (
+              <DialoguePhoto
+                session={session}
+                nom={m.displayName ?? m.login}
+                version={m.photoVersion}
+                onFermer={() => setPhoto(false)}
+                onChange={() => {
+                  setPhoto(false);
+                  moi.recharger();
+                }}
+              />
+            ) : null}
             <div className="profil-entete__texte">
               {edition ? (
                 <form

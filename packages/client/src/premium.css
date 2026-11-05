@@ -34,7 +34,7 @@
   overflow: hidden; border-radius: 28%;
   /* Repli : initiales sur l'anneau KÓMBE (motif vectoriel, pas de photo d'illustration). */
   background:
-    radial-gradient(circle at 50% 50%, transparent 52%, rgba(201, 148, 57, 0.35) 53%, rgba(201, 148, 57, 0.35) 60%, transparent 61%),
+    radial-gradient(circle at 50% 50%, transparent 52%, rgba(242, 176, 30, 0.35) 53%, rgba(242, 176, 30, 0.35) 60%, transparent 61%),
     var(--p-foret);
   color: var(--p-ivoire); font-weight: 800; letter-spacing: 0.02em;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
@@ -77,7 +77,7 @@
 .bouton-or {
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--p-or); color: var(--p-encre); border-color: var(--p-or);
-  font-weight: 800; box-shadow: 0 6px 18px -8px rgba(201, 148, 57, 0.8);
+  font-weight: 800; box-shadow: 0 6px 18px -8px rgba(242, 176, 30, 0.8);
 }
 .bouton-or svg { margin-right: 8px; }
 .bouton-or:hover { background: #d6a54d; }
@@ -112,11 +112,11 @@
 .carte-groupe__date { font-size: 0.85rem; color: var(--p-texte-2); }
 .carte-groupe__bureau {
   flex: 0 0 auto; align-self: center; width: 48px; height: 48px; margin-right: 8px; border: 0; border-radius: 14px;
-  background: var(--p-or-pale); color: #7a5410; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--p-or-pale); color: #7a5600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
 }
 .etiquette { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
-.etiquette--ok { background: var(--p-menthe); color: #0d5a43; }
-.etiquette--attente { background: var(--p-or-pale); color: #6b4a0e; }
+.etiquette--ok { background: var(--p-menthe); color: #0b7a53; }
+.etiquette--attente { background: var(--p-or-pale); color: #7a5600; }
 
 /* ── En-tête de la fiche groupe ───────────────────────────────────────── */
 .entete-groupe {
@@ -231,7 +231,7 @@
 
 .section-accueil { margin-top: 8px; }
 .titre-section--action h2 { display: inline-flex; align-items: center; }
-.pastille-compte { margin-left: 8px; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: var(--p-or-pale); color: #6b4a0e; font: 800 0.78rem/22px var(--f-ui, Manrope, sans-serif); text-align: center; }
+.pastille-compte { margin-left: 8px; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: var(--p-or-pale); color: #7a5600; font: 800 0.78rem/22px var(--f-ui, Manrope, sans-serif); text-align: center; }
 
 /* Prochaine séance : carte forêt au motif tissé. */
 .carte-seance {

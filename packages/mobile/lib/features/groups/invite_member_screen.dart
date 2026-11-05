@@ -4,8 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/design/kombe_colors.dart';
+import '../../core/design/kombe_spacing.dart';
+import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/douala_time.dart';
 import '../../core/state/operation_result.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/kombe_sheet.dart';
 import '../../core/widgets/operation_feedback.dart';
 import '../../domain/entities/group.dart';
@@ -101,7 +104,7 @@ class _InvitePanelState extends State<InvitePanel> {
           ),
           if (_error != null) ...<Widget>[
             const SizedBox(height: 12),
-            Semantics(liveRegion: true, child: Text(_error!, style: t.bodyMedium?.copyWith(color: KombeColors.danger))),
+            KombeInlineError(_error!),
           ],
           const SizedBox(height: 18),
           FilledButton.icon(
@@ -118,21 +121,28 @@ class _InvitePanelState extends State<InvitePanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Text('Code d’invitation', style: t.labelLarge?.copyWith(color: KombeColors.slate)),
-        const SizedBox(height: 4),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: SelectableText(
-                inv.code,
-                style: t.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: 3, color: KombeColors.forest),
+        // Le code, comme un ticket : c'est ce qu'on transmet de vive voix.
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 6, 12),
+          decoration: BoxDecoration(color: KombeColors.mint, borderRadius: BorderRadius.circular(KombeSpacing.tileRadius)),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Text('CODE D’INVITATION', style: KombeType.eyebrow),
+                    const SizedBox(height: 4),
+                    SelectableText(inv.code, style: KombeType.amount(size: 28).copyWith(letterSpacing: 3)),
+                  ],
+                ),
               ),
-            ),
-            IconButton(tooltip: 'Copier le code', onPressed: () => _copy(inv.code, 'Code'), icon: const Icon(Icons.copy_rounded)),
-          ],
+              IconButton(tooltip: 'Copier le code', onPressed: () => _copy(inv.code, 'Code'), icon: const Icon(Icons.copy_rounded)),
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
-        Text('Lien', style: t.labelLarge?.copyWith(color: KombeColors.slate)),
+        const SizedBox(height: 14),
+        const Text('LIEN', style: KombeType.eyebrow),
         const SizedBox(height: 4),
         SelectableText(inv.url, style: t.bodyMedium),
         const SizedBox(height: 8),

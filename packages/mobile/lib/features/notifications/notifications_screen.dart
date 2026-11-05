@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../app/router/main_shell.dart';
 import '../../core/design/kombe_colors.dart';
+import '../../core/widgets/kombe_components.dart';
+import '../../core/design/kombe_theme.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/kombe_screen_header.dart';
@@ -105,7 +107,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         child: ListView(
           padding: const EdgeInsets.only(bottom: 24),
           children: <Widget>[
-            const KombeScreenHeader(title: 'Activité', subtitle: 'Suivez les dernières actions de vos tontines.'),
+            const KombeScreenHeader(title: 'Activité'),
             SizedBox(
               height: 48,
               child: ListView(
@@ -128,7 +130,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         backgroundColor: Colors.white,
                         side: BorderSide(color: _filter == f ? KombeColors.forest : KombeColors.line),
                         labelStyle: TextStyle(color: _filter == f ? KombeColors.cream : KombeColors.ink, fontWeight: FontWeight.w700),
-                        shape: const StadiumBorder(),
                         onSelected: (_) => setState(() => _filter = f),
                       ),
                     ),
@@ -154,8 +155,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     for (final (int p, String label) in <(int, String)>[(0, 'Aujourd’hui'), (1, 'Cette semaine'), (2, 'Plus tôt')])
                       if (visible.any((KombeNotification n) => _period(n.createdAtUtc, now) == p)) ...<Widget>[
                         _Header(label),
-                        for (final KombeNotification n in visible.where((KombeNotification n) => _period(n.createdAtUtc, now) == p))
-                          NotificationTile(n: n, now: widget.now?.toUtc(), onTap: () => _open(n)),
+                        Stack(
+                          children: <Widget>[
+                            const Positioned(left: 40, top: 8, bottom: 8, child: KombeStitch(vertical: true)),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: <Widget>[
+                                for (final KombeNotification n in visible.where((KombeNotification n) => _period(n.createdAtUtc, now) == p))
+                                  NotificationTile(n: n, now: widget.now?.toUtc(), onTap: () => _open(n)),
+                              ],
+                            ),
+                          ],
+                        ),
                       ],
                   ],
                 );
@@ -175,7 +186,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-        child: Semantics(header: true, child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800, color: KombeColors.ink))),
+        child: Semantics(header: true, child: Text(text, style: KombeType.display(size: 21))),
       );
 }
 
@@ -189,30 +200,29 @@ class NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool money = _isMoney(n);
+    final KombeTone tone = _isMoney(n)
+        ? KombeTone.money
+        : _matches(_Filter.votes, n)
+            ? KombeTone.info
+            : _matches(_Filter.decisions, n)
+                ? KombeTone.coral
+                : KombeTone.success;
     return Semantics(
       label: n.read ? null : 'non lue',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        child: Material(
-          color: n.read ? Colors.transparent : KombeColors.mint.withValues(alpha: .55),
-          borderRadius: BorderRadius.circular(16),
-          child: ListTile(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            minVerticalPadding: 10,
-            leading: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(color: money ? KombeColors.goldPale : KombeColors.mint, borderRadius: BorderRadius.circular(12)),
-              child: Icon(notificationIcon(n.kind), size: 22, color: money ? KombeColors.goldDark : KombeColors.forest),
-            ),
-            title: Text(n.title, style: TextStyle(fontWeight: n.read ? FontWeight.w600 : FontWeight.w800, fontSize: 15)),
-            subtitle: Text(<String>[if (n.body.isNotEmpty) n.body, relativeTime(n.createdAtUtc, now: now)].join(' · ')),
-            trailing: n.read
-                ? const Icon(Icons.chevron_right_rounded)
-                : const Icon(Icons.circle, size: 10, color: KombeColors.forest),
-            onTap: onTap,
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          minVerticalPadding: 10,
+          leading: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(color: tone.solid, shape: BoxShape.circle),
+            child: Icon(notificationIcon(n.kind), size: 21, color: tone.onSolid),
           ),
+          title: Text(n.title, style: TextStyle(fontWeight: n.read ? FontWeight.w600 : FontWeight.w800, fontSize: 15.5)),
+          subtitle: Text(<String>[if (n.body.isNotEmpty) n.body, relativeTime(n.createdAtUtc, now: now)].join(' · ')),
+          trailing: n.read ? null : const Icon(Icons.circle, size: 11, color: KombeColors.danger),
+          onTap: onTap,
         ),
       ),
     );
