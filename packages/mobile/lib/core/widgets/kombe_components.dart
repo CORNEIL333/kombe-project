@@ -7,7 +7,7 @@ import '../design/kombe_colors.dart';
 import '../design/kombe_spacing.dart';
 import '../design/kombe_theme.dart';
 
-/// Composants « Cercle & Ndop » partagés par tous les écrans.
+/// Composants « Ndop » partagés par tous les écrans.
 
 /// Tonalité sémantique d'un état (pastilles, pictos, bandeaux).
 enum KombeTone { neutral, brand, success, warning, danger, money, info }
@@ -20,16 +20,16 @@ extension KombeToneColors on KombeTone {
         KombeTone.warning => KombeColors.goldDark,
         KombeTone.danger => KombeColors.danger,
         KombeTone.money => KombeColors.goldDark,
-        KombeTone.info => const Color(0xFF1F5C8A),
+        KombeTone.info => KombeColors.emerald,
       };
   Color get bg => switch (this) {
         KombeTone.neutral => KombeColors.sand,
         KombeTone.brand => KombeColors.mint,
-        KombeTone.success => const Color(0xFFE3F2EA),
-        KombeTone.warning => const Color(0xFFFBF0DE),
-        KombeTone.danger => const Color(0xFFFBEAE7),
+        KombeTone.success => const Color(0xFFDDF3E8),
+        KombeTone.warning => KombeColors.goldPale,
+        KombeTone.danger => const Color(0xFFFDE6E1),
         KombeTone.money => KombeColors.goldPale,
-        KombeTone.info => const Color(0xFFE6EFF7),
+        KombeTone.info => KombeColors.mint,
       };
 }
 
@@ -82,7 +82,7 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(99)),
+        decoration: ShapeDecoration(color: tone.bg, shape: BeveledRectangleBorder(borderRadius: BorderRadius.circular(6))),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -111,14 +111,14 @@ class KombeIconBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(size * .32)),
+        decoration: ShapeDecoration(color: tone.bg, shape: BeveledRectangleBorder(borderRadius: BorderRadius.circular(size * .24))),
         child: Icon(icon, size: size * .5, color: tone.fg),
       );
 }
 
 /// Titre de section : libellé fort + action discrète à droite.
 class KombeSection extends StatelessWidget {
-  const KombeSection(this.title, {super.key, this.action, this.onAction, this.padding = const EdgeInsets.fromLTRB(KombeSpacing.screen, 26, 8, 8)});
+  const KombeSection(this.title, {super.key, this.action, this.onAction, this.padding = const EdgeInsets.fromLTRB(KombeSpacing.screen, 28, 8, 6)});
   final String title;
   final String? action;
   final VoidCallback? onAction;
@@ -132,7 +132,7 @@ class KombeSection extends StatelessWidget {
             Expanded(
               child: Semantics(
                 header: true,
-                child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: KombeColors.forest, letterSpacing: -.2)),
+                child: Text(title, style: KombeType.display(size: 23)),
               ),
             ),
             if (action != null && onAction != null) TextButton(onPressed: onAction, child: Text(action!)),
@@ -143,7 +143,7 @@ class KombeSection extends StatelessWidget {
 
 /// Carte blanche à filet (radius 22) ; cliquable avec retour d'encre.
 class KombeCard extends StatelessWidget {
-  const KombeCard({super.key, required this.child, this.onTap, this.padding = const EdgeInsets.all(18), this.color = Colors.white, this.borderColor = KombeColors.line});
+  const KombeCard({super.key, required this.child, this.onTap, this.padding = const EdgeInsets.all(18), this.color = Colors.white, this.borderColor});
   final Widget child;
   final VoidCallback? onTap;
   final EdgeInsets padding;
@@ -152,43 +152,66 @@ class KombeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BorderRadius r = BorderRadius.circular(KombeSpacing.cardRadius);
+    final BorderSide side = borderColor == null ? BorderSide.none : BorderSide(color: borderColor!);
     return Material(
       color: color,
-      shape: RoundedRectangleBorder(borderRadius: r, side: borderColor == null ? BorderSide.none : BorderSide(color: borderColor!)),
+      shape: BeveledRectangleBorder(borderRadius: BorderRadius.circular(KombeSpacing.cardRadius), side: side),
       clipBehavior: Clip.antiAlias,
       child: InkWell(onTap: onTap, child: Padding(padding: padding, child: child)),
     );
   }
 }
 
-/// Liste groupée : rangées dans une seule carte, séparées par un filet
-/// (réglages, fiches, menus) — plus calme qu'une pile de cartes.
+/// Liste cousue : les rangées posées sur le fond, séparées par un point de
+/// couture. Pas de carte autour : c'est le rythme qui structure.
 class KombeGroupedList extends StatelessWidget {
-  const KombeGroupedList({super.key, required this.children, this.margin = const EdgeInsets.symmetric(horizontal: KombeSpacing.screen)});
+  const KombeGroupedList({super.key, required this.children});
   final List<Widget> children;
-  final EdgeInsets margin;
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> rows = <Widget>[];
     for (int i = 0; i < children.length; i++) {
-      if (i > 0) rows.add(const Divider(height: 1, indent: 72));
+      if (i > 0) rows.add(const KombeStitch());
       rows.add(children[i]);
     }
-    return Padding(
-      padding: margin,
-      child: Material(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KombeSpacing.cardRadius), side: const BorderSide(color: KombeColors.line)),
-        clipBehavior: Clip.antiAlias,
-        child: ListTileTheme.merge(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(mainAxisSize: MainAxisSize.min, children: rows),
-        ),
-      ),
-    );
+    return Material(type: MaterialType.transparency, child: Column(mainAxisSize: MainAxisSize.min, children: rows));
   }
+}
+
+/// Point de couture : horizontal entre deux rangées, vertical pour une frise.
+class KombeStitch extends StatelessWidget {
+  const KombeStitch({super.key, this.vertical = false, this.indent = KombeSpacing.screen});
+  final bool vertical;
+  final double indent;
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+        child: Padding(
+          padding: vertical ? EdgeInsets.zero : EdgeInsets.symmetric(horizontal: indent),
+          child: CustomPaint(size: vertical ? const Size(2, double.infinity) : const Size(double.infinity, 2), painter: _StitchPainter(vertical)),
+        ),
+      );
+}
+
+class _StitchPainter extends CustomPainter {
+  _StitchPainter(this.vertical);
+  final bool vertical;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint p = Paint()
+      ..color = KombeColors.lineStrong
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    final double end = vertical ? size.height : size.width;
+    for (double x = 0; x < end; x += 10) {
+      canvas.drawLine(vertical ? Offset(1, x) : Offset(x, 1), vertical ? Offset(1, x + 4) : Offset(x + 4, 1), p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StitchPainter o) => false;
 }
 
 /// Illustration au trait des états vides : anneau de la marque, quatre nœuds,
@@ -291,7 +314,7 @@ class _KombeSkeletonState extends State<KombeSkeleton> with SingleTickerProvider
           child: Container(
             width: widget.width,
             height: widget.height,
-            decoration: BoxDecoration(color: const Color(0xFFEDE5D3), borderRadius: BorderRadius.circular(widget.radius)),
+            decoration: BoxDecoration(color: const Color(0xFFE2E3F3), borderRadius: BorderRadius.circular(widget.radius)),
           ),
         ),
       );
@@ -556,4 +579,129 @@ class KombeInlineError extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// Signature de KÓMBE : la bande du cycle. Un bloc par tour, comme un rang de
+/// perles : tissé en maïs quand il est passé, blanc pour le tour en cours,
+/// vide à venir. `mine` marque mon tour d'un losange quand il est connu.
+class KombeCycleBand extends StatelessWidget {
+  const KombeCycleBand({super.key, required this.index, required this.total, this.mine, this.onDark = false, this.height = 26});
+  final int index;
+  final int total;
+  final int? mine;
+  final bool onDark;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    if (total <= 0) return const SizedBox.shrink();
+    return Semantics(
+      label: 'Tour $index sur $total',
+      excludeSemantics: true,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: (MediaQuery.maybeDisableAnimationsOf(context) ?? false) ? 1 : 0, end: 1),
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeOutCubic,
+        builder: (BuildContext context, double t, Widget? _) => CustomPaint(
+          size: Size(double.infinity, height),
+          painter: _CycleBandPainter(index: index, total: total, mine: mine, onDark: onDark, t: t),
+        ),
+      ),
+    );
+  }
+}
+
+class _CycleBandPainter extends CustomPainter {
+  _CycleBandPainter({required this.index, required this.total, required this.mine, required this.onDark, required this.t});
+  final int index;
+  final int total;
+  final int? mine;
+  final bool onDark;
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double gap = total > 24 ? 1.5 : 3;
+    final double w = (size.width - gap * (total - 1)) / total;
+    final Color base = onDark ? KombeColors.forest : Colors.white;
+    final Color current = onDark ? Colors.white : KombeColors.forest;
+    final Color empty = onDark ? const Color(0x47FFFFFF) : KombeColors.lineStrong;
+    for (int i = 1; i <= total; i++) {
+      final double x = (i - 1) * (w + gap);
+      final Rect r = Rect.fromLTWH(x, 0, w, size.height);
+      final RRect rr = RRect.fromRectAndRadius(r, const Radius.circular(2.5));
+      final bool woven = i < index || i == index;
+      // Le tissage avance de gauche à droite.
+      final double reveal = ((t * (index + 1)) - (i - 1)).clamp(0, 1);
+      if (woven && reveal > 0) {
+        canvas.drawRRect(rr, Paint()..color = Color.lerp(empty, i == index ? current : KombeColors.goldWarm, reveal)!);
+        if (w >= 9) {
+          // Losange réservé dans le bloc, comme sur le tissu.
+          final double d = math.min(w, size.height) * .26;
+          final Offset c = r.center;
+          final Path diamond = Path()
+            ..moveTo(c.dx, c.dy - d)
+            ..lineTo(c.dx + d, c.dy)
+            ..lineTo(c.dx, c.dy + d)
+            ..lineTo(c.dx - d, c.dy)
+            ..close();
+          canvas.drawPath(diamond, Paint()..color = i == index ? KombeColors.goldWarm : base);
+        }
+      } else {
+        canvas.drawRRect(rr.deflate(.6), Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..color = empty);
+      }
+      if (mine == i) {
+        final Offset c = Offset(r.center.dx, size.height + 7);
+        final Path mark = Path()
+          ..moveTo(c.dx, c.dy - 4)
+          ..lineTo(c.dx + 4, c.dy)
+          ..lineTo(c.dx, c.dy + 4)
+          ..lineTo(c.dx - 4, c.dy)
+          ..close();
+        canvas.drawPath(mark, Paint()..color = KombeColors.danger);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CycleBandPainter o) => o.index != index || o.total != total || o.mine != mine || o.onDark != onDark || o.t != t;
+}
+
+/// Lisière : bordure de triangles maïs et vermillon (toghu) qui termine une
+/// surface indigo. Elle remplace les coins arrondis du héros.
+class KombeSelvedge extends StatelessWidget {
+  const KombeSelvedge({super.key, this.height = 11, this.alert = false});
+  final double height;
+  /// Retard : la lisière passe au vermillon seul, sans autre dramatisation.
+  final bool alert;
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(child: CustomPaint(size: Size(double.infinity, height), painter: _SelvedgePainter(alert)));
+}
+
+class _SelvedgePainter extends CustomPainter {
+  _SelvedgePainter(this.alert);
+  final bool alert;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double step = 15;
+    final Paint gold = Paint()..color = alert ? KombeColors.danger : KombeColors.goldWarm;
+    final Paint red = Paint()..color = KombeColors.danger;
+    int i = 0;
+    for (double x = -step / 2; x < size.width; x += step, i++) {
+      final Path p = Path()
+        ..moveTo(x, 0)
+        ..lineTo(x + step, 0)
+        ..lineTo(x + step / 2, size.height)
+        ..close();
+      canvas.drawPath(p, i.isEven ? gold : red);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SelvedgePainter o) => o.alert != alert;
 }

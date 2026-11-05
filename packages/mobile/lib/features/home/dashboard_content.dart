@@ -17,9 +17,9 @@ import '../notifications/notifications_screen.dart';
 String _day(BuildContext context, DateTime utc) =>
     DateFormat('EEEE d MMMM', Localizations.localeOf(context).toLanguageTag()).format(utc.toLocal());
 
-/// Accueil « Cercle & Ndop ». Emplacements STABLES, dans cet ordre :
-/// héros forêt (salutation, reste à régler, échéance, anneau du cycle, action
-/// principale, déclaré en attente) ; raccourcis du groupe ; « À faire » (règles explicables : envoi à
+/// Accueil « Ndop ». Emplacements STABLES, dans cet ordre :
+/// héros indigo (salutation, reste à régler, échéance, action principale, à
+/// confirmer, bande du cycle, lisière) ; raccourcis du groupe ; « À faire » (règles explicables : envoi à
 /// reprendre, confirmations de ma fonction, vote ouvert) ; prochaine séance ;
 /// activité récente du groupe. Aucune donnée inventée.
 class HomeContent extends StatelessWidget {
@@ -37,7 +37,7 @@ class HomeContent extends StatelessWidget {
         _TodoRow(
           icon: d.sending ? Icons.sync_problem_rounded : Icons.edit_note_rounded,
           tone: d.sending ? KombeTone.danger : KombeTone.brand,
-          title: d.sending ? 'Envoi à reprendre' : 'Brouillon de déclaration',
+          title: d.sending ? 'Envoi à reprendre' : 'Paiement à terminer',
           subtitle: '${Xaf.format(d.amountXaf)} · ${d.sending ? 'rien ne sera déclaré deux fois' : 'pas encore envoyé'}',
           onTap: () => context.push('/app/groups/$gid/contributions/new?draft=${Uri.encodeComponent(d.localId)}'),
         ),
@@ -47,8 +47,8 @@ class HomeContent extends StatelessWidget {
           tone: KombeTone.money,
           title: data.group.role == GroupRole.controller
               ? '${data.toValidate} paiement${data.toValidate > 1 ? 's' : ''} à contrôler'
-              : '${data.toValidate} déclaration${data.toValidate > 1 ? 's' : ''} à confirmer',
-          subtitle: 'Votre fonction au bureau',
+              : '${data.toValidate} paiement${data.toValidate > 1 ? 's' : ''} à confirmer',
+          subtitle: 'Bureau',
           onTap: () => context.push('/app/validations'),
         ),
       for (final PendingVote v in data.votes)
@@ -73,7 +73,7 @@ class HomeContent extends StatelessWidget {
               _Shortcut(icon: Icons.donut_large_rounded, label: 'Cycle', onTap: () => context.push('/app/groups/$gid/cycle')),
               _Shortcut(icon: Icons.groups_2_outlined, label: 'Membres', onTap: () => context.push('/app/groups/$gid/members')),
               _Shortcut(icon: Icons.account_balance_wallet_outlined, label: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
-              _Shortcut(icon: Icons.menu_book_outlined, label: 'Statuts', onTap: () => context.push('/app/groups/$gid/rules')),
+              _Shortcut(icon: Icons.menu_book_outlined, label: 'Règles', onTap: () => context.push('/app/groups/$gid/rules')),
             ],
           ),
         ),
@@ -92,7 +92,7 @@ class HomeContent extends StatelessWidget {
         if (data.recent.isEmpty)
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
-            child: Text('Rien de nouveau dans ce groupe pour l’instant.'),
+            child: Text('Rien de nouveau.'),
           )
         else
           KombeGroupedList(
@@ -105,9 +105,8 @@ class HomeContent extends StatelessWidget {
   }
 }
 
-/// Héros de l'accueil : prolonge la barre forêt. Salutation, ce qui reste à
-/// régler (Fraunces), échéance, anneau du cycle, action principale, déclaré
-/// en attente. Motif Ndop effacé côté texte : la lecture reste nette.
+/// Héros de l'accueil : prolonge la barre. Un seul message (ce que je dois, ou
+/// « à jour »), une action, puis la bande du cycle et la lisière.
 class _Hero extends StatelessWidget {
   const _Hero({required this.data, this.firstName});
   final HomeData data;
@@ -117,118 +116,90 @@ class _Hero extends StatelessWidget {
   Widget build(BuildContext context) {
     final int due = data.remainingXaf;
     final String gid = Uri.encodeComponent(data.group.id);
-    final TextStyle soft = TextStyle(color: KombeColors.cream.withValues(alpha: .78), fontSize: 14, height: 1.35);
+    final TextStyle soft = TextStyle(color: Colors.white.withValues(alpha: .82), fontSize: 15, height: 1.35, fontWeight: FontWeight.w600);
     const Color alert = Color(0xFFFFB4A6);
-    return NdopSurface(
-      variant: 0,
-      opacity: .11,
-      tile: 30,
-      fadeTo: Alignment.centerLeft,
-      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Text(firstName == null ? 'Bonjour' : 'Bonjour $firstName', style: soft.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 14),
-            Row(
+    final bool cycle = data.group.cycleTotal > 0 && data.group.cycleIndex > 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        NdopSurface(
+          variant: 0,
+          opacity: .2,
+          tile: 34,
+          fadeTo: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(due > 0 ? 'À régler' : 'Ce tour', style: KombeType.eyebrow.copyWith(color: KombeColors.goldLight)),
-                      const SizedBox(height: 6),
-                      if (due > 0)
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: KombeAmount(due, size: 38, color: KombeColors.cream),
-                        )
-                      else
-                        Text('Vous êtes à jour', style: KombeType.display(size: 28, color: KombeColors.cream)),
-                      const SizedBox(height: 6),
-                      if (due > 0)
-                        Row(
-                          children: <Widget>[
-                            Icon(data.late ? Icons.error_outline_rounded : Icons.event_outlined, size: 16, color: data.late ? alert : KombeColors.cream.withValues(alpha: .78)),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                data.late
-                                    ? 'En retard — à régler au plus vite'
-                                    : data.nextDueDate == null
-                                        ? 'Pour le tour en cours'
-                                        : 'Avant le ${_day(context, data.nextDueDate!)}',
-                                style: soft.copyWith(color: data.late ? alert : null, fontWeight: data.late ? FontWeight.w700 : null),
-                              ),
-                            ),
-                          ],
-                        )
-                      else
-                        Text('Rien à régler dans ce groupe.', style: soft),
-                    ],
+                Text(firstName == null ? 'Bonjour' : 'Bonjour $firstName', style: soft),
+                const SizedBox(height: 18),
+                if (due > 0) ...<Widget>[
+                  Text('À régler', style: KombeType.eyebrow.copyWith(color: KombeColors.goldLight, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: KombeAmount(due, size: 54, color: Colors.white),
                   ),
-                ),
-                const SizedBox(width: 12),
-                KombeCycleRing(index: data.group.cycleIndex, total: data.group.cycleTotal, size: 86, onDark: true),
-              ],
-            ),
-            const SizedBox(height: 20),
-            if (due > 0)
-              FilledButton.icon(
-                style: FilledButton.styleFrom(backgroundColor: KombeColors.cream, foregroundColor: KombeColors.forest),
-                onPressed: () => context.push('/app/groups/$gid/contributions/new'),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Déclarer un versement'),
-              )
-            else
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: KombeColors.cream,
-                  side: BorderSide(color: KombeColors.cream.withValues(alpha: .4)),
-                ),
-                onPressed: () => context.go('/app/contributions'),
-                icon: const Icon(Icons.receipt_long_outlined),
-                label: const Text('Voir mes cotisations'),
-              ),
-            if (data.pendingDeclarations > 0) ...<Widget>[
-              const SizedBox(height: 12),
-              Material(
-                color: const Color(0x1AFBF8F1),
-                shape: const StadiumBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => context.go('/app/contributions'),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    child: Row(
-                      children: <Widget>[
-                        const Icon(Icons.hourglass_top_rounded, size: 18, color: KombeColors.goldLight),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            '${Xaf.format(data.pendingDeclaredXaf)} déclarés · en attente de la trésorerie',
-                            style: const TextStyle(color: KombeColors.cream, fontSize: 13.5, fontWeight: FontWeight.w600),
-                          ),
+                  const SizedBox(height: 6),
+                  Text(
+                    data.late
+                        ? 'En retard'
+                        : data.nextDueDate == null
+                            ? 'Pour ce tour'
+                            : 'Avant le ${_day(context, data.nextDueDate!)}',
+                    style: soft.copyWith(color: data.late ? alert : null, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: KombeColors.goldWarm, foregroundColor: KombeColors.ink, minimumSize: const Size.fromHeight(56)),
+                    onPressed: () => context.push('/app/groups/$gid/contributions/new'),
+                    icon: const Icon(Icons.check_rounded),
+                    label: const Text('J’ai payé'),
+                  ),
+                ] else ...<Widget>[
+                  Text('Vous êtes à jour', style: KombeType.display(size: 38, color: Colors.white)),
+                  const SizedBox(height: 18),
+                ],
+                if (data.pendingDeclarations > 0) ...<Widget>[
+                  const SizedBox(height: 10),
+                  Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => context.go('/app/contributions'),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          children: <Widget>[
+                            const Icon(Icons.hourglass_top_rounded, size: 18, color: KombeColors.goldLight),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text('${Xaf.format(data.pendingDeclaredXaf)} à confirmer', style: soft)),
+                            Icon(Icons.chevron_right_rounded, size: 20, color: Colors.white.withValues(alpha: .7)),
+                          ],
                         ),
-                        Icon(Icons.chevron_right_rounded, size: 20, color: KombeColors.cream.withValues(alpha: .7)),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ],
-          ],
+                ],
+                if (cycle) ...<Widget>[
+                  const SizedBox(height: 14),
+                  KombeCycleBand(index: data.group.cycleIndex, total: data.group.cycleTotal, onDark: true),
+                  const SizedBox(height: 8),
+                  Text('Tour ${data.group.cycleIndex} sur ${data.group.cycleTotal}', style: soft.copyWith(fontSize: 14)),
+                ],
+              ],
+            ),
+          ),
         ),
-      ),
+        KombeSelvedge(alert: data.late),
+      ],
     );
   }
 }
 
-/// Raccourci rond : picto sur fond blanc cerclé, libellé dessous.
+/// Raccourci : picto sur coupe de tissu, libellé dessous.
 class _Shortcut extends StatelessWidget {
   const _Shortcut({required this.icon, required this.label, required this.onTap});
   final IconData icon;
@@ -251,7 +222,7 @@ class _Shortcut extends StatelessWidget {
                   Container(
                     width: 52,
                     height: 52,
-                    decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: KombeColors.line)),
+                    decoration: const ShapeDecoration(color: KombeColors.mint, shape: KombeTheme.cut),
                     child: Icon(icon, color: KombeColors.forest, size: 24),
                   ),
                   const SizedBox(height: 6),
@@ -334,10 +305,8 @@ class HomeSkeleton extends StatelessWidget {
         child: ListView(
           physics: const NeverScrollableScrollPhysics(),
           children: <Widget>[
-            Container(
-              height: 250,
-              decoration: const BoxDecoration(color: KombeColors.forest, borderRadius: BorderRadius.vertical(bottom: Radius.circular(32))),
-            ),
+            Container(height: 320, color: KombeColors.forest),
+            const KombeSelvedge(),
             const SizedBox(height: 22),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24),

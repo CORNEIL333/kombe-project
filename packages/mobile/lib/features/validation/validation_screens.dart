@@ -88,7 +88,7 @@ class _ValidationQueueScreenState extends State<ValidationQueueScreen> {
             onRetry: _load,
             emptyWhen: (List<ValidationItem> data) => data.isEmpty,
             emptyTitle: 'Tout est à jour',
-            emptyBody: 'Aucune déclaration n’attend votre confirmation ou votre contrôle.',
+            emptyBody: 'Rien à confirmer.',
             builder: (BuildContext context, List<ValidationItem> data) {
               final List<ValidationItem> confirm = data.where((ValidationItem v) => !v.control).toList();
               final List<ValidationItem> control = data.where((ValidationItem v) => v.control).toList();
@@ -110,7 +110,7 @@ class _ValidationQueueScreenState extends State<ValidationQueueScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
-                                Text('${data.length} déclaration${data.length > 1 ? 's' : ''} en attente', style: Theme.of(context).textTheme.titleMedium),
+                                Text('${data.length} paiement${data.length > 1 ? 's' : ''} en attente', style: Theme.of(context).textTheme.titleMedium),
                                 const SizedBox(height: 4),
                                 FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(total, size: 22, color: KombeColors.goldDark)),
                               ],
@@ -222,7 +222,7 @@ class _DecisionPanelState extends State<DecisionPanel> {
         unawaited(HapticFeedback.mediumImpact());
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(d == ValidationDecision.reject
-              ? 'Déclaration rejetée. Le membre est prévenu.'
+              ? 'Paiement rejeté. Le membre est prévenu.'
               : widget.item.control
                   ? 'Contrôle enregistré.'
                   : 'Paiement confirmé. Il est inscrit au registre du groupe.'),
@@ -326,7 +326,7 @@ class _DecisionPanelState extends State<DecisionPanel> {
               onPressed: _sending ? null : () => _decide(ValidationDecision.reject),
               child: _sending
                   ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
-                  : const Text('Rejeter la déclaration'),
+                  : const Text('Rejeter le paiement'),
             ),
             const SizedBox(height: 8),
             TextButton(

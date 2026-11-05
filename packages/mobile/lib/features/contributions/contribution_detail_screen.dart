@@ -115,7 +115,7 @@ class _Journey extends StatelessWidget {
                     height: 26,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: i < reached ? KombeColors.jade : (broken && i == reached ? const Color(0xFFFBEAE7) : KombeColors.sand),
+                      color: i < reached ? KombeColors.jade : (broken && i == reached ? KombeTone.danger.bg : KombeColors.sand),
                     ),
                     child: Icon(
                       i < reached ? Icons.check_rounded : (broken && i == reached ? Icons.close_rounded : Icons.circle),

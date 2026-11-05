@@ -28,10 +28,9 @@ class GroupHeroCard extends StatelessWidget {
           '${group.memberCount} membres, cotisation ${Xaf.format(group.contributionAmountXaf)}',
       child: ExcludeSemantics(
         child: NdopSurface(
-          opacity: .1,
+          opacity: .16,
           tile: 30,
           fadeTo: Alignment.centerLeft,
-          borderRadius: BorderRadius.circular(24),
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
@@ -81,9 +80,10 @@ class GroupHeroCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                        KombeCycleRing(index: group.cycleIndex, total: group.cycleTotal, size: 72, onDark: true),
                       ],
                     ),
+                    const SizedBox(height: 14),
+                    KombeCycleBand(index: group.cycleIndex, total: group.cycleTotal, onDark: true),
                   ],
                 ),
               ),

@@ -24,104 +24,105 @@ final Map<String, Future<Uint8List?>> _cache = <String, Future<Uint8List?>>{};
 
 void forgetGroupPhoto(String groupId) => _cache.removeWhere((String k, _) => k.startsWith('$groupId:'));
 
-/// Avatar d'une tontine : sa photo (lue avec la session, jamais par une URL
-/// publique) ou ses initiales sur motif Ndop, dans l'anneau or à 4 nœuds. Aucune photo d'illustration
-/// n'est jamais affichée à la place du groupe.
+/// Teinte propre à une tontine, stable : on reconnaît un groupe à sa couleur
+/// et à son motif, comme un pagne d'association.
+class GroupHue {
+  const GroupHue(this.bg, this.accent, this.variant);
+  final Color bg;
+  final Color accent;
+  final int variant;
+}
+
+const List<GroupHue> _hues = <GroupHue>[
+  GroupHue(KombeColors.forest, KombeColors.goldWarm, 0),
+  GroupHue(Color(0xFFB02410), KombeColors.goldLight, 1),
+  GroupHue(Color(0xFF0A6B49), KombeColors.goldLight, 2),
+  GroupHue(KombeColors.emerald, KombeColors.goldLight, 1),
+];
+
+GroupHue groupHue(String id) => _hues[id.codeUnits.fold<int>(7, (int a, int c) => (a * 31 + c) & 0x7fffffff) % _hues.length];
+
+/// Blason d'une tontine : sa photo (lue avec la session, jamais par une URL
+/// publique) ou ses initiales dans un losange, sur le motif du groupe. Toujours
+/// découpé en coupe de tissu. Aucune photo d'illustration à la place du groupe.
 class GroupAvatar extends StatelessWidget {
-  const GroupAvatar({super.key, required this.groupId, required this.name, this.photoVersion, this.size = 40, this.round = false});
+  const GroupAvatar({super.key, required this.groupId, required this.name, this.photoVersion, this.size = 40});
 
   final String groupId;
   final String name;
   final int? photoVersion;
   final double size;
-  final bool round;
 
   @override
   Widget build(BuildContext context) {
-    final BorderRadius radius = BorderRadius.circular(round ? size : size * 0.28);
-    final Widget fallback = _Initials(seed: groupId, name: name, size: size, radius: radius);
+    final ShapeBorder shape = BeveledRectangleBorder(borderRadius: BorderRadius.circular(size * .24));
+    final Widget fallback = _Emblem(hue: groupHue(groupId), name: name, size: size);
+    Widget clip(Widget child) => ExcludeSemantics(child: ClipPath(clipper: ShapeBorderClipper(shape: shape), child: SizedBox.square(dimension: size, child: child)));
     final int? v = photoVersion;
-    if (v == null) return ExcludeSemantics(child: fallback);
+    if (v == null) return clip(fallback);
     GroupRepository? repo;
     try {
       repo = context.read<GroupRepository>();
     } on ProviderNotFoundException {
-      return ExcludeSemantics(child: fallback);
+      return clip(fallback);
     }
     final int px = size > 96 ? 512 : 256;
     final Future<Uint8List?> bytes = _cache.putIfAbsent('$groupId:$v:$px', () => repo!.loadPhoto(groupId, v, px));
-    return ExcludeSemantics(
-      child: FutureBuilder<Uint8List?>(
+    return clip(
+      FutureBuilder<Uint8List?>(
         future: bytes,
         builder: (BuildContext context, AsyncSnapshot<Uint8List?> snap) {
           final Uint8List? data = snap.data;
           if (data == null) return fallback;
-          return ClipRRect(
-            borderRadius: radius,
-            child: Image.memory(data, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true, cacheWidth: (size * 3).round()),
-          );
+          return Image.memory(data, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true, cacheWidth: (size * 3).round());
         },
       ),
     );
   }
 }
 
-class _Initials extends StatelessWidget {
-  const _Initials({required this.seed, required this.name, required this.size, required this.radius});
-  final String seed;
+class _Emblem extends StatelessWidget {
+  const _Emblem({required this.hue, required this.name, required this.size});
+  final GroupHue hue;
   final String name;
   final double size;
-  final BorderRadius radius;
 
   @override
-  Widget build(BuildContext context) {
-    // Variante stable par groupe : motif et teinte (forêt, jade, nuit).
-    final int h = seed.codeUnits.fold<int>(7, (int a, int c) => (a * 31 + c) & 0x7fffffff);
-    const List<Color> fonds = <Color>[KombeColors.forest, Color(0xFF145140), KombeColors.forestDark];
-    return SizedBox.square(
-      dimension: size,
-      child: NdopSurface(
-        color: fonds[h % 3],
-        variant: h % 3,
-        opacity: size >= 64 ? .16 : .12,
-        tile: (size / 3.2).clamp(9, 30),
-        fadeTo: null,
-        borderRadius: radius,
-        child: CustomPaint(
-          painter: size >= 40 ? _RingPainter() : null,
-          size: Size.square(size),
-          child: Center(
-            child: Text(
-              groupInitials(name),
-              style: TextStyle(color: KombeColors.cream, fontWeight: FontWeight.w800, fontSize: size * .34, height: 1, letterSpacing: size * .01),
-            ),
+  Widget build(BuildContext context) => CustomPaint(
+        painter: _EmblemPainter(hue),
+        child: Center(
+          child: Text(
+            groupInitials(name),
+            style: TextStyle(fontFamily: 'Fraunces', color: Colors.white, fontWeight: FontWeight.w700, fontSize: size * .3, height: 1),
           ),
         ),
-      ),
-    );
-  }
+      );
 }
 
-/// Anneau or à quatre nœuds (le logo) autour des initiales.
-class _RingPainter extends CustomPainter {
+class _EmblemPainter extends CustomPainter {
+  _EmblemPainter(this.hue);
+  final GroupHue hue;
+
   @override
   void paint(Canvas canvas, Size size) {
+    canvas.drawRect(Offset.zero & size, Paint()..color = hue.bg);
+    NdopPainter(color: hue.accent, opacity: .55, variant: hue.variant, tile: math.max(9, size.shortestSide / 4)).paint(canvas, size);
+    // Losange plein : les initiales se lisent sur un fond uni.
     final Offset c = size.center(Offset.zero);
-    final double r = size.shortestSide * .33;
-    final Paint ring = Paint()
+    final double d = size.shortestSide * .4;
+    final Path diamond = Path()
+      ..moveTo(c.dx, c.dy - d)
+      ..lineTo(c.dx + d, c.dy)
+      ..lineTo(c.dx, c.dy + d)
+      ..lineTo(c.dx - d, c.dy)
+      ..close();
+    canvas.drawPath(diamond, Paint()..color = hue.bg);
+    canvas.drawPath(diamond, Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = math.max(1.2, size.shortestSide * .028)
-      ..color = KombeColors.goldWarm.withValues(alpha: .8);
-    // Fond uni sous les initiales : le motif ne gêne jamais la lecture.
-    canvas.drawCircle(c, r, Paint()..color = const Color(0x66061F1B));
-    canvas.drawCircle(c, r, ring);
-    final Paint node = Paint()..color = KombeColors.goldWarm;
-    for (int k = 0; k < 4; k++) {
-      final double a = k * math.pi / 2 - math.pi / 4;
-      canvas.drawCircle(c + Offset(math.cos(a), math.sin(a)) * r, size.shortestSide * .035, node);
-    }
+      ..strokeWidth = math.max(1.2, size.shortestSide * .03)
+      ..color = hue.accent);
   }
 
   @override
-  bool shouldRepaint(covariant _RingPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _EmblemPainter o) => o.hue != hue;
 }

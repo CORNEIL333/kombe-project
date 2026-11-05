@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../domain/entities/group.dart';
 import '../design/kombe_colors.dart';
-import '../design/kombe_tokens.g.dart';
 import '../formatters/labels.dart';
 
 /// Photographies d'ambiance de la marque (décor, jamais une donnée métier :
@@ -32,11 +31,11 @@ class KombeAvatar extends StatelessWidget {
   final double size;
 
   static const List<(Color, Color)> _tints = <(Color, Color)>[
-    (KombeColors.mint, KombeColors.forest),
-    (KombeColors.goldPale, KombeColors.goldDark),
-    (KombeColors.sand, Color(0xFF46413A)),
-    (Color(0xFFE3ECF4), Color(0xFF1F4F78)),
-    (Color(0xFFF5E1D8), Color(0xFF8E3F1F)),
+    (KombeColors.forest, Colors.white),
+    (Color(0xFFB02410), Colors.white),
+    (Color(0xFF0A6B49), Colors.white),
+    (KombeColors.goldWarm, KombeColors.ink),
+    (KombeColors.emerald, Colors.white),
   ];
 
   String get _initials {
@@ -58,7 +57,7 @@ class KombeAvatar extends StatelessWidget {
       decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
       child: Text(
         _initials,
-        style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: size * .36, letterSpacing: .2),
+        style: TextStyle(fontFamily: 'Fraunces', color: fg, fontWeight: FontWeight.w700, fontSize: size * .4, height: 1),
       ),
     );
     final Uri? u = url;
@@ -89,11 +88,11 @@ class KombeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (Color bg, Color fg) = switch (tone) {
-      ChipTone.gold => (KombeTokens.gold100, KombeTokens.gold800),
-      ChipTone.green => (KombeTokens.forest50, KombeTokens.forest800),
-      ChipTone.neutral => (KombeTokens.sand100, KombeTokens.ink700),
-      ChipTone.warning => (KombeTokens.warningSurface, KombeTokens.warning),
-      ChipTone.danger => (KombeTokens.dangerSurface, KombeTokens.danger),
+      ChipTone.gold => (KombeColors.goldPale, KombeColors.goldDark),
+      ChipTone.green => (KombeColors.mint, KombeColors.forest),
+      ChipTone.neutral => (KombeColors.sand, KombeColors.slate),
+      ChipTone.warning => (KombeColors.goldPale, KombeColors.warning),
+      ChipTone.danger => (Color(0xFFFDE6E1), KombeColors.danger),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),

@@ -103,10 +103,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Vérifier et envoyer'), findsOneWidget);
 
-    await tester.tap(find.text('Envoyer la déclaration'));
+    await tester.tap(find.text('Envoyer'));
     await tester.pump();
     // Deuxième appui pendant l'envoi : le bouton est désactivé (indicateur).
-    expect(find.text('Envoyer la déclaration'), findsNothing);
+    expect(find.text('Envoyer'), findsNothing);
     await tester.tap(find.byType(FilledButton).last, warnIfMissed: false);
     await tester.pump();
     expect(c.sends, 1);

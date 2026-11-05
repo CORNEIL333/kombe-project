@@ -104,7 +104,7 @@ class BureauTools extends StatelessWidget {
               KombeMenuRow(
                 icon: Icons.fact_check_outlined,
                 tone: KombeTone.money,
-                title: group.role == GroupRole.controller ? 'Paiements à contrôler' : 'Déclarations à confirmer',
+                title: group.role == GroupRole.controller ? 'Paiements à contrôler' : 'Paiements à confirmer',
                 onTap: () => context.push('/app/validations'),
               ),
             KombeMenuRow(icon: Icons.account_balance_wallet_outlined, tone: KombeTone.money, title: 'Caisses et soldes', onTap: () => context.push('/app/groups/$gid/funds')),
@@ -121,7 +121,7 @@ class BureauTools extends StatelessWidget {
         KombeGroupedList(
           children: <Widget>[
             KombeMenuRow(icon: Icons.donut_large_rounded, tone: KombeTone.success, title: 'Cycle et ordre des tours', onTap: () => context.push('/app/groups/$gid/cycle')),
-            KombeMenuRow(icon: Icons.emoji_events_outlined, tone: KombeTone.money, title: 'Bénéficiaires', onTap: () => context.push('/app/groups/$gid/beneficiaries')),
+            KombeMenuRow(icon: Icons.emoji_events_outlined, tone: KombeTone.money, title: 'Qui reçoit', onTap: () => context.push('/app/groups/$gid/beneficiaries')),
             KombeMenuRow(
               icon: Icons.event_outlined,
               tone: KombeTone.info,
@@ -141,7 +141,7 @@ class BureauTools extends StatelessWidget {
         const KombeSection('Règles'),
         KombeGroupedList(
           children: <Widget>[
-            KombeMenuRow(icon: Icons.menu_book_outlined, tone: KombeTone.neutral, title: 'Statuts du groupe', onTap: () => context.push('/app/groups/$gid/rules')),
+            KombeMenuRow(icon: Icons.menu_book_outlined, tone: KombeTone.neutral, title: 'Règles', onTap: () => context.push('/app/groups/$gid/rules')),
             KombeMenuRow(icon: Icons.tune_rounded, tone: KombeTone.neutral, title: 'Paramètres du groupe', onTap: () => context.push('/app/groups/$gid/settings')),
           ],
         ),

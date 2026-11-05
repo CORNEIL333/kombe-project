@@ -89,7 +89,7 @@ class _FundsScreenState extends State<FundsScreen> {
       _ => false,
     };
     return Scaffold(
-      appBar: AppBar(title: const Text('Caisses et cotisations')),
+      appBar: AppBar(title: const Text('Caisses')),
       floatingActionButton: canManage
           ? FloatingActionButton.extended(
               key: const Key('nouvelle-caisse'),
@@ -109,14 +109,6 @@ class _FundsScreenState extends State<FundsScreen> {
           builder: (BuildContext context, GroupFunds data) => ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
             children: <Widget>[
-              Text(
-                'Votre tontine ouvre ses propres caisses : projet commun, fête, achat groupé, urgences… '
-                'Chacune a sa règle. Une règle ne s’applique jamais aux séances passées.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 6),
-              Text('Argent tenu par le trésorier, pas par KÓMBE.', style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 16),
               for (final GroupFund f in data.funds)
                 _FundCard(fund: f, onClose: data.canManage && f.custom != null && !f.closed ? () => _close(f) : null),
               if (!data.canManage)

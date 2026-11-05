@@ -259,7 +259,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Gardez la capture ou le reçu du paiement : la trésorerie peut vous le demander.',
+                          'Gardez votre reçu.',
                           style: t.bodySmall?.copyWith(color: KombeColors.slate),
                         ),
                       ),
@@ -338,8 +338,7 @@ class _LockedNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-    'L’envoi de cette déclaration a commencé. Reprenez-le pour terminer : '
-    'les lignes déjà enregistrées ne seront pas envoyées deux fois.',
+    'L’envoi a commencé. Reprenez-le : rien ne sera envoyé deux fois.',
     style: Theme.of(context).textTheme.bodyLarge,
   );
 }
@@ -359,7 +358,7 @@ class _NothingDue extends StatelessWidget {
           const SizedBox(height: 12),
           Text('Rien à régler pour le moment', style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
           const SizedBox(height: 6),
-          const Text('Vos cotisations ouvertes sont déjà déclarées ou réglées.', textAlign: TextAlign.center),
+          const Text('Tout est payé.', textAlign: TextAlign.center),
           const SizedBox(height: 16),
           OutlinedButton(onPressed: onBack, child: const Text('Retour')),
         ],
@@ -443,8 +442,7 @@ class _ReviewSheet extends StatelessWidget {
               _Outcome(phase: vm.phase, receipt: r)
             else
               Text(
-                'La trésorerie du groupe confirmera après avoir retrouvé le paiement. '
-                'En attendant, la déclaration apparaît « en attente ».',
+                'La trésorerie confirmera ce paiement.',
                 style: t.bodySmall?.copyWith(color: KombeColors.slate),
               ),
             const SizedBox(height: 16),
@@ -455,7 +453,7 @@ class _ReviewSheet extends StatelessWidget {
                 onPressed: sending || lines.isEmpty ? null : vm.send,
                 child: sending
                     ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
-                    : Text(d?.sending ?? false ? 'Reprendre l’envoi' : 'Envoyer la déclaration'),
+                    : Text(d?.sending ?? false ? 'Reprendre l’envoi' : 'Envoyer'),
               ),
           ],
         ),
@@ -490,15 +488,14 @@ class _Outcome extends StatelessWidget {
     final (String title, String body) = switch (phase) {
       DeclarationPhase.unknown => (
         'Réponse non reçue',
-        'Le réseau a coupé pendant l’envoi : la déclaration a peut-être été enregistrée. '
-            'Reprenez l’envoi quand le réseau revient — rien ne sera déclaré deux fois.',
+        'Le réseau a coupé. Reprenez l’envoi : rien ne sera compté deux fois.',
       ),
       DeclarationPhase.partial => (
         '${receipt.recordedCount} sur ${receipt.lines.length} enregistrées',
         'Les lignes cochées sont enregistrées. ${receipt.error ?? ''} '
             'Reprenez l’envoi pour terminer ; le brouillon est gardé sur ce téléphone.',
       ),
-      _ => ('Déclaration non enregistrée', '${receipt.error ?? ''} Rien n’a été enregistré : corrigez puis renvoyez.'),
+      _ => ('Paiement non enregistré', '${receipt.error ?? ''} Rien n’a été enregistré : corrigez puis renvoyez.'),
     };
     return Semantics(
       liveRegion: true,

@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
-import '../../core/design/kombe_tokens.g.dart';
 import '../../core/formatters/labels.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/kombe_sign_out.dart';
@@ -209,7 +208,7 @@ class _StatTile extends StatelessWidget {
     final TextTheme t = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: KombeTokens.sand100, borderRadius: BorderRadius.circular(18)),
+      decoration: BoxDecoration(color: KombeColors.sand, borderRadius: BorderRadius.circular(18)),
       child: Row(
         children: <Widget>[
           Icon(icon, color: iconColor, size: 30),

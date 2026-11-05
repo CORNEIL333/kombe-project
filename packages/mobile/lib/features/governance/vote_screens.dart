@@ -211,7 +211,7 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
               )
             else if (vote.myChoice != null)
               KombeCard(
-                color: const Color(0xFFE3F2EA),
+                color: KombeTone.success.bg,
                 borderColor: null,
                 child: Row(
                   children: <Widget>[
@@ -288,15 +288,17 @@ class _ChoiceTile extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
-          decoration: BoxDecoration(
+          decoration: ShapeDecoration(
             color: selected ? KombeColors.forest : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: selected ? KombeColors.forest : KombeColors.lineStrong, width: 1.4),
+            shape: BeveledRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(color: selected ? KombeColors.forest : KombeColors.lineStrong, width: 1.4),
+            ),
           ),
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
-              borderRadius: BorderRadius.circular(18),
+              customBorder: BeveledRectangleBorder(borderRadius: BorderRadius.circular(14)),
               onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),

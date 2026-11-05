@@ -54,7 +54,7 @@ void main() {
     await tester.tap(find.text('Solidarité Bamiléké').last);
     await _settle(tester, steps: 30);
     expect(find.descendant(of: find.byType(AppBar), matching: find.text('Solidarité Bamiléké')), findsOneWidget);
-    expect(find.text('2 déclarations à confirmer'), findsOneWidget);
+    expect(find.text('2 paiements à confirmer'), findsOneWidget);
     // Outils du bureau : depuis l'onglet Groupes, seulement là où la personne a une fonction.
     await tester.tap(find.text('Groupes').last);
     await _settle(tester, steps: 20);

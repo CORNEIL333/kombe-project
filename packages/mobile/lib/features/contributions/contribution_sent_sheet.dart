@@ -39,12 +39,11 @@ class ContributionSentView extends StatelessWidget {
             const SizedBox(height: 18),
             Semantics(
               liveRegion: true,
-              child: Text('Déclaration envoyée.', style: t.headlineSmall, textAlign: TextAlign.center),
+              child: Text('Paiement envoyé', style: t.headlineSmall, textAlign: TextAlign.center),
             ),
             const SizedBox(height: 6),
             Text(
-              'Elle reste en attente de validation par un membre autorisé du groupe. '
-              'Sa décision apparaîtra dans l’historique du groupe.',
+              'La trésorerie va le confirmer.',
               style: t.bodyMedium,
               textAlign: TextAlign.center,
             ),
@@ -75,7 +74,7 @@ class _OpenArcPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 10
-        ..color = KombeTokens.lineStrong,
+        ..color = KombeColors.lineStrong,
     );
     // Arc ouvert : s'arrête à 72 % — la fermeture appartient au validateur.
     canvas.drawArc(
@@ -87,10 +86,10 @@ class _OpenArcPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 10
         ..strokeCap = StrokeCap.round
-        ..color = KombeTokens.warning,
+        ..color = KombeColors.goldWarm,
     );
     // Le nœud du déclarant, à l'origine de l'arc.
-    canvas.drawCircle(Offset(c.dx, c.dy - r), 9, Paint()..color = KombeTokens.brand);
+    canvas.drawCircle(Offset(c.dx, c.dy - r), 9, Paint()..color = KombeColors.forest);
     canvas.drawCircle(
       Offset(c.dx, c.dy - r),
       9,

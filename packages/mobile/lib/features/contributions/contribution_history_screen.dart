@@ -56,7 +56,7 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
           actions: <Widget>[
             if (context.watch<ActiveGroupController>().active case final GroupSummary g)
               IconButton(
-                tooltip: 'Déclarer un versement',
+                tooltip: 'J’ai payé',
                 onPressed: () => context.push('/app/groups/${Uri.encodeComponent(g.id)}/contributions/new'),
                 icon: const Icon(Icons.add_rounded),
               ),
@@ -67,7 +67,7 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
           child: ListView(
             padding: const EdgeInsets.only(bottom: 32),
             children: <Widget>[
-              const KombeScreenHeader(title: 'Cotisations', subtitle: 'Vos déclarations et leur confirmation par la trésorerie.'),
+              const KombeScreenHeader(title: 'Cotisations'),
               if (_remote case ResourceReady<List<Contribution>>(:final List<Contribution> data) when data.isNotEmpty) _Totals(contributions: data),
               if (_drafts.isNotEmpty) ...<Widget>[
                 const KombeSection('À terminer'),
@@ -88,13 +88,13 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
                   ],
                 ),
               ],
-              const KombeSection('Déclarations'),
+              const KombeSection('Mes paiements'),
               ResourceView<List<Contribution>>(
                 resource: _remote,
                 onRetry: _load,
                 emptyWhen: (List<Contribution> data) => data.isEmpty,
-                emptyTitle: 'Aucune déclaration',
-                emptyBody: 'Quand vous déclarez un versement, il apparaît ici avec sa confirmation.',
+                emptyTitle: 'Aucun paiement',
+                emptyBody: 'Vos paiements apparaîtront ici.',
                 builder: (BuildContext context, List<Contribution> contributions) => Column(
                   children: <Widget>[
                     for (final MapEntry<String, List<Contribution>> month in _byMonth(context, contributions).entries) ...<Widget>[

@@ -33,18 +33,16 @@ class _RulesScreenState extends State<RulesScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Statuts du groupe')),
+        appBar: AppBar(title: const Text('Règles')),
         body: ResourceView<List<String>>(
           resource: _state,
           onRetry: _load,
           emptyWhen: (List<String> rules) => rules.isEmpty,
-          emptyTitle: 'Statuts non publiés',
+          emptyTitle: 'Règles non publiées',
           emptyBody: 'Le bureau n’a pas encore publié les règles de ce groupe.',
           builder: (BuildContext context, List<String> rules) => ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: <Widget>[
-              Text('Les règles que tout le groupe a acceptées.', style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: 16),
               // Mise en page de document : articles numérotés, filet entre eux.
               KombeCard(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),

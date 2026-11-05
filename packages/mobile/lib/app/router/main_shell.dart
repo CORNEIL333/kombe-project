@@ -223,7 +223,7 @@ class _GroupTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: <Widget>[
-                GroupAvatar(groupId: group.id, name: group.name, photoVersion: group.photoVersion, size: 44, round: true),
+                GroupAvatar(groupId: group.id, name: group.name, photoVersion: group.photoVersion, size: 44),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -343,17 +343,14 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         body: KombeUpdateCheck(child: widget.navigationShell),
         bottomNavigationBar: NavigationBar(
           selectedIndex: widget.navigationShell.currentIndex,
-          backgroundColor: Colors.white,
-          surfaceTintColor: Colors.transparent,
-          indicatorColor: KombeColors.mint,
           height: 72,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           onDestinationSelected: _goBranch,
           destinations: <Widget>[
             for (int i = 0; i < items.length; i++)
               NavigationDestination(
-                icon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.slate)),
-                selectedIcon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.forest)),
+                icon: _badge(i, KombeIcon(items[i].$1, size: 24, color: Colors.white)),
+                selectedIcon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.ink)),
                 label: items[i].$2,
                 tooltip: i == ShellBranch.activity && _unread > 0 ? '${items[i].$2}, $_unread non lues' : items[i].$2,
               ),
@@ -364,7 +361,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   Widget _badge(int branch, Widget icon) => branch == ShellBranch.activity && _unread > 0
-      ? Badge(smallSize: 9, backgroundColor: KombeColors.goldWarm, child: icon)
+      ? Badge(smallSize: 9, backgroundColor: KombeColors.danger, child: icon)
       : icon;
 }
 

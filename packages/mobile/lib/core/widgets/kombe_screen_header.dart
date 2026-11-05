@@ -6,16 +6,16 @@ import '../design/kombe_theme.dart';
 
 /// En-tête d'écran : grand titre Fraunces, sous-titre, coin de motif Ndop.
 class KombeScreenHeader extends StatelessWidget {
-  const KombeScreenHeader({super.key, required this.title, required this.subtitle, this.inset = 20});
+  const KombeScreenHeader({super.key, required this.title, this.subtitle, this.inset = 20});
   final String title;
-  final String subtitle;
+  final String? subtitle;
   /// Marge gauche du texte (0 quand la liste porte déjà sa marge).
   final double inset;
 
   @override
   // Hauteur minimale, jamais fixe : le titre grandit avec le texte agrandi.
   Widget build(BuildContext context) => ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 96),
+        constraints: const BoxConstraints(minHeight: 72),
         child: Stack(
           clipBehavior: Clip.hardEdge,
           children: <Widget>[
@@ -40,10 +40,12 @@ class KombeScreenHeader extends StatelessWidget {
                 children: <Widget>[
                   Semantics(
                     header: true,
-                    child: Text(title, style: KombeType.display(size: 32)),
+                    child: Text(title, style: KombeType.display(size: 36)),
                   ),
-                  const SizedBox(height: 4),
-                  Text(subtitle, style: const TextStyle(color: KombeColors.slate, fontSize: 14)),
+                  if (subtitle != null) ...<Widget>[
+                    const SizedBox(height: 4),
+                    Text(subtitle!, style: const TextStyle(color: KombeColors.slate, fontSize: 14)),
+                  ],
                 ],
               ),
             ),

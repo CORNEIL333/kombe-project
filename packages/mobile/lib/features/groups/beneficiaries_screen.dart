@@ -37,7 +37,7 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Ordre des bénéficiaires')),
+        appBar: AppBar(title: const Text('Qui reçoit, et quand')),
         body: ListenableBuilder(
           listenable: _vm!,
           builder: (BuildContext context, Widget? child) =>
@@ -46,7 +46,7 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
             onRetry: _vm!.load,
             emptyWhen: (CycleDetails c) => c.beneficiaries.isEmpty,
             emptyTitle: 'Ordre pas encore fixé',
-            emptyBody: 'L’ordre des bénéficiaires apparaîtra quand le cycle sera démarré.',
+            emptyBody: 'L’ordre apparaîtra au démarrage du cycle.',
             builder: (BuildContext context, CycleDetails cycle) => ListView(
               padding: const EdgeInsets.only(top: 8, bottom: 32),
               children: <Widget>[
