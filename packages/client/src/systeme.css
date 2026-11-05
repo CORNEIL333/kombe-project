@@ -597,3 +597,60 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
   .app--session .tcarte, .app--session .rail-carte { animation: none; }
   .app--session .bouton, .app--session .onglet, .app--session .champ input, .app--session .champ select, .app--session .rail-carte--lien { transition: none; }
 }
+
+/* Chiffres du profil : même écriture que tous les montants. */
+.app--session .profil-chiffres strong { font-family: var(--s-titre); font-weight: 600; font-variant-numeric: tabular-nums lining-nums; }
+
+/* Encart d'alerte : le message à gauche, l'action à droite, à sa taille. */
+.app--session .msg--attente { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.app--session .msg--attente > p { flex: 1 1 220px; margin: 0; }
+.app--session .msg--attente > .bouton { flex: 0 0 auto; width: auto; }
+
+/* Pictos de titre : espace réel avec le texte (le texte nu n'est pas un élément, une marge ne suffit pas). */
+.app--session .titre-section--action h2,
+.app--session .hero-cotisation__sur,
+.app--session .hero-cotisation__echeance,
+.app--session .carte-rail__titre,
+.app--session .carte-seance__lieu { display: inline-flex; align-items: center; gap: 8px; }
+.app--session .hero-cotisation__libelle { display: flex; align-items: center; gap: 8px; }
+.app--session .titre-section--action h2 > *,
+.app--session .hero-cotisation__sur > *,
+.app--session .hero-cotisation__echeance > *,
+.app--session .carte-rail__titre > *,
+.app--session .carte-seance__lieu > * { margin: 0; }
+/* Titres d'une même rangée sur la même ligne, avec ou sans action à droite. */
+.app--session .section-accueil .titre-section--action { min-height: 44px; margin: 18px 0 6px; }
+
+/* Accueil téléphone : même héros que l'application mobile. La barre, la salutation
+   et le montant forment une seule surface forêt, arrondie en bas ; montant Fraunces,
+   anneau du cycle à droite, action ivoire. */
+.hero-cotisation__anneau { display: none; }
+@media (max-width: 899px) {
+  .app--session .bandeau-accueil { padding: 2px 16px 0; }
+  .app--session .bandeau-accueil::before { display: none; }
+  .app--session .bandeau-accueil__marque, .app--session .bandeau-accueil__groupe { display: none; }
+  .app--session .hero-cotisation {
+    isolation: isolate; margin: 0 -16px; padding: 12px 16px 22px; border-radius: 0 0 32px 32px;
+    background: var(--s-foret); color: var(--s-ivoire); box-shadow: none;
+  }
+  .app--session .hero-cotisation::before {
+    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: -1; pointer-events: none; background-image: var(--s-ndop-losanges);
+    -webkit-mask-image: linear-gradient(90deg, transparent 30%, #000 85%); mask-image: linear-gradient(90deg, transparent 30%, #000 85%);
+  }
+  .app--session .hero-cotisation__contenu { padding-right: 0; }
+  .app--session .hero-cotisation__libelle { font: 800 0.72rem/1.2 var(--s-ui, Manrope, sans-serif); letter-spacing: 0.08em; text-transform: uppercase; color: #e2b868; }
+  .app--session .hero-cotisation__montant { margin-top: 6px; max-width: calc(100% - 96px); font-size: clamp(2rem, 9.6vw, 2.5rem); color: var(--s-ivoire); }
+  .app--session .hero-cotisation__echeance { max-width: calc(100% - 96px); margin: 6px 0 18px; color: rgba(251, 248, 241, 0.8); }
+  .app--session .hero-cotisation__echeance svg { display: inline; flex: 0 0 auto; }
+  .app--session .is-retard .hero-cotisation__echeance { color: #ffb4a6; }
+  .app--session .hero-cotisation__ajour { color: var(--s-ivoire); font-family: var(--s-titre); font-weight: 600; font-size: 1.6rem; max-width: calc(100% - 96px); }
+  .app--session .hero-cotisation__ajour svg { color: #e2b868; }
+  .app--session .bouton.hero-cotisation__cta, .app--session .hero-cotisation__cta { background: var(--s-ivoire); border-color: var(--s-ivoire); color: var(--s-foret); box-shadow: none; }
+  .app--session .hero-cotisation__anneau { position: absolute; top: 8px; right: 16px; display: block; width: 86px; height: 86px; color: var(--s-ivoire); }
+  .app--session .hero-cotisation__anneau svg { display: block; }
+  .app--session .hero-cotisation__anneau span {
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center;
+    font: 600 1.25rem/1 var(--s-titre); font-variant-numeric: tabular-nums lining-nums;
+  }
+  .app--session .ligne-attente { margin-top: 14px; }
+}

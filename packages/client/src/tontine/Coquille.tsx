@@ -130,7 +130,9 @@ export function MenuLateral({
           <hr />
           <ul className="menu-lateral__liste menu-lateral__nav">
             {lien({ ecran: "accueil" }, "accueil", tx("nav.accueil"), route.ecran === "accueil")}
+            {lien({ ecran: "cotisations" }, "declarer", tx("nav.cotisations"), route.ecran === "cotisations")}
             {lien({ ecran: "groupes" }, "groupes", tx("nav.groupes"), route.ecran === "groupes" || route.ecran === "groupe")}
+            {lien({ ecran: "notifications" }, "cloche", tx("nav.activite"), route.ecran === "notifications")}
             {actif ? lien({ ecran: "groupe", groupId: actif.groupId, onglet: "decisions" }, "vote", tx("sh.votes"), false) : null}
             {lien({ ecran: "documents" }, "document", tx("doc.titre"), route.ecran === "documents")}
             {lien({ ecran: "aide" }, "aide", tx("sh.aideSupport"), route.ecran === "aide")}

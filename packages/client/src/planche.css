@@ -211,14 +211,11 @@
 .carte-promo h2 { margin: 10px 0 6px; font: 800 1.3rem/1.25 var(--f-ui, Manrope, sans-serif); max-width: 80%; }
 .carte-promo p { margin: 0; color: rgba(251, 248, 241, 0.86); max-width: 80%; }
 
-/* ── Barre du bas : flottante aussi sur grand écran (planche bureau) ──── */
+/* ── Barre du bas : téléphone et tablette ; sur bureau la colonne de gauche porte les quatre destinations. */
 .nav-basse__item.is-actif .nav-basse__icone { background: var(--p-menthe); border-radius: 999px; }
 @media (min-width: 900px) {
-  .nav-basse {
-    display: grid; position: fixed; left: 324px; right: 24px; bottom: 16px; z-index: 30; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
-    padding: 10px; border-radius: 24px; background: #fff; box-shadow: var(--p-ombre-2);
-  }
-  .app--session .contenu-tontine { padding-bottom: 120px; }
+  .nav-basse { display: none; }
+  .app--session .contenu-tontine { padding-bottom: 40px; }
 }
 
 /* ── Écrans Groupes et Activité ───────────────────────────────────────── */

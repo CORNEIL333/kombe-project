@@ -138,7 +138,7 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
           <>
             {/* Téléphone : bandeau forêt sous la barre (salutation, marque). */}
             <section className="bandeau-accueil" aria-label={tx("ho.bonjour")}>
-              <p className="bandeau-accueil__salut">{d.prenom ? `${tx("ho.bonjourNom", { nom: d.prenom })} 👋` : `${tx("ho.bonjour")} 👋`}</p>
+              <p className="bandeau-accueil__salut">{d.prenom ? tx("ho.bonjourNom", { nom: d.prenom }) : tx("ho.bonjour")}</p>
               <p className="bandeau-accueil__marque">KÓMBE</p>
               <p className="bandeau-accueil__groupe">{tx("ho.signatureMarque")}</p>
             </section>
@@ -182,10 +182,8 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
                       </h1>
                     )}
                   </div>
-                  <span className="hero-cotisation__pieces" aria-hidden="true">
-                    <Icone nom="cagnotte" taille={30} />
-                  </span>
-                  <span className="hero-cotisation__visuel" aria-hidden="true" style={{ backgroundImage: `url("${visuel}")` }} />
+                  {groupe.cyclePosition ? <AnneauCycle courant={groupe.cyclePosition.current} total={groupe.cyclePosition.total} /> : null}
+                  {visuel ? <span className="hero-cotisation__visuel" aria-hidden="true" style={{ backgroundImage: `url("${visuel}")` }} /> : null}
                 </section>
 
                 {d.declare > 0n ? (
@@ -358,9 +356,9 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
   );
 }
 
-/** Visuel du héros : la photo du groupe si elle existe, sinon une illustration de la marque (jamais des personnes). */
-function useVisuelGroupe(session: Session, groupe: TontineSummary): string {
-  const [url, setUrl] = useState("/brand/fonds/yaounde.webp");
+/** Visuel du héros : la photo du groupe si elle existe ; sinon rien, le motif Ndop de la surface suffit. */
+function useVisuelGroupe(session: Session, groupe: TontineSummary): string | null {
+  const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     const v = groupe.photoVersion;
     if (!v) return;
@@ -374,6 +372,24 @@ function useVisuelGroupe(session: Session, groupe: TontineSummary): string {
     };
   }, [session, groupe.groupId, groupe.photoVersion]);
   return url;
+}
+
+/** Anneau du cycle (téléphone) : la même signature que l'application mobile. Décoratif : la position est redite dans le rail et l'onglet Tours. */
+function AnneauCycle({ courant, total }: { readonly courant: number; readonly total: number }) {
+  const r = 38;
+  const tour = 2 * Math.PI * r;
+  const part = total > 0 ? Math.min(1, courant / total) : 0;
+  return (
+    <span className="hero-cotisation__anneau" aria-hidden="true">
+      <svg viewBox="0 0 86 86" width="86" height="86">
+        <circle cx="43" cy="43" r={r} fill="none" stroke="rgba(251,248,241,.15)" strokeWidth="6" />
+        <circle cx="43" cy="43" r={r} fill="none" stroke="#c99439" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${tour * part} ${tour}`} transform="rotate(-90 43 43)" />
+      </svg>
+      <span>
+        {courant}/{total}
+      </span>
+    </span>
+  );
 }
 
 function Section({
