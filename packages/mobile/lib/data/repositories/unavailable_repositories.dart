@@ -76,6 +76,15 @@ final class UnavailableProfileRepository implements ProfileRepository {
   const UnavailableProfileRepository();
 
   @override
+  Future<Uint8List?> loadPhoto(int version, int size) async => null;
+
+  @override
+  Future<OperationResult<int>> setPhoto(Uint8List jpeg512, Uint8List jpeg256) async => const OperationBlocked<int>('Service KÓMBE non configuré sur cet appareil.');
+
+  @override
+  Future<OperationResult<void>> removePhoto() async => const OperationBlocked<void>('Service KÓMBE non configuré sur cet appareil.');
+
+  @override
   Future<Resource<UserProfile>> loadProfile() async =>
       const ResourceUnavailable<UserProfile>();
 
@@ -131,6 +140,9 @@ final class UnavailableGroupRepository implements GroupRepository {
 
   @override
   Future<Uint8List?> loadPhoto(String groupId, int version, int size) async => null;
+
+  @override
+  Future<Uint8List?> loadMemberPhoto(String groupId, String memberId, int version, int size) async => null;
 
   @override
   Future<OperationResult<int>> setPhoto(String groupId, Uint8List jpeg512, Uint8List jpeg256) async =>

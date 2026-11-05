@@ -6,7 +6,7 @@ import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/labels.dart';
 import '../../core/widgets/kombe_components.dart';
-import '../../core/widgets/kombe_visuals.dart';
+import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/cycle.dart';
 import '../../domain/repositories/group_repository.dart';
@@ -64,7 +64,7 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
                                 width: 26,
                                 child: Text('${item.turnNumber}', style: KombeType.amount(size: 18, color: KombeColors.slate)),
                               ),
-                              KombeAvatar(name: item.displayName, url: item.avatarUrl, size: 42),
+                              MemberAvatar(groupId: item.groupId, memberId: item.identityId, name: item.displayName, photoVersion: item.photoVersion, size: 42),
                             ],
                           ),
                         ),

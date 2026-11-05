@@ -257,6 +257,7 @@ final class TontineProfileRepository implements ProfileRepository {
       displayName: '${b['displayName'] ?? ''}',
       phoneE164: login.startsWith('+') ? login : '',
       localeCode: '${b['language'] ?? 'fr'}' == 'en' ? 'en' : 'fr',
+      photoVersion: (b['photoVersion'] as num?)?.toInt(),
     );
   }
 
@@ -269,6 +270,23 @@ final class TontineProfileRepository implements ProfileRepository {
             if (displayName.trim().isNotEmpty) 'displayName': displayName.trim(),
             'language': localeCode == 'en' ? 'en' : 'fr',
           })).body));
+
+  @override
+  Future<Uint8List?> loadPhoto(int version, int size) => _api.getBytes('/me/photo?size=$size&v=$version');
+
+  @override
+  Future<OperationResult<int>> setPhoto(Uint8List jpeg512, Uint8List jpeg256) => _write<int>(() async {
+        final ApiResponse res = await _api.put('/me/photo', <String, dynamic>{
+          'image512': base64Encode(jpeg512),
+          'image256': base64Encode(jpeg256),
+        });
+        return (res.body['photoVersion'] as num).toInt();
+      });
+
+  @override
+  Future<OperationResult<void>> removePhoto() => _write<void>(() async {
+        await _api.delete('/me/photo');
+      });
 
   @override
   Future<OperationResult<void>> changePin({required String currentPin, required String newPin}) async =>
@@ -345,6 +363,7 @@ final class TontineGroupRepository implements GroupRepository {
         displayName: '${m['displayName']}',
         role: roleFrom((m['roles'] as List<dynamic>?) ?? const <dynamic>[]),
         joinedAtUtc: _date(m['joinedAt']),
+        photoVersion: (m['photoVersion'] as num?)?.toInt(),
       );
 
   @override
@@ -377,6 +396,8 @@ final class TontineGroupRepository implements GroupRepository {
                   turnNumber: (r['seq'] as num).toInt(),
                   identityId: '${r['beneficiaryMembershipId'] ?? ''}',
                   displayName: '${r['beneficiaryName'] ?? '—'}',
+                  photoVersion: (r['beneficiaryPhotoVersion'] as num?)?.toInt(),
+                  groupId: groupId,
                   dueAtUtc: _date(r['date']),
                   status: r['state'] == 'closed' || r['payoutState'] == 'received'
                       ? BeneficiaryStatus.received
@@ -419,6 +440,10 @@ final class TontineGroupRepository implements GroupRepository {
   @override
   Future<Uint8List?> loadPhoto(String groupId, int version, int size) =>
       _api.getBytes('${_t(groupId)}/photo?size=$size&v=$version');
+
+  @override
+  Future<Uint8List?> loadMemberPhoto(String groupId, String memberId, int version, int size) =>
+      _api.getBytes('${_t(groupId)}/members/${Uri.encodeComponent(memberId)}/photo?size=$size&v=$version');
 
   @override
   Future<OperationResult<int>> setPhoto(String groupId, Uint8List jpeg512, Uint8List jpeg256) => _write<int>(() async {

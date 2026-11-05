@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../domain/repositories/group_repository.dart';
+import '../../domain/repositories/profile_repository.dart';
 import '../design/kombe_colors.dart';
 import '../design/kombe_ndop.dart';
+import 'kombe_visuals.dart';
 
 const Set<String> _motsVides = <String>{'le', 'la', 'les', 'l', 'de', 'des', 'du', 'd', 'et', 'the', 'of', 'and', 'a', 'à', 'au', 'aux'};
 
@@ -23,6 +25,42 @@ String groupInitials(String name) {
 final Map<String, Future<Uint8List?>> _cache = <String, Future<Uint8List?>>{};
 
 void forgetGroupPhoto(String groupId) => _cache.removeWhere((String k, _) => k.startsWith('$groupId:'));
+
+/// Photo d'un membre dans un groupe (repli : initiales).
+class MemberAvatar extends StatelessWidget {
+  const MemberAvatar({super.key, required this.groupId, required this.memberId, required this.name, this.photoVersion, this.size = 44});
+  final String groupId;
+  final String memberId;
+  final String name;
+  final int? photoVersion;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final int? v = photoVersion;
+    if (v == null || groupId.isEmpty) return KombeAvatar(name: name, size: size);
+    final GroupRepository repo = context.read<GroupRepository>();
+    final int px = size > 96 ? 512 : 256;
+    return KombeAvatar(name: name, size: size, load: _cache.putIfAbsent('m:$groupId:$memberId:$v:$px', () => repo.loadMemberPhoto(groupId, memberId, v, px)));
+  }
+}
+
+/// Ma photo de profil (repli : initiales).
+class MyAvatar extends StatelessWidget {
+  const MyAvatar({super.key, required this.name, this.photoVersion, this.size = 44});
+  final String name;
+  final int? photoVersion;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final int? v = photoVersion;
+    if (v == null) return KombeAvatar(name: name, size: size);
+    final ProfileRepository repo = context.read<ProfileRepository>();
+    final int px = size > 96 ? 512 : 256;
+    return KombeAvatar(name: name, size: size, load: _cache.putIfAbsent('moi:$v:$px', () => repo.loadPhoto(v, px)));
+  }
+}
 
 /// Teinte propre à une tontine, stable : on reconnaît un groupe à sa couleur
 /// et à son motif, comme un pagne d'association.

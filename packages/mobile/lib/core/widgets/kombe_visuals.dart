@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/group.dart';
@@ -22,12 +24,13 @@ abstract final class KombePhotos {
   static String coverFor(String groupId) => _covers[groupId.hashCode.abs() % _covers.length];
 }
 
-/// Avatar : la photo du serveur si elle existe, sinon les initiales.
-/// Jamais un visage inventé pour une vraie personne.
+/// Avatar d'une personne : sa photo de profil, ronde ; les initiales ne sont
+/// qu'un repli tant qu'elle n'en a pas envoyé. Jamais un visage inventé.
+/// `load` lit les octets avec la session (les photos n'ont pas d'URL publique).
 class KombeAvatar extends StatelessWidget {
-  const KombeAvatar({required this.name, super.key, this.url, this.size = 44});
+  const KombeAvatar({required this.name, super.key, this.load, this.size = 44});
   final String name;
-  final Uri? url;
+  final Future<Uint8List?>? load;
   final double size;
 
   static const List<(Color, Color)> _tints = <(Color, Color)>[
@@ -60,17 +63,16 @@ class KombeAvatar extends StatelessWidget {
         style: TextStyle(fontFamily: 'Fraunces', color: fg, fontWeight: FontWeight.w700, fontSize: size * .4, height: 1),
       ),
     );
-    final Uri? u = url;
-    if (u == null) return ExcludeSemantics(child: initials);
+    final Future<Uint8List?>? bytes = load;
+    if (bytes == null) return ExcludeSemantics(child: initials);
     return ExcludeSemantics(
-      child: ClipOval(
-        child: Image.network(
-          u.toString(),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (BuildContext context, Object error, StackTrace? stack) => initials,
-        ),
+      child: FutureBuilder<Uint8List?>(
+        future: bytes,
+        builder: (BuildContext context, AsyncSnapshot<Uint8List?> snap) {
+          final Uint8List? data = snap.data;
+          if (data == null) return initials;
+          return ClipOval(child: Image.memory(data, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true, cacheWidth: (size * 3).round()));
+        },
       ),
     );
   }

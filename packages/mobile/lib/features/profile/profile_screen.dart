@@ -6,7 +6,8 @@ import '../../core/design/kombe_colors.dart';
 import '../../core/formatters/labels.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/kombe_sign_out.dart';
-import '../../core/widgets/kombe_visuals.dart';
+import '../../core/widgets/group_avatar.dart';
+import '../groups/group_photo_sheet.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
@@ -55,7 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             builder: (BuildContext context, UserProfile profile) => ListView(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
               children: <Widget>[
-                _Header(profile: profile),
+                _Header(profile: profile, onPhotoChanged: () async => _vm!.load()),
                 const SizedBox(height: 16),
                 FutureBuilder<Resource<List<GroupSummary>>>(
                   future: _groups,
@@ -160,8 +161,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.profile});
+  const _Header({required this.profile, required this.onPhotoChanged});
   final UserProfile profile;
+  final Future<void> Function() onPhotoChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -169,7 +171,26 @@ class _Header extends StatelessWidget {
     final String first = profile.displayName.trim().split(RegExp(r'\s+')).first;
     return Row(
       children: <Widget>[
-        KombeAvatar(name: profile.displayName, url: profile.avatarUrl, size: 84),
+        Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            MyAvatar(name: profile.displayName, photoVersion: profile.photoVersion, size: 84),
+            Positioned(
+              right: -6,
+              bottom: -6,
+              child: Material(
+                color: KombeColors.goldWarm,
+                shape: const CircleBorder(side: BorderSide(color: KombeColors.cream, width: 2)),
+                child: IconButton(
+                  tooltip: profile.photoVersion == null ? 'Ajouter ma photo' : 'Changer ma photo',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => showMyPhotoSheet(context, name: profile.displayName, photoVersion: profile.photoVersion, afterChange: onPhotoChanged),
+                  icon: const Icon(Icons.photo_camera_outlined, size: 18, color: KombeColors.ink),
+                ),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(width: 16),
         Expanded(
           child: Column(

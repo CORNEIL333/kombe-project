@@ -6,11 +6,13 @@ import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_ndop.dart';
 import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/xaf.dart';
+import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/kombe_components.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/entities/dashboard.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
+import '../groups/group_photo_sheet.dart';
 import '../notifications/notification_actions.dart';
 import '../notifications/notifications_screen.dart';
 
@@ -23,11 +25,15 @@ String _day(BuildContext context, DateTime utc) =>
 /// reprendre, confirmations de ma fonction, vote ouvert) ; prochaine séance ;
 /// activité récente du groupe. Aucune donnée inventée.
 class HomeContent extends StatelessWidget {
-  const HomeContent({super.key, required this.data, this.drafts = const <ContributionDraft>[], this.now, this.firstName});
+  const HomeContent({super.key, required this.data, this.drafts = const <ContributionDraft>[], this.now, this.firstName, this.photoMissing = false, this.myName = '', this.myPhotoVersion});
   final HomeData data;
   final List<ContributionDraft> drafts;
   final DateTime? now;
   final String? firstName;
+  /// Je n'ai pas encore de photo de profil.
+  final bool photoMissing;
+  final String myName;
+  final int? myPhotoVersion;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +57,20 @@ class HomeContent extends StatelessWidget {
           subtitle: 'Bureau',
           onTap: () => context.push('/app/validations'),
         ),
+      if (photoMissing)
+        _TodoRow(
+          icon: Icons.add_a_photo_outlined,
+          title: 'Ajoutez votre photo',
+          subtitle: 'Votre groupe vous reconnaît',
+          onTap: () => context.push('/app/profile'),
+        ),
+      if (data.group.photoVersion == null && canEditGroupPhoto(data.group.role))
+        _TodoRow(
+          icon: Icons.add_photo_alternate_outlined,
+          title: 'Ajoutez la photo du groupe',
+          subtitle: data.group.name,
+          onTap: () => context.push('/app/groups/$gid'),
+        ),
       for (final PendingVote v in data.votes)
         _TodoRow(
           icon: Icons.how_to_vote_outlined,
@@ -64,7 +84,7 @@ class HomeContent extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
       children: <Widget>[
-        _Hero(data: data, firstName: firstName),
+        _Hero(data: data, firstName: firstName, myName: myName, myPhotoVersion: myPhotoVersion),
         // Raccourcis du groupe : quatre entrées, toujours au même endroit.
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 18, 12, 0),
@@ -108,9 +128,11 @@ class HomeContent extends StatelessWidget {
 /// Héros de l'accueil : prolonge la barre. Un seul message (ce que je dois, ou
 /// « à jour »), une action, puis le rang de perles du cycle.
 class _Hero extends StatelessWidget {
-  const _Hero({required this.data, this.firstName});
+  const _Hero({required this.data, this.firstName, this.myName = '', this.myPhotoVersion});
   final HomeData data;
   final String? firstName;
+  final String myName;
+  final int? myPhotoVersion;
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +154,15 @@ class _Hero extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Text(firstName == null ? 'Bonjour' : 'Bonjour $firstName', style: soft),
+                Row(
+                  children: <Widget>[
+                    if (myName.isNotEmpty) ...<Widget>[
+                      MyAvatar(name: myName, photoVersion: myPhotoVersion, size: 40),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(child: Text(firstName == null ? 'Bonjour' : 'Bonjour $firstName', style: soft)),
+                  ],
+                ),
                 const SizedBox(height: 18),
                 if (due > 0) ...<Widget>[
                   Text('À régler', style: KombeType.eyebrow.copyWith(color: KombeColors.goldLight, fontSize: 13)),

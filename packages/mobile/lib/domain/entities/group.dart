@@ -168,12 +168,12 @@ final class GroupMember {
     required this.displayName,
     required this.role,
     required this.joinedAtUtc,
-    this.avatarUrl,
+    this.photoVersion,
   });
 
   final String identityId;
   final String displayName;
   final GroupRole role;
   final DateTime joinedAtUtc;
-  final Uri? avatarUrl;
+  final int? photoVersion;
 }

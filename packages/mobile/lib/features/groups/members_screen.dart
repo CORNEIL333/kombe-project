@@ -7,7 +7,7 @@ import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/labels.dart';
 import '../../core/widgets/kombe_components.dart';
-import '../../core/widgets/kombe_visuals.dart';
+import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
@@ -115,7 +115,7 @@ class _MemberRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListTile(
         minTileHeight: 66,
-        leading: KombeAvatar(name: member.displayName, url: member.avatarUrl, size: 42),
+        leading: MemberAvatar(groupId: groupId, memberId: member.identityId, name: member.displayName, photoVersion: member.photoVersion, size: 42),
         title: Text(member.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: member.role == GroupRole.member ? Text('Depuis ${DateFormat('MMMM y', Localizations.localeOf(context).toLanguageTag()).format(member.joinedAtUtc.toLocal())}') : null,
         trailing: Row(

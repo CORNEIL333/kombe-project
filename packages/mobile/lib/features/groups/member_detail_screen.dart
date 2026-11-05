@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/formatters/labels.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/kombe_components.dart';
-import '../../core/widgets/kombe_visuals.dart';
+import '../../core/widgets/group_avatar.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
 import 'groups_view_models.dart';
@@ -55,7 +55,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
             builder: (BuildContext context, GroupMember member) => ListView(
               padding: const EdgeInsets.fromLTRB(0, 16, 0, 32),
               children: <Widget>[
-                Center(child: KombeAvatar(name: member.displayName, url: member.avatarUrl, size: 92)),
+                Center(child: MemberAvatar(groupId: widget.groupId, memberId: member.identityId, name: member.displayName, photoVersion: member.photoVersion, size: 112)),
                 const SizedBox(height: 14),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),

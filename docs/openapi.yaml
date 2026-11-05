@@ -3614,6 +3614,160 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TontineError'
+  /me/photo:
+    get:
+      tags:
+      - tontine
+      operationId: getMyPhoto
+      summary: Ma photo de profil (JPEG)
+      description: 'Rôle requis : soi-même. Variante `size=256` (défaut) ou `512`.'
+      parameters:
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Octets JPEG (métadonnées retirées)
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Inchangée (If-None-Match)
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Pas de photo, ou objet hors portée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+    put:
+      tags:
+      - tontine
+      operationId: putMyPhoto
+      summary: Remplacer ma photo de profil
+      description: 'Rôle requis : soi-même. Corps JSON `{ image512, image256 }` en base64 ; le serveur retire les métadonnées.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                image512:
+                  type: string
+                image256:
+                  type: string
+      responses:
+        '200':
+          description: Photo enregistrée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  photoVersion:
+                    type: integer
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Image refusée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '429':
+          description: Trop de changements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+    delete:
+      tags:
+      - tontine
+      operationId: deleteMyPhoto
+      summary: Retirer ma photo (retour aux initiales)
+      description: 'Rôle requis : soi-même. Les octets sont effacés.'
+      responses:
+        '200':
+          description: Photo retirée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  photoVersion:
+                    type: integer
+                    nullable: true
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /tontines/{id}/members/{mid}/photo:
+    get:
+      tags:
+      - tontine
+      operationId: getMemberPhoto
+      summary: Photo de profil d'un membre (JPEG)
+      description: 'Rôle requis : membre du même groupe. Variante `size=256` (défaut) ou `512`.'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: mid
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Octets JPEG (métadonnées retirées)
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Inchangée (If-None-Match)
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Refusé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Pas de photo, ou objet hors portée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
   /tontines/{id}/photo:
     get:
       tags:

@@ -16,7 +16,7 @@ import { DisciplineService } from "./discipline.js";
 import { GroupService } from "./groups.js";
 import { HistoryService, type HistoryImportInput } from "./history.js";
 import { InboxService } from "./inbox.js";
-import { PhotoService } from "./photos.js";
+import { MemberPhotoService, PhotoService } from "./photos.js";
 import { InsightService, type CycleSimulationInput } from "./insights.js";
 import { MeetingService } from "./meetings.js";
 import { MoneyService } from "./money.js";
@@ -197,6 +197,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   const discipline = new DisciplineService(pool, now);
   const inbox = new InboxService(pool, now);
   const photos = new PhotoService(pool, now);
+  const memberPhotos = new MemberPhotoService(pool, now);
   const decisions = new DecisionService(pool, now);
   const history = new HistoryService(pool, now);
   const insights = new InsightService(pool, now);
@@ -291,13 +292,24 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   /* ── Photo de la tontine (0034) ────────────────────────────────────── */
   // Octets JPEG servis avec la session (jamais d'URL publique) ; ETag = version.
   const envoyerPhoto = (req: FastifyRequest, reply: FastifyReply, photo: { bytes: Buffer; version: number } | null, size: number) => {
-    if (!photo) return reply.code(404).send({ code: "NOT_FOUND", message: "Pas de photo pour ce groupe" });
+    if (!photo) return reply.code(404).send({ code: "NOT_FOUND", message: "Pas de photo" });
     const etag = `"p${photo.version}-${size}"`;
     reply.header("cache-control", "private, max-age=86400").header("etag", etag).header("x-content-type-options", "nosniff");
     if (req.headers["if-none-match"] === etag) return reply.code(304).send();
     return reply.type("image/jpeg").send(photo.bytes);
   };
   const taille = (req: FastifyRequest): 256 | 512 => ((req.query as Q).size === "512" ? 512 : 256);
+  // Photo de profil : la sienne, ou celle d'un membre d'un groupe commun (0035).
+  app.get("/v1/me/photo", async (req, reply) => envoyerPhoto(req, reply, await memberPhotos.readMine(H(req), taille(req)), taille(req)));
+  app.put("/v1/me/photo", { bodyLimit: 1_300_000 }, async (req, reply) =>
+    write(req, reply, 200, () => memberPhotos.replace(H(req), (req.body ?? {}) as { image512?: unknown; image256?: unknown })),
+  );
+  app.delete("/v1/me/photo", async (req, reply) => write(req, reply, 200, () => memberPhotos.remove(H(req))));
+  app.get("/v1/tontines/:id/members/:mid/photo", async (req, reply) => {
+    const p = req.params as P;
+    return envoyerPhoto(req, reply, await memberPhotos.readMember(H(req), p.id as string, p.mid as string, taille(req)), taille(req));
+  });
+
   app.get("/v1/tontines/:id/photo", async (req, reply) =>
     envoyerPhoto(req, reply, await photos.read(H(req), (req.params as P).id as string, taille(req)), taille(req)),
   );

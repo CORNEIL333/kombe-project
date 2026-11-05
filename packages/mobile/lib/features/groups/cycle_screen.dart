@@ -9,6 +9,7 @@ import '../../core/formatters/labels.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/group_hero_card.dart';
+import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/kombe_visuals.dart';
 import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/screen_states.dart';
@@ -344,7 +345,7 @@ class _CurrentBeneficiary extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           child: Row(
             children: <Widget>[
-              KombeAvatar(name: turn.displayName, url: turn.avatarUrl, size: 72),
+              MemberAvatar(groupId: turn.groupId, memberId: turn.identityId, name: turn.displayName, photoVersion: turn.photoVersion, size: 72),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -400,7 +401,7 @@ class _TurnRow extends StatelessWidget {
             child: Text('${turn.turnNumber}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: current ? Colors.white : KombeColors.ink)),
           ),
           const SizedBox(width: 10),
-          KombeAvatar(name: turn.displayName, url: turn.avatarUrl, size: 40),
+          MemberAvatar(groupId: turn.groupId, memberId: turn.identityId, name: turn.displayName, photoVersion: turn.photoVersion, size: 40),
           const SizedBox(width: 10),
           Expanded(child: Text(turn.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleSmall)),
           chip,

@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:kombe_mobile/core/widgets/kombe_visuals.dart';
 import 'package:kombe_mobile/domain/entities/group.dart';
 import 'package:kombe_mobile/features/groups/group_photo_sheet.dart';
 
@@ -33,5 +35,16 @@ void main() {
     expect(canEditGroupPhoto(GroupRole.secretary), isTrue);
     expect(canEditGroupPhoto(GroupRole.treasurer), isFalse);
     expect(canEditGroupPhoto(GroupRole.member), isFalse);
+  });
+
+  testWidgets('avatar de membre : la photo remplace les initiales, qui restent le repli', (WidgetTester tester) async {
+    final Uint8List jpeg = img.encodeJpg(img.Image(width: 8, height: 8));
+    await tester.pumpWidget(
+      MaterialApp(home: Scaffold(body: Column(children: <Widget>[KombeAvatar(name: 'Amina Ngué', load: Future<Uint8List?>.value(jpeg)), KombeAvatar(name: 'Paul Abega', load: Future<Uint8List?>.value())]))),
+    );
+    await tester.pump();
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.text('AN'), findsNothing);
+    expect(find.text('PA'), findsOneWidget);
   });
 }

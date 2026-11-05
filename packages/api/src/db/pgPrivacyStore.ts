@@ -396,7 +396,31 @@ export class PgPrivacyStore {
       `INSERT INTO data_erasure_tombstone (identity_id, erased_at) VALUES ($1,$2) ON CONFLICT (identity_id) DO NOTHING`,
       [subject, new Date(ctx.serverNow * 1000)],
     );
+    await this.effacerPhoto(subject);
     return view;
+  }
+
+  /** Droit à l'effacement : la photo de profil est vidée (self-scope RLS, d'où le contexte posé). */
+  private async effacerPhoto(identityId: string): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`SELECT set_config('kombe.identity_id', $1, true)`, [identityId]);
+      const t = await client.query(`SELECT to_regclass('public.identity_photo') IS NOT NULL AS ok`);
+      if (t.rows[0]?.ok === true) {
+        await client.query(
+          `UPDATE identity_photo SET version = version + 1, sha256 = NULL, bytes_512 = NULL, bytes_256 = NULL, updated_at = now()
+            WHERE identity_id = $1 AND bytes_512 IS NOT NULL`,
+          [identityId],
+        );
+      }
+      await client.query("COMMIT");
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   /* --- 18.10 restauration --- */

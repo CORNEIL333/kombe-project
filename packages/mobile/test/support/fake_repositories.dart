@@ -182,6 +182,15 @@ final class FakeAuthRepository implements AuthRepository {
 }
 
 final class FakeProfileRepository implements ProfileRepository {
+  @override
+  Future<Uint8List?> loadPhoto(int version, int size) async => null;
+
+  @override
+  Future<OperationResult<int>> setPhoto(Uint8List jpeg512, Uint8List jpeg256) async => const OperationSuccess<int>(1);
+
+  @override
+  Future<OperationResult<void>> removePhoto() async => const OperationSuccess<void>(null);
+
   UserProfile _p = const UserProfile(identityId: 'essai@kombe.app', displayName: 'Amina Ngué', phoneE164: '+237670123456', localeCode: 'fr');
 
   @override
@@ -286,6 +295,9 @@ final class FakeGroupRepository implements GroupRepository {
   }
 
   final Map<String, Uint8List> photos = <String, Uint8List>{};
+
+  @override
+  Future<Uint8List?> loadMemberPhoto(String groupId, String memberId, int version, int size) async => null;
 
   @override
   Future<Uint8List?> loadPhoto(String groupId, int version, int size) async => photos['$groupId:$size'];

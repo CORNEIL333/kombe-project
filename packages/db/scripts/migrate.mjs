@@ -70,6 +70,7 @@ const UP_MIGRATIONS = [
   "migrations/0032_audit_indexes.sql",
   "migrations/0033_custom_funds.sql",
   "migrations/0034_group_photo.sql",
+  "migrations/0035_member_photo.sql",
   "provision/roles.sql",
 ];
 
