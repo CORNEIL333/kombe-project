@@ -34,17 +34,17 @@ class GroupHue {
 }
 
 const List<GroupHue> _hues = <GroupHue>[
-  GroupHue(KombeColors.forest, KombeColors.goldWarm, 0),
-  GroupHue(Color(0xFFB02410), KombeColors.goldLight, 1),
+  GroupHue(KombeColors.forest, KombeColors.goldWarm, 2),
+  GroupHue(Color(0xFFB02410), KombeColors.goldLight, 2),
   GroupHue(Color(0xFF0A6B49), KombeColors.goldLight, 2),
-  GroupHue(KombeColors.emerald, KombeColors.goldLight, 1),
+  GroupHue(KombeColors.emerald, KombeColors.goldLight, 2),
 ];
 
 GroupHue groupHue(String id) => _hues[id.codeUnits.fold<int>(7, (int a, int c) => (a * 31 + c) & 0x7fffffff) % _hues.length];
 
 /// Blason d'une tontine : sa photo (lue avec la session, jamais par une URL
-/// publique) ou ses initiales dans un losange, sur le motif du groupe. Toujours
-/// découpé en coupe de tissu. Aucune photo d'illustration à la place du groupe.
+/// publique) ; en repli, ses initiales sur le motif du groupe, tant que le bureau
+/// n'a pas ajouté de photo. Aucune photo d'illustration à la place du groupe.
 class GroupAvatar extends StatelessWidget {
   const GroupAvatar({super.key, required this.groupId, required this.name, this.photoVersion, this.size = 40});
 
@@ -55,9 +55,8 @@ class GroupAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ShapeBorder shape = BeveledRectangleBorder(borderRadius: BorderRadius.circular(size * .24));
     final Widget fallback = _Emblem(hue: groupHue(groupId), name: name, size: size);
-    Widget clip(Widget child) => ExcludeSemantics(child: ClipPath(clipper: ShapeBorderClipper(shape: shape), child: SizedBox.square(dimension: size, child: child)));
+    Widget clip(Widget child) => ExcludeSemantics(child: ClipOval(child: SizedBox.square(dimension: size, child: child)));
     final int? v = photoVersion;
     if (v == null) return clip(fallback);
     GroupRepository? repo;
@@ -107,17 +106,11 @@ class _EmblemPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, Paint()..color = hue.bg);
     NdopPainter(color: hue.accent, opacity: .55, variant: hue.variant, tile: math.max(9, size.shortestSide / 4)).paint(canvas, size);
-    // Losange plein : les initiales se lisent sur un fond uni.
+    // Disque plein : les initiales se lisent sur un fond uni.
     final Offset c = size.center(Offset.zero);
-    final double d = size.shortestSide * .4;
-    final Path diamond = Path()
-      ..moveTo(c.dx, c.dy - d)
-      ..lineTo(c.dx + d, c.dy)
-      ..lineTo(c.dx, c.dy + d)
-      ..lineTo(c.dx - d, c.dy)
-      ..close();
-    canvas.drawPath(diamond, Paint()..color = hue.bg);
-    canvas.drawPath(diamond, Paint()
+    final double d = size.shortestSide * .34;
+    canvas.drawCircle(c, d, Paint()..color = hue.bg);
+    canvas.drawCircle(c, d, Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = math.max(1.2, size.shortestSide * .03)
       ..color = hue.accent);

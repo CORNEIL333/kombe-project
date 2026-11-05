@@ -4,11 +4,12 @@
    créer et rejoindre en tuiles. Le sélecteur de la barre du haut sert au
    changement rapide ; cet onglet est la vue complète et permanente. */
 
+import { BandeCycle } from "./BandeCycle.js";
 import type { Route } from "../App.js";
 import type { Session, TontineSummary } from "./api.js";
 import { estBureau, ouvrirBureau } from "./bureau.js";
 import type { GroupeActif } from "./groupeActif.js";
-import { AvatarGroupe } from "./PhotoGroupe.js";
+import { AvatarGroupe, teinteGroupe } from "./PhotoGroupe.js";
 import { useTextes } from "./textes.js";
 import { Icone } from "../composants/Icones.js";
 
@@ -54,7 +55,7 @@ export function MesGroupes({ session, groupes, aller }: { readonly session: Sess
               aller({ ecran: "groupe", groupId: g.groupId });
             };
             return (
-              <li key={g.groupId} className={actif ? "carte-groupe is-actif" : "carte-groupe"}>
+              <li key={g.groupId} className={actif ? "carte-groupe is-actif" : "carte-groupe"} data-teinte={teinteGroupe(g.groupId)}>
                 <button type="button" className="carte-groupe__corps" disabled={attente} onClick={ouvrir}>
                   <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={84} />
                   <span className="carte-groupe__texte">
@@ -72,10 +73,7 @@ export function MesGroupes({ session, groupes, aller }: { readonly session: Sess
                     ) : cy && pct !== null ? (
                       <span className="carte-groupe__cycle">
                         <span>{tx("gr.cycle", { n: cy.current, total: cy.total })}</span>
-                        <span className="carte-groupe__barre" role="progressbar" aria-valuemin={0} aria-valuemax={cy.total} aria-valuenow={cy.current} aria-label={tx("ho.progressionCycle")}>
-                          <span style={{ transform: `scaleX(${pct / 100})` }} />
-                        </span>
-                        <span className="carte-groupe__pct">{pct}%</span>
+                        <BandeCycle courant={cy.current} total={cy.total} libelle={tx("gr.cycle", { n: cy.current, total: cy.total })} />
                       </span>
                     ) : null}
                   </span>

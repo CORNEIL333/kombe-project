@@ -6,6 +6,7 @@
    « Tour en cours » (progression, cagnotte, bénéficiaire, membres).
    Lectures en parallèle ; une donnée absente reste absente. */
 
+import { BandeCycle } from "./BandeCycle.js";
 import { useEffect, useState, type ReactNode } from "react";
 import type { Route } from "../App.js";
 import {
@@ -181,8 +182,13 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
                         {tx("ho.aJour")}
                       </h1>
                     )}
+                    {groupe.cyclePosition ? (
+                      <div className="hero-cotisation__cycle">
+                        <BandeCycle courant={groupe.cyclePosition.current} total={groupe.cyclePosition.total} libelle={tx("gr.cycle", { n: groupe.cyclePosition.current, total: groupe.cyclePosition.total })} />
+                        <span>{tx("gr.cycle", { n: groupe.cyclePosition.current, total: groupe.cyclePosition.total })}</span>
+                      </div>
+                    ) : null}
                   </div>
-                  {groupe.cyclePosition ? <AnneauCycle courant={groupe.cyclePosition.current} total={groupe.cyclePosition.total} /> : null}
                   {visuel ? <span className="hero-cotisation__visuel" aria-hidden="true" style={{ backgroundImage: `url("${visuel}")` }} /> : null}
                 </section>
 
@@ -293,7 +299,7 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
                       {tx("ho.cycleEnCours")}
                     </h2>
                     <p className="carte-rail__grand">{tx("ho.cycleN", { n: d.tour.rang, total: d.tour.total })}</p>
-                    <Progression valeur={d.tour.rang} max={d.tour.total} libelle={tx("ho.progressionCycle")} />
+                    <BandeCycle courant={d.tour.rang} total={d.tour.total} libelle={tx("ho.progressionCycle")} clair />
                     <ul className="carte-rail__chiffres">
                       <li>
                         <span className="carte-rail__pastille carte-rail__pastille--or" aria-hidden="true">
@@ -374,24 +380,6 @@ function useVisuelGroupe(session: Session, groupe: TontineSummary): string | nul
   return url;
 }
 
-/** Anneau du cycle (téléphone) : la même signature que l'application mobile. Décoratif : la position est redite dans le rail et l'onglet Tours. */
-function AnneauCycle({ courant, total }: { readonly courant: number; readonly total: number }) {
-  const r = 38;
-  const tour = 2 * Math.PI * r;
-  const part = total > 0 ? Math.min(1, courant / total) : 0;
-  return (
-    <span className="hero-cotisation__anneau" aria-hidden="true">
-      <svg viewBox="0 0 86 86" width="86" height="86">
-        <circle cx="43" cy="43" r={r} fill="none" stroke="rgba(251,248,241,.15)" strokeWidth="6" />
-        <circle cx="43" cy="43" r={r} fill="none" stroke="#c99439" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${tour * part} ${tour}`} transform="rotate(-90 43 43)" />
-      </svg>
-      <span>
-        {courant}/{total}
-      </span>
-    </span>
-  );
-}
-
 function Section({
   titre,
   icone,
@@ -430,19 +418,6 @@ function Tuile({ icone, libelle, onClick, badge, accent }: { readonly icone: Nom
       <span className="tuile-action__libelle">{libelle}</span>
       {badge ? <span className="visuellement-cache">({badge})</span> : null}
     </button>
-  );
-}
-
-/** Barre de progression accessible (rôle et valeurs, pas la couleur seule). */
-function Progression({ valeur, max, libelle }: { readonly valeur: number; readonly max: number; readonly libelle: string }) {
-  const pct = max > 0 ? Math.round((valeur / max) * 100) : 0;
-  return (
-    <div className="progression" role="progressbar" aria-label={libelle} aria-valuemin={0} aria-valuemax={max} aria-valuenow={valeur}>
-      <span className="progression__piste">
-        <span className="progression__barre" style={{ transform: `scaleX(${pct / 100})` }} />
-      </span>
-      <span className="progression__pct">{pct} %</span>
-    </div>
   );
 }
 

@@ -19,7 +19,7 @@ String _day(BuildContext context, DateTime utc) =>
 
 /// Accueil « Ndop ». Emplacements STABLES, dans cet ordre :
 /// héros indigo (salutation, reste à régler, échéance, action principale, à
-/// confirmer, bande du cycle, lisière) ; raccourcis du groupe ; « À faire » (règles explicables : envoi à
+/// confirmer, perles du cycle) ; raccourcis du groupe ; « À faire » (règles explicables : envoi à
 /// reprendre, confirmations de ma fonction, vote ouvert) ; prochaine séance ;
 /// activité récente du groupe. Aucune donnée inventée.
 class HomeContent extends StatelessWidget {
@@ -106,7 +106,7 @@ class HomeContent extends StatelessWidget {
 }
 
 /// Héros de l'accueil : prolonge la barre. Un seul message (ce que je dois, ou
-/// « à jour »), une action, puis la bande du cycle et la lisière.
+/// « à jour »), une action, puis le rang de perles du cycle.
 class _Hero extends StatelessWidget {
   const _Hero({required this.data, this.firstName});
   final HomeData data;
@@ -123,10 +123,10 @@ class _Hero extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         NdopSurface(
-          variant: 0,
           opacity: .2,
           tile: 34,
           fadeTo: Alignment.centerLeft,
+          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
             child: Column(
@@ -193,13 +193,12 @@ class _Hero extends StatelessWidget {
             ),
           ),
         ),
-        KombeSelvedge(alert: data.late),
       ],
     );
   }
 }
 
-/// Raccourci : picto sur coupe de tissu, libellé dessous.
+/// Raccourci : picto dans un disque, libellé dessous.
 class _Shortcut extends StatelessWidget {
   const _Shortcut({required this.icon, required this.label, required this.onTap});
   final IconData icon;
@@ -305,8 +304,10 @@ class HomeSkeleton extends StatelessWidget {
         child: ListView(
           physics: const NeverScrollableScrollPhysics(),
           children: <Widget>[
-            Container(height: 320, color: KombeColors.forest),
-            const KombeSelvedge(),
+            Container(
+              height: 320,
+              decoration: const BoxDecoration(color: KombeColors.forest, borderRadius: BorderRadius.vertical(bottom: Radius.circular(30))),
+            ),
             const SizedBox(height: 22),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 24),

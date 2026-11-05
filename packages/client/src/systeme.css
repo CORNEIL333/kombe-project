@@ -11,36 +11,36 @@
 /* ══ 1 · Jetons ═══════════════════════════════════════════════════════════ */
 .app--session,
 body:has(.app--session) {
-  --s-foret: #103c32;
-  --s-jade: #16765e;
-  --s-ivoire: #fbf8f1;
-  --s-menthe: #dcefe6;
-  --s-menthe-pale: #eef7f2;
-  --s-or: #c99439;
-  --s-or-texte: #8a5f14;
-  --s-or-pale: #f4e6c9;
-  --s-encre: #13211c;
-  --s-ardoise: #56645e;
-  --s-sable: #f3ecdd;
-  --s-trait: #e7dcc6;
-  --s-trait-fort: #d9d0bc;
-  --s-danger: #b42318;
-  --s-ok-fond: #e3f2ea;
-  --s-attente-fond: #fbf0de;
-  --s-danger-fond: #fbeae7;
+  --s-foret: #161a5c;
+  --s-jade: #2f35a8;
+  --s-ivoire: #f5f5fb;
+  --s-menthe: #e4e5fa;
+  --s-menthe-pale: #eeeefb;
+  --s-or: #f5b700;
+  --s-or-texte: #7a5600;
+  --s-or-pale: #fff0c2;
+  --s-encre: #12142e;
+  --s-ardoise: #4e5270;
+  --s-sable: #ededf7;
+  --s-trait: #dadbf0;
+  --s-trait-fort: #c3c5e6;
+  --s-danger: #c92a12;
+  --s-ok-fond: #ddf3e8;
+  --s-attente-fond: #fff0c2;
+  --s-danger-fond: #fde6e1;
   --s-blanc: #ffffff;
   --s-rayon: 22px;
   --s-rayon-champ: 16px;
-  --s-rayon-pastille: 12px;
+  --s-rayon-pastille: 999px;
   --s-courbe: cubic-bezier(0.2, 0.8, 0.2, 1);
   --s-duree: 200ms;
   --s-ui: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --s-titre: "Fraunces", Georgia, "Times New Roman", serif;
 
   /* Motif « Ndop » (toile bamiléké) : traits ivoire ≈ 12 % sur forêt. */
-  --s-ndop-losanges: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M14 0L28 14 14 28 0 14z' fill='none' stroke='%23FBF8F1' stroke-opacity='.13' stroke-width='1.1'/%3E%3Cg fill='%23FBF8F1' fill-opacity='.2'%3E%3Ccircle cx='14' cy='14' r='1.6'/%3E%3Ccircle cx='0' cy='0' r='1.3'/%3E%3Ccircle cx='28' cy='0' r='1.3'/%3E%3Ccircle cx='0' cy='28' r='1.3'/%3E%3Ccircle cx='28' cy='28' r='1.3'/%3E%3C/g%3E%3C/svg%3E");
-  --s-ndop-chevrons: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='22' viewBox='0 0 32 22'%3E%3Cg fill='none' stroke='%23FBF8F1' stroke-opacity='.13' stroke-width='1.1' stroke-linecap='round'%3E%3Cpath d='M0 11l8-6 8 6 8-6 8 6'/%3E%3Cpath d='M4 18h5M20 18h5'/%3E%3C/g%3E%3C/svg%3E");
-  --s-ndop-anneaux: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Ccircle cx='18' cy='18' r='7' fill='none' stroke='%23FBF8F1' stroke-opacity='.13' stroke-width='1.1'/%3E%3Cg fill='%23FBF8F1' fill-opacity='.22'%3E%3Ccircle cx='18' cy='11' r='1.6'/%3E%3Ccircle cx='25' cy='18' r='1.6'/%3E%3Ccircle cx='18' cy='25' r='1.6'/%3E%3Ccircle cx='11' cy='18' r='1.6'/%3E%3C/g%3E%3C/svg%3E");
+  --s-ndop-losanges: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M14 0L28 14 14 28 0 14z' fill='none' stroke='%23FBF8F1' stroke-opacity='.24' stroke-width='1.1'/%3E%3Cg fill='%23FBF8F1' fill-opacity='.2'%3E%3Ccircle cx='14' cy='14' r='1.6'/%3E%3Ccircle cx='0' cy='0' r='1.3'/%3E%3Ccircle cx='28' cy='0' r='1.3'/%3E%3Ccircle cx='0' cy='28' r='1.3'/%3E%3Ccircle cx='28' cy='28' r='1.3'/%3E%3C/g%3E%3C/svg%3E");
+  --s-ndop-chevrons: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='22' viewBox='0 0 32 22'%3E%3Cg fill='none' stroke='%23FBF8F1' stroke-opacity='.24' stroke-width='1.1' stroke-linecap='round'%3E%3Cpath d='M0 11l8-6 8 6 8-6 8 6'/%3E%3Cpath d='M4 18h5M20 18h5'/%3E%3C/g%3E%3C/svg%3E");
+  --s-ndop-anneaux: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Ccircle cx='18' cy='18' r='7' fill='none' stroke='%23FBF8F1' stroke-opacity='.24' stroke-width='1.1'/%3E%3Cg fill='%23FBF8F1' fill-opacity='.22'%3E%3Ccircle cx='18' cy='11' r='1.6'/%3E%3Ccircle cx='25' cy='18' r='1.6'/%3E%3Ccircle cx='18' cy='25' r='1.6'/%3E%3Ccircle cx='11' cy='18' r='1.6'/%3E%3C/g%3E%3C/svg%3E");
   /* Variante pour surfaces ivoire : traits forêt ≈ 7 %. */
   --s-ndop-anneaux-clair: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Ccircle cx='18' cy='18' r='7' fill='none' stroke='%23103C32' stroke-opacity='.08' stroke-width='1.1'/%3E%3Cg fill='%23103C32' fill-opacity='.1'%3E%3Ccircle cx='18' cy='11' r='1.6'/%3E%3Ccircle cx='25' cy='18' r='1.6'/%3E%3Ccircle cx='18' cy='25' r='1.6'/%3E%3Ccircle cx='11' cy='18' r='1.6'/%3E%3C/g%3E%3C/svg%3E");
   /* Illustration des états vides : anneau, quatre nœuds, arc d'or. */
@@ -137,8 +137,8 @@ body:has(.app--session) {
   --r-m: 16px;
   --r-l: 22px;
   --r-xl: 28px;
-  --ombre-1: 0 1px 2px rgba(16, 60, 50, 0.05);
-  --ombre-2: 0 10px 30px -18px rgba(16, 60, 50, 0.28);
+  --ombre-1: 0 1px 2px rgba(22, 26, 92, 0.05);
+  --ombre-2: 0 10px 30px -18px rgba(22, 26, 92, 0.28);
   /* premium.css (--p-*) : mêmes valeurs, ombres adoucies */
   --p-foret: var(--s-foret);
   --p-jade: var(--s-jade);
@@ -152,8 +152,8 @@ body:has(.app--session) {
   --p-alerte: var(--s-danger);
   --p-rayon-m: 16px;
   --p-rayon-l: 22px;
-  --p-ombre-1: 0 1px 2px rgba(16, 60, 50, 0.05);
-  --p-ombre-2: 0 10px 30px -18px rgba(16, 60, 50, 0.3);
+  --p-ombre-1: 0 1px 2px rgba(22, 26, 92, 0.05);
+  --p-ombre-2: 0 10px 30px -18px rgba(22, 26, 92, 0.3);
   --p-duree: var(--s-duree);
 }
 
@@ -297,7 +297,7 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 .app--session .bouton.bouton-compact { min-height: 44px; padding: 0 16px; font-size: 14px; border-radius: 999px; }
 .app--session .bouton.bouton-icone-seule { width: 44px; min-width: 44px; padding: 0; }
 .app--session .bouton.bouton-or { background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); }
-.app--session .bouton.bouton-or:hover:not(:disabled) { background: #d6a54d; border-color: #d6a54d; }
+.app--session .bouton.bouton-or:hover:not(:disabled) { background: #ffc72e; border-color: #ffc72e; }
 .app--session .bouton.bouton-danger, body:has(.app--session) [role="dialog"] .bouton.bouton-danger { background: var(--s-danger); border-color: var(--s-danger); color: #fff; }
 .app--session .bouton:disabled, body:has(.app--session) [role="dialog"] .bouton:disabled { background: #ece6d8; border-color: #ece6d8; color: #7d8681; cursor: not-allowed; opacity: 1; }
 .app--session .bouton.bouton-secondaire:disabled { background: var(--s-blanc); border-color: var(--s-trait); color: #9aa39f; }
@@ -314,7 +314,7 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 .app--session .bouton.hero-cotisation__cta { border-radius: 999px; }
 @media (min-width: 900px) {
   .app--session .bouton.hero-cotisation__cta { min-height: 56px; padding: 0 28px; background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); font-size: 16px; }
-  .app--session .bouton.hero-cotisation__cta:hover:not(:disabled) { background: #d6a54d; border-color: #d6a54d; }
+  .app--session .bouton.hero-cotisation__cta:hover:not(:disabled) { background: #ffc72e; border-color: #ffc72e; }
 }
 
 /* Boutons-icônes (en-têtes) : pastille arrondie, cohérente. */
@@ -392,12 +392,12 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
   border-radius: 999px; font: 700 12.5px/1.25 var(--s-ui); letter-spacing: 0.005em; white-space: normal;
 }
 .app--session .pastille > span[aria-hidden="true"] { font-size: 0.7em; line-height: 1; }
-.app--session .pastille--ok { background: var(--s-ok-fond); color: var(--s-jade); }
+.app--session .pastille--ok { background: var(--s-ok-fond); color: #0b7a53; }
 .app--session .pastille--attente { background: var(--s-attente-fond); color: var(--s-or-texte); }
 .app--session .pastille--alerte { background: var(--s-danger-fond); color: var(--s-danger); }
 .app--session .pastille--neutre { background: var(--s-sable); color: var(--s-ardoise); }
 .app--session .pastille--argent { background: var(--s-or-pale); color: var(--s-or-texte); }
-.app--session .etiquette--ok { background: var(--s-ok-fond); color: var(--s-jade); }
+.app--session .etiquette--ok { background: var(--s-ok-fond); color: #0b7a53; }
 .app--session .etiquette--attente, .app--session .etiquette--or { background: var(--s-or-pale); color: var(--s-or-texte); }
 
 .app--session .recap, .app--session .recapitulatif dl { margin: 0; }
@@ -475,10 +475,10 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 .app--session .carte-cotisation::before,
 .app--session .entete-ecran::before {
   content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: -1; pointer-events: none;
-  background-image: var(--s-ndop-losanges);
+  background-image: var(--s-ndop-anneaux);
   -webkit-mask-image: linear-gradient(90deg, transparent 30%, #000 85%); mask-image: linear-gradient(90deg, transparent 30%, #000 85%);
 }
-.app--session .bandeau-accueil::before, .app--session .carte-seance::before { background-image: var(--s-ndop-chevrons); }
+.app--session .bandeau-accueil::before, .app--session .carte-seance::before { background-image: var(--s-ndop-anneaux); }
 .app--session .menu-lateral__tete::before, .app--session .menu-lateral__pied::before, .app--session .carte-promo::before { background-image: var(--s-ndop-anneaux); }
 .app--session .menu-lateral__pied::before { -webkit-mask-image: none; mask-image: none; }
 .app--session .entete-ecran::before {
@@ -492,25 +492,25 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 }
 .app--session .entete-groupe { padding: 6px 16px 22px; }
 .app--session #contenu .entete-groupe__nom { font-size: 1.6rem; line-height: 1.12; }
-.app--session .entete-groupe__meta { font-size: 13.5px; color: rgba(251, 248, 241, 0.82); }
+.app--session .entete-groupe__meta { font-size: 13.5px; color: rgba(245, 245, 251, 0.82); }
 .app--session .entete-groupe__tour { font-size: 13.5px; color: var(--s-or-pale); }
 @media (min-width: 900px) {
   .app--session .entete-groupe { margin: 0 0 4px; padding: 14px 28px 28px; border-radius: var(--s-rayon); }
   .app--session #contenu .entete-groupe__nom { font-size: 2.1rem; }
   .app--session .entete-groupe__identite { margin-top: 0; }
 }
-.app--session .hero-cotisation { box-shadow: 0 10px 30px -18px rgba(16, 60, 50, 0.35); }
+.app--session .hero-cotisation { box-shadow: 0 10px 30px -18px rgba(22, 26, 92, 0.35); }
 @media (min-width: 900px) {
   .app--session .hero-cotisation { isolation: isolate; background-image: none; }
   .app--session .hero-cotisation::before {
-    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: -1; pointer-events: none; background-image: var(--s-ndop-losanges);
+    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: -1; pointer-events: none; background-image: var(--s-ndop-anneaux);
     -webkit-mask-image: linear-gradient(90deg, transparent 35%, #000 75%); mask-image: linear-gradient(90deg, transparent 35%, #000 75%);
   }
   .app--session .carte-seance__vignette {
     position: relative; background: var(--s-foret) var(--s-ndop-anneaux) center / 36px 36px;
   }
 }
-.app--session .avatar-groupe[data-motif="1"] { background-image: var(--s-ndop-losanges); background-size: 14px 14px; }
+.app--session .avatar-groupe[data-motif="1"] { background-image: var(--s-ndop-anneaux); background-size: 14px 14px; }
 .app--session .avatar-groupe[data-motif="2"] { background-image: var(--s-ndop-anneaux); background-size: 18px 18px; }
 
 /* Onglets : pilules défilantes (icône + libellé sur une ligne). */
@@ -563,12 +563,12 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
   -webkit-mask-image: linear-gradient(200deg, #000 10%, transparent 60%); mask-image: linear-gradient(200deg, #000 10%, transparent 60%);
 }
 .app--session .rail-carte--foret .rail-carte__sur { color: var(--s-or-pale); }
-.app--session .rail-carte__titre { margin: 6px 0 0; font: 700 14.5px/1.35 var(--s-ui); color: rgba(251, 248, 241, 0.9); }
+.app--session .rail-carte__titre { margin: 6px 0 0; font: 700 14.5px/1.35 var(--s-ui); color: rgba(245, 245, 251, 0.9); }
 .app--session .rail-carte__montant { margin: 14px 0 0; font-size: 2rem; line-height: 1.05; color: var(--s-ivoire); }
-.app--session .rail-carte__piste { height: 6px; margin: 12px 0 8px; border-radius: 999px; background: rgba(251, 248, 241, 0.16); overflow: hidden; }
+.app--session .rail-carte__piste { height: 6px; margin: 12px 0 8px; border-radius: 999px; background: rgba(245, 245, 251, 0.16); overflow: hidden; }
 .app--session .rail-carte__piste > span { display: block; height: 100%; border-radius: 999px; background: var(--s-or); }
 .app--session .rail-carte__note { display: block; margin: 0; font-size: 13px; line-height: 1.4; color: var(--s-ardoise); }
-.app--session .rail-carte--foret .rail-carte__note { color: rgba(251, 248, 241, 0.78); }
+.app--session .rail-carte--foret .rail-carte__note { color: rgba(245, 245, 251, 0.78); }
 .app--session .rail-carte--lien { display: flex; align-items: center; min-height: 72px; cursor: pointer; transition: border-color var(--s-duree) var(--s-courbe); }
 .app--session .rail-carte--lien:hover { border-color: var(--s-trait-fort); }
 .app--session .rail-carte--lien:focus-visible { outline: 2px solid var(--s-jade); outline-offset: 2px; }
@@ -621,36 +621,101 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 /* Titres d'une même rangée sur la même ligne, avec ou sans action à droite. */
 .app--session .section-accueil .titre-section--action { min-height: 44px; margin: 18px 0 6px; }
 
-/* Accueil téléphone : même héros que l'application mobile. La barre, la salutation
-   et le montant forment une seule surface forêt, arrondie en bas ; montant Fraunces,
-   anneau du cycle à droite, action ivoire. */
-.hero-cotisation__anneau { display: none; }
-@media (max-width: 899px) {
-  .app--session .bandeau-accueil { padding: 2px 16px 0; }
-  .app--session .bandeau-accueil::before { display: none; }
-  .app--session .bandeau-accueil__marque, .app--session .bandeau-accueil__groupe { display: none; }
-  .app--session .hero-cotisation {
-    isolation: isolate; margin: 0 -16px; padding: 12px 16px 22px; border-radius: 0 0 32px 32px;
-    background: var(--s-foret); color: var(--s-ivoire); box-shadow: none;
-  }
-  .app--session .hero-cotisation::before {
-    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: -1; pointer-events: none; background-image: var(--s-ndop-losanges);
-    -webkit-mask-image: linear-gradient(90deg, transparent 30%, #000 85%); mask-image: linear-gradient(90deg, transparent 30%, #000 85%);
-  }
-  .app--session .hero-cotisation__contenu { padding-right: 0; }
-  .app--session .hero-cotisation__libelle { font: 800 0.72rem/1.2 var(--s-ui, Manrope, sans-serif); letter-spacing: 0.08em; text-transform: uppercase; color: #e2b868; }
-  .app--session .hero-cotisation__montant { margin-top: 6px; max-width: calc(100% - 96px); font-size: clamp(2rem, 9.6vw, 2.5rem); color: var(--s-ivoire); }
-  .app--session .hero-cotisation__echeance { max-width: calc(100% - 96px); margin: 6px 0 18px; color: rgba(251, 248, 241, 0.8); }
-  .app--session .hero-cotisation__echeance svg { display: inline; flex: 0 0 auto; }
-  .app--session .is-retard .hero-cotisation__echeance { color: #ffb4a6; }
-  .app--session .hero-cotisation__ajour { color: var(--s-ivoire); font-family: var(--s-titre); font-weight: 600; font-size: 1.6rem; max-width: calc(100% - 96px); }
-  .app--session .hero-cotisation__ajour svg { color: #e2b868; }
-  .app--session .bouton.hero-cotisation__cta, .app--session .hero-cotisation__cta { background: var(--s-ivoire); border-color: var(--s-ivoire); color: var(--s-foret); box-shadow: none; }
-  .app--session .hero-cotisation__anneau { position: absolute; top: 8px; right: 16px; display: block; width: 86px; height: 86px; color: var(--s-ivoire); }
-  .app--session .hero-cotisation__anneau svg { display: block; }
-  .app--session .hero-cotisation__anneau span {
-    position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center;
-    font: 600 1.25rem/1 var(--s-titre); font-variant-numeric: tabular-nums lining-nums;
-  }
-  .app--session .ligne-attente { margin-top: 14px; }
+
+/* ══ Direction « Ndop » (docs/refonte/DESIGN.md) : tout est rond ═══════════ */
+.app--session, body:has(.app--session) {
+  --s-vermillon: #c92a12;
+  --s-couture: repeating-linear-gradient(90deg, var(--s-trait-fort) 0 5px, transparent 5px 10px);
 }
+/* Titres : voix d'enseigne (Fraunces gras, coupe la plus expressive). */
+.app--session h1, .app--session h2, .app--session .ecran-titre-simple, .app--session .entete-groupe__nom,
+.app--session .hero-cotisation__montant, .app--session .montant, .app--session .ligne-riche__montant {
+  font-family: var(--s-titre); font-weight: 800; font-variation-settings: "opsz" 144, "SOFT" 50, "WONK" 1; letter-spacing: -0.02em;
+}
+.app--session .ecran-titre-simple { font-size: clamp(2rem, 9vw, 2.6rem); color: var(--s-foret); }
+.app--session .titre-section--action h2, .app--session .activite h2.titre-section { font-size: 1.45rem; color: var(--s-foret); }
+.app--session .ecran-sous-titre { display: none; }
+
+/* Surfaces : pas de filet beige, l'espace et la couleur structurent. */
+.app--session .tcarte, .app--session .rail-carte, .app--session .carte-rail, .app--session .recap, .app--session .formulaire-encart { border: 0; box-shadow: none; }
+.app--session .ligne-riche__ico { border-radius: 999px; }
+.app--session .ligne-riche__ico--initiales { background: var(--s-foret); color: #fff; font-family: var(--s-titre); font-weight: 700; }
+.app--session .tuile-action { border: 0; box-shadow: none; background: var(--s-menthe); color: var(--s-foret); border-radius: 22px; }
+.app--session .tuile-action--accent { background: var(--s-or); color: var(--s-encre); }
+
+/* Listes cousues. */
+.app--session .liste__ligne + .liste__ligne, .app--session .lignes > li + li { border-top: 0; background-image: var(--s-couture); background-size: 100% 2px; background-repeat: no-repeat; background-position: top; }
+
+/* Avatar de tontine : rond ; photo, sinon initiales sur la teinte et le motif du groupe. */
+.app--session .avatar-groupe, .app--session .avatar-groupe--rond, .app--session .carte-groupe__corps > .avatar-groupe, .app--session .selecteur-groupe .avatar-groupe { border-radius: 999px; box-shadow: none; }
+.app--session .avatar-groupe { isolation: isolate; background: var(--s-foret); }
+.app--session [data-teinte="1"] { --teinte: #b02410; }
+.app--session [data-teinte="2"] { --teinte: #0a6b49; }
+.app--session [data-teinte="3"] { --teinte: #2f35a8; }
+.app--session .avatar-groupe[data-teinte] { background: var(--teinte, var(--s-foret)) var(--s-ndop-anneaux) center / 42% 42%; }
+.app--session .avatar-groupe[data-teinte]::before { content: ""; position: absolute; z-index: -1; top: 16%; left: 16%; width: 68%; height: 68%; border-radius: 999px; background: var(--teinte, var(--s-foret)); box-shadow: 0 0 0 2px var(--s-or); }
+.app--session .avatar-groupe__initiales { font-family: var(--s-titre); font-weight: 800; color: #fff; font-size: .8em; }
+
+/* Coupons de tissu : un groupe, une couleur. */
+.app--session .cartes-groupes { display: grid; grid-gap: 16px; padding: 0; list-style: none; }
+.app--session .carte-groupe { padding: 0; margin: 0; border: 0; border-radius: 24px; overflow: hidden; box-shadow: none; background: var(--teinte, var(--s-foret)) var(--s-ndop-anneaux); color: #fff; }
+.app--session .carte-groupe.is-actif { box-shadow: 0 0 0 3px var(--s-or); }
+.app--session .carte-groupe__corps, .app--session .carte-groupe__pied, .app--session .carte-groupe__prochaine, .app--session .carte-groupe__bureau { background: transparent; color: #fff; border: 0; }
+.app--session .carte-groupe__nom { font-family: var(--s-titre); font-weight: 800; font-variation-settings: "opsz" 144, "SOFT" 50, "WONK" 1; font-size: 1.5rem; line-height: 1.1; color: #fff; }
+.app--session .carte-groupe__meta, .app--session .carte-groupe__cycle, .app--session .carte-groupe__prochaine-texte, .app--session .carte-groupe__prochaine-texte span, .app--session .carte-groupe__prochaine-texte strong { color: #fff; }
+.app--session .carte-groupe__calendrier { background: var(--s-or); color: var(--s-encre); border-radius: 999px; }
+.app--session .carte-groupe__cycle { display: block; }
+.app--session .carte-groupe__cycle .bande-cycle { margin-top: 6px; }
+.app--session .carte-groupe__pied { border-top: 0; }
+
+/* Perles du cycle. */
+.bande-cycle { display: flex; align-items: center; justify-content: space-between; gap: 3px; width: 100%; }
+.bande-cycle i { flex: 0 1 22px; min-width: 3px; aspect-ratio: 1; border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4); }
+.bande-cycle i.est-passe, .bande-cycle i.est-courant { box-shadow: none; animation: enfilage 380ms cubic-bezier(.2, .8, .2, 1) both; }
+.bande-cycle i.est-passe { background: #f5b700; }
+.bande-cycle i.est-courant { background: radial-gradient(circle, #f5b700 0 40%, #fff 42%); }
+.bande-cycle--clair i { box-shadow: inset 0 0 0 1.5px #c3c5e6; }
+.bande-cycle--clair i.est-courant { background: radial-gradient(circle, #f5b700 0 40%, #161a5c 42%); }
+@keyframes enfilage { from { transform: scale(0); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bande-cycle i { animation: none !important; } }
+
+/* Héros : un seul message, puis les perles. */
+.app--session .hero-cotisation { box-shadow: none; background-color: var(--s-foret); color: #fff; isolation: isolate; }
+.app--session .hero-cotisation::before {
+  content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: -1; pointer-events: none; background-image: var(--s-ndop-anneaux);
+  -webkit-mask-image: linear-gradient(90deg, transparent 25%, #000 80%); mask-image: linear-gradient(90deg, transparent 25%, #000 80%);
+}
+.app--session .hero-cotisation__pieces { display: none; }
+.app--session .hero-cotisation__montant { color: #fff; }
+.app--session .hero-cotisation__libelle { color: #ffd34d; }
+.app--session .hero-cotisation__echeance { color: rgba(255, 255, 255, 0.86); font-weight: 700; }
+.app--session .is-retard .hero-cotisation__echeance { color: #ffb4a6; }
+.app--session .hero-cotisation__ajour { color: #fff; font-family: var(--s-titre); font-weight: 800; font-size: 2.2rem; }
+.app--session .bouton.hero-cotisation__cta, .app--session .hero-cotisation__cta { background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); box-shadow: none; }
+.hero-cotisation__cycle { margin-top: 16px; }
+.hero-cotisation__cycle > span { display: block; margin-top: 6px; color: rgba(255, 255, 255, 0.86); font-size: 14px; font-weight: 600; }
+@media (max-width: 899px) {
+  .app--session .bandeau-accueil { padding: 2px 16px 0; background: var(--s-foret); }
+  .app--session .bandeau-accueil::before, .app--session .bandeau-accueil__marque, .app--session .bandeau-accueil__groupe { display: none; }
+  .app--session .hero-cotisation { margin: 0 -16px; padding: 14px 16px 20px; border-radius: 0 0 30px 30px; }
+  .app--session .hero-cotisation__libelle { font: 800 0.8rem/1.2 var(--s-ui); letter-spacing: 0.08em; text-transform: uppercase; }
+  .app--session .hero-cotisation__montant { margin-top: 4px; font-size: clamp(2.6rem, 13.5vw, 3.4rem); }
+  .app--session .hero-cotisation__echeance { margin: 6px 0 16px; }
+  .app--session .bouton.hero-cotisation__cta, .app--session .hero-cotisation__cta { min-height: 56px; }
+}
+
+/* Barre du bas : indigo, disque maïs. */
+.app--session .nav-basse { background: var(--s-foret); border-top: 0; box-shadow: none; }
+.app--session .nav-basse__item { color: #fff; }
+.app--session .nav-basse__item.is-actif { color: #fff; font-weight: 800; }
+.app--session .nav-basse__item.is-actif .nav-basse__icone { background: var(--s-or); color: var(--s-encre); border-radius: 999px; }
+.app--session .nav-basse__pastille { background: var(--s-vermillon); }
+
+/* Colonne. */
+.app--session .menu-lateral__nav .menu-lateral__lien[aria-current="page"] { background: var(--s-or); color: var(--s-encre); border-radius: 999px; }
+.app--session .menu-lateral__groupe.is-choisi { background: var(--s-menthe); border-radius: 18px; }
+
+/* Activité : frise cousue. */
+.app--session .activite .lignes { position: relative; }
+.app--session .activite .lignes::before { content: ""; position: absolute; left: 30px; top: 8px; bottom: 8px; width: 2px; background: repeating-linear-gradient(180deg, var(--s-trait-fort) 0 5px, transparent 5px 10px); }
+.app--session .activite .lignes > li { background: none; position: relative; }

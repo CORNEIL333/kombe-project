@@ -18,8 +18,8 @@
   --p-rayon-s: 10px;
   --p-rayon-m: 16px;
   --p-rayon-l: 24px;
-  --p-ombre-1: 0 1px 2px rgba(16, 60, 50, 0.06), 0 4px 14px -6px rgba(16, 60, 50, 0.16);
-  --p-ombre-2: 0 2px 4px rgba(16, 60, 50, 0.08), 0 14px 36px -14px rgba(16, 60, 50, 0.32);
+  --p-ombre-1: 0 1px 2px rgba(22, 26, 92, 0.06), 0 4px 14px -6px rgba(22, 26, 92, 0.16);
+  --p-ombre-2: 0 2px 4px rgba(22, 26, 92, 0.08), 0 14px 36px -14px rgba(22, 26, 92, 0.32);
   --p-espace-1: 4px;
   --p-espace-2: 8px;
   --p-espace-3: 12px;
@@ -34,7 +34,7 @@
   overflow: hidden; border-radius: 28%;
   /* Repli : initiales sur l'anneau KÓMBE (motif vectoriel, pas de photo d'illustration). */
   background:
-    radial-gradient(circle at 50% 50%, transparent 52%, rgba(201, 148, 57, 0.35) 53%, rgba(201, 148, 57, 0.35) 60%, transparent 61%),
+    radial-gradient(circle at 50% 50%, transparent 52%, rgba(245, 183, 0, 0.35) 53%, rgba(245, 183, 0, 0.35) 60%, transparent 61%),
     var(--p-foret);
   color: var(--p-ivoire); font-weight: 800; letter-spacing: 0.02em;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
@@ -52,7 +52,7 @@
   padding: var(--p-espace-4) var(--p-espace-4) var(--p-espace-6);
   border-radius: var(--p-rayon-l); color: var(--p-ivoire);
   background-color: var(--p-foret);
-  background-image: linear-gradient(180deg, rgba(16, 60, 50, 0.55), rgba(16, 60, 50, 0.92)), url("/brand/fonds/confirmation.webp");
+  background-image: linear-gradient(180deg, rgba(22, 26, 92, 0.55), rgba(22, 26, 92, 0.92)), url("/brand/fonds/confirmation.webp");
   background-size: cover; background-position: center;
   box-shadow: var(--p-ombre-2);
 }
@@ -77,7 +77,7 @@
 .bouton-or {
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--p-or); color: var(--p-encre); border-color: var(--p-or);
-  font-weight: 800; box-shadow: 0 6px 18px -8px rgba(201, 148, 57, 0.8);
+  font-weight: 800; box-shadow: 0 6px 18px -8px rgba(245, 183, 0, 0.8);
 }
 .bouton-or svg { margin-right: 8px; }
 .bouton-or:hover { background: #d6a54d; }
@@ -102,7 +102,7 @@
   border: 0; background: transparent; text-align: left; font: inherit; color: var(--p-encre); cursor: pointer; border-radius: var(--p-rayon-m);
 }
 .carte-groupe__corps:disabled { cursor: default; opacity: 0.75; }
-.carte-groupe__corps:hover:not(:disabled) { background: rgba(16, 60, 50, 0.03); }
+.carte-groupe__corps:hover:not(:disabled) { background: rgba(22, 26, 92, 0.03); }
 .carte-groupe__corps > .avatar-groupe { margin-right: 14px; }
 .carte-groupe__texte { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .carte-groupe__nom { font-weight: 800; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -112,17 +112,17 @@
 .carte-groupe__date { font-size: 0.85rem; color: var(--p-texte-2); }
 .carte-groupe__bureau {
   flex: 0 0 auto; align-self: center; width: 48px; height: 48px; margin-right: 8px; border: 0; border-radius: 14px;
-  background: var(--p-or-pale); color: #7a5410; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--p-or-pale); color: #7a5600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
 }
 .etiquette { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
-.etiquette--ok { background: var(--p-menthe); color: #0d5a43; }
-.etiquette--attente { background: var(--p-or-pale); color: #6b4a0e; }
+.etiquette--ok { background: var(--p-menthe); color: #0b7a53; }
+.etiquette--attente { background: var(--p-or-pale); color: #7a5600; }
 
 /* ── En-tête de la fiche groupe ───────────────────────────────────────── */
 .entete-groupe {
   margin: 0 -16px var(--p-espace-3); padding: 8px 16px 20px;
   background-color: var(--p-foret);
-  background-image: linear-gradient(180deg, rgba(16, 60, 50, 0.62), rgba(16, 60, 50, 0.95)), url("/brand/fonds/yaounde.webp");
+  background-image: linear-gradient(180deg, rgba(22, 26, 92, 0.62), rgba(22, 26, 92, 0.95)), url("/brand/fonds/yaounde.webp");
   background-size: cover; background-position: center 40%;
   color: var(--p-ivoire); border-radius: 0 0 var(--p-rayon-l) var(--p-rayon-l);
 }
@@ -193,7 +193,7 @@
 .bandeau-accueil {
   margin: 0 -16px; padding: 18px 16px 56px;
   background-color: var(--p-foret);
-  background-image: linear-gradient(90deg, var(--p-foret) 45%, rgba(16, 60, 50, 0.4)), url("/brand/fonds/creation.webp");
+  background-image: linear-gradient(90deg, var(--p-foret) 45%, rgba(22, 26, 92, 0.4)), url("/brand/fonds/creation.webp");
   background-size: cover; background-position: right center;
   color: var(--p-ivoire);
 }
@@ -202,7 +202,7 @@
 @media (min-width: 900px) { .bandeau-accueil { margin: 0; border-radius: var(--p-rayon-l); padding-bottom: 56px; } }
 
 /* Coque (double cadre) : la carte repose dans un plateau, rayons concentriques. */
-.coque { position: relative; margin-top: -40px; padding: 6px; border-radius: 30px; background: rgba(16, 60, 50, 0.06); box-shadow: inset 0 0 0 1px rgba(16, 60, 50, 0.06); }
+.coque { position: relative; margin-top: -40px; padding: 6px; border-radius: 30px; background: rgba(22, 26, 92, 0.06); box-shadow: inset 0 0 0 1px rgba(22, 26, 92, 0.06); }
 .coque > .carte-cotisation, .coque > .carte-rail { margin: 0; border-radius: 24px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), var(--p-ombre-2); }
 .accueil-rail .coque { margin-top: 0; }
 
@@ -231,14 +231,14 @@
 
 .section-accueil { margin-top: 8px; }
 .titre-section--action h2 { display: inline-flex; align-items: center; }
-.pastille-compte { margin-left: 8px; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: var(--p-or-pale); color: #6b4a0e; font: 800 0.78rem/22px var(--f-ui, Manrope, sans-serif); text-align: center; }
+.pastille-compte { margin-left: 8px; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: var(--p-or-pale); color: #7a5600; font: 800 0.78rem/22px var(--f-ui, Manrope, sans-serif); text-align: center; }
 
 /* Prochaine séance : carte forêt au motif tissé. */
 .carte-seance {
   display: flex; align-items: center; width: 100%; margin-top: 18px; padding: 16px; border: 0; border-radius: var(--p-rayon-l); text-align: left; cursor: pointer;
   color: var(--p-ivoire); font: inherit;
   background-color: var(--p-foret);
-  background-image: linear-gradient(90deg, var(--p-foret) 55%, rgba(16, 60, 50, 0.35)), url("/brand/fonds/creation.webp");
+  background-image: linear-gradient(90deg, var(--p-foret) 55%, rgba(22, 26, 92, 0.35)), url("/brand/fonds/creation.webp");
   background-size: cover; background-position: right center; box-shadow: var(--p-ombre-1);
 }
 .carte-seance:focus-visible { outline: 3px solid var(--p-or); outline-offset: 2px; }
@@ -296,8 +296,8 @@
 }
 
 /* Repli des avatars : initiales sur un motif tissé de la marque (jamais une personne). */
-.avatar-groupe[data-motif="1"] { background-image: linear-gradient(rgba(16, 60, 50, 0.72), rgba(16, 60, 50, 0.72)), url("/brand/fonds/creation.webp"); background-size: cover; }
-.avatar-groupe[data-motif="2"] { background-image: linear-gradient(rgba(16, 60, 50, 0.6), rgba(16, 60, 50, 0.6)), url("/brand/fonds/confirmation.webp"); background-size: cover; }
+.avatar-groupe[data-motif="1"] { background-image: linear-gradient(rgba(22, 26, 92, 0.72), rgba(22, 26, 92, 0.72)), url("/brand/fonds/creation.webp"); background-size: cover; }
+.avatar-groupe[data-motif="2"] { background-image: linear-gradient(rgba(22, 26, 92, 0.6), rgba(22, 26, 92, 0.6)), url("/brand/fonds/confirmation.webp"); background-size: cover; }
 
 /* Grand écran : la coquille occupe la largeur ; le contenu reste centré et lisible. */
 @media (min-width: 900px) {

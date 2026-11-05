@@ -324,7 +324,7 @@ class _TurnTrack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return KombeCycleBand(index: current, total: total, height: 34);
+    return KombeCycleBand(index: current, total: total, height: 30);
   }
 }
 
@@ -340,7 +340,7 @@ class _CurrentBeneficiary extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Container(
-          color: KombeColors.goldWarm,
+          decoration: BoxDecoration(color: KombeColors.goldWarm, borderRadius: BorderRadius.circular(22)),
           padding: const EdgeInsets.all(18),
           child: Row(
             children: <Widget>[
@@ -360,7 +360,6 @@ class _CurrentBeneficiary extends StatelessWidget {
             ],
           ),
         ),
-        const KombeSelvedge(),
       ],
     );
   }

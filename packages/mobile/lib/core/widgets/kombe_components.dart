@@ -82,7 +82,7 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: ShapeDecoration(color: tone.bg, shape: BeveledRectangleBorder(borderRadius: BorderRadius.circular(6))),
+        decoration: BoxDecoration(color: tone.bg, borderRadius: BorderRadius.circular(99)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -111,7 +111,7 @@ class KombeIconBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: size,
         height: size,
-        decoration: ShapeDecoration(color: tone.bg, shape: BeveledRectangleBorder(borderRadius: BorderRadius.circular(size * .24))),
+        decoration: BoxDecoration(color: tone.bg, shape: BoxShape.circle),
         child: Icon(icon, size: size * .5, color: tone.fg),
       );
 }
@@ -155,7 +155,7 @@ class KombeCard extends StatelessWidget {
     final BorderSide side = borderColor == null ? BorderSide.none : BorderSide(color: borderColor!);
     return Material(
       color: color,
-      shape: BeveledRectangleBorder(borderRadius: BorderRadius.circular(KombeSpacing.cardRadius), side: side),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KombeSpacing.cardRadius), side: side),
       clipBehavior: Clip.antiAlias,
       child: InkWell(onTap: onTap, child: Padding(padding: padding, child: child)),
     );
@@ -581,9 +581,9 @@ class KombeInlineError extends StatelessWidget {
       );
 }
 
-/// Signature de KÓMBE : la bande du cycle. Un bloc par tour, comme un rang de
-/// perles : tissé en maïs quand il est passé, blanc pour le tour en cours,
-/// vide à venir. `mine` marque mon tour d'un losange quand il est connu.
+/// Signature de KÓMBE : le rang de perles du cycle. Une perle par tour :
+/// maïs quand le tour est passé, cerclée pour le tour en cours, vide à venir.
+/// `mine` marque mon tour d'un point vermillon quand il est connu.
 class KombeCycleBand extends StatelessWidget {
   const KombeCycleBand({super.key, required this.index, required this.total, this.mine, this.onDark = false, this.height = 26});
   final int index;
@@ -621,87 +621,27 @@ class _CycleBandPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double gap = total > 24 ? 1.5 : 3;
-    final double w = (size.width - gap * (total - 1)) / total;
-    final Color base = onDark ? KombeColors.forest : Colors.white;
+    final double step = size.width / total;
+    final double r = math.min(size.height / 2, step / 2 - (total > 24 ? .6 : 1.5));
     final Color current = onDark ? Colors.white : KombeColors.forest;
-    final Color empty = onDark ? const Color(0x47FFFFFF) : KombeColors.lineStrong;
+    final Color empty = onDark ? const Color(0x59FFFFFF) : KombeColors.lineStrong;
     for (int i = 1; i <= total; i++) {
-      final double x = (i - 1) * (w + gap);
-      final Rect r = Rect.fromLTWH(x, 0, w, size.height);
-      final RRect rr = RRect.fromRectAndRadius(r, const Radius.circular(2.5));
-      final bool woven = i < index || i == index;
-      // Le tissage avance de gauche à droite.
+      final Offset c = Offset((i - .5) * step, size.height / 2);
+      // Les perles s'enfilent de gauche à droite.
       final double reveal = ((t * (index + 1)) - (i - 1)).clamp(0, 1);
-      if (woven && reveal > 0) {
-        canvas.drawRRect(rr, Paint()..color = Color.lerp(empty, i == index ? current : KombeColors.goldWarm, reveal)!);
-        if (w >= 9) {
-          // Losange réservé dans le bloc, comme sur le tissu.
-          final double d = math.min(w, size.height) * .26;
-          final Offset c = r.center;
-          final Path diamond = Path()
-            ..moveTo(c.dx, c.dy - d)
-            ..lineTo(c.dx + d, c.dy)
-            ..lineTo(c.dx, c.dy + d)
-            ..lineTo(c.dx - d, c.dy)
-            ..close();
-          canvas.drawPath(diamond, Paint()..color = i == index ? KombeColors.goldWarm : base);
-        }
+      if (i <= index && reveal > 0) {
+        canvas.drawCircle(c, r * reveal, Paint()..color = i == index ? current : KombeColors.goldWarm);
+        if (i == index) canvas.drawCircle(c, r * .42 * reveal, Paint()..color = KombeColors.goldWarm);
       } else {
-        canvas.drawRRect(rr.deflate(.6), Paint()
+        canvas.drawCircle(c, r - .7, Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2
+          ..strokeWidth = 1.4
           ..color = empty);
       }
-      if (mine == i) {
-        final Offset c = Offset(r.center.dx, size.height + 7);
-        final Path mark = Path()
-          ..moveTo(c.dx, c.dy - 4)
-          ..lineTo(c.dx + 4, c.dy)
-          ..lineTo(c.dx, c.dy + 4)
-          ..lineTo(c.dx - 4, c.dy)
-          ..close();
-        canvas.drawPath(mark, Paint()..color = KombeColors.danger);
-      }
+      if (mine == i) canvas.drawCircle(Offset(c.dx, size.height + 7), 3.5, Paint()..color = KombeColors.danger);
     }
   }
 
   @override
   bool shouldRepaint(covariant _CycleBandPainter o) => o.index != index || o.total != total || o.mine != mine || o.onDark != onDark || o.t != t;
-}
-
-/// Lisière : bordure de triangles maïs et vermillon (toghu) qui termine une
-/// surface indigo. Elle remplace les coins arrondis du héros.
-class KombeSelvedge extends StatelessWidget {
-  const KombeSelvedge({super.key, this.height = 11, this.alert = false});
-  final double height;
-  /// Retard : la lisière passe au vermillon seul, sans autre dramatisation.
-  final bool alert;
-
-  @override
-  Widget build(BuildContext context) => ExcludeSemantics(child: CustomPaint(size: Size(double.infinity, height), painter: _SelvedgePainter(alert)));
-}
-
-class _SelvedgePainter extends CustomPainter {
-  _SelvedgePainter(this.alert);
-  final bool alert;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const double step = 15;
-    final Paint gold = Paint()..color = alert ? KombeColors.danger : KombeColors.goldWarm;
-    final Paint red = Paint()..color = KombeColors.danger;
-    int i = 0;
-    for (double x = -step / 2; x < size.width; x += step, i++) {
-      final Path p = Path()
-        ..moveTo(x, 0)
-        ..lineTo(x + step, 0)
-        ..lineTo(x + step / 2, size.height)
-        ..close();
-      canvas.drawPath(p, i.isEven ? gold : red);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _SelvedgePainter o) => o.alert != alert;
 }

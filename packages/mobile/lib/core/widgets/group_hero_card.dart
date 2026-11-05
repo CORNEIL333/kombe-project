@@ -31,6 +31,7 @@ class GroupHeroCard extends StatelessWidget {
           opacity: .16,
           tile: 30,
           fadeTo: Alignment.centerLeft,
+          borderRadius: BorderRadius.circular(24),
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(

@@ -48,9 +48,9 @@ Fichier verrouillé : tout écran, mobile comme PWA, en dérive. Toute exception
 
 **Polices.** Fraunces 600–700 pour montants et titres, Manrope pour le reste. Déjà embarquées : aucun poids ajouté, aucun téléchargement. Les montants sont très grands, comme une enseigne peinte.
 
-**Signature : la bande du cycle.** Un rang de blocs, un par tour : tissés en maïs quand ils sont passés, blanc pour le tour en cours, vide à venir, et mon tour marqué d'un losange. Elle remplace l'anneau et dit d'un coup d'œil où en est le groupe.
+**Signature : le rang de perles.** Une perle par tour : maïs quand le tour est passé, cerclée pour le tour en cours, vide à venir. Il dit d'un coup d'œil où en est le groupe.
 
-**Lisière.** Le héros se termine par une bordure de triangles maïs et vermillon (toghu), pas par des coins arrondis.
+**Formes.** Tout est rond : boutons pilules, avatars et pictos en disques, cartes à grands arrondis. Pas de triangles, pas de coins coupés (décision de l'utilisateur après essai).
 
 **Motif.** Vectoriel, présent et assumé sur les surfaces indigo. Jamais sous un texte de lecture. Aucune photo décorative.
 
@@ -82,14 +82,12 @@ Un seul chemin par fonction. La cloche ouvre les non-lus. Bureau (ordinateur) : 
 Tour, cycle, séance, caisse, bureau, cotisation : gardés, ce sont les mots des tontines.
 Interdits dans le produit : « épargne », « retrait ».
 
-## 4. Forme et identité (au-delà des couleurs)
+## 4. Identité
 
-- **Coupe de tissu.** Coins chanfreinés sur boutons, pictos, pastilles, cartes : plus de pilules ni de grands arrondis.
-- **Blason de tontine.** Chaque groupe a une teinte et un motif stables (indigo, vermillon, vert, indigo vif), un losange avec ses initiales ; la photo du groupe prend la même découpe.
-- **Membres.** Disques de couleurs franches, initiales Fraunces.
-- **Coupon de tissu.** Un groupe = un coupon à sa couleur, fermé par la lisière. Pas une carte blanche.
+- **Photos.** Chaque tontine et chaque membre a une photo de profil, ronde. Les initiales ne sont qu'un repli tant qu'aucune photo n'a été envoyée.
+- **Teinte de tontine.** Chaque groupe a une teinte stable (indigo, vermillon, vert, indigo vif) et le motif d'anneaux.
+- **Coupon.** Un groupe = une carte à sa couleur. Pas une carte blanche.
 - **Listes cousues.** Rangées posées sur le fond, séparées par un point de couture. Frise cousue pour l'Activité.
-- **Titres.** Fraunces 700 partout où il y a un titre (barre, sections, en-têtes).
-- **Barre du bas.** Indigo, bloc maïs pour l'onglet actif.
-- **Reçoit ce tour.** Coupon maïs : le moment fort du cycle.
-- **Retard.** La lisière passe au vermillon, rien de plus : on informe, on n'humilie pas.
+- **Titres.** Fraunces gras partout où il y a un titre.
+- **Barre du bas.** Indigo, disque maïs pour l'onglet actif.
+- **Reçoit ce tour.** Carte maïs : le moment fort du cycle.

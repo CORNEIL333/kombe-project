@@ -288,17 +288,15 @@ class _ChoiceTile extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
-          decoration: ShapeDecoration(
+          decoration: BoxDecoration(
             color: selected ? KombeColors.forest : Colors.white,
-            shape: BeveledRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-              side: BorderSide(color: selected ? KombeColors.forest : KombeColors.lineStrong, width: 1.4),
-            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: selected ? KombeColors.forest : KombeColors.lineStrong, width: 1.4),
           ),
           child: Material(
             type: MaterialType.transparency,
             child: InkWell(
-              customBorder: BeveledRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              borderRadius: BorderRadius.circular(20),
               onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),

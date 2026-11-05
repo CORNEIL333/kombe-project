@@ -56,8 +56,8 @@ abstract final class KombeType {
 }
 
 abstract final class KombeTheme {
-  /// Coupe de tissu : le coin chanfreiné remplace la pilule dans toute l'app.
-  static const BeveledRectangleBorder cut = BeveledRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(11)));
+  /// Forme des actions : la pilule, partout.
+  static const OutlinedBorder cut = StadiumBorder();
 
   static ThemeData light() {
     final ColorScheme scheme = ColorScheme.fromSeed(

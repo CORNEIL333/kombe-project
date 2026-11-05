@@ -21,7 +21,7 @@
   .barre-haut { min-height: 84px; padding: 10px 24px; background: transparent; }
   .barre-haut__titre { justify-content: flex-start; }
   .selecteur-groupe { padding: 6px 10px 6px 6px; border-radius: 18px; background: transparent; color: var(--p-encre); }
-  .selecteur-groupe:hover { background: rgba(16, 60, 50, 0.05); }
+  .selecteur-groupe:hover { background: rgba(22, 26, 92, 0.05); }
   .selecteur-groupe .avatar-groupe { display: inline-flex; margin-right: 14px; border-radius: 14px; }
   .selecteur-groupe__nom { font: 800 1.55rem/1.15 var(--f-ui, Manrope, sans-serif); letter-spacing: -0.02em; }
   .selecteur-groupe__sous { display: block; margin-top: 2px; font: 500 1rem/1.3 var(--f-ui, Manrope, sans-serif); color: var(--p-texte-2); }
@@ -33,7 +33,7 @@
 .menu-lateral__tete {
   padding: 18px 12px 14px 20px; color: var(--p-ivoire);
   background-color: var(--p-foret);
-  background-image: linear-gradient(90deg, var(--p-foret) 55%, rgba(16, 60, 50, 0.6)), url("/brand/fonds/creation.webp");
+  background-image: linear-gradient(90deg, var(--p-foret) 55%, rgba(22, 26, 92, 0.6)), url("/brand/fonds/creation.webp");
   background-size: cover; background-position: right center;
 }
 .menu-lateral__marque { display: flex; flex-direction: column; }
@@ -41,7 +41,7 @@
 .menu-lateral__fermer { color: var(--p-ivoire); }
 .menu-lateral__personne {
   display: flex; align-items: center; width: 100%; min-height: 76px; padding: 12px 16px 16px 20px; border: 0; text-align: left; cursor: pointer;
-  background: #134a3d; color: var(--p-ivoire); font: inherit; border-radius: 0 0 22px 0;
+  background: #23288a; color: var(--p-ivoire); font: inherit; border-radius: 0 0 22px 0;
 }
 .menu-lateral__personne:focus-visible { outline: 3px solid var(--p-or); outline-offset: -3px; }
 .menu-lateral__personne-avatar {
@@ -65,7 +65,7 @@
 .menu-lateral__pied {
   flex: 0 0 auto; height: 64px; margin-top: 8px;
   background-color: var(--p-foret);
-  background-image: linear-gradient(rgba(16, 60, 50, 0.55), rgba(16, 60, 50, 0.55)), url("/brand/fonds/creation.webp");
+  background-image: linear-gradient(rgba(22, 26, 92, 0.55), rgba(22, 26, 92, 0.55)), url("/brand/fonds/creation.webp");
   background-size: cover;
 }
 @media (min-width: 900px) { .menu-lateral__fermer { display: none; } }
@@ -74,7 +74,7 @@
 .bandeau-accueil {
   margin: 0 -16px; padding: 4px 16px 72px; color: var(--p-ivoire);
   background-color: var(--p-foret);
-  background-image: linear-gradient(90deg, var(--p-foret) 48%, rgba(16, 60, 50, 0.25)), url("/brand/fonds/creation.webp");
+  background-image: linear-gradient(90deg, var(--p-foret) 48%, rgba(22, 26, 92, 0.25)), url("/brand/fonds/creation.webp");
   background-size: cover; background-position: right center;
 }
 .bandeau-accueil__salut { margin: 0; font: 600 0.95rem/1.3 var(--f-ui, Manrope, sans-serif); letter-spacing: 0; color: rgba(251, 248, 241, 0.9); }
@@ -85,7 +85,7 @@
 /* ── Carte de cotisation : ivoire (téléphone), héros forêt (bureau) ───── */
 .hero-cotisation {
   position: relative; overflow: hidden; margin-top: -56px; padding: 18px 18px 20px; border-radius: 24px;
-  background: #fffdf8; color: var(--p-encre); box-shadow: var(--p-ombre-2);
+  background: #ffffff; color: var(--p-encre); box-shadow: var(--p-ombre-2);
 }
 .hero-cotisation__contenu { position: relative; z-index: 1; }
 .hero-cotisation__sur { display: none; }
@@ -98,14 +98,14 @@
 .hero-cotisation__ajour svg { margin-right: 10px; color: var(--p-jade); }
 .hero-cotisation__cta {
   display: flex; align-items: center; justify-content: center; width: 100%; min-height: 52px; border: 0; border-radius: 999px;
-  background: var(--p-foret); color: var(--p-ivoire); font-weight: 800; font-size: 1rem; box-shadow: 0 8px 20px -10px rgba(16, 60, 50, 0.7);
+  background: var(--p-foret); color: var(--p-ivoire); font-weight: 800; font-size: 1rem; box-shadow: 0 8px 20px -10px rgba(22, 26, 92, 0.7);
   transition: transform 160ms var(--p-ressort);
 }
 .hero-cotisation__cta:active { transform: scale(0.98); }
 .hero-cotisation__cta svg { margin-right: 8px; }
 .hero-cotisation__pieces {
   position: absolute; top: 16px; right: 16px; display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px;
-  border-radius: 999px; background: radial-gradient(circle at 35% 30%, #f3d48f, var(--p-or) 70%); color: #6b4a0e; box-shadow: 0 8px 18px -8px rgba(201, 148, 57, 0.9);
+  border-radius: 999px; background: radial-gradient(circle at 35% 30%, #f3d48f, var(--p-or) 70%); color: #7a5600; box-shadow: 0 8px 18px -8px rgba(245, 183, 0, 0.9);
 }
 .hero-cotisation__visuel { display: none; }
 @media (min-width: 900px) {
@@ -121,7 +121,7 @@
   .hero-cotisation__montant { font-size: 3.4rem; color: var(--p-ivoire); }
   .hero-cotisation__echeance { margin: 12px 0 22px; color: rgba(251, 248, 241, 0.92); font-size: 1.05rem; }
   .hero-cotisation__echeance svg { display: inline; margin-right: 10px; }
-  .hero-cotisation__cta { display: inline-flex; width: auto; padding: 0 30px; min-height: 58px; border-radius: 16px; background: var(--p-or); color: var(--p-encre); font-size: 1.1rem; box-shadow: 0 10px 24px -12px rgba(201, 148, 57, 0.95); }
+  .hero-cotisation__cta { display: inline-flex; width: auto; padding: 0 30px; min-height: 58px; border-radius: 16px; background: var(--p-or); color: var(--p-encre); font-size: 1.1rem; box-shadow: 0 10px 24px -12px rgba(245, 183, 0, 0.95); }
   .hero-cotisation__pieces { display: none; }
   .hero-cotisation__visuel {
     display: block; position: absolute; top: 0; right: 0; bottom: 0; width: 46%;
@@ -134,7 +134,7 @@
 /* Ligne « déclaré, en attente » (téléphone). */
 .ligne-attente {
   display: flex; align-items: center; width: 100%; min-height: 52px; margin-top: 12px; padding: 10px 14px; border: 0; border-radius: 16px;
-  background: #fffdf8; box-shadow: var(--p-ombre-1); text-align: left; font: inherit; color: var(--p-encre); cursor: pointer;
+  background: #ffffff; box-shadow: var(--p-ombre-1); text-align: left; font: inherit; color: var(--p-encre); cursor: pointer;
 }
 .ligne-attente > span { flex: 1 1 auto; margin: 0 10px; font-size: 0.9rem; }
 .ligne-attente > svg:first-child { color: var(--p-or); }
@@ -185,7 +185,7 @@
 .carte-rail__chiffres li { display: flex; align-items: center; padding: 10px 0; border-top: 1px solid var(--p-trait); }
 .carte-rail__chiffres li > span:last-child { display: flex; flex-direction: column; }
 .carte-rail__pastille { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-right: 12px; border-radius: 999px; }
-.carte-rail__pastille--or { background: var(--p-or-pale); color: #7a5410; }
+.carte-rail__pastille--or { background: var(--p-or-pale); color: #7a5600; }
 .carte-rail__pastille--jade { background: var(--p-menthe); color: var(--p-jade); }
 .carte-rail__libelle { font-size: 0.85rem; color: var(--p-texte-2); }
 .carte-rail__valeur { font-weight: 800; font-size: 1.1rem; }
@@ -199,12 +199,12 @@
 }
 .pile-avatars__un:nth-child(2) { background: var(--p-jade); }
 .pile-avatars__un:nth-child(3) { background: #8a5f14; }
-.pile-avatars__un:nth-child(4) { background: #2a8a68; }
+.pile-avatars__un:nth-child(4) { background: #0b7a53; }
 .pile-avatars__plus { background: var(--p-menthe) !important; color: var(--p-foret); }
 .carte-promo {
   margin-top: 18px; padding: 22px; border-radius: 22px; color: var(--p-ivoire);
   background-color: var(--p-foret);
-  background-image: linear-gradient(90deg, var(--p-foret) 62%, rgba(16, 60, 50, 0.2)), url("/brand/fonds/creation.webp");
+  background-image: linear-gradient(90deg, var(--p-foret) 62%, rgba(22, 26, 92, 0.2)), url("/brand/fonds/creation.webp");
   background-size: cover; background-position: right center;
 }
 .carte-promo svg { color: var(--p-or); }
@@ -242,7 +242,7 @@
 .carte-groupe__meta { display: flex; align-items: center; flex-wrap: wrap; margin-top: 4px; }
 .carte-groupe__meta svg { margin-right: 6px; color: var(--p-foret); }
 .carte-groupe__meta .etiquette { margin-left: 10px; }
-.etiquette--or { background: var(--p-or-pale); color: #6b4a0e; }
+.etiquette--or { background: var(--p-or-pale); color: #7a5600; }
 .carte-groupe__cycle { display: flex; align-items: center; margin-top: 10px; font-size: 0.9rem; }
 .carte-groupe__cycle > span:first-child { margin-right: 10px; white-space: nowrap; }
 .carte-groupe__barre { flex: 1 1 auto; height: 6px; border-radius: 999px; background: var(--p-menthe); overflow: hidden; }
@@ -252,7 +252,7 @@
 .carte-groupe__prochaine {
   flex: 1 1 auto; display: flex; align-items: center; min-height: 60px; padding: 10px 14px; border: 0; background: transparent; text-align: left; font: inherit; color: var(--p-encre); cursor: pointer;
 }
-.carte-groupe__calendrier { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-right: 12px; border-radius: 12px; background: var(--p-or-pale); color: #7a5410; }
+.carte-groupe__calendrier { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-right: 12px; border-radius: 12px; background: var(--p-or-pale); color: #7a5600; }
 .carte-groupe__prochaine-texte { flex: 1 1 auto; display: flex; flex-direction: column; font-size: 0.85rem; color: var(--p-texte-2); }
 .carte-groupe__prochaine-texte strong { font-size: 0.95rem; color: var(--p-encre); }
 .carte-groupe__bureau { margin: 0 12px 0 4px; }

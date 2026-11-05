@@ -60,7 +60,14 @@ function motif(cle: string): string {
   return String(h % 3);
 }
 
-/** Avatar carré arrondi (ou rond) d'un groupe : photo ou initiales + motif. */
+/** Teinte stable d'une tontine (0 indigo, 1 vermillon, 2 vert, 3 indigo vif) : la même sur mobile. */
+export function teinteGroupe(cle: string): string {
+  let h = 7;
+  for (let i = 0; i < cle.length; i++) h = (h * 31 + cle.charCodeAt(i)) & 0x7fffffff;
+  return String(h % 4);
+}
+
+/** Blason d'un groupe : photo ou initiales + motif. */
 export function AvatarGroupe({
   session,
   groupId,
@@ -79,7 +86,7 @@ export function AvatarGroupe({
   const url = usePhoto(session, groupId, version, taille > 96 ? 512 : 256);
   const style = { width: taille, height: taille, fontSize: Math.round(taille * 0.38) };
   return (
-    <span className={rond ? "avatar-groupe avatar-groupe--rond" : "avatar-groupe"} style={style} data-motif={url ? undefined : motif(groupId)} aria-hidden="true">
+    <span className={rond ? "avatar-groupe avatar-groupe--rond" : "avatar-groupe"} style={style} data-motif={url ? undefined : motif(groupId)} data-teinte={url ? undefined : teinteGroupe(groupId)} aria-hidden="true">
       {url ? <img src={url} alt="" width={taille} height={taille} decoding="async" /> : <span className="avatar-groupe__initiales">{initiales(nom)}</span>}
     </span>
   );

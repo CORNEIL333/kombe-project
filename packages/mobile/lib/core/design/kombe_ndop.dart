@@ -9,7 +9,7 @@ import 'kombe_colors.dart';
 /// taille, sans image, recolorable. Trois variantes :
 /// 0 losanges pointés, 1 chevrons, 2 anneaux à quatre nœuds (écho du logo).
 class NdopPainter extends CustomPainter {
-  const NdopPainter({this.color = KombeColors.cream, this.opacity = .14, this.variant = 0, this.tile = 28});
+  const NdopPainter({this.color = KombeColors.cream, this.opacity = .14, this.variant = 2, this.tile = 28});
 
   final Color color;
   final double opacity;
@@ -80,7 +80,7 @@ class NdopSurface extends StatelessWidget {
     super.key,
     this.child,
     this.color = KombeColors.forest,
-    this.variant = 0,
+    this.variant = 2,
     this.opacity = .13,
     this.tile = 28,
     this.fadeTo = Alignment.centerLeft,

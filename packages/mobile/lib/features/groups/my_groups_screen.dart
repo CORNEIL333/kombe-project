@@ -151,8 +151,8 @@ class _Tile extends StatelessWidget {
   }
 }
 
-/// Coupon de tissu : chaque tontine a sa couleur et son motif ; le blason, le
-/// nom, la bande du cycle et l'échéance. La lisière ferme le coupon.
+/// Coupon de tissu : chaque tontine a sa couleur et son motif ; sa photo, son
+/// nom, les perles du cycle et l'échéance.
 class _GroupCard extends StatelessWidget {
   const _GroupCard({required this.group, required this.active, required this.onOpen});
   final GroupSummary group;
@@ -177,6 +177,7 @@ class _GroupCard extends StatelessWidget {
             opacity: .18,
             tile: 30,
             fadeTo: Alignment.centerLeft,
+            borderRadius: BorderRadius.circular(24),
             child: Material(
               type: MaterialType.transparency,
               child: InkWell(
@@ -236,7 +237,6 @@ class _GroupCard extends StatelessWidget {
               ),
             ),
           ),
-          const KombeSelvedge(),
         ],
       ),
     );
