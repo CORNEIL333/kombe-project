@@ -1,7 +1,7 @@
 {
   "branch": "refonte/premium-photos",
   "base": "refonte/ux-integrale",
-  "step": "F-ultra-design",
+  "step": "G-mise-a-jour-0.8.0",
   "done": [
     "A-photo-serveur",
     "B1-pwa-4-onglets-groupes-photo",
@@ -17,17 +17,18 @@
     "PR refonte/premium-photos"
   ],
   "blocked": [
-    "preuve PostgreSQL réelle (pas de base isolée)",
-    "recette appareil Android/iOS (pas d'émulateur, téléchargement interdit)",
-    "build APK : image_picker ajoute des dépendances Gradle non présentes en cache (téléchargement interdit) — non lancé"
+    "déploiement : CLI Vercel déconnecté (vercel login requis)",
+    "sauvegarde et migrations 0032-0035 : kombe_prod invisible depuis le connecteur Neon",
+    "recette appareil Android/iOS"
   ],
   "evidence": {
     "domain_tests": 444,
     "api_tests": 249,
     "pwa_tests": 30,
-    "mobile_tests": 46,
+    "mobile_tests": 49,
     "pwa_playwright": "360/390/430/768/1024/1440 sans erreur ni défilement horizontal",
-    "login_pwa": "0 pixel de différence avec la production"
+    "login_pwa": "0 pixel de différence avec la production",
+    "apk_0_8_0": "construit en local le 2026-11-05, non publié"
   },
-  "next": "Lire UI_INVENTORY.md (statuts), reprendre F2 ; vérifier flutter test (dernier lancement en arrière-plan non confirmé)."
+  "next": "Après vercel login : sauvegarde Neon, vercel --prod depuis le worktree, vérifier /v1/health/ready et les routes photo, puis node scripts/mobile/publier.mjs."
 }
