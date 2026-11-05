@@ -25,34 +25,32 @@ Fichier verrouillé : tout écran, mobile comme PWA, en dérive. Toute exception
 
 ## 1. Direction retenue
 
-**Ndop : l'argent du groupe, tissé.** Choix fait sur demande de lancer sans attendre ; les deux autres pistes écartées :
-- *Marché* (ocre, très arrondi) : chaleureux mais vite enfantin.
-- *Papier* (ivoire, encre, serif) : élégant, c'est ce que nous avions, jugé fade.
+**Ndop vert : l'argent du groupe, tissé.** Le vert forêt reste la couleur de KÓMBE (essai en indigo abandonné : il cassait l'identité). Le caractère vient des formes, de la typographie et des photos, pas d'un changement de marque.
 
-**Couleurs.** L'ancien vert ne reste que dans le logo et pour dire « confirmé ».
+**Couleurs.** Le vert forêt domine ; quatre accents francs donnent la vie (l'interface manquait de couleur).
 
 | Jeton | Hex | Rôle |
 |---|---|---|
-| Indigo | `#161A5C` | Surface dominante, texte fort |
-| Nuit | `#0E1140` | Profondeur |
-| Indigo vif | `#2F35A8` | Liens, focus |
-| Maïs | `#F5B700` | L'argent et l'action principale (texte encre dessus) |
-| Maïs texte | `#7A5600` | Or lisible sur fond clair |
-| Vermillon | `#C92A12` | Retard, erreur, lisière |
-| Confirmé | `#0B7A53` | Paiement confirmé, seul vert de l'interface |
-| Coton | `#F5F5FB` | Fond (bleuté : surtout pas crème) |
-| Teinte | `#E4E5FA` | Sélection, pictos |
-| Encre | `#12142E` | Texte |
-| Ardoise | `#4E5270` | Texte secondaire (AA sur coton) |
-| Filet | `#DADBF0` / `#C3C5E6` | Traits |
+| Forêt | `#103C32` | Surface dominante, texte fort |
+| Soleil | `#F2B01E` | L'argent et l'action principale (texte encre dessus) |
+| Émeraude | `#0C8060` | Confirmé, liens, cycle |
+| Corail | `#C8412A` | Séances, membres, rappels |
+| Prune | `#6C2A6B` | Votes, règles |
+| Or texte | `#8A5F14` | Or lisible sur fond clair |
+| Danger | `#B42318` | Retard, erreur |
+| Ivoire | `#FBF8F1` | Fond |
+| Menthe | `#DCEFE6` | Sélection |
+| Encre | `#13211C` | Texte |
+| Ardoise | `#56645E` | Texte secondaire |
+| Filet | `#E7DCC6` / `#D9D0BC` | Traits |
 
 **Polices.** Fraunces 600–700 pour montants et titres, Manrope pour le reste. Déjà embarquées : aucun poids ajouté, aucun téléchargement. Les montants sont très grands, comme une enseigne peinte.
 
-**Signature : le rang de perles.** Une perle par tour : maïs quand le tour est passé, cerclée pour le tour en cours, vide à venir. Il dit d'un coup d'œil où en est le groupe.
+**Signature : le rang de perles.** Une perle par tour : or quand le tour est passé, cerclée pour le tour en cours, vide à venir. Il dit d'un coup d'œil où en est le groupe.
 
 **Formes.** Tout est rond : boutons pilules, avatars et pictos en disques, cartes à grands arrondis. Pas de triangles, pas de coins coupés (décision de l'utilisateur après essai).
 
-**Motif.** Vectoriel, présent et assumé sur les surfaces indigo. Jamais sous un texte de lecture. Aucune photo décorative.
+**Motif.** Anneaux vectoriels, présents sur les surfaces forêt. Jamais sous un texte de lecture. Aucune photo décorative.
 
 **Mouvement.** Trois moments seulement : le bloc du tour qui se tisse (recevoir), le sceau « confirmé », le retard qui se pose sans trembler. `prefers-reduced-motion` respecté.
 
@@ -85,9 +83,9 @@ Interdits dans le produit : « épargne », « retrait ».
 ## 4. Identité
 
 - **Photos.** Chaque tontine et chaque membre a une photo de profil, ronde. Les initiales ne sont qu'un repli tant qu'aucune photo n'a été envoyée.
-- **Teinte de tontine.** Chaque groupe a une teinte stable (indigo, vermillon, vert, indigo vif) et le motif d'anneaux.
+- **Teinte de tontine.** Chaque groupe a une teinte stable (forêt, émeraude, corail, prune) et le motif d'anneaux.
 - **Coupon.** Un groupe = une carte à sa couleur. Pas une carte blanche.
 - **Listes cousues.** Rangées posées sur le fond, séparées par un point de couture. Frise cousue pour l'Activité.
 - **Titres.** Fraunces gras partout où il y a un titre.
-- **Barre du bas.** Indigo, disque maïs pour l'onglet actif.
-- **Reçoit ce tour.** Carte maïs : le moment fort du cycle.
+- **Barre du bas.** Forêt, disque soleil pour l'onglet actif.
+- **Reçoit ce tour.** Carte soleil : le moment fort du cycle.

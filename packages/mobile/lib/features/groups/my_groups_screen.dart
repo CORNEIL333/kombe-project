@@ -125,9 +125,9 @@ class _Tile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color fg = strong ? KombeColors.cream : KombeColors.forest;
+    final Color fg = strong ? KombeColors.ink : Colors.white;
     return Material(
-      color: strong ? KombeColors.forest : KombeColors.mint,
+      color: strong ? KombeColors.goldWarm : KombeColors.emerald,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),

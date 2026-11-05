@@ -10,7 +10,7 @@ import '../design/kombe_theme.dart';
 /// Composants « Ndop » partagés par tous les écrans.
 
 /// Tonalité sémantique d'un état (pastilles, pictos, bandeaux).
-enum KombeTone { neutral, brand, success, warning, danger, money, info }
+enum KombeTone { neutral, brand, success, warning, danger, money, info, coral }
 
 extension KombeToneColors on KombeTone {
   Color get fg => switch (this) {
@@ -20,17 +20,31 @@ extension KombeToneColors on KombeTone {
         KombeTone.warning => KombeColors.goldDark,
         KombeTone.danger => KombeColors.danger,
         KombeTone.money => KombeColors.goldDark,
-        KombeTone.info => KombeColors.emerald,
+        KombeTone.info => KombeColors.plum,
+        KombeTone.coral => KombeColors.clay,
       };
   Color get bg => switch (this) {
         KombeTone.neutral => KombeColors.sand,
         KombeTone.brand => KombeColors.mint,
-        KombeTone.success => const Color(0xFFDDF3E8),
+        KombeTone.success => const Color(0xFFE3F2EA),
         KombeTone.warning => KombeColors.goldPale,
-        KombeTone.danger => const Color(0xFFFDE6E1),
+        KombeTone.danger => const Color(0xFFFBEAE7),
         KombeTone.money => KombeColors.goldPale,
-        KombeTone.info => KombeColors.mint,
+        KombeTone.info => const Color(0xFFF1E3F1),
+        KombeTone.coral => const Color(0xFFFBE3DC),
       };
+  /// Fond plein (pictos, raccourcis) : c'est là que l'interface prend sa couleur.
+  Color get solid => switch (this) {
+        KombeTone.neutral => KombeColors.forest,
+        KombeTone.brand => KombeColors.forest,
+        KombeTone.success => KombeColors.emerald,
+        KombeTone.warning => KombeColors.goldWarm,
+        KombeTone.danger => KombeColors.danger,
+        KombeTone.money => KombeColors.goldWarm,
+        KombeTone.info => KombeColors.plum,
+        KombeTone.coral => KombeColors.clay,
+      };
+  Color get onSolid => this == KombeTone.warning || this == KombeTone.money ? KombeColors.ink : Colors.white;
 }
 
 /// Montant FCFA : chiffres en Fraunces tabulaires, devise en petit Manrope.
@@ -111,8 +125,8 @@ class KombeIconBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(color: tone.bg, shape: BoxShape.circle),
-        child: Icon(icon, size: size * .5, color: tone.fg),
+        decoration: BoxDecoration(color: tone.solid, shape: BoxShape.circle),
+        child: Icon(icon, size: size * .5, color: tone.onSolid),
       );
 }
 
@@ -314,7 +328,7 @@ class _KombeSkeletonState extends State<KombeSkeleton> with SingleTickerProvider
           child: Container(
             width: widget.width,
             height: widget.height,
-            decoration: BoxDecoration(color: const Color(0xFFE2E3F3), borderRadius: BorderRadius.circular(widget.radius)),
+            decoration: BoxDecoration(color: const Color(0xFFEDE5D3), borderRadius: BorderRadius.circular(widget.radius)),
           ),
         ),
       );
@@ -456,14 +470,14 @@ class KombeDateBlock extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(color: KombeColors.mint, borderRadius: BorderRadius.circular(size * .3)),
+        decoration: BoxDecoration(color: KombeColors.clay, borderRadius: BorderRadius.circular(size * .3)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text('${d.day}', style: KombeType.amount(size: size * .4)),
+            Text('${d.day}', style: KombeType.amount(size: size * .4, color: Colors.white)),
             Text(
               DateFormat('MMM', locale).format(d).replaceAll('.', '').toUpperCase(),
-              style: TextStyle(fontSize: size * .17, fontWeight: FontWeight.w800, color: KombeColors.jade, letterSpacing: .6, height: 1.1),
+              style: TextStyle(fontSize: size * .17, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: .6, height: 1.1),
             ),
           ],
         ),

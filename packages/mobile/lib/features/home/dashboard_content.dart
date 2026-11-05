@@ -60,6 +60,7 @@ class HomeContent extends StatelessWidget {
       if (photoMissing)
         _TodoRow(
           icon: Icons.add_a_photo_outlined,
+          tone: KombeTone.coral,
           title: 'Ajoutez votre photo',
           subtitle: 'Votre groupe vous reconnaît',
           onTap: () => context.push('/app/profile'),
@@ -67,6 +68,7 @@ class HomeContent extends StatelessWidget {
       if (data.group.photoVersion == null && canEditGroupPhoto(data.group.role))
         _TodoRow(
           icon: Icons.add_photo_alternate_outlined,
+          tone: KombeTone.coral,
           title: 'Ajoutez la photo du groupe',
           subtitle: data.group.name,
           onTap: () => context.push('/app/groups/$gid'),
@@ -90,10 +92,10 @@ class HomeContent extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 18, 12, 0),
           child: Row(
             children: <Widget>[
-              _Shortcut(icon: Icons.donut_large_rounded, label: 'Cycle', onTap: () => context.push('/app/groups/$gid/cycle')),
-              _Shortcut(icon: Icons.groups_2_outlined, label: 'Membres', onTap: () => context.push('/app/groups/$gid/members')),
-              _Shortcut(icon: Icons.account_balance_wallet_outlined, label: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
-              _Shortcut(icon: Icons.menu_book_outlined, label: 'Règles', onTap: () => context.push('/app/groups/$gid/rules')),
+              _Shortcut(tone: KombeTone.success, icon: Icons.donut_large_rounded, label: 'Cycle', onTap: () => context.push('/app/groups/$gid/cycle')),
+              _Shortcut(tone: KombeTone.coral, icon: Icons.groups_2_outlined, label: 'Membres', onTap: () => context.push('/app/groups/$gid/members')),
+              _Shortcut(tone: KombeTone.money, icon: Icons.account_balance_wallet_outlined, label: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
+              _Shortcut(tone: KombeTone.info, icon: Icons.menu_book_outlined, label: 'Règles', onTap: () => context.push('/app/groups/$gid/rules')),
             ],
           ),
         ),
@@ -230,7 +232,8 @@ class _Hero extends StatelessWidget {
 
 /// Raccourci : picto dans un disque, libellé dessous.
 class _Shortcut extends StatelessWidget {
-  const _Shortcut({required this.icon, required this.label, required this.onTap});
+  const _Shortcut({required this.tone, required this.icon, required this.label, required this.onTap});
+  final KombeTone tone;
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -251,8 +254,8 @@ class _Shortcut extends StatelessWidget {
                   Container(
                     width: 52,
                     height: 52,
-                    decoration: const ShapeDecoration(color: KombeColors.mint, shape: KombeTheme.cut),
-                    child: Icon(icon, color: KombeColors.forest, size: 24),
+                    decoration: BoxDecoration(color: tone.solid, shape: BoxShape.circle),
+                    child: Icon(icon, color: tone.onSolid, size: 24),
                   ),
                   const SizedBox(height: 6),
                   Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: KombeColors.ink)),

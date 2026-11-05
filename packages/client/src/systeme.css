@@ -11,23 +11,23 @@
 /* ══ 1 · Jetons ═══════════════════════════════════════════════════════════ */
 .app--session,
 body:has(.app--session) {
-  --s-foret: #161a5c;
-  --s-jade: #2f35a8;
-  --s-ivoire: #f5f5fb;
-  --s-menthe: #e4e5fa;
-  --s-menthe-pale: #eeeefb;
-  --s-or: #f5b700;
-  --s-or-texte: #7a5600;
-  --s-or-pale: #fff0c2;
-  --s-encre: #12142e;
-  --s-ardoise: #4e5270;
-  --s-sable: #ededf7;
-  --s-trait: #dadbf0;
-  --s-trait-fort: #c3c5e6;
-  --s-danger: #c92a12;
-  --s-ok-fond: #ddf3e8;
-  --s-attente-fond: #fff0c2;
-  --s-danger-fond: #fde6e1;
+  --s-foret: #103c32;
+  --s-jade: #0c8060;
+  --s-ivoire: #fbf8f1;
+  --s-menthe: #dcefe6;
+  --s-menthe-pale: #eef7f2;
+  --s-or: #f2b01e;
+  --s-or-texte: #8a5f14;
+  --s-or-pale: #ffedbf;
+  --s-encre: #13211c;
+  --s-ardoise: #56645e;
+  --s-sable: #f3ecdd;
+  --s-trait: #e7dcc6;
+  --s-trait-fort: #d9d0bc;
+  --s-danger: #b42318;
+  --s-ok-fond: #e3f2ea;
+  --s-attente-fond: #fbf0de;
+  --s-danger-fond: #fbeae7;
   --s-blanc: #ffffff;
   --s-rayon: 22px;
   --s-rayon-champ: 16px;
@@ -137,8 +137,8 @@ body:has(.app--session) {
   --r-m: 16px;
   --r-l: 22px;
   --r-xl: 28px;
-  --ombre-1: 0 1px 2px rgba(22, 26, 92, 0.05);
-  --ombre-2: 0 10px 30px -18px rgba(22, 26, 92, 0.28);
+  --ombre-1: 0 1px 2px rgba(16, 60, 50, 0.05);
+  --ombre-2: 0 10px 30px -18px rgba(16, 60, 50, 0.28);
   /* premium.css (--p-*) : mêmes valeurs, ombres adoucies */
   --p-foret: var(--s-foret);
   --p-jade: var(--s-jade);
@@ -152,8 +152,8 @@ body:has(.app--session) {
   --p-alerte: var(--s-danger);
   --p-rayon-m: 16px;
   --p-rayon-l: 22px;
-  --p-ombre-1: 0 1px 2px rgba(22, 26, 92, 0.05);
-  --p-ombre-2: 0 10px 30px -18px rgba(22, 26, 92, 0.3);
+  --p-ombre-1: 0 1px 2px rgba(16, 60, 50, 0.05);
+  --p-ombre-2: 0 10px 30px -18px rgba(16, 60, 50, 0.3);
   --p-duree: var(--s-duree);
 }
 
@@ -297,7 +297,7 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 .app--session .bouton.bouton-compact { min-height: 44px; padding: 0 16px; font-size: 14px; border-radius: 999px; }
 .app--session .bouton.bouton-icone-seule { width: 44px; min-width: 44px; padding: 0; }
 .app--session .bouton.bouton-or { background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); }
-.app--session .bouton.bouton-or:hover:not(:disabled) { background: #ffc72e; border-color: #ffc72e; }
+.app--session .bouton.bouton-or:hover:not(:disabled) { background: #ffc23f; border-color: #ffc23f; }
 .app--session .bouton.bouton-danger, body:has(.app--session) [role="dialog"] .bouton.bouton-danger { background: var(--s-danger); border-color: var(--s-danger); color: #fff; }
 .app--session .bouton:disabled, body:has(.app--session) [role="dialog"] .bouton:disabled { background: #ece6d8; border-color: #ece6d8; color: #7d8681; cursor: not-allowed; opacity: 1; }
 .app--session .bouton.bouton-secondaire:disabled { background: var(--s-blanc); border-color: var(--s-trait); color: #9aa39f; }
@@ -314,7 +314,7 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 .app--session .bouton.hero-cotisation__cta { border-radius: 999px; }
 @media (min-width: 900px) {
   .app--session .bouton.hero-cotisation__cta { min-height: 56px; padding: 0 28px; background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); font-size: 16px; }
-  .app--session .bouton.hero-cotisation__cta:hover:not(:disabled) { background: #ffc72e; border-color: #ffc72e; }
+  .app--session .bouton.hero-cotisation__cta:hover:not(:disabled) { background: #ffc23f; border-color: #ffc23f; }
 }
 
 /* Boutons-icônes (en-têtes) : pastille arrondie, cohérente. */
@@ -392,12 +392,12 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
   border-radius: 999px; font: 700 12.5px/1.25 var(--s-ui); letter-spacing: 0.005em; white-space: normal;
 }
 .app--session .pastille > span[aria-hidden="true"] { font-size: 0.7em; line-height: 1; }
-.app--session .pastille--ok { background: var(--s-ok-fond); color: #0b7a53; }
+.app--session .pastille--ok { background: var(--s-ok-fond); color: #16765e; }
 .app--session .pastille--attente { background: var(--s-attente-fond); color: var(--s-or-texte); }
 .app--session .pastille--alerte { background: var(--s-danger-fond); color: var(--s-danger); }
 .app--session .pastille--neutre { background: var(--s-sable); color: var(--s-ardoise); }
 .app--session .pastille--argent { background: var(--s-or-pale); color: var(--s-or-texte); }
-.app--session .etiquette--ok { background: var(--s-ok-fond); color: #0b7a53; }
+.app--session .etiquette--ok { background: var(--s-ok-fond); color: #16765e; }
 .app--session .etiquette--attente, .app--session .etiquette--or { background: var(--s-or-pale); color: var(--s-or-texte); }
 
 .app--session .recap, .app--session .recapitulatif dl { margin: 0; }
@@ -492,14 +492,14 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 }
 .app--session .entete-groupe { padding: 6px 16px 22px; }
 .app--session #contenu .entete-groupe__nom { font-size: 1.6rem; line-height: 1.12; }
-.app--session .entete-groupe__meta { font-size: 13.5px; color: rgba(245, 245, 251, 0.82); }
+.app--session .entete-groupe__meta { font-size: 13.5px; color: rgba(251, 248, 241, 0.82); }
 .app--session .entete-groupe__tour { font-size: 13.5px; color: var(--s-or-pale); }
 @media (min-width: 900px) {
   .app--session .entete-groupe { margin: 0 0 4px; padding: 14px 28px 28px; border-radius: var(--s-rayon); }
   .app--session #contenu .entete-groupe__nom { font-size: 2.1rem; }
   .app--session .entete-groupe__identite { margin-top: 0; }
 }
-.app--session .hero-cotisation { box-shadow: 0 10px 30px -18px rgba(22, 26, 92, 0.35); }
+.app--session .hero-cotisation { box-shadow: 0 10px 30px -18px rgba(16, 60, 50, 0.35); }
 @media (min-width: 900px) {
   .app--session .hero-cotisation { isolation: isolate; background-image: none; }
   .app--session .hero-cotisation::before {
@@ -563,12 +563,12 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
   -webkit-mask-image: linear-gradient(200deg, #000 10%, transparent 60%); mask-image: linear-gradient(200deg, #000 10%, transparent 60%);
 }
 .app--session .rail-carte--foret .rail-carte__sur { color: var(--s-or-pale); }
-.app--session .rail-carte__titre { margin: 6px 0 0; font: 700 14.5px/1.35 var(--s-ui); color: rgba(245, 245, 251, 0.9); }
+.app--session .rail-carte__titre { margin: 6px 0 0; font: 700 14.5px/1.35 var(--s-ui); color: rgba(251, 248, 241, 0.9); }
 .app--session .rail-carte__montant { margin: 14px 0 0; font-size: 2rem; line-height: 1.05; color: var(--s-ivoire); }
-.app--session .rail-carte__piste { height: 6px; margin: 12px 0 8px; border-radius: 999px; background: rgba(245, 245, 251, 0.16); overflow: hidden; }
+.app--session .rail-carte__piste { height: 6px; margin: 12px 0 8px; border-radius: 999px; background: rgba(251, 248, 241, 0.16); overflow: hidden; }
 .app--session .rail-carte__piste > span { display: block; height: 100%; border-radius: 999px; background: var(--s-or); }
 .app--session .rail-carte__note { display: block; margin: 0; font-size: 13px; line-height: 1.4; color: var(--s-ardoise); }
-.app--session .rail-carte--foret .rail-carte__note { color: rgba(245, 245, 251, 0.78); }
+.app--session .rail-carte--foret .rail-carte__note { color: rgba(251, 248, 241, 0.78); }
 .app--session .rail-carte--lien { display: flex; align-items: center; min-height: 72px; cursor: pointer; transition: border-color var(--s-duree) var(--s-courbe); }
 .app--session .rail-carte--lien:hover { border-color: var(--s-trait-fort); }
 .app--session .rail-carte--lien:focus-visible { outline: 2px solid var(--s-jade); outline-offset: 2px; }
@@ -624,7 +624,7 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 
 /* ══ Direction « Ndop » (docs/refonte/DESIGN.md) : tout est rond ═══════════ */
 .app--session, body:has(.app--session) {
-  --s-vermillon: #c92a12;
+  --s-vermillon: #b42318;
   --s-couture: repeating-linear-gradient(90deg, var(--s-trait-fort) 0 5px, transparent 5px 10px);
 }
 /* Titres : voix d'enseigne (Fraunces gras, coupe la plus expressive). */
@@ -649,9 +649,9 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 /* Avatar de tontine : rond ; photo, sinon initiales sur la teinte et le motif du groupe. */
 .app--session .avatar-groupe, .app--session .avatar-groupe--rond, .app--session .carte-groupe__corps > .avatar-groupe, .app--session .selecteur-groupe .avatar-groupe { border-radius: 999px; box-shadow: none; }
 .app--session .avatar-groupe { isolation: isolate; background: var(--s-foret); }
-.app--session [data-teinte="1"] { --teinte: #b02410; }
-.app--session [data-teinte="2"] { --teinte: #0a6b49; }
-.app--session [data-teinte="3"] { --teinte: #2f35a8; }
+.app--session [data-teinte="1"] { --teinte: #c8412a; }
+.app--session [data-teinte="2"] { --teinte: #0c8060; }
+.app--session [data-teinte="3"] { --teinte: #6c2a6b; }
 .app--session .avatar-groupe[data-teinte] { background: var(--teinte, var(--s-foret)) var(--s-ndop-anneaux) center / 42% 42%; }
 .app--session .avatar-groupe[data-teinte]::before { content: ""; position: absolute; z-index: -1; top: 16%; left: 16%; width: 68%; height: 68%; border-radius: 999px; background: var(--teinte, var(--s-foret)); box-shadow: 0 0 0 2px var(--s-or); }
 .app--session .avatar-groupe__initiales { font-family: var(--s-titre); font-weight: 800; color: #fff; font-size: .8em; }
@@ -672,10 +672,10 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 .bande-cycle { display: flex; align-items: center; justify-content: space-between; gap: 3px; width: 100%; }
 .bande-cycle i { flex: 0 1 22px; min-width: 3px; aspect-ratio: 1; border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4); }
 .bande-cycle i.est-passe, .bande-cycle i.est-courant { box-shadow: none; animation: enfilage 380ms cubic-bezier(.2, .8, .2, 1) both; }
-.bande-cycle i.est-passe { background: #f5b700; }
-.bande-cycle i.est-courant { background: radial-gradient(circle, #f5b700 0 40%, #fff 42%); }
-.bande-cycle--clair i { box-shadow: inset 0 0 0 1.5px #c3c5e6; }
-.bande-cycle--clair i.est-courant { background: radial-gradient(circle, #f5b700 0 40%, #161a5c 42%); }
+.bande-cycle i.est-passe { background: #f2b01e; }
+.bande-cycle i.est-courant { background: radial-gradient(circle, #f2b01e 0 40%, #fff 42%); }
+.bande-cycle--clair i { box-shadow: inset 0 0 0 1.5px #d9d0bc; }
+.bande-cycle--clair i.est-courant { background: radial-gradient(circle, #f2b01e 0 40%, #103c32 42%); }
 @keyframes enfilage { from { transform: scale(0); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .bande-cycle i { animation: none !important; } }
 
@@ -687,7 +687,7 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 }
 .app--session .hero-cotisation__pieces { display: none; }
 .app--session .hero-cotisation__montant { color: #fff; }
-.app--session .hero-cotisation__libelle { color: #ffd34d; }
+.app--session .hero-cotisation__libelle { color: #ffd262; }
 .app--session .hero-cotisation__echeance { color: rgba(255, 255, 255, 0.86); font-weight: 700; }
 .app--session .is-retard .hero-cotisation__echeance { color: #ffb4a6; }
 .app--session .hero-cotisation__ajour { color: #fff; font-family: var(--s-titre); font-weight: 800; font-size: 2.2rem; }
@@ -704,7 +704,7 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
   .app--session .bouton.hero-cotisation__cta, .app--session .hero-cotisation__cta { min-height: 56px; }
 }
 
-/* Barre du bas : indigo, disque maïs. */
+/* Barre du bas : forêt, disque or. */
 .app--session .nav-basse { background: var(--s-foret); border-top: 0; box-shadow: none; }
 .app--session .nav-basse__item { color: #fff; }
 .app--session .nav-basse__item.is-actif { color: #fff; font-weight: 800; }
@@ -719,3 +719,49 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 .app--session .activite .lignes { position: relative; }
 .app--session .activite .lignes::before { content: ""; position: absolute; left: 30px; top: 8px; bottom: 8px; width: 2px; background: repeating-linear-gradient(180deg, var(--s-trait-fort) 0 5px, transparent 5px 10px); }
 .app--session .activite .lignes > li { background: none; position: relative; }
+
+/* Photo d'une personne : ronde, partout. */
+.app--session .avatar-personne {
+  position: relative; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+  border-radius: 999px; background: var(--teinte, var(--s-foret)); color: #fff; font-family: var(--s-titre); font-weight: 800; line-height: 1;
+}
+.app--session .avatar-personne img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.app--session .ligne-riche > .avatar-personne { margin-right: 12px; }
+.app--session .pile-avatars .avatar-personne { margin-left: -8px; box-shadow: 0 0 0 2px var(--s-blanc); }
+.app--session .pile-avatars .avatar-personne:first-child { margin-left: 0; }
+.app--session .menu-lateral__personne .avatar-personne { margin-right: 12px; box-shadow: 0 0 0 2px var(--s-or); }
+.app--session .profil-entete__photo { position: relative; flex: 0 0 auto; margin-right: 16px; padding: 0; border: 0; border-radius: 999px; background: none; cursor: pointer; }
+.app--session .profil-entete__photo-ico { position: absolute; right: -2px; bottom: -2px; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; background: var(--s-or); color: var(--s-encre); box-shadow: 0 0 0 2px var(--s-blanc); }
+.app--session .profil-entete__photo:focus-visible { outline: 3px solid var(--s-or); outline-offset: 3px; }
+
+/* Téléphone : un seul libellé au-dessus du montant. */
+@media (max-width: 899px) {
+  .app--session .hero-cotisation__sur { display: none; }
+  .app--session #contenu .hero-cotisation h1.hero-cotisation__libelle { display: block; position: static; margin: 0; color: #ffd262; font: 800 0.85rem/1.2 var(--s-ui); letter-spacing: 0.08em; text-transform: uppercase; font-variation-settings: normal; }
+  .app--session .hero-cotisation__echeance svg { display: block; }
+}
+
+/* « À jour » sur le héros : `#contenu h1` le peindrait en forêt sur forêt. */
+.app--session #contenu .hero-cotisation h1.hero-cotisation__ajour { color: #fff; font-size: 2.2rem; }
+
+/* ══ Couleur : le vert domine, soleil, corail, émeraude et prune font vivre l'interface ══ */
+.app--session, body:has(.app--session) { --s-corail: #c8412a; --s-prune: #6c2a6b; --s-emeraude: #0c8060; }
+.app--session .ligne-riche__ico--ok { background: var(--s-emeraude); color: #fff; }
+.app--session .ligne-riche__ico--attente, .app--session .ligne-riche__ico--argent { background: var(--s-or); color: var(--s-encre); }
+.app--session .ligne-riche__ico--alerte { background: var(--s-corail); color: #fff; }
+.app--session .tuile-action:nth-child(1) { background: var(--s-or); color: var(--s-encre); }
+.app--session .tuile-action:nth-child(2) { background: var(--s-emeraude); color: #fff; }
+.app--session .tuile-action:nth-child(3) { background: var(--s-prune); color: #fff; }
+.app--session .tuile-action:nth-child(4) { background: var(--s-corail); color: #fff; }
+.app--session .tuile-action .tuile-action__icone { background: transparent; color: inherit; }
+.app--session .ligne__icone { background: var(--s-emeraude); color: #fff; border-radius: 999px; }
+.app--session [data-famille="argent"] .ligne__icone { background: var(--s-or); color: var(--s-encre); }
+.app--session [data-famille="votes"] .ligne__icone { background: var(--s-prune); color: #fff; }
+.app--session [data-famille="seances"] .ligne__icone { background: var(--s-corail); color: #fff; }
+.app--session .carte-seance { background-color: var(--s-corail); color: #fff; }
+.app--session .carte-seance * { color: inherit; }
+.app--session .carte-promo { background-color: var(--s-prune); }
+.app--session .tuile-groupe { background: var(--s-emeraude); color: #fff; }
+.app--session .tuile-groupe--forte { background: var(--s-or); color: var(--s-encre); }
+.app--session .filtre[aria-pressed="true"] { background: var(--s-corail); border-color: var(--s-corail); color: #fff; }
+.app--session .onglet[aria-selected="true"], .app--session .onglet[aria-current="page"] { background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); }

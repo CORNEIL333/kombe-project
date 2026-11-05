@@ -9,18 +9,17 @@
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import type { GroupRole } from "@kombe/domain";
-import { lirePhotoGroupe, tontines, type Session } from "./api.js";
+import { acces, lireMaPhoto, lirePhotoGroupe, lirePhotoMembre, tontines, type Session } from "./api.js";
 import { peut } from "./droits.js";
 import { useTextes } from "./textes.js";
 import { Icone } from "../composants/Icones.js";
 
 const cache = new Map<string, string | null>();
 
-function usePhoto(session: Session, groupId: string, version: number | null | undefined, taille: 256 | 512): string | null {
-  const cle = version ? `${groupId}:${version}:${taille}` : "";
+function useImage(cle: string, lire: () => Promise<Blob | null>): string | null {
   const [url, setUrl] = useState<string | null>(() => (cle ? (cache.get(cle) ?? null) : null));
   useEffect(() => {
-    if (!cle || !version) {
+    if (!cle) {
       setUrl(null);
       return;
     }
@@ -29,7 +28,7 @@ function usePhoto(session: Session, groupId: string, version: number | null | un
       return;
     }
     let vivant = true;
-    lirePhotoGroupe(session, groupId, version, taille).then(
+    lire().then(
       (b) => {
         const u = b ? URL.createObjectURL(b) : null;
         cache.set(cle, u);
@@ -40,8 +39,14 @@ function usePhoto(session: Session, groupId: string, version: number | null | un
     return () => {
       vivant = false;
     };
-  }, [cle, session, groupId, version, taille]);
+    // `lire` change à chaque rendu ; `cle` porte déjà groupe, membre, version et taille.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cle]);
   return url;
+}
+
+function usePhoto(session: Session, groupId: string, version: number | null | undefined, taille: 256 | 512): string | null {
+  return useImage(version ? `${groupId}:${version}:${taille}` : "", () => lirePhotoGroupe(session, groupId, version as number, taille));
 }
 
 const MOTS_VIDES = new Set(["le", "la", "les", "l", "de", "des", "du", "d", "et", "the", "of", "and", "a", "à", "au", "aux"]);
@@ -60,7 +65,7 @@ function motif(cle: string): string {
   return String(h % 3);
 }
 
-/** Teinte stable d'une tontine (0 indigo, 1 vermillon, 2 vert, 3 indigo vif) : la même sur mobile. */
+/** Teinte stable d'une tontine (0 forêt, 1 corail, 2 émeraude, 3 prune) : la même sur mobile. */
 export function teinteGroupe(cle: string): string {
   let h = 7;
   for (let i = 0; i < cle.length; i++) h = (h * 31 + cle.charCodeAt(i)) & 0x7fffffff;
@@ -88,6 +93,33 @@ export function AvatarGroupe({
   return (
     <span className={rond ? "avatar-groupe avatar-groupe--rond" : "avatar-groupe"} style={style} data-motif={url ? undefined : motif(groupId)} data-teinte={url ? undefined : teinteGroupe(groupId)} aria-hidden="true">
       {url ? <img src={url} alt="" width={taille} height={taille} decoding="async" /> : <span className="avatar-groupe__initiales">{initiales(nom)}</span>}
+    </span>
+  );
+}
+
+/** Photo d'une personne, ronde. Les initiales ne sont qu'un repli tant qu'aucune photo n'a été envoyée. */
+export function AvatarPersonne({
+  session,
+  groupId,
+  membreId,
+  nom,
+  version,
+  taille = 42,
+}: {
+  readonly session: Session;
+  /** Absents : c'est ma propre photo. */
+  readonly groupId?: string | undefined;
+  readonly membreId?: string | undefined;
+  readonly nom: string;
+  readonly version?: number | null | undefined;
+  readonly taille?: number;
+}) {
+  const px = taille > 96 ? 512 : 256;
+  const cle = version ? `p:${groupId ?? "moi"}:${membreId ?? "moi"}:${version}:${px}` : "";
+  const url = useImage(cle, () => (groupId && membreId ? lirePhotoMembre(session, groupId, membreId, version as number, px) : lireMaPhoto(session, version as number, px)));
+  return (
+    <span className="avatar-personne" style={{ width: taille, height: taille, fontSize: Math.round(taille * 0.38) }} data-teinte={url ? undefined : teinteGroupe(nom)} aria-hidden="true">
+      {url ? <img src={url} alt="" width={taille} height={taille} decoding="async" /> : initiales(nom)}
     </span>
   );
 }
@@ -136,7 +168,8 @@ export function DialoguePhoto({
   onChange,
 }: {
   readonly session: Session;
-  readonly groupId: string;
+  /** Absent : ma propre photo de profil. */
+  readonly groupId?: string;
   readonly nom: string;
   readonly version: number | null | undefined;
   readonly onFermer: () => void;
@@ -190,7 +223,7 @@ export function DialoguePhoto({
     try {
       const r = carre(image.width, image.height, zoom, 0, 0);
       const [i512, i256] = await Promise.all([enJpegBase64(image, r, 512), enJpegBase64(image, r, 256)]);
-      const res = await tontines.changerPhoto(session, groupId, i512, i256);
+      const res = groupId ? await tontines.changerPhoto(session, groupId, i512, i256) : await acces.changerMaPhoto(session, i512, i256);
       onChange(res.photoVersion);
       onFermer();
     } catch (e) {
@@ -203,7 +236,7 @@ export function DialoguePhoto({
     if (enCours) return;
     setEnCours(true);
     try {
-      await tontines.retirerPhoto(session, groupId);
+      await (groupId ? tontines.retirerPhoto(session, groupId) : acces.retirerMaPhoto(session));
       onChange(null);
       onFermer();
     } catch (e) {
@@ -216,7 +249,7 @@ export function DialoguePhoto({
     <div className="voile-dialogue voile-dialogue--bas" onClick={(e) => e.target === e.currentTarget && !enCours && onFermer()}>
       <div className="dialogue panneau-bas" role="dialog" aria-modal="true" aria-labelledby="photo-titre">
         <div className="panneau-bas__tete">
-          <h2 id="photo-titre">{tx("ph.titre")}</h2>
+          <h2 id="photo-titre">{groupId ? tx("ph.titre") : tx("ph.maPhoto")}</h2>
           <button ref={fermer} type="button" className="bouton-icone-nu" aria-label={tx("app.annuler")} disabled={enCours} onClick={onFermer}>
             <Icone nom="fermer" taille={22} />
           </button>
@@ -224,8 +257,10 @@ export function DialoguePhoto({
         <div className="photo-edition">
           {image ? (
             <canvas ref={apercu} className="photo-edition__apercu" width={240} height={240} aria-label={tx("ph.apercu")} role="img" />
-          ) : (
+          ) : groupId ? (
             <AvatarGroupe session={session} groupId={groupId} nom={nom} version={version} taille={160} />
+          ) : (
+            <AvatarPersonne session={session} nom={nom} version={version} taille={160} />
           )}
           {image ? (
             <label className="photo-edition__zoom">
@@ -238,7 +273,7 @@ export function DialoguePhoto({
             {image ? tx("ph.autre") : tx("ph.choisir")}
             <input className="visuellement-cache" type="file" accept="image/jpeg,image/png,image/webp,image/heic" onChange={(e) => void choisir(e.target.files?.[0])} />
           </label>
-          <p className="aide-champ">{tx("ph.aide")}</p>
+          <p className="aide-champ">{groupId ? tx("ph.aide") : tx("ph.aideMoi")}</p>
           {erreur ? (
             <p className="msg msg--erreur" role="alert">
               {erreur}

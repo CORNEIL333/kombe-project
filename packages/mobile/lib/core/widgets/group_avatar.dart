@@ -73,9 +73,9 @@ class GroupHue {
 
 const List<GroupHue> _hues = <GroupHue>[
   GroupHue(KombeColors.forest, KombeColors.goldWarm, 2),
-  GroupHue(Color(0xFFB02410), KombeColors.goldLight, 2),
-  GroupHue(Color(0xFF0A6B49), KombeColors.goldLight, 2),
-  GroupHue(KombeColors.emerald, KombeColors.goldLight, 2),
+  GroupHue(KombeColors.clay, KombeColors.goldLight, 2),
+  GroupHue(KombeColors.jade, KombeColors.goldLight, 2),
+  GroupHue(KombeColors.plum, KombeColors.goldLight, 2),
 ];
 
 GroupHue groupHue(String id) => _hues[id.codeUnits.fold<int>(7, (int a, int c) => (a * 31 + c) & 0x7fffffff) % _hues.length];

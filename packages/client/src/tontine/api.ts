@@ -162,14 +162,27 @@ async function appel<T>(
 }
 
 /** Photo d'un groupe : octets JPEG lus avec la session (jamais d'URL publique). */
-export async function lirePhotoGroupe(session: Session, groupId: string, version: number, taille: 256 | 512, viaInvitation?: string): Promise<Blob | null> {
+async function lireJpeg(session: Session, chemin: string, version: number, taille: 256 | 512): Promise<Blob | null> {
   const config = await loadRuntimeConfig();
   const base = config.apiBaseUrl.replace(/\/+$/, "");
-  const chemin = viaInvitation ? `/v1/invitations/${encodeURIComponent(viaInvitation)}/photo` : `${t(groupId)}/photo`;
   const r = await fetch(`${base}${chemin}?size=${taille}&v=${version}`, { headers: { authorization: `Bearer ${session.sessionId}` } });
   if (!r.ok) return null;
   const blob = await r.blob();
   return blob.type === "image/jpeg" ? blob : null;
+}
+
+export function lirePhotoGroupe(session: Session, groupId: string, version: number, taille: 256 | 512, viaInvitation?: string): Promise<Blob | null> {
+  return lireJpeg(session, viaInvitation ? `/v1/invitations/${encodeURIComponent(viaInvitation)}/photo` : `${t(groupId)}/photo`, version, taille);
+}
+
+/** Photo de profil d'un membre du groupe. */
+export function lirePhotoMembre(session: Session, groupId: string, membreId: string, version: number, taille: 256 | 512): Promise<Blob | null> {
+  return lireJpeg(session, `${t(groupId)}/members/${encodeURIComponent(membreId)}/photo`, version, taille);
+}
+
+/** Ma photo de profil. */
+export function lireMaPhoto(session: Session, version: number, taille: 256 | 512): Promise<Blob | null> {
+  return lireJpeg(session, "/v1/me/photo", version, taille);
 }
 
 /** Envoie les opérations gardées sur ce téléphone, avec leur clé d'origine. */
@@ -199,6 +212,8 @@ export const acces = {
   verifierCode: (login: string, code: string) => appel<AuthSessionResult>(null, "POST", "/v1/auth/code-verifications", { login, code }),
   deconnexion: (s: Session) => appel<void>(s, "POST", "/v1/auth/logout"),
   moi: (s: Session) => appel<MeView>(s, "GET", "/v1/me"),
+  changerMaPhoto: (s: Session, image512: string, image256: string) => appel<{ photoVersion: number }>(s, "PUT", "/v1/me/photo", { image512, image256 }),
+  retirerMaPhoto: (s: Session) => appel<{ photoVersion: null }>(s, "DELETE", "/v1/me/photo"),
   majMoi: (s: Session, maj: { displayName?: string; language?: "fr" | "en" }) => appel<MeView>(s, "PATCH", "/v1/me", maj),
   mesTontines: (s: Session) => appel<TontineSummary[]>(s, "GET", "/v1/me/tontines"),
   mesEcheances: (s: Session, groupId?: string) => appel<DueView[]>(s, "GET", "/v1/me/dues", undefined, { groupId }),

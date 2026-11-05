@@ -47,7 +47,7 @@ class WelcomeScreen extends StatelessWidget {
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               stops: <double>[0, .55, 1],
-                              colors: <Color>[Color(0x00F5F5FB), Color(0x33F5F5FB), KombeColors.cream],
+                              colors: <Color>[Color(0x00FBF8F1), Color(0x33FBF8F1), KombeColors.cream],
                             ),
                           ),
                         ),
@@ -63,7 +63,7 @@ class WelcomeScreen extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: .9),
                                     borderRadius: BorderRadius.circular(18),
-                                    boxShadow: const <BoxShadow>[BoxShadow(color: Color(0x22161A5C), blurRadius: 18, offset: Offset(0, 6))],
+                                    boxShadow: const <BoxShadow>[BoxShadow(color: Color(0x22103C32), blurRadius: 18, offset: Offset(0, 6))],
                                   ),
                                   child: const KombeLogo(size: 38),
                                 ),
@@ -166,7 +166,7 @@ class _Benefit extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: const <BoxShadow>[BoxShadow(color: Color(0x14161A5C), blurRadius: 10, offset: Offset(0, 3))],
+          boxShadow: const <BoxShadow>[BoxShadow(color: Color(0x14103C32), blurRadius: 10, offset: Offset(0, 3))],
         ),
         child: Row(
           children: <Widget>[

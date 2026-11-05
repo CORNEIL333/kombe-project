@@ -111,10 +111,18 @@ export function App() {
   const groupes = useGroupeActif(session);
   // Nom affiché dans la carte de la personne (menu) ; son absence n'empêche rien.
   const [nom, setNom] = useState<string | null>(null);
+  const [maPhoto, setMaPhoto] = useState<number | null | undefined>(null);
   useEffect(() => {
     if (!session) return setNom(null);
     let vivant = true;
-    acces.moi(session).then((m) => vivant && setNom(m.displayName), () => undefined);
+    acces.moi(session).then(
+      (m) => {
+        if (!vivant) return;
+        setNom(m.displayName);
+        setMaPhoto(m.photoVersion);
+      },
+      () => undefined,
+    );
     return () => {
       vivant = false;
     };
@@ -265,7 +273,7 @@ export function App() {
         </header>
       )}
       {session ? (
-        <MenuLateral session={session} nom={nom} ouvert={menuOuvert} onFermer={() => setMenuOuvert(false)} groupes={groupes} route={route} aller={aller} onDeconnecter={() => setQuitter(true)} />
+        <MenuLateral session={session} nom={nom} maPhoto={maPhoto} ouvert={menuOuvert} onFermer={() => setMenuOuvert(false)} groupes={groupes} route={route} aller={aller} onDeconnecter={() => setQuitter(true)} />
       ) : null}
       {session && apercuNonLues ? (
         <ApercuNonLues

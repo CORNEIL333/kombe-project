@@ -25,7 +25,7 @@ import { Charge, useDonnees } from "./ui.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
 import { useTextes, type CleTexte } from "./textes.js";
 import { destinationNotification, entreeNotification } from "./notifications.js";
-import { initiales } from "./PhotoGroupe.js";
+import { AvatarPersonne } from "./PhotoGroupe.js";
 
 const CONFIRME = ["treasurer", "treasurer_deputy", "animator", "vice_president"];
 
@@ -42,7 +42,7 @@ interface DonneesAccueil {
   readonly seance: { readonly date: string; readonly lieu: string | null } | null;
   readonly tour: { readonly rang: number; readonly total: number; readonly round: RoundView } | null;
   readonly membres: number;
-  readonly noms: readonly string[];
+  readonly noms: readonly { readonly nom: string; readonly id: string; readonly version?: number | null | undefined }[];
   readonly recentes: readonly NotificationView[];
 }
 
@@ -77,7 +77,7 @@ async function chargerAccueil(session: Session, g: TontineSummary): Promise<Donn
     seance: detail.nextMeeting ? { date: detail.nextMeeting.date, lieu: detail.nextMeeting.location } : null,
     tour: cy && cr ? { rang: cr.seq - cy.firstSeq + 1, total: cy.lastSeq - cy.firstSeq + 1, round: cr } : null,
     membres: detail.memberCount,
-    noms: membres.filter((m) => m.state === "active").map((m) => m.displayName),
+    noms: membres.filter((m) => m.state === "active").map((m) => ({ nom: m.displayName, id: m.membershipId, version: m.photoVersion })),
     recentes: notifs.filter((n) => n.groupId === g.groupId).slice(0, 3),
   };
 }
@@ -132,6 +132,7 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
   const { etat, recharger } = useDonnees(() => chargerAccueil(session, groupe), [session.sessionId, groupe.groupId]);
   const vers = (onglet: string) => () => aller({ ecran: "groupe", groupId: groupe.groupId, onglet });
   const visuel = useVisuelGroupe(session, groupe);
+  const moi = useDonnees(() => acces.moi(session), [session.sessionId]);
   return (
     <div className="accueil-premium">
       <Charge etat={etat} recharger={recharger} squelette={<SqueletteAccueil />}>
@@ -196,6 +197,14 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
                   <button type="button" className="ligne-attente apparition" onClick={() => aller({ ecran: "cotisations" })}>
                     <Icone nom="attente" taille={20} />
                     <span>{tx("ho.enAttente", { montant: xaf(d.declare.toString()) })}</span>
+                    <Icone nom="chevron" taille={18} />
+                  </button>
+                ) : null}
+
+                {moi.etat.statut === "ok" && !moi.etat.donnees.photoVersion ? (
+                  <button type="button" className="ligne-attente apparition" onClick={() => aller({ ecran: "profil" })}>
+                    <Icone nom="plus" taille={20} />
+                    <span>{tx("ho.ajouterPhoto")}</span>
                     <Icone nom="chevron" taille={18} />
                   </button>
                 ) : null}
@@ -340,10 +349,8 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
                     <Icone nom="chevron" taille={18} />
                   </span>
                   <span className="pile-avatars" aria-hidden="true">
-                    {d.noms.slice(0, 4).map((n, i) => (
-                      <span key={i} className="pile-avatars__un">
-                        {initiales(n)}
-                      </span>
+                    {d.noms.slice(0, 4).map((n) => (
+                      <AvatarPersonne key={n.id} session={session} groupId={groupe.groupId} membreId={n.id} nom={n.nom} version={n.version} taille={40} />
                     ))}
                     {d.membres > 4 ? <span className="pile-avatars__un pile-avatars__plus">+{d.membres - 4}</span> : null}
                   </span>
@@ -427,15 +434,17 @@ function Ligne({
   sousTitre,
   onClick,
   nonLue,
+  famille,
 }: {
   readonly icone: NomIcone;
   readonly titre: string;
   readonly sousTitre?: string | undefined;
   readonly onClick: () => void;
   readonly nonLue?: boolean;
+  readonly famille?: string;
 }) {
   return (
-    <li>
+    <li data-famille={famille}>
       <button type="button" className={nonLue ? "ligne ligne--nonlue" : "ligne"} onClick={onClick}>
         <span className="ligne__icone" aria-hidden="true">
           <Icone nom={icone} taille={22} />
@@ -466,6 +475,7 @@ function LigneNotification({ n, session, aller }: { readonly n: NotificationView
       titre={tx(e.cle as CleTexte)}
       sousTitre={[n.groupName ?? "", date(n.createdAt)].filter(Boolean).join(" · ")}
       nonLue={!n.read}
+      famille={familleNotification(n)}
       onClick={() => ouvrirNotification(session, n, aller)}
     />
   );

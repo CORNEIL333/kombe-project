@@ -192,7 +192,13 @@ class NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool money = _money.contains(n.topic);
+    final KombeTone tone = _money.contains(n.topic)
+        ? KombeTone.money
+        : _votes.contains(n.topic)
+            ? KombeTone.info
+            : _decisions.contains(n.topic)
+                ? KombeTone.coral
+                : KombeTone.success;
     return Semantics(
       label: n.read ? null : 'non lue',
       child: Material(
@@ -202,8 +208,8 @@ class NotificationTile extends StatelessWidget {
           leading: Container(
             width: 42,
             height: 42,
-            decoration: BoxDecoration(color: money ? KombeColors.goldWarm : KombeColors.forest, shape: BoxShape.circle),
-            child: Icon(notificationIcon(n.kind), size: 21, color: money ? KombeColors.ink : Colors.white),
+            decoration: BoxDecoration(color: tone.solid, shape: BoxShape.circle),
+            child: Icon(notificationIcon(n.kind), size: 21, color: tone.onSolid),
           ),
           title: Text(n.title, style: TextStyle(fontWeight: n.read ? FontWeight.w600 : FontWeight.w800, fontSize: 15.5)),
           subtitle: Text(<String>[if (n.body.isNotEmpty) n.body, relativeTime(n.createdAtUtc, now: now)].join(' · ')),

@@ -138,21 +138,22 @@ class _Totals extends StatelessWidget {
         contributions.where((Contribution c) => keep(c.status)).fold<int>(0, (int s, Contribution c) => s + c.amountXaf);
     final int confirmed = sum((ContributionStatus s) => s == ContributionStatus.confirmed || s == ContributionStatus.validated);
     final int pending = sum((ContributionStatus s) => s == ContributionStatus.submitted);
-    Widget tile(String label, int xaf, Color color, IconData icon) => Expanded(
+    Widget tile(String label, int xaf, Color bg, Color fg, IconData icon) => Expanded(
           child: KombeCard(
+            color: bg,
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Row(
                   children: <Widget>[
-                    Icon(icon, size: 16, color: color),
+                    Icon(icon, size: 16, color: fg),
                     const SizedBox(width: 6),
-                    Flexible(child: Text(label, style: KombeType.eyebrow, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    Flexible(child: Text(label, style: KombeType.eyebrow.copyWith(color: fg), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ],
                 ),
                 const SizedBox(height: 8),
-                FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(xaf, size: 22, color: color)),
+                FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(xaf, size: 24, color: fg)),
               ],
             ),
           ),
@@ -161,9 +162,9 @@ class _Totals extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
       child: Row(
         children: <Widget>[
-          tile('CONFIRMÉ', confirmed, KombeColors.jade, Icons.check_circle_outline_rounded),
+          tile('CONFIRMÉ', confirmed, KombeColors.emerald, Colors.white, Icons.check_circle_outline_rounded),
           const SizedBox(width: 12),
-          tile('EN ATTENTE', pending, KombeColors.goldDark, Icons.hourglass_top_rounded),
+          tile('EN ATTENTE', pending, KombeColors.goldWarm, KombeColors.ink, Icons.hourglass_top_rounded),
         ],
       ),
     );

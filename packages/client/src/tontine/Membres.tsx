@@ -6,6 +6,7 @@ import { tontines, type InvitationView, type MemberView } from "./api.js";
 import { ROLES_NOMMABLES, peut } from "./droits.js";
 import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
 import { Icone } from "../composants/Icones.js";
+import { AvatarPersonne } from "./PhotoGroupe.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 
@@ -31,9 +32,7 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
             <ul className="liste liste--colonnes">
               {membres.map((m) => (
                 <li key={m.membershipId} className="liste__ligne liste__ligne--haute ligne-riche">
-                  <span className={m.isMe ? "ligne-riche__ico ligne-riche__ico--initiales is-moi" : "ligne-riche__ico ligne-riche__ico--initiales"} aria-hidden="true">
-                    {initiales(m.displayName)}
-                  </span>
+                  <AvatarPersonne session={ctx.session} groupId={gid} membreId={m.membershipId} nom={m.displayName} version={m.photoVersion} />
                   <div>
                     <strong>
                       {m.displayName}

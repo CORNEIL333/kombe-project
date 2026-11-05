@@ -1,4 +1,4 @@
-/** Signature de KÓMBE : le rang de perles du cycle. Une perle par tour : maïs si passé, cerclée pour le tour en cours, vide à venir. */
+/** Signature de KÓMBE : le rang de perles du cycle. Une perle par tour : or si passé, cerclée pour le tour en cours, vide à venir. */
 export function BandeCycle({ courant, total, libelle, clair = false }: { readonly courant: number; readonly total: number; readonly libelle: string; readonly clair?: boolean }) {
   if (total <= 0) return null;
   return (

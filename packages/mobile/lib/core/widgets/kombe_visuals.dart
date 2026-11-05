@@ -35,10 +35,10 @@ class KombeAvatar extends StatelessWidget {
 
   static const List<(Color, Color)> _tints = <(Color, Color)>[
     (KombeColors.forest, Colors.white),
-    (Color(0xFFB02410), Colors.white),
-    (Color(0xFF0A6B49), Colors.white),
+    (KombeColors.clay, Colors.white),
+    (KombeColors.jade, Colors.white),
     (KombeColors.goldWarm, KombeColors.ink),
-    (KombeColors.emerald, Colors.white),
+    (KombeColors.plum, Colors.white),
   ];
 
   String get _initials {
@@ -94,7 +94,7 @@ class KombeChip extends StatelessWidget {
       ChipTone.green => (KombeColors.mint, KombeColors.forest),
       ChipTone.neutral => (KombeColors.sand, KombeColors.slate),
       ChipTone.warning => (KombeColors.goldPale, KombeColors.warning),
-      ChipTone.danger => (Color(0xFFFDE6E1), KombeColors.danger),
+      ChipTone.danger => (Color(0xFFFBEAE7), KombeColors.danger),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
