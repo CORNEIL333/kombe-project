@@ -49,6 +49,13 @@ if (isProd && process.env.VERCEL) {
   }
 }
 if (migrationUrl && isProd) {
+  // Trace sans secret : quelle base est migrée (hôte, nom de base, utilisateur).
+  try {
+    const u = new URL(migrationUrl);
+    process.stdout.write(`\nℹ Base migrée : ${u.hostname.split(".")[0]} / ${u.pathname.slice(1)} (utilisateur ${u.username})\n`);
+  } catch {
+    process.stdout.write("\nℹ Base migrée : URL illisible\n");
+  }
   step("Migrations de la base de production", process.execPath, ["packages/db/scripts/migrate.mjs", "migrate"], {
     ...process.env,
     KOMBE_DATABASE_URL: migrationUrl,

@@ -1,5 +1,32 @@
 # 11 — Runbook d'exploitation
 
+## Base de production : identification (à lire avant toute opération)
+
+| Élément | Production | Ce qui n'est PAS la production |
+|---|---|---|
+| Projet Neon | `square-resonance-19892972` (« kombe », Francfort) | le projet LYNKSTORmobile |
+| Branche | **`production`** (`br-red-river-b1ymeb4o`), branche **par défaut** du projet | `preview-piste-a-claude` (`br-wild-sunset-b10uf45r`) et ses branches `preview-fork-*` : anciennes pistes d'octobre |
+| Point d'accès | `ep-ancient-glade-b148md5t` | `ep-dry-wildflower-b19ptfwl` |
+| Base | **`neondb`** | **`kombe_prod`** : malgré son nom, une ancienne piste **vide** (51 tables, aucune donnée, migrations arrêtées à 0025 le 09/10/2026). Personne n'y pointe. Conservée, ne jamais la migrer ni la sauvegarder. |
+| Variables Vercel (Production) | `KOMBE_API_DATABASE_URL` (application) et `KOMBE_MIGRATION_DATABASE_URL` (migrations du build) pointent vers `neondb` sur `production`. Le journal du build affiche « Base migrée : <point d'accès> / <base> ». | — |
+
+État au 06/11/2026 :
+- dernières migrations `0034_group_photo` et `0035_member_photo`, appliquées le 05/11 à 08:40 UTC par le déploiement 0.8.0 ;
+- 20 identités, 6 groupes, 14 adhésions.
+
+Règle : la production est **la branche par défaut du projet**, jamais une base désignée par son nom.
+
+## Sauvegarde avant chaque mise à jour
+
+- **Une seule** branche de sauvegarde par version, créée juste avant le déploiement, depuis la branche par défaut :
+  ```
+  NEON_API_KEY=… node scripts/neon-sauvegarde.mjs 0.8.1
+  ```
+  Le nom est `sauvegarde-avant-0-8-1-AAAAMMJJ`. Le script refuse une seconde sauvegarde pour la même version et ne supprime rien.
+- On **conserve les 2 dernières** sauvegardes. Les plus anciennes sont supprimées dans la console Neon une fois la nouvelle version validée en production.
+- Les **branches de répétition** (`test-…`), qui servent à essayer les migrations sur une copie, sont supprimées dès la répétition terminée.
+- Le plan gratuit limite le projet à 10 branches.
+
 ## Mise en production de cette version (propriétaire)
 
 **1. Secrets (Vercel → Project → Settings → Environment Variables, cible Production, type *Sensitive*)**
