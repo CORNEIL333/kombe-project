@@ -23,38 +23,27 @@ Fichier verrouillé : tout écran, mobile comme PWA, en dérive. Toute exception
 | Enseignes peintes des salons de coiffure | Un mot, très grand, lisible de loin : hiérarchie, un seul message |
 | Les Têtes Brûlées (bikutsi, corps peints) | Audace assumée, couleur sur peau sombre : ne pas s'excuser d'être voyant |
 
-## 1. Direction retenue
+## 1. Direction retenue : le calme
 
-**Ndop vert : l'argent du groupe, tissé.** Le vert forêt reste la couleur de KÓMBE (essai en indigo abandonné : il cassait l'identité). Le caractère vient des formes, de la typographie et des photos, pas d'un changement de marque.
-
-**Couleurs.** Le vert forêt domine ; quatre accents francs donnent la vie (l'interface manquait de couleur).
+**Une seule audace par écran, tout le reste est calme.** La personnalité vient du serif, des monogrammes, de la langue et d'un seul accent, pas de la quantité de couleurs. Essais abandonnés : indigo (cassait l'identité), multicolore (illisible).
 
 | Jeton | Hex | Rôle |
 |---|---|---|
-| Forêt | `#103C32` | Surface dominante, texte fort |
-| Soleil | `#F2B01E` | L'argent et l'action principale (texte encre dessus) |
-| Émeraude | `#0C8060` | Confirmé, liens, cycle |
-| Corail | `#C8412A` | Séances, membres, rappels |
-| Prune | `#6C2A6B` | Votes, règles |
-| Or texte | `#8A5F14` | Or lisible sur fond clair |
-| Danger | `#B42318` | Retard, erreur |
-| Ivoire | `#FBF8F1` | Fond |
-| Menthe | `#DCEFE6` | Sélection |
-| Encre | `#13211C` | Texte |
-| Ardoise | `#56645E` | Texte secondaire |
-| Filet | `#E7DCC6` / `#D9D0BC` | Traits |
+| Vert marque | `#12805C` | Aplats, héros, sélection (4,9:1 avec du texte blanc) |
+| Safran | `#F2B01E` | L'action, texte encre dessus |
+| Forêt | `#103C32` | Texte et icônes uniquement, jamais en aplat |
+| Ivoire, sable, menthe | `#FBF8F1`, `#F3ECDD`, `#DCEFE6` | Fonds neutres chauds |
+| Encre, ardoise | `#13211C`, `#56645E` | Texte |
+| Danger | `#B42318` | Retard et erreur seulement |
+| 8 teintes douces | voir `KombeColors.tints` | Monogrammes et liserés, texte toujours encre |
 
-**Polices.** Fraunces 600–700 pour montants et titres, Manrope pour le reste. Déjà embarquées : aucun poids ajouté, aucun téléchargement. Les montants sont très grands, comme une enseigne peinte.
+**Règles.** Trois teintes au plus par écran. Motif jamais derrière du texte, une seule zone décorative par écran au maximum. Texte 14 px minimum, contraste 4,5:1, cibles 48 px. Fraunces sur les noms et les montants, Manrope pour le reste. Tout est rond. Pas de photo décorative.
 
-**Signature : le rang de perles.** Une perle par tour : or quand le tour est passé, cerclée pour le tour en cours, vide à venir. Il dit d'un coup d'œil où en est le groupe.
+**Carte de groupe.** Une structure, même hauteur : avatar, nom, fonction, « À payer » en plus gros texte, points du cycle, un seul chevron, liseré d'identité. Rien à payer : ligne masquée. En attente : carte grise, « En attente ». Tri par urgence.
 
-**Formes.** Tout est rond : boutons pilules, avatars et pictos en disques, cartes à grands arrondis. Pas de triangles, pas de coins coupés (décision de l'utilisateur après essai).
+**Points du cycle.** Petits, un par tour : pleins si passés, safran pour le tour en cours, vides à venir, rouge en retard.
 
-**Motif.** Anneaux vectoriels, présents sur les surfaces forêt. Jamais sous un texte de lecture. Aucune photo décorative.
-
-**Mouvement.** Trois moments seulement : le bloc du tour qui se tisse (recevoir), le sceau « confirmé », le retard qui se pose sans trembler. `prefers-reduced-motion` respecté.
-
-**Garde-fous.** AA minimum, cibles 48 px, texte 14 px minimum hors pastilles, pas de cartes blanches empilées sans raison. L'écran de connexion PWA ne change pas.
+**Contrôles avant de montrer un écran.** Flou en niveaux de gris (le paiement urgent se voit en 2 secondes), comptage des teintes, audit automatique (taille, contraste, cibles, aplats).
 
 ## 2. Arborescence
 
@@ -80,12 +69,6 @@ Un seul chemin par fonction. La cloche ouvre les non-lus. Bureau (ordinateur) : 
 Tour, cycle, séance, caisse, bureau, cotisation : gardés, ce sont les mots des tontines.
 Interdits dans le produit : « épargne », « retrait ».
 
-## 4. Identité
+## 4. Photos
 
-- **Photos.** Chaque tontine et chaque membre a une photo de profil, ronde. Les initiales ne sont qu'un repli tant qu'aucune photo n'a été envoyée.
-- **Teinte de tontine.** Chaque groupe a une teinte stable (forêt, émeraude, corail, prune) et le motif d'anneaux.
-- **Coupon.** Un groupe = une carte à sa couleur. Pas une carte blanche.
-- **Listes cousues.** Rangées posées sur le fond, séparées par un point de couture. Frise cousue pour l'Activité.
-- **Titres.** Fraunces gras partout où il y a un titre.
-- **Barre du bas.** Forêt, disque soleil pour l'onglet actif.
-- **Reçoit ce tour.** Carte soleil : le moment fort du cycle.
+Chaque tontine et chaque membre a une photo de profil, ronde. Le monogramme n'est qu'un repli tant qu'aucune photo n'a été envoyée.

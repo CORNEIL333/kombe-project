@@ -12,7 +12,7 @@
 .app--session,
 body:has(.app--session) {
   --s-foret: #103c32;
-  --s-jade: #0c8060;
+  --s-jade: #12805c;
   --s-ivoire: #fbf8f1;
   --s-menthe: #dcefe6;
   --s-menthe-pale: #eef7f2;
@@ -622,97 +622,160 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 .app--session .section-accueil .titre-section--action { min-height: 44px; margin: 18px 0 6px; }
 
 
-/* ══ Direction « Ndop » (docs/refonte/DESIGN.md) : tout est rond ═══════════ */
+/* ══ Direction calme (docs/refonte/DESIGN.md) ═════════════════════════════
+   Trois teintes par écran : vert de marque, safran pour l'action, neutres
+   chauds. Le vert très sombre sert au texte et aux icônes, jamais en aplat.
+   Rouge : retard et erreur. Pas de motif derrière du texte. */
 .app--session, body:has(.app--session) {
-  --s-vermillon: #b42318;
+  --s-vert: #12805c;
+  --s-ndop-anneaux: none;
+  --s-ndop-losanges: none;
+  --s-ndop-chevrons: none;
   --s-couture: repeating-linear-gradient(90deg, var(--s-trait-fort) 0 5px, transparent 5px 10px);
 }
-/* Titres : voix d'enseigne (Fraunces gras, coupe la plus expressive). */
+.app--session [data-teinte="0"] { --teinte: #d5ebdf; --liseré: #7fc2a0; }
+.app--session [data-teinte="1"] { --teinte: #f6e7bf; --liseré: #e0bd5c; }
+.app--session [data-teinte="2"] { --teinte: #efe6d2; --liseré: #cdb98c; }
+.app--session [data-teinte="3"] { --teinte: #e6ebcb; --liseré: #b6c36f; }
+.app--session [data-teinte="4"] { --teinte: #f0ded2; --liseré: #d6a98c; }
+.app--session [data-teinte="5"] { --teinte: #dee8e6; --liseré: #93b5ae; }
+.app--session [data-teinte="6"] { --teinte: #e9e4d8; --liseré: #bdb195; }
+.app--session [data-teinte="7"] { --teinte: #e3efe6; --liseré: #9fc9ad; }
+
+/* Texte : serif sur les noms et les montants, 14 px minimum partout. */
 .app--session h1, .app--session h2, .app--session .ecran-titre-simple, .app--session .entete-groupe__nom,
 .app--session .hero-cotisation__montant, .app--session .montant, .app--session .ligne-riche__montant {
-  font-family: var(--s-titre); font-weight: 800; font-variation-settings: "opsz" 144, "SOFT" 50, "WONK" 1; letter-spacing: -0.02em;
+  font-family: var(--s-titre); font-weight: 700; font-variation-settings: "opsz" 72, "SOFT" 50, "WONK" 0; letter-spacing: -0.015em;
 }
-.app--session .ecran-titre-simple { font-size: clamp(2rem, 9vw, 2.6rem); color: var(--s-foret); }
-.app--session .titre-section--action h2, .app--session .activite h2.titre-section { font-size: 1.45rem; color: var(--s-foret); }
+.app--session .ecran-titre-simple { font-size: clamp(1.9rem, 8vw, 2.4rem); color: var(--s-foret); }
+.app--session .titre-section--action h2, .app--session .activite h2.titre-section { font-size: 1.35rem; color: var(--s-foret); }
 .app--session .ecran-sous-titre { display: none; }
+.app--session small, .app--session .aide-champ, .app--session .pastille, .app--session .etiquette, .app--session .ligne__sous-titre, .app--session .nav-basse__libelle,
+.app--session .rail-carte__sur, .app--session .rail-carte__note, .app--session .sur-titre, .app--session .liste__ligne span, .app--session .carte-rail span, .app--session .tuile-action,
+.app--session .menu-lateral__groupe-role, .app--session .menu-lateral__personne-role, .app--session .profil-chiffres span, .app--session label, .app--session th, .app--session td { font-size: max(14px, 0.875rem); }
+.app--session .pastille, .app--session .etiquette { color: var(--s-encre); }
+.app--session .pastille--alerte { color: var(--s-danger); }
 
-/* Surfaces : pas de filet beige, l'espace et la couleur structurent. */
+/* Surfaces : blanc sur ivoire, l'espace structure. */
 .app--session .tcarte, .app--session .rail-carte, .app--session .carte-rail, .app--session .recap, .app--session .formulaire-encart { border: 0; box-shadow: none; }
-.app--session .ligne-riche__ico { border-radius: 999px; }
-.app--session .ligne-riche__ico--initiales { background: var(--s-foret); color: #fff; font-family: var(--s-titre); font-weight: 700; }
-.app--session .tuile-action { border: 0; box-shadow: none; background: var(--s-menthe); color: var(--s-foret); border-radius: 22px; }
-.app--session .tuile-action--accent { background: var(--s-or); color: var(--s-encre); }
-
-/* Listes cousues. */
+.app--session .ligne-riche__ico, .app--session .ligne__icone { border-radius: 999px; background: var(--s-menthe); color: var(--s-foret); }
+.app--session .ligne-riche__ico--ok { background: var(--s-menthe); color: var(--s-foret); }
+.app--session .ligne-riche__ico--attente, .app--session .ligne-riche__ico--argent { background: var(--s-or-pale); color: var(--s-encre); }
+.app--session .ligne-riche__ico--alerte { background: var(--s-danger-fond); color: var(--s-danger); }
+.app--session [data-famille="argent"] .ligne__icone { background: var(--s-or-pale); color: var(--s-encre); }
 .app--session .liste__ligne + .liste__ligne, .app--session .lignes > li + li { border-top: 0; background-image: var(--s-couture); background-size: 100% 2px; background-repeat: no-repeat; background-position: top; }
+.app--session .tuile-action, .app--session .tuile-action--accent { border: 0; box-shadow: none; background: #fff; color: var(--s-encre); border-radius: 18px; }
+.app--session .tuile-action .tuile-action__icone { background: var(--s-menthe); color: var(--s-foret); border-radius: 999px; }
+.app--session .carte-seance, .app--session .carte-promo, .app--session .rail-carte--foret { background: #fff; background-image: none; color: var(--s-encre); border: 0; }
+.app--session .carte-seance *, .app--session .carte-promo *, .app--session .rail-carte--foret * { color: inherit; }
+.app--session .carte-seance__vignette { display: none; }
+.app--session .carte-promo { display: none; }
 
-/* Avatar de tontine : rond ; photo, sinon initiales sur la teinte et le motif du groupe. */
-.app--session .avatar-groupe, .app--session .avatar-groupe--rond, .app--session .carte-groupe__corps > .avatar-groupe, .app--session .selecteur-groupe .avatar-groupe { border-radius: 999px; box-shadow: none; }
-.app--session .avatar-groupe { isolation: isolate; background: var(--s-foret); }
-.app--session [data-teinte="1"] { --teinte: #c8412a; }
-.app--session [data-teinte="2"] { --teinte: #0c8060; }
-.app--session [data-teinte="3"] { --teinte: #6c2a6b; }
-.app--session .avatar-groupe[data-teinte] { background: var(--teinte, var(--s-foret)) var(--s-ndop-anneaux) center / 42% 42%; }
-.app--session .avatar-groupe[data-teinte]::before { content: ""; position: absolute; z-index: -1; top: 16%; left: 16%; width: 68%; height: 68%; border-radius: 999px; background: var(--teinte, var(--s-foret)); box-shadow: 0 0 0 2px var(--s-or); }
-.app--session .avatar-groupe__initiales { font-family: var(--s-titre); font-weight: 800; color: #fff; font-size: .8em; }
-
-/* Coupons de tissu : un groupe, une couleur. */
-.app--session .cartes-groupes { display: grid; grid-gap: 16px; padding: 0; list-style: none; }
-.app--session .carte-groupe { padding: 0; margin: 0; border: 0; border-radius: 24px; overflow: hidden; box-shadow: none; background: var(--teinte, var(--s-foret)) var(--s-ndop-anneaux); color: #fff; }
-.app--session .carte-groupe.is-actif { box-shadow: 0 0 0 3px var(--s-or); }
-.app--session .carte-groupe__corps, .app--session .carte-groupe__pied, .app--session .carte-groupe__prochaine, .app--session .carte-groupe__bureau { background: transparent; color: #fff; border: 0; }
-.app--session .carte-groupe__nom { font-family: var(--s-titre); font-weight: 800; font-variation-settings: "opsz" 144, "SOFT" 50, "WONK" 1; font-size: 1.5rem; line-height: 1.1; color: #fff; }
-.app--session .carte-groupe__meta, .app--session .carte-groupe__cycle, .app--session .carte-groupe__prochaine-texte, .app--session .carte-groupe__prochaine-texte span, .app--session .carte-groupe__prochaine-texte strong { color: #fff; }
-.app--session .carte-groupe__calendrier { background: var(--s-or); color: var(--s-encre); border-radius: 999px; }
-.app--session .carte-groupe__cycle { display: block; }
-.app--session .carte-groupe__cycle .bande-cycle { margin-top: 6px; }
-.app--session .carte-groupe__pied { border-top: 0; }
-
-/* Perles du cycle. */
-.bande-cycle { display: flex; align-items: center; justify-content: space-between; gap: 3px; width: 100%; }
-.bande-cycle i { flex: 0 1 22px; min-width: 3px; aspect-ratio: 1; border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4); }
-.bande-cycle i.est-passe, .bande-cycle i.est-courant { box-shadow: none; animation: enfilage 380ms cubic-bezier(.2, .8, .2, 1) both; }
-.bande-cycle i.est-passe { background: #f2b01e; }
-.bande-cycle i.est-courant { background: radial-gradient(circle, #f2b01e 0 40%, #fff 42%); }
-.bande-cycle--clair i { box-shadow: inset 0 0 0 1.5px #d9d0bc; }
-.bande-cycle--clair i.est-courant { background: radial-gradient(circle, #f2b01e 0 40%, #103c32 42%); }
-@keyframes enfilage { from { transform: scale(0); } to { transform: none; } }
-@media (prefers-reduced-motion: reduce) { .bande-cycle i { animation: none !important; } }
-
-/* Héros : un seul message, puis les perles. */
-.app--session .hero-cotisation { box-shadow: none; background-color: var(--s-foret); color: #fff; isolation: isolate; }
-.app--session .hero-cotisation::before {
-  content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: -1; pointer-events: none; background-image: var(--s-ndop-anneaux);
-  -webkit-mask-image: linear-gradient(90deg, transparent 25%, #000 80%); mask-image: linear-gradient(90deg, transparent 25%, #000 80%);
+/* Boutons : safran pour l'action, le reste discret. */
+.app--session .bouton:not(.bouton-secondaire):not(.bouton-texte):not(.bouton-danger) { background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); }
+.app--session .bouton:disabled { background: var(--s-sable); border-color: var(--s-sable); color: var(--s-ardoise); }
+.app--session .bouton-texte { color: var(--s-vert); }
+.app--session .bouton-petit {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 48px; padding: 0 14px; border: 1px solid var(--s-trait-fort); border-radius: 999px;
+  background: #fff; color: var(--s-foret); font: 700 14px/1 var(--s-ui); cursor: pointer;
 }
-.app--session .hero-cotisation__pieces { display: none; }
-.app--session .hero-cotisation__montant { color: #fff; }
-.app--session .hero-cotisation__libelle { color: #ffd262; }
-.app--session .hero-cotisation__echeance { color: rgba(255, 255, 255, 0.86); font-weight: 700; }
-.app--session .is-retard .hero-cotisation__echeance { color: #ffb4a6; }
-.app--session .hero-cotisation__ajour { color: #fff; font-family: var(--s-titre); font-weight: 800; font-size: 2.2rem; }
-.app--session .bouton.hero-cotisation__cta, .app--session .hero-cotisation__cta { background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); box-shadow: none; }
-.hero-cotisation__cycle { margin-top: 16px; max-width: 420px; }
-.hero-cotisation__cycle > span:not(.bande-cycle) { display: block; margin-top: 6px; color: rgba(255, 255, 255, 0.86); font-size: 14px; font-weight: 600; }
+.app--session .bouton-petit:focus-visible { outline: 3px solid var(--s-or); outline-offset: 2px; }
+.app--session .entete-liste { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 4px 0 12px; }
+.app--session .entete-liste__actions { display: flex; gap: 8px; }
+
+/* Avatars : ronds, teinte douce, encre. */
+.app--session .avatar-groupe, .app--session .avatar-groupe--rond, .app--session .carte-groupe__corps .avatar-groupe, .app--session .selecteur-groupe .avatar-groupe { border-radius: 999px; box-shadow: none; }
+.app--session .avatar-groupe { background: var(--teinte, var(--s-menthe)); color: var(--s-encre); }
+.app--session .avatar-groupe[data-teinte]::before { content: none; }
+.app--session .avatar-groupe__initiales { font-family: var(--s-titre); font-weight: 700; color: var(--s-encre); font-size: .9em; }
+.app--session .avatar-personne {
+  position: relative; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+  border-radius: 999px; background: var(--teinte, var(--s-menthe)); color: var(--s-encre); font-family: var(--s-titre); font-weight: 700; line-height: 1;
+}
+.app--session .avatar-personne img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.app--session .ligne-riche > .avatar-personne { margin-right: 12px; }
+.app--session .pile-avatars .avatar-personne { margin-left: -8px; box-shadow: 0 0 0 2px #fff; }
+.app--session .pile-avatars .avatar-personne:first-child { margin-left: 0; }
+.app--session .menu-lateral__personne .avatar-personne { margin-right: 12px; }
+.app--session .profil-entete__photo { position: relative; flex: 0 0 auto; margin-right: 16px; padding: 0; border: 0; border-radius: 999px; background: none; cursor: pointer; }
+.app--session .profil-entete__photo-ico { position: absolute; right: -2px; bottom: -2px; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; background: var(--s-or); color: var(--s-encre); box-shadow: 0 0 0 2px #fff; }
+.app--session .profil-entete__photo:focus-visible { outline: 3px solid var(--s-or); outline-offset: 3px; }
+
+/* Cartes de groupe : une structure, même hauteur, un liseré. */
+.app--session .cartes-groupes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); grid-gap: 12px; padding: 0; list-style: none; }
+.app--session .carte-groupe { position: relative; display: flex; margin: 0; padding: 0; overflow: hidden; border: 0; border-left: 5px solid var(--liseré, var(--s-trait-fort)); border-radius: 18px; box-shadow: none; background: #fff; color: var(--s-encre); }
+.app--session .carte-groupe.is-actif { box-shadow: none; }
+.app--session .carte-groupe.is-attente { background: var(--s-sable); }
+.app--session .carte-groupe__corps { display: flex; flex-direction: column; width: 100%; min-height: 168px; padding: 14px 10px 14px 14px; border: 0; background: transparent; color: var(--s-encre); text-align: left; cursor: pointer; }
+.app--session .carte-groupe.is-attente .carte-groupe__corps { min-height: 0; cursor: default; }
+.app--session .carte-groupe__corps:focus-visible { outline: 3px solid var(--s-or); outline-offset: -3px; }
+.app--session .carte-groupe__tete { display: flex; align-items: center; gap: 12px; }
+.app--session .carte-groupe__tete > .avatar-groupe { margin: 0; }
+.app--session .carte-groupe__texte { flex: 1 1 auto; min-width: 0; display: block; }
+.app--session .carte-groupe__nom { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--s-titre); font-weight: 700; font-size: 1.25rem; line-height: 1.2; color: var(--s-encre); }
+.app--session .carte-groupe__role { display: block; font-size: 14px; font-weight: 600; color: var(--s-ardoise); }
+.app--session .carte-groupe__payer { display: block; margin-top: 12px; }
+.app--session .carte-groupe__payer-libelle { display: block; font-size: 14px; font-weight: 700; color: var(--s-encre); }
+.app--session .carte-groupe__payer-ligne { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; font-size: 14px; font-weight: 600; color: var(--s-encre); }
+.app--session .carte-groupe__payer-ligne strong { font-family: var(--s-titre); font-weight: 700; font-size: 1.85rem; line-height: 1.1; font-variant-numeric: tabular-nums lining-nums; color: var(--s-encre); }
+.app--session .carte-groupe__cycle { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 10px; font-size: 14px; color: var(--s-ardoise); }
+.app--session .carte-groupe__cycle .bande-cycle { flex: 1 1 auto; margin: 0; }
+
+/* Points du cycle : petits et discrets. */
+.bande-cycle { display: flex; align-items: center; gap: 6px; width: 100%; flex-wrap: nowrap; overflow: hidden; }
+.bande-cycle i { flex: 0 0 10px; width: 10px; height: 10px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.6); }
+.bande-cycle i.est-passe { background: #fff; box-shadow: none; }
+.bande-cycle i.est-courant { background: #f2b01e; box-shadow: 0 0 0 2px #fff; }
+.bande-cycle--clair i { box-shadow: inset 0 0 0 1.5px #d9d0bc; }
+.bande-cycle--clair i.est-passe { background: #12805c; box-shadow: none; }
+.bande-cycle--clair i.est-courant { background: #f2b01e; box-shadow: none; }
+.app--session .is-retard .bande-cycle i.est-courant { background: #b42318; }
+
+/* Héros : aplat vert, un message, une action. */
+.app--session .hero-cotisation { box-shadow: none; background-color: var(--s-vert); background-image: none; color: #fff; isolation: isolate; }
+.app--session .hero-cotisation::before { content: none; }
+.app--session .hero-cotisation__pieces, .app--session .hero-cotisation__sur { display: none; }
+.app--session .hero-cotisation__montant, .app--session .hero-cotisation__ajour { color: #fff; }
+.app--session #contenu .hero-cotisation h1.hero-cotisation__ajour { color: #fff; font-size: 2.1rem; }
+.app--session #contenu .hero-cotisation h1.hero-cotisation__libelle { position: static; display: block; margin: 0; color: #fff; font: 700 15px/1.3 var(--s-ui); font-variation-settings: normal; letter-spacing: 0; text-transform: none; }
+.app--session .hero-cotisation__echeance { display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 700; }
+.app--session .hero-cotisation__echeance svg { display: block; }
+.app--session .is-retard .hero-cotisation__echeance { color: #fff; }
+.app--session .bouton.hero-cotisation__cta, .app--session .hero-cotisation__cta { background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); box-shadow: none; border-radius: 999px; }
+.hero-cotisation__cycle { margin-top: 16px; }
+.hero-cotisation__cycle > span:not(.bande-cycle) { display: block; margin-top: 6px; color: #fff; font-size: 14px; font-weight: 600; }
 @media (max-width: 899px) {
-  .app--session .bandeau-accueil { padding: 2px 16px 0; background: var(--s-foret); }
+  .app--session .bandeau-accueil { padding: 2px 16px 0; background: var(--s-vert); color: #fff; }
   .app--session .bandeau-accueil::before, .app--session .bandeau-accueil__marque, .app--session .bandeau-accueil__groupe { display: none; }
-  .app--session .hero-cotisation { margin: 0 -16px; padding: 14px 16px 20px; border-radius: 0 0 30px 30px; }
-  .app--session .hero-cotisation__libelle { font: 800 0.8rem/1.2 var(--s-ui); letter-spacing: 0.08em; text-transform: uppercase; }
-  .app--session .hero-cotisation__montant { margin-top: 4px; font-size: clamp(2.6rem, 13.5vw, 3.4rem); }
+  .app--session .bandeau-accueil__salut { color: #fff; }
+  .app--session .hero-cotisation { margin: 0 -16px; padding: 10px 16px 20px; border-radius: 0 0 28px 28px; }
+  .app--session .hero-cotisation__montant { margin-top: 4px; font-size: clamp(2.5rem, 13vw, 3.2rem); }
   .app--session .hero-cotisation__echeance { margin: 6px 0 16px; }
   .app--session .bouton.hero-cotisation__cta, .app--session .hero-cotisation__cta { min-height: 56px; }
+  .app--session .ligne-attente { margin-top: 14px; }
+  .app--session.ecran--accueil .barre-haut, .app--session .ecran--accueil .barre-haut { background: var(--s-vert); }
 }
 
-/* Barre du bas : forêt, disque or. */
-.app--session .nav-basse { background: var(--s-foret); border-top: 0; box-shadow: none; }
-.app--session .nav-basse__item { color: #fff; }
-.app--session .nav-basse__item.is-actif { color: #fff; font-weight: 800; }
-.app--session .nav-basse__item.is-actif .nav-basse__icone { background: var(--s-or); color: var(--s-encre); border-radius: 999px; }
-.app--session .nav-basse__pastille { background: var(--s-vermillon); }
+/* En-tête de groupe : vert de marque, sans motif. */
+.app--session .entete-groupe { background: var(--s-vert); background-image: none; color: #fff; }
+.app--session .entete-groupe::before { content: none; }
+.app--session .entete-groupe * { color: #fff; }
+.app--session .entete-groupe .avatar-groupe, .app--session .entete-groupe .avatar-groupe * { color: var(--s-encre); }
+.app--session .onglet[aria-selected="true"], .app--session .onglet[aria-current="page"], .app--session .onglet.is-actif { background: var(--s-vert); border-color: var(--s-vert); color: #fff; }
+.app--session .filtre[aria-pressed="true"] { background: var(--s-vert); border-color: var(--s-vert); color: #fff; }
 
-/* Colonne. */
-.app--session .menu-lateral__nav .menu-lateral__lien[aria-current="page"] { background: var(--s-or); color: var(--s-encre); border-radius: 999px; }
+/* Navigation : blanche, sobre. */
+.app--session .nav-basse { background: #fff; border-top: 1px solid var(--s-trait); box-shadow: none; }
+.app--session .nav-basse__item { color: var(--s-ardoise); }
+.app--session .nav-basse__item.is-actif { color: var(--s-foret); font-weight: 800; }
+.app--session .nav-basse__item.is-actif .nav-basse__icone { background: var(--s-menthe); color: var(--s-foret); border-radius: 999px; }
+.app--session .nav-basse__pastille { background: var(--s-or); }
+.app--session .menu-lateral__tete, .app--session .menu-lateral__personne { background: var(--s-vert); background-image: none; color: #fff; }
+.app--session .menu-lateral__tete::before, .app--session .menu-lateral__tete::after { content: none; }
+.app--session .menu-lateral__personne *, .app--session .menu-lateral__tete * { color: #fff; }
+.app--session .menu-lateral__personne .avatar-personne { color: var(--s-encre); }
+.app--session .menu-lateral__pied { background: none; }
+.app--session .menu-lateral__nav .menu-lateral__lien[aria-current="page"] { background: var(--s-menthe); color: var(--s-foret); border-radius: 999px; }
 .app--session .menu-lateral__groupe.is-choisi { background: var(--s-menthe); border-radius: 18px; }
 
 /* Activité : frise cousue. */
@@ -720,54 +783,36 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 .app--session .activite .lignes::before { content: ""; position: absolute; left: 30px; top: 8px; bottom: 8px; width: 2px; background: repeating-linear-gradient(180deg, var(--s-trait-fort) 0 5px, transparent 5px 10px); }
 .app--session .activite .lignes > li { background: none; position: relative; }
 
-/* Photo d'une personne : ronde, partout. */
-.app--session .avatar-personne {
-  position: relative; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
-  border-radius: 999px; background: var(--teinte, var(--s-foret)); color: #fff; font-family: var(--s-titre); font-weight: 800; line-height: 1;
-}
-.app--session .avatar-personne img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.app--session .ligne-riche > .avatar-personne { margin-right: 12px; }
-.app--session .pile-avatars .avatar-personne { margin-left: -8px; box-shadow: 0 0 0 2px var(--s-blanc); }
-.app--session .pile-avatars .avatar-personne:first-child { margin-left: 0; }
-.app--session .menu-lateral__personne .avatar-personne { margin-right: 12px; box-shadow: 0 0 0 2px var(--s-or); }
-.app--session .profil-entete__photo { position: relative; flex: 0 0 auto; margin-right: 16px; padding: 0; border: 0; border-radius: 999px; background: none; cursor: pointer; }
-.app--session .profil-entete__photo-ico { position: absolute; right: -2px; bottom: -2px; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; background: var(--s-or); color: var(--s-encre); box-shadow: 0 0 0 2px var(--s-blanc); }
-.app--session .profil-entete__photo:focus-visible { outline: 3px solid var(--s-or); outline-offset: 3px; }
+/* Chiffres du profil et encart d'alerte. */
+.app--session .profil-chiffres strong { font-family: var(--s-titre); font-weight: 700; font-variant-numeric: tabular-nums lining-nums; }
+.app--session .msg--attente { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.app--session .msg--attente > p { flex: 1 1 220px; margin: 0; }
+.app--session .msg--attente > .bouton { flex: 0 0 auto; width: auto; }
 
-/* Téléphone : un seul libellé au-dessus du montant. */
-@media (max-width: 899px) {
-  .app--session .hero-cotisation__sur { display: none; }
-  .app--session #contenu .hero-cotisation h1.hero-cotisation__libelle { display: block; position: static; margin: 0; color: #ffd262; font: 800 0.85rem/1.2 var(--s-ui); letter-spacing: 0.08em; text-transform: uppercase; font-variation-settings: normal; }
-  .app--session .hero-cotisation__echeance svg { display: block; }
-}
+/* Pictos de titre. */
+.app--session .titre-section--action h2, .app--session .carte-rail__titre, .app--session .carte-seance__lieu { display: inline-flex; align-items: center; gap: 8px; }
+.app--session .titre-section--action h2 > *, .app--session .carte-rail__titre > *, .app--session .carte-seance__lieu > * { margin: 0; }
+.app--session .section-accueil .titre-section--action { min-height: 44px; margin: 18px 0 6px; }
 
-/* « À jour » sur le héros : `#contenu h1` le peindrait en forêt sur forêt. */
-.app--session #contenu .hero-cotisation h1.hero-cotisation__ajour { color: #fff; font-size: 2.2rem; }
-
-/* ══ Couleur : le vert domine, soleil, corail, émeraude et prune font vivre l'interface ══ */
-.app--session, body:has(.app--session) { --s-corail: #c8412a; --s-prune: #6c2a6b; --s-emeraude: #0c8060; }
-.app--session .ligne-riche__ico--ok { background: var(--s-emeraude); color: #fff; }
-.app--session .ligne-riche__ico--attente, .app--session .ligne-riche__ico--argent { background: var(--s-or); color: var(--s-encre); }
-.app--session .ligne-riche__ico--alerte { background: var(--s-corail); color: #fff; }
-.app--session .tuile-action:nth-child(1) { background: var(--s-or); color: var(--s-encre); }
-.app--session .tuile-action:nth-child(2) { background: var(--s-emeraude); color: #fff; }
-.app--session .tuile-action:nth-child(3) { background: var(--s-prune); color: #fff; }
-.app--session .tuile-action:nth-child(4) { background: var(--s-corail); color: #fff; }
-.app--session .tuile-action .tuile-action__icone { background: transparent; color: inherit; }
-.app--session .ligne__icone { background: var(--s-emeraude); color: #fff; border-radius: 999px; }
-.app--session [data-famille="argent"] .ligne__icone { background: var(--s-or); color: var(--s-encre); }
-.app--session [data-famille="votes"] .ligne__icone { background: var(--s-prune); color: #fff; }
-.app--session [data-famille="seances"] .ligne__icone { background: var(--s-corail); color: #fff; }
-.app--session .carte-seance { background-color: var(--s-corail); color: #fff; }
-.app--session .carte-seance * { color: inherit; }
-.app--session .carte-promo { background-color: var(--s-prune); }
-.app--session .tuile-groupe { background: var(--s-emeraude); color: #fff; }
-.app--session .tuile-groupe--forte { background: var(--s-or); color: var(--s-encre); }
-.app--session .filtre[aria-pressed="true"] { background: var(--s-corail); border-color: var(--s-corail); color: #fff; }
-.app--session .onglet[aria-selected="true"], .app--session .onglet[aria-current="page"] { background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); }
-
-/* Moments : retard (perle corail), paiement confirmé (message qui se pose), tour du bénéficiaire. */
-.app--session .is-retard .bande-cycle i.est-courant { background: radial-gradient(circle, #c8412a 0 40%, #fff 42%); }
+/* Confirmation : le message se pose. */
 .app--session .msg--succes { animation: sceau 420ms cubic-bezier(.2, 1.4, .4, 1) both; }
 @keyframes sceau { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .app--session .msg--succes { animation: none; } }
+
+/* Audit : 14 px minimum, zones tactiles de 48 px, contrastes. */
+.app--session .compteur, .app--session .pastille-compte, .app--session .tuile-action__badge { min-width: 22px; height: 22px; font-size: 14px; line-height: 22px; }
+.app--session .bouton-ico__legende, .app--session .entete-groupe__meta, .app--session .entete-groupe__tour, .app--session .menu-lateral__signature,
+.app--session dt, .app--session dd, .app--session .profil-grille__libelle, .app--session .carte-seance__sur, .app--session .onglet, .app--session .onglet span, .app--session button, .app--session .bouton-ico__pastille { font-size: max(14px, 1em); }
+.app--session .onglet, .app--session .filtre, .app--session .menu-lateral__ajout, .app--session .choix-langue button, .app--session .profil button { min-height: 48px; min-width: 48px; }
+.app--session .entete-groupe__photo { width: 48px; height: 48px; }
+.app--session .rail-carte__note, .app--session .rail-carte__sur, .app--session .rail-carte--foret .rail-carte__note, .app--session .rail-carte--foret .rail-carte__sur { color: var(--s-ardoise); }
+body .app--session .onglets-groupe .onglet[aria-current="page"] { background: var(--s-vert); border-color: var(--s-vert); color: #fff; }
+body .app--session .saut-langue button { min-height: 48px; }
+body .app--session .saut-langue button[aria-pressed="true"], body .app--session .saut-langue button[aria-current="true"] { background: var(--s-vert); border-color: var(--s-vert); color: #fff; }
+body .app--session .onglets-groupe .onglet { min-height: 48px; }
+body .app--session .onglets-groupe .onglet--actif { background: var(--s-vert); border-color: var(--s-vert); color: #fff; }
+body .app--session .bouton.bouton-secondaire:disabled { color: var(--s-ardoise); }
+body .app--session .pastille span, body .app--session .champ label, body .app--session .recap dt, body .app--session .montant small, body .app--session table th { font-size: 14px; }
+.app--session .carte-groupe__cycle > span:last-child { flex: 0 0 auto; white-space: nowrap; }
+.app--session .carte-groupe__cycle .bande-cycle { min-width: 0; }
+.app--session #contenu .pastille span, .app--session #contenu table th { font-size: 14px; }
