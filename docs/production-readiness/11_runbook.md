@@ -16,6 +16,30 @@
 
 Règle : la production est **la branche par défaut du projet**, jamais une base désignée par son nom.
 
+## Bascule de l'API vers le pooler (rôle `kombe_api`, ADR-0045)
+
+**Préalable.** Une version contenant la migration `0039_role_api` doit être déployée. Son build crée le rôle **sans connexion** et lui accorde `kombe_app`. Le déploiement 0.8.0 du 05/11 ne la contient pas encore.
+
+**Étapes.**
+1. **Ouvrir le rôle**, dans l'éditeur SQL de Neon : branche `production`, base `neondb`, rôle `neondb_owner`. Le mot de passe est généré par `openssl rand -hex 24`, ne contient que des caractères hexadécimaux et ne doit jamais être conservé ailleurs.
+   ```sql
+   ALTER ROLE kombe_api LOGIN PASSWORD '<mot de passe>';
+   ```
+2. **Construire l'URL poolée.** Attention au suffixe `-pooler` :
+   ```
+   postgresql://kombe_api:<mot de passe>@ep-ancient-glade-b148md5t-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require
+   ```
+3. **Remplacer `KOMBE_API_DATABASE_URL` dans Vercel** (Production, type *Sensitive*) par cette URL. Noter l'ancienne valeur pour un retour arrière éventuel.
+   Ne **pas** toucher à `KOMBE_MIGRATION_DATABASE_URL` : les migrations restent en connexion directe, avec le rôle propriétaire.
+4. **Redéployer**, puis vérifier `/v1/health/ready`.
+   - Réponse attendue : `{"status":"ready", …}`.
+   - `privilege.ok=false` signifie que la connexion est trop privilégiée : le service est refusé (fermé par défaut).
+   - Puis lancer `release-smoke.mjs`.
+
+**Retour arrière.** Remettre l'ancienne `KOMBE_API_DATABASE_URL` et redéployer : le code accepte les deux modes.
+
+**Réglage.** Garder `KOMBE_PG_POOL_MAX=10`. Derrière le pooler, ce sont des connexions *clientes*, peu coûteuses ; le pooler partage un petit nombre de connexions serveur.
+
 ## Sauvegarde avant chaque mise à jour
 
 - **Une seule** branche de sauvegarde par version, créée juste avant le déploiement, depuis la branche par défaut :

@@ -56,6 +56,7 @@ Hiérarchie : instructions du porteur → ADR adoptés → exigences/contrats ac
 | [0042](./0042_echeances_relances_notifications.md) | Échéance d'acceptation des statuts, relances accentuées, exclusion des retardataires, notifications cliquables | **ACCEPTÉ** (porteur, 20/10/2026) | — |
 | [0043](./0043_securite_operateurs_otp_idempotence.md) | Opérateurs à fonctions et second facteur TOTP, codes OTP poivrés, limites partagées, idempotence atomique | **ACCEPTÉ** (mission production, 04/11/2026) | — |
 | [0044](./0044_livraison_notifications.md) | Livraison des notifications hors application : outbox, bail, consentement, heures de silence | **ACCEPTÉ** (mission production, 04/11/2026) | Ouverture des envois : porteur |
+| [0045](./0045_role_connexion_api_pooler.md) | Rôle de connexion `kombe_api` (membre de `kombe_app`, sans BYPASSRLS), pooler en mode transaction, garde de moindre privilège | **ACCEPTÉ** (porteur, 06/11/2026) ; amende 0022 | — |
 
 > Correction d'index : 0020 était listé ci-dessus comme « réservé » avant
 > l'adoption de l'ADR Flutter ; la ligne n'avait pas été mise à jour au moment

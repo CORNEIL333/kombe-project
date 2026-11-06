@@ -76,6 +76,7 @@ const UP_MIGRATIONS = [
   "migrations/0036_securite_operateurs.sql",
   "migrations/0037_rls_identite.sql",
   "migrations/0038_notifications_livraison.sql",
+  "migrations/0039_role_api.sql",
   "provision/roles.sql",
 ];
 

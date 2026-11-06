@@ -22,6 +22,7 @@ import {
   canAct,
 } from "@kombe/domain";
 import { resolveSession } from "../db/pgSessionResolver.js";
+import { assertDbRole } from "../db/pgPool.js";
 
 export type Db = pg.PoolClient;
 
@@ -88,6 +89,7 @@ const ambient = new AsyncLocalStorage<{ readonly db: Db; depth: number }>();
 /** Ouvre la transaction d'une commande idempotente (voir `write` dans routes.ts). */
 export async function inCommandTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promise<T> {
   if (ambient.getStore()) throw new Error("inCommandTx imbriqué");
+  await assertDbRole(pool);
   const db = await pool.connect();
   try {
     await db.query("BEGIN");
@@ -124,6 +126,7 @@ export async function inTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promis
       throw translatePgError(error);
     }
   }
+  await assertDbRole(pool);
   const db = await pool.connect();
   try {
     await db.query("BEGIN");

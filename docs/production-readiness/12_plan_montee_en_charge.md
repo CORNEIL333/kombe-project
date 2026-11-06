@@ -5,21 +5,17 @@ Les paliers sont indicatifs : nombre de membres actifs, chacun ouvrant l'applica
 | Palier | Charge attendue | Ce qui tient tel quel | À faire avant |
 |---|---|---|---|
 | **P1 · ≤ 5 000 membres** | Quelques req/s, pics de séance à environ 30 req/s | Architecture actuelle (Vercel et Neon, connexion directe, pool de 10) | Secrets posés, opérateurs, planificateur externe pour `/v1/internal/cron/notifications` (toutes les 5 à 15 min) ou Vercel Pro |
-| **P2 · ≤ 50 000** | Environ 50 à 150 req/s aux heures de séance | Bail SKIP LOCKED, compteurs partagés, index | **R-03** : rôle LOGIN dédié et pooler Neon (voir ci-dessous) ; **R-04** : résumé de groupes en une requête ; calcul Neon dimensionné, avec mise à l'échelle automatique |
+| **P2 · ≤ 50 000** | Environ 50 à 150 req/s aux heures de séance | Bail SKIP LOCKED, compteurs partagés, index, **pooler via `kombe_api`** (R-03, livré) | Bascule vers le pooler (voir ci-dessous) ; **R-04** : résumé de groupes en une requête ; calcul Neon dimensionné, avec mise à l'échelle automatique |
 | **P3 · ≤ 500 000** | Plusieurs centaines de req/s | Partitionnement naturel par groupe (RLS) | Réplica en lecture pour Direction et Engineering ; archivage de la boîte de réception (plus de 90 jours) ; push Web ; file d'envoi traitée par un worker dédié (`packages/worker`) plutôt que par la fonction API |
 
-## R-03 : connexions
+## R-03 : connexions (traité le 06/11/2026, ADR-0045)
 
-**Problème.** Chaque instance serverless ouvre jusqu'à `KOMBE_PG_POOL_MAX` connexions **directes**. Le pooler Neon (PgBouncer) refuse l'option de démarrage `role=kombe_app`.
-
-**Solution, sans perte de sécurité.**
-1. Créer `kombe_api` (LOGIN, NOBYPASSRLS, `IN ROLE kombe_app`) avec un mot de passe dans Neon.
-2. Retirer l'option `-c role=` lorsque l'URL se connecte déjà avec ce rôle.
-3. Passer l'URL de l'API sur le point d'accès **poolé**.
-
-**Ce qui reste fiable.** `set_config(..., true)` et `SET LOCAL` sont à portée de transaction, compatibles avec le mode « transaction » de PgBouncer. L'ADR-0022 sera à amender.
-
-**Garde à ajouter.** Au démarrage, refuser de servir si `current_user` est propriétaire des tables ou BYPASSRLS.
+- **Code et migration livrés.** Rôle `kombe_api` (LOGIN, membre de `kombe_app`, sans BYPASSRLS). Le pool n'envoie plus d'option de démarrage quand il se connecte avec ce rôle. Une garde de moindre privilège refuse de servir si la connexion est trop privilégiée.
+- **Prouvé.**
+  - 27/27 preuves via PgBouncer en mode transaction.
+  - Charge à 32 clients : 407 req/s, p95 de 108 ms, 0 erreur, **10 connexions serveur** pour environ 25 000 requêtes.
+  - Répétition réussie sur une copie de la production Neon, via le point d'accès `-pooler`.
+- **Reste à faire par le propriétaire** : la bascule (runbook, « Bascule de l'API vers le pooler »), au prochain déploiement de cette branche.
 
 ## R-04 : `/v1/me/tontines`
 

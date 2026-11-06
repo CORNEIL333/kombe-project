@@ -26,7 +26,7 @@ const url = process.env.KOMBE_API_DATABASE_URL;
 const adminUrl = process.env.KOMBE_DATABASE_URL ?? url;
 if (!url) blocked("KOMBE_API_DATABASE_URL absente : aucune base PostgreSQL joignable (jamais simulé).");
 const { buildApp } = await import(pathToFileURL(resolve(distRoot, "server.js")).href);
-const { createApiPool } = await import(pathToFileURL(resolve(distRoot, "db/pgPool.js")).href);
+const { createApiPool, checkDbRole } = await import(pathToFileURL(resolve(distRoot, "db/pgPool.js")).href);
 const { NullEmailSender } = await import(pathToFileURL(resolve(distRoot, "email/emailSender.js")).href);
 
 process.env.NODE_ENV = "test";
@@ -192,6 +192,22 @@ try {
     await appDb.query("ROLLBACK");
     appDb.release();
   }
+
+  // ── Moindre privilège de la connexion applicative (ADR-0045) ───────────
+  const good = await checkDbRole(pool);
+  check("DB-ROLE-APP-OK", good.ok === true, good);
+  // Une API branchée par erreur sur le rôle PROPRIÉTAIRE (sans kombe_app) : détectée et refusée.
+  const ownerPool = new pg.Pool({ connectionString: adminUrl, max: 2 });
+  const tooStrong = await checkDbRole(ownerPool);
+  check("DB-ROLE-OWNER-DETECTED", tooStrong.ok === false && tooStrong.reasons.some((r) => r.includes("propriétaire")), tooStrong);
+  const ownerApp = buildApp({ pool: ownerPool, emailSender: new NullEmailSender(), now: () => clock });
+  await ownerApp.ready();
+  const ready = await ownerApp.inject({ method: "GET", url: "/v1/health/ready" });
+  check("DB-ROLE-READY-503", ready.statusCode === 503 && ready.json().privilege?.ok === false, { status: ready.statusCode, body: ready.json() });
+  const refused = await ownerApp.inject({ method: "GET", url: "/v1/me", headers: { authorization: `Bearer ${M.token}` } });
+  check("DB-ROLE-REQUESTS-REFUSED", refused.statusCode >= 500, refused.statusCode);
+  await ownerApp.close();
+  await ownerPool.end();
 } catch (err) {
   failures += 1;
   observations.EXCEPTION = String(err?.stack ?? err);

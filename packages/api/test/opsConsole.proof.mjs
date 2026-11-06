@@ -101,7 +101,7 @@ try {
 
   // Promotion par le VRAI script d'administration (sortie 0 attendue).
   const grant = spawnSync(process.execPath, [resolve(here, "../../db/scripts/grant-operator.mjs"), O.login, "--roles=admin"], {
-    env: { ...process.env, KOMBE_DATABASE_URL: url },
+    env: { ...process.env, KOMBE_DATABASE_URL: process.env.KOMBE_DATABASE_URL ?? url },
     encoding: "utf8",
   });
   check("GRANT-OPERATOR-SCRIPT", grant.status === 0 && /"isOperator": true/.test(grant.stdout), { code: grant.status, out: grant.stdout, err: grant.stderr });

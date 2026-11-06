@@ -47,6 +47,7 @@ import { resolveSession, resolveGroupActor, type GroupActor } from "./db/pgSessi
 import { NullEmailSender, ResendEmailSender, type EmailSender } from "./email/emailSender.js";
 import { registerTontineRoutes } from "./tontine/routes.js";
 import { EXPECTED_LATEST_MIGRATION, registerOpsRoutes } from "./ops/opsRoutes.js";
+import { checkDbRole } from "./db/pgPool.js";
 import type { CodeSender } from "./tontine/sms.js";
 import {
   FictitiousCommandStore,
@@ -1141,6 +1142,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/health/ready", async (request, reply) => {
     if (!pool) return { status: "ready", mode: "fictif" };
     try {
+      // Connexion applicative au moindre privilège (ADR-0045) : sinon, refus.
+      const role = await checkDbRole(pool);
+      if (!role.ok) {
+        request.log.error({ user: role.currentUser, reasons: role.reasons }, "readiness : connexion applicative trop privilégiée");
+        return reply.code(503).send({ status: "degraded", mode: "réel", privilege: { ok: false } });
+      }
       // Schéma attendu par CE build appliqué ? (sinon : déploiement sans migration)
       const r = await pool.query("SELECT kombe_schema_has($1) AS ok", [EXPECTED_LATEST_MIGRATION]);
       const upToDate = r.rows[0]?.ok === true;

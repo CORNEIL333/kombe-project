@@ -30,7 +30,7 @@ Le code de la branche `claude/continue-previous-a102rx` est prêt. La production
 
 - Déployer en contournant la garde (`KOMBE_SKIP_MIGRATIONS=1`) sans avoir migré.
 - Ouvrir l'envoi externe (`KOMBE_NOTIFY_EXTERNAL=on`) avec SMS sans budget validé.
-- Dépasser le palier P1 sans traiter R-03 (connexions).
+- Dépasser le palier P1 sans avoir basculé l'API vers le pooler (R-03 : code livré, bascule à faire, voir 11).
 
 ### Risques résiduels acceptés pour le pilote (plan dans 02 et 12)
 
@@ -38,7 +38,7 @@ Le code de la branche `claude/continue-previous-a102rx` est prêt. La production
 |---|---|
 | R-01 : jetons de session en clair | Empreinte prévue |
 | R-02 : tables « vie privée » sans RLS | Exposées seulement en cas d'injection SQL |
-| R-03 : connexions directes | — |
+| R-03 : connexions directes | Code livré et prouvé (ADR-0045) ; bascule propriétaire |
 | R-04 : N+1 sur `/v1/me/tontines` | — |
 | R-05 : tâche planifiée quotidienne | — |
 | R-06 : TOTP plutôt que WebAuthn | — |
