@@ -193,3 +193,7 @@ export function assertMinutesApproval(expectedHash: string, presentedHash: strin
     throw new DomainError("MEETING_STATE_INVALID", "Le PV a changé depuis sa présentation");
   }
 }
+
+/** Modalité d'une séance (0041) : présentiel, en ligne (visioconférence) ou les deux. */
+export const MEETING_FORMATS = ["in_person", "online", "hybrid"] as const;
+export type MeetingFormat = (typeof MEETING_FORMATS)[number];

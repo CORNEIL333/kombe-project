@@ -118,7 +118,9 @@ async function lockMovement(db: Db, groupId: string, movementId: string): Promis
 
 /** Effets liés à la confirmation : amende payée, dette réglée (même transaction). */
 async function applyLinkedEffects(db: Db, groupId: string, mv: MovementRow): Promise<void> {
-  if (mv.relatedKind === "fine" && mv.relatedId) {
+  // Le remboursement d'une amende annulée (sortie de la caisse des amendes)
+  // ne touche pas l'état de l'amende : il est consigné à sa déclaration.
+  if (mv.relatedKind === "fine" && mv.relatedId && mv.kind === "fine_payment") {
     const f = await db.query(`SELECT state, amount FROM fine WHERE group_id = $1 AND fine_id = $2 FOR UPDATE`, [groupId, mv.relatedId]);
     if (!f.rows[0] || f.rows[0].state !== "issued") throw new DomainError("STATE_CONFLICT", "Amende déjà réglée, contestée ou annulée");
     await db.query(`UPDATE fine SET state = 'paid', movement_id = $3, version = version + 1 WHERE group_id = $1 AND fine_id = $2`, [
@@ -144,7 +146,7 @@ async function applyLinkedEffects(db: Db, groupId: string, mv: MovementRow): Pro
 
 /** Rejet après confirmation : on défait les effets liés. */
 async function undoLinkedEffects(db: Db, groupId: string, mv: MovementRow): Promise<void> {
-  if (mv.relatedKind === "fine" && mv.relatedId) {
+  if (mv.relatedKind === "fine" && mv.relatedId && mv.kind === "fine_payment") {
     await db.query(
       `UPDATE fine SET state = 'issued', movement_id = NULL, version = version + 1 WHERE group_id = $1 AND fine_id = $2 AND movement_id = $3`,
       [groupId, mv.relatedId, mv.movementId],
@@ -541,6 +543,14 @@ export class MoneyService {
         `UPDATE fund_movement SET state = $3, rejected_reason = $4, version = version + 1 WHERE group_id = $1 AND movement_id = $2`,
         [groupId, movementId, next.state, reason.trim().slice(0, 500)],
       );
+      if (mv.kind === "payout" && mv.relatedKind === "fine" && mv.relatedId) {
+        // Remboursement rejeté : il redevient dû.
+        await db.query(
+          `UPDATE fine SET refund_due = true, refund_movement_id = NULL, refunded_at = NULL, version = version + 1
+            WHERE group_id = $1 AND fine_id = $2 AND refund_movement_id = $3`,
+          [groupId, mv.relatedId, movementId],
+        );
+      }
       if (mv.kind === "payout" && mv.relatedKind === "aid" && mv.relatedId) {
         await db.query(
           `UPDATE aid_request SET state = 'approved', movement_id = NULL, version = version + 1 WHERE group_id = $1 AND aid_id = $2 AND movement_id = $3`,

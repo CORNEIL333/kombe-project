@@ -77,6 +77,8 @@ export async function fineViews(db: Db, groupId: string, filter: { meetingId?: s
     issuedAt: isoInstant(row.issued_at) as string,
     issuedByName: names.byIdentity.get(String(row.issued_by_identity_id)) ?? null,
     meetingId: row.meeting_id ? String(row.meeting_id) : null,
+    refundDue: row.refund_due === true,
+    refundedAt: row.refunded_at ? (isoInstant(row.refunded_at) as string) : null,
   }));
 }
 
@@ -238,13 +240,21 @@ export class DisciplineService {
       if (!row) throw new DomainError("OBJET_INTROUVABLE", "Amende introuvable");
       if (String(row.membership_id) === actor.membershipId) throw new DomainError("APPROVER_NOT_DISTINCT", "On ne tranche pas sa propre amende");
       if (reason.trim().length < 3) throw new DomainError("FINE_INVALID", "Motif obligatoire");
+      const wasPaid = row.state === "paid";
       if (decision === "cancel") {
         transitionFine(row.state as FineState, "cancelled");
-        await db.query(`UPDATE fine SET state = 'cancelled', cancel_reason = $3, version = version + 1 WHERE group_id = $1 AND fine_id = $2`, [
-          groupId,
-          fineId,
-          reason.trim().slice(0, 500),
-        ]);
+        if (row.state === "issued") {
+          const pending = await db.query(
+            `SELECT 1 FROM fund_movement WHERE group_id = $1 AND related_kind = 'fine' AND related_id = $2 AND kind = 'fine_payment' AND state = 'declared'`,
+            [groupId, fineId],
+          );
+          if (pending.rows.length > 0) throw new DomainError("FINE_INVALID", "Un paiement de cette amende attend sa confirmation : rejetez-le ou confirmez-le d'abord");
+        }
+        // Payée puis annulée : le membre doit être remboursé (0041).
+        await db.query(
+          `UPDATE fine SET state = 'cancelled', cancel_reason = $3, refund_due = $4, version = version + 1 WHERE group_id = $1 AND fine_id = $2`,
+          [groupId, fineId, reason.trim().slice(0, 500), wasPaid],
+        );
       } else {
         if (row.state !== "contested") throw new DomainError("FINE_INVALID", "Seule une amende contestée se maintient");
         transitionFine("contested", "issued");
@@ -257,8 +267,61 @@ export class DisciplineService {
         await notify(db, groupId, [target], decision === "cancel" ? "fine_cancelled" : "fine_issued", `/tontines/${groupId}/discipline`, `fineDecision:${fineId}:${decision}`, {
           maintained: decision !== "cancel",
           reason: reason.trim().slice(0, 140),
+          refundDue: decision === "cancel" && wasPaid,
         });
       }
+      if (decision === "cancel" && wasPaid) {
+        const treasury = await identitiesWithRoles(db, groupId, ["treasurer", "treasurer_deputy"]);
+        await notify(db, groupId, treasury.filter((i) => i !== actor.identityId && i !== target), "fine_cancelled", `/tontines/${groupId}/discipline`, `fineRefundDue:${fineId}`, {
+          refundDue: true,
+          reason: reason.trim().slice(0, 140),
+        });
+      }
+      return (await fineViews(db, groupId, { fineId }))[0] as FineView;
+    });
+  }
+
+  /**
+   * Rembourse une amende payée puis annulée : sortie de la caisse des amendes
+   * vers le membre, déclarée par la trésorerie, que le membre confirme à
+   * réception (circuit ordinaire d'une remise).
+   */
+  async refundFine(
+    headers: Record<string, unknown>,
+    groupId: string,
+    fineId: string,
+    input: { channel: PaymentChannel; reference?: string | undefined; justification?: string | undefined },
+  ): Promise<FineView> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await this.actor(db, headers, groupId, nowMs);
+      requireAct(actor, "movement.confirm");
+      const f = await db.query(`SELECT membership_id, amount, state, refund_due FROM fine WHERE group_id = $1 AND fine_id = $2 FOR UPDATE`, [groupId, fineId]);
+      const row = f.rows[0];
+      if (!row) throw new DomainError("OBJET_INTROUVABLE", "Amende introuvable");
+      if (row.state !== "cancelled" || row.refund_due !== true) throw new DomainError("FINE_INVALID", "Aucun remboursement dû pour cette amende");
+      if (String(row.membership_id) === actor.membershipId) throw new DomainError("MOVEMENT_NOT_INDEPENDENT", "On ne se rembourse pas soi-même");
+      assertChannelReference({ channel: input.channel, reference: input.reference ?? null, justification: input.justification ?? null });
+      const fund = await fundOfKind(db, groupId, "fines");
+      if (!fund) throw new DomainError("FUND_INVALID", "Caisse des amendes introuvable");
+      const amount = BigInt(String(row.amount));
+      const bal = await fundConfirmedBalance(db, groupId, fund.fundId);
+      if (bal < amount) throw new DomainError("FUND_INVALID", "La caisse des amendes ne couvre pas ce remboursement");
+      const mt = await db.query(`SELECT meeting_id FROM meeting WHERE group_id = $1 AND state = 'open' LIMIT 1`, [groupId]);
+      const movementId = newId("mvt");
+      await db.query(
+        `INSERT INTO fund_movement (movement_id, group_id, fund_id, kind, amount, membership_id, meeting_id, channel, reference, justification,
+                                    declared_by_identity_id, related_kind, related_id)
+         VALUES ($1,$2,$3,'payout',$4,$5,$6,$7,$8,$9,$10,'fine',$11)`,
+        [movementId, groupId, fund.fundId, m(amount), row.membership_id, mt.rows[0]?.meeting_id ?? null, input.channel, input.reference ?? null, input.justification ?? null, actor.identityId, fineId],
+      );
+      await db.query(
+        `UPDATE fine SET refund_due = false, refund_movement_id = $3, refunded_at = $4, version = version + 1 WHERE group_id = $1 AND fine_id = $2`,
+        [groupId, fineId, movementId, new Date(nowMs)],
+      );
+      await appendEvent(db, actor, "fine.refunded", { fineId, movementId, amount: m(amount) }, nowMs);
+      const target = (await loadNames(db, groupId)).identityOf.get(String(row.membership_id));
+      if (target) await notify(db, groupId, [target], "fine_refunded", `/tontines/${groupId}/discipline`, `fineRefunded:${fineId}`);
       return (await fineViews(db, groupId, { fineId }))[0] as FineView;
     });
   }

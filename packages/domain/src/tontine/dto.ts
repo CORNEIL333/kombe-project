@@ -16,7 +16,7 @@ import type { FineKind, FineState } from "./discipline.js";
 import type { AidEvent, AidState } from "./solidarity.js";
 import type { GroupRole } from "./roles.js";
 import type { Transparency } from "./statutes.js";
-import type { MeetingState, AttendanceStatus } from "./meeting.js";
+import type { MeetingState, AttendanceStatus, MeetingFormat } from "./meeting.js";
 import type { PayoutPolicy } from "./debt.js";
 
 export type Money = string;
@@ -204,6 +204,9 @@ export interface RoundView {
   readonly beneficiaryMembershipId: string | null;
   readonly beneficiaryName: string | null;
   readonly beneficiaryPhotoVersion?: number | null;
+  /** Nom (part) servi à ce tour, et son libellé (0041). */
+  readonly shareId?: string | null;
+  readonly shareLabel?: string | null;
   readonly meetingId: string | null;
   /** Cagnotte attendue (parts × cotisation). */
   readonly expectedPot: Money;
@@ -279,7 +282,12 @@ export interface MeetingSummary {
   readonly hostName: string | null;
   readonly roundSeq: number | null;
   readonly minutesApproved: boolean;
+  /** Présentiel, en ligne ou les deux (0041). */
+  readonly format: MeetingFormat;
+  /** Lien de la visioconférence (séance en ligne ou mixte), sinon null. */
+  readonly onlineUrl: string | null;
 }
+
 export interface AttendanceView {
   readonly membershipId: string;
   readonly displayName: string;
@@ -364,6 +372,50 @@ export interface FineView {
   readonly issuedAt: IsoInstant;
   readonly issuedByName: string | null;
   readonly meetingId: string | null;
+  /** Amende payée puis annulée : le membre doit être remboursé (0041). */
+  readonly refundDue: boolean;
+  /** Remboursement réglé (mouvement confirmé), sinon null. */
+  readonly refundedAt: IsoInstant | null;
+}
+
+/** Vote libre (0041) : ouvert par tout membre actif, sans effet automatique. */
+export interface PollView {
+  readonly pollId: string;
+  readonly question: string;
+  readonly details: string | null;
+  readonly options: readonly string[];
+  readonly allowFreeAnswer: boolean;
+  readonly multiple: boolean;
+  readonly anonymous: boolean;
+  readonly state: "open" | "closed" | "cancelled";
+  readonly createdByMembershipId: string;
+  readonly createdByName: string;
+  readonly createdAt: IsoInstant;
+  readonly closesAt: IsoInstant | null;
+  readonly closedAt: IsoInstant | null;
+  /** Membres actifs (pour lire la participation). */
+  readonly electorate: number;
+  readonly ballotCount: number;
+  /** Décompte par réponse, dans l'ordre de `options`. */
+  readonly counts: readonly number[];
+  /** Réponses libres (texte seul si le vote est anonyme). */
+  readonly freeAnswers: readonly { readonly text: string; readonly name: string | null }[];
+  /** Qui a répondu quoi — absent si le vote est anonyme. */
+  readonly voters: readonly { readonly membershipId: string; readonly name: string; readonly choices: readonly number[] }[] | null;
+  readonly myBallot: { readonly choices: readonly number[]; readonly freeAnswer: string | null } | null;
+  /** Vrai pour l'auteur et la présidence : peut clore ou annuler. */
+  readonly canManage: boolean;
+}
+
+/** Un « nom » : une part à part entière (libellé, cotisation, tour propres). */
+export interface ShareNameView {
+  readonly shareId: string;
+  readonly label: string;
+  readonly holders: readonly { readonly membershipId: string; readonly name: string }[];
+  readonly roundSeq: number | null;
+  readonly roundDate: IsoDate | null;
+  readonly contributionPerShare: Money;
+  readonly canRename: boolean;
 }
 
 export interface AidView {
@@ -456,6 +508,8 @@ export interface RoundGridView {
     readonly confirmed: Money;
     readonly declared: Money;
     readonly status: "paid" | "partial" | "declared" | "unpaid";
+    /** Détail nom par nom (0041) : les versements du membre couvrent ses noms dans l'ordre. */
+    readonly names?: readonly { readonly shareId: string; readonly label: string; readonly due: Money; readonly status: "paid" | "partial" | "unpaid" }[];
   }[];
   readonly summary: { readonly paid: number; readonly partial: number; readonly unpaid: number; readonly total: number };
 }

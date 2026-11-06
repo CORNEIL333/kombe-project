@@ -341,6 +341,14 @@ export async function loadRoundRows(db: Db, groupId: string): Promise<RoundRow[]
   });
 }
 
+/** Libellés des noms (parts) du groupe : share_id → libellé. */
+export async function loadShareLabels(db: Db, groupId: string): Promise<Map<string, string>> {
+  return cachedRead(`libelles:${groupId}`, async () => {
+    const r = await db.query(`SELECT share_id, label FROM share WHERE group_id = $1`, [groupId]);
+    return new Map(r.rows.map((x) => [String(x.share_id), String(x.label)]));
+  });
+}
+
 export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> {
   const rows = await loadRoundRows(db, group.groupId);
   if (rows.length === 0) return [];
@@ -369,8 +377,11 @@ export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> 
   const meetings = await db.query(`SELECT meeting_id, round_seq FROM meeting WHERE group_id = $1 AND round_seq IS NOT NULL`, [group.groupId]);
   const meetingOf = new Map(meetings.rows.map((x) => [Number(x.round_seq), String(x.meeting_id)]));
   const photoOf = await memberPhotoVersions(db, group.groupId);
+  const labels = await loadShareLabels(db, group.groupId);
   return rows.map((r) => ({
     seq: r.seq,
+    shareId: r.shareId,
+    shareLabel: r.shareId ? (labels.get(r.shareId) ?? null) : null,
     date: r.date,
     state: r.state,
     beneficiaryMembershipId: r.beneficiaryMembershipId,
@@ -612,7 +623,7 @@ export function signedAmount(kind: MovementKind, amount: bigint): bigint {
 export async function meetingSummaries(db: Db, groupId: string, meetingId?: string): Promise<MeetingSummary[]> {
   const names = await loadNames(db, groupId);
   const r = await db.query(
-    `SELECT meeting_id, seq, scheduled_date::text AS d, state, location, host_membership_id, round_seq, minutes_approved_at
+    `SELECT meeting_id, seq, scheduled_date::text AS d, state, location, host_membership_id, round_seq, minutes_approved_at, format, online_url
        FROM meeting WHERE group_id = $1 ${meetingId ? "AND meeting_id = $2" : ""} ORDER BY seq`,
     meetingId ? [groupId, meetingId] : [groupId],
   );
@@ -625,6 +636,8 @@ export async function meetingSummaries(db: Db, groupId: string, meetingId?: stri
     hostName: row.host_membership_id ? (names.byMembership.get(String(row.host_membership_id)) ?? null) : null,
     roundSeq: row.round_seq === null ? null : Number(row.round_seq),
     minutesApproved: row.minutes_approved_at !== null,
+    format: (row.format ?? "in_person") as MeetingSummary["format"],
+    onlineUrl: row.online_url ?? null,
   }));
 }
 
