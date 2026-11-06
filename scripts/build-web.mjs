@@ -16,7 +16,7 @@
 // une API hébergée ailleurs. Sortie : dist-web/. Code de sortie ≠ 0 si un
 // seul build échoue.
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -64,21 +64,19 @@ const config = {
   environment: process.env.VERCEL_ENV || process.env.KOMBE_ENVIRONMENT || "production",
 };
 writeFileSync(resolve(out, "kombe-dashboard-config.json"), JSON.stringify(config) + "\n");
-// 4) Application Android : si des APK sont posés dans telechargements/
-//    (construits par packages/mobile/scripts/build-apk.*, jamais commités),
-//    ils sont publiés sous /telecharger/ avec une page simple.
-const apkDir = resolve(root, "telechargements");
-const apks = existsSync(apkDir) ? readdirSync(apkDir).filter((f) => f.endsWith(".apk")).sort() : [];
-if (apks.length) {
+// 4) Application Android : page /telecharger/. Les APK ne passent plus par le
+//    déploiement : les liens visent la release GitHub « mobile-latest » (voir
+//    les redirections de vercel.json), donc le site suit chaque nouvelle version
+//    quelle que soit la machine qui déploie.
+const apks = ["kombe-arm64.apk", "kombe-armv7.apk"];
+{
   const dl = resolve(out, "telecharger");
   mkdirSync(dl, { recursive: true });
   const libelle = (f) =>
     f.includes("armv7") ? "Téléphones anciens ou d'entrée de gamme (32 bits)" : f.includes("arm64") ? "La plupart des téléphones (recommandé)" : "Tous les téléphones";
   const lignes = apks
     .map((f) => {
-      cpSync(resolve(apkDir, f), resolve(dl, f));
-      const mo = Math.round(statSync(resolve(apkDir, f)).size / 1e6);
-      return `<li><a class="b" href="/telecharger/${f}" download>${libelle(f)}</a><small>${f} · ${mo} Mo</small></li>`;
+      return `<li><a class="b" href="/telecharger/${f}">${libelle(f)}</a><small>${f}</small></li>`;
     })
     .join("\n");
   writeFileSync(

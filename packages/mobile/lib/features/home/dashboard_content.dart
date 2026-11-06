@@ -217,7 +217,7 @@ class _Hero extends StatelessWidget {
                 ],
                 if (cycle) ...<Widget>[
                   const SizedBox(height: 14),
-                  KombeCycleBand(index: data.group.cycleIndex, total: data.group.cycleTotal, onDark: true),
+                  KombeCycleBand(index: data.group.cycleIndex, total: data.group.cycleTotal, onDark: true, late: data.late),
                   const SizedBox(height: 8),
                   Text('Tour ${data.group.cycleIndex} sur ${data.group.cycleTotal}', style: soft.copyWith(fontSize: 14)),
                 ],

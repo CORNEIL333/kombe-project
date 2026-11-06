@@ -599,12 +599,14 @@ class KombeInlineError extends StatelessWidget {
 /// maïs quand le tour est passé, cerclée pour le tour en cours, vide à venir.
 /// `mine` marque mon tour d'un point vermillon quand il est connu.
 class KombeCycleBand extends StatelessWidget {
-  const KombeCycleBand({super.key, required this.index, required this.total, this.mine, this.onDark = false, this.height = 26});
+  const KombeCycleBand({super.key, required this.index, required this.total, this.mine, this.onDark = false, this.height = 26, this.late = false});
   final int index;
   final int total;
   final int? mine;
   final bool onDark;
   final double height;
+  /// Tour en retard : la perle en cours passe au corail, sans autre dramatisation.
+  final bool late;
 
   @override
   Widget build(BuildContext context) {
@@ -618,7 +620,7 @@ class KombeCycleBand extends StatelessWidget {
         curve: Curves.easeOutCubic,
         builder: (BuildContext context, double t, Widget? _) => CustomPaint(
           size: Size(double.infinity, height),
-          painter: _CycleBandPainter(index: index, total: total, mine: mine, onDark: onDark, t: t),
+          painter: _CycleBandPainter(index: index, total: total, mine: mine, onDark: onDark, t: t, late: late),
         ),
       ),
     );
@@ -626,12 +628,13 @@ class KombeCycleBand extends StatelessWidget {
 }
 
 class _CycleBandPainter extends CustomPainter {
-  _CycleBandPainter({required this.index, required this.total, required this.mine, required this.onDark, required this.t});
+  _CycleBandPainter({required this.index, required this.total, required this.mine, required this.onDark, required this.t, this.late = false});
   final int index;
   final int total;
   final int? mine;
   final bool onDark;
   final double t;
+  final bool late;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -645,7 +648,7 @@ class _CycleBandPainter extends CustomPainter {
       final double reveal = ((t * (index + 1)) - (i - 1)).clamp(0, 1);
       if (i <= index && reveal > 0) {
         canvas.drawCircle(c, r * reveal, Paint()..color = i == index ? current : KombeColors.goldWarm);
-        if (i == index) canvas.drawCircle(c, r * .42 * reveal, Paint()..color = KombeColors.goldWarm);
+        if (i == index) canvas.drawCircle(c, r * .42 * reveal, Paint()..color = late ? KombeColors.clay : KombeColors.goldWarm);
       } else {
         canvas.drawCircle(c, r - .7, Paint()
           ..style = PaintingStyle.stroke
@@ -657,5 +660,71 @@ class _CycleBandPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _CycleBandPainter o) => o.index != index || o.total != total || o.mine != mine || o.onDark != onDark || o.t != t;
+  bool shouldRepaint(covariant _CycleBandPainter o) => o.index != index || o.total != total || o.mine != mine || o.onDark != onDark || o.t != t || o.late != late;
+}
+
+/// Sceau de confirmation : un disque émeraude qui se pose, puis s'efface.
+/// Le moment « paiement confirmé » a son propre geste ; immobile si les
+/// animations sont coupées.
+void showKombeSeal(BuildContext context, String label) {
+  final OverlayState overlay = Overlay.of(context, rootOverlay: true);
+  late final OverlayEntry entry;
+  entry = OverlayEntry(builder: (_) => _Seal(label: label, onDone: () => entry.remove()));
+  overlay.insert(entry);
+}
+
+class _Seal extends StatefulWidget {
+  const _Seal({required this.label, required this.onDone});
+  final String label;
+  final VoidCallback onDone;
+
+  @override
+  State<_Seal> createState() => _SealState();
+}
+
+class _SealState extends State<_Seal> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+
+  @override
+  void initState() {
+    super.initState();
+    _c.forward().whenComplete(() {
+      if (mounted) widget.onDone();
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final Animation<double> scale = still ? const AlwaysStoppedAnimation<double>(1) : CurvedAnimation(parent: _c, curve: const Interval(0, .4, curve: Curves.elasticOut));
+    final Animation<double> fade = ReverseAnimation(CurvedAnimation(parent: _c, curve: const Interval(.75, 1)));
+    return IgnorePointer(
+      child: Center(
+        child: FadeTransition(
+          opacity: fade,
+          child: ScaleTransition(
+            scale: scale,
+            child: Container(
+              width: 148,
+              height: 148,
+              decoration: const BoxDecoration(color: KombeColors.emerald, shape: BoxShape.circle),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  const Icon(Icons.check_rounded, size: 54, color: Colors.white),
+                  Text(widget.label, style: const TextStyle(decoration: TextDecoration.none, color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

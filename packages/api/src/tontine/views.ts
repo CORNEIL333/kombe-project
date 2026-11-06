@@ -458,6 +458,7 @@ export async function movementViews(
   actor: Actor,
   filter: { readonly fundId?: string | undefined; readonly roundSeq?: number | undefined; readonly state?: string | undefined; readonly meetingId?: string | undefined; readonly movementIds?: readonly string[] | undefined; readonly membershipId?: string | undefined } = {},
 ): Promise<MovementView[]> {
+  const photoOf = await memberPhotoVersions(db, actor.groupId);
   const where = ["mv.group_id = $1"];
   const args: unknown[] = [actor.groupId];
   if (filter.fundId) {
@@ -525,6 +526,7 @@ export async function movementViews(
       amount: String(row.amount),
       membershipId: memberId,
       memberName: memberId ? (names.byMembership.get(memberId) ?? null) : null,
+      memberPhotoVersion: memberId ? (photoOf.get(memberId) ?? null) : null,
       roundSeq: row.round_seq === null ? null : Number(row.round_seq),
       meetingId: row.meeting_id ? String(row.meeting_id) : null,
       state,

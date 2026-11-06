@@ -692,8 +692,8 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 .app--session .is-retard .hero-cotisation__echeance { color: #ffb4a6; }
 .app--session .hero-cotisation__ajour { color: #fff; font-family: var(--s-titre); font-weight: 800; font-size: 2.2rem; }
 .app--session .bouton.hero-cotisation__cta, .app--session .hero-cotisation__cta { background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); box-shadow: none; }
-.hero-cotisation__cycle { margin-top: 16px; }
-.hero-cotisation__cycle > span { display: block; margin-top: 6px; color: rgba(255, 255, 255, 0.86); font-size: 14px; font-weight: 600; }
+.hero-cotisation__cycle { margin-top: 16px; max-width: 420px; }
+.hero-cotisation__cycle > span:not(.bande-cycle) { display: block; margin-top: 6px; color: rgba(255, 255, 255, 0.86); font-size: 14px; font-weight: 600; }
 @media (max-width: 899px) {
   .app--session .bandeau-accueil { padding: 2px 16px 0; background: var(--s-foret); }
   .app--session .bandeau-accueil::before, .app--session .bandeau-accueil__marque, .app--session .bandeau-accueil__groupe { display: none; }
@@ -765,3 +765,9 @@ body:has(.app--session) [role="dialog"] .bouton.bouton-secondaire:hover:not(:dis
 .app--session .tuile-groupe--forte { background: var(--s-or); color: var(--s-encre); }
 .app--session .filtre[aria-pressed="true"] { background: var(--s-corail); border-color: var(--s-corail); color: #fff; }
 .app--session .onglet[aria-selected="true"], .app--session .onglet[aria-current="page"] { background: var(--s-or); border-color: var(--s-or); color: var(--s-encre); }
+
+/* Moments : retard (perle corail), paiement confirmé (message qui se pose), tour du bénéficiaire. */
+.app--session .is-retard .bande-cycle i.est-courant { background: radial-gradient(circle, #c8412a 0 40%, #fff 42%); }
+.app--session .msg--succes { animation: sceau 420ms cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes sceau { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .app--session .msg--succes { animation: none; } }

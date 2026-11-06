@@ -667,6 +667,7 @@ final class TontineGovernanceRepository implements GovernanceRepository {
         groupId: groupId,
         memberIdentityId: '${m['membershipId'] ?? ''}',
         memberDisplayName: '${m['memberName'] ?? '—'}',
+        memberPhotoVersion: (m['memberPhotoVersion'] as num?)?.toInt(),
         amountXaf: _xaf(m['amount']),
         declaredAtUtc: _date(m['declaredAt']),
         version: 1,

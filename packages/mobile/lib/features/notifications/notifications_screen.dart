@@ -135,7 +135,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               onRetry: _load,
               emptyWhen: (List<KombeNotification> items) => items.isEmpty,
               emptyTitle: 'Aucune activité',
-              emptyBody: 'Les déclarations, votes et séances de vos groupes apparaîtront ici.',
+              emptyBody: 'Les paiements, votes et séances de vos groupes apparaîtront ici.',
               builder: (BuildContext context, List<KombeNotification> items) {
                 final List<KombeNotification> visible = items.where((KombeNotification n) => _matches(_filter, n)).toList();
                 if (visible.isEmpty) {

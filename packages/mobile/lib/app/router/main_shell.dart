@@ -330,6 +330,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       (KombeIconData.groupes, 'Groupes'),
       (KombeIconData.cloche, 'Activité'),
     ];
+    final bool wide = MediaQuery.sizeOf(context).width >= 720;
     return KombeShellScope(
       openMenu: () => _scaffold.currentState?.openDrawer(),
       unread: _unread,
@@ -340,22 +341,55 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           Navigator.of(context).pop();
           context.push(route);
         }),
-        body: KombeUpdateCheck(child: widget.navigationShell),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: widget.navigationShell.currentIndex,
-          height: 72,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          onDestinationSelected: _goBranch,
-          destinations: <Widget>[
-            for (int i = 0; i < items.length; i++)
-              NavigationDestination(
-                icon: _badge(i, KombeIcon(items[i].$1, size: 24, color: Colors.white)),
-                selectedIcon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.ink)),
-                label: items[i].$2,
-                tooltip: i == ShellBranch.activity && _unread > 0 ? '${items[i].$2}, $_unread non lues' : items[i].$2,
+        body: wide
+            ? Row(
+                children: <Widget>[
+                  NavigationRail(
+                    selectedIndex: widget.navigationShell.currentIndex,
+                    onDestinationSelected: _goBranch,
+                    labelType: NavigationRailLabelType.all,
+                    backgroundColor: KombeColors.forest,
+                    indicatorColor: KombeColors.goldWarm,
+                    selectedLabelTextStyle: const TextStyle(fontFamily: 'Manrope', color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+                    unselectedLabelTextStyle: const TextStyle(fontFamily: 'Manrope', color: Color(0xCCFFFFFF), fontSize: 12, fontWeight: FontWeight.w600),
+                    destinations: <NavigationRailDestination>[
+                      for (int i = 0; i < items.length; i++)
+                        NavigationRailDestination(
+                          icon: _badge(i, KombeIcon(items[i].$1, size: 24, color: Colors.white)),
+                          selectedIcon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.ink)),
+                          label: Text(items[i].$2),
+                        ),
+                    ],
+                  ),
+                  // Largeur de lecture bornée : pas de lignes étirées sur tablette.
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 760),
+                        child: KombeUpdateCheck(child: widget.navigationShell),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : KombeUpdateCheck(child: widget.navigationShell),
+        bottomNavigationBar: wide
+            ? null
+            : NavigationBar(
+                selectedIndex: widget.navigationShell.currentIndex,
+                height: 72,
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                onDestinationSelected: _goBranch,
+                destinations: <Widget>[
+                  for (int i = 0; i < items.length; i++)
+                    NavigationDestination(
+                      icon: _badge(i, KombeIcon(items[i].$1, size: 24, color: Colors.white)),
+                      selectedIcon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.ink)),
+                      label: items[i].$2,
+                      tooltip: i == ShellBranch.activity && _unread > 0 ? '${items[i].$2}, $_unread non lues' : items[i].$2,
+                    ),
+                ],
               ),
-          ],
-        ),
       ),
     );
   }

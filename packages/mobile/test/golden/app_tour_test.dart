@@ -146,7 +146,7 @@ void main() {
   // Contrôle mesuré, pas seulement visuel : tout écran du tour, sur le plus
   // petit téléphone visé et avec un texte agrandi, sans aucun débordement
   // (un RenderFlex qui déborde fait échouer ce test).
-  for (final (double width, double scale) in const <(double, double)>[(320, 1), (360, 1.3)]) {
+  for (final (double width, double scale) in const <(double, double)>[(320, 1), (360, 1.3), (820, 1)]) {
     testWidgets('aucun débordement à $width px, texte × $scale', (WidgetTester tester) async {
       tester.view.physicalSize = Size(width * 2, 640 * 2);
       tester.view.devicePixelRatio = 2;
@@ -175,6 +175,9 @@ void main() {
           await tester.pump(const Duration(milliseconds: 100));
         }
         final Object? c = tester.takeException();
+        if (enabled && width == 820 && (name == '01_accueil' || name == '02_groupes')) {
+          await expectLater(find.byType(KombeApp), matchesGoldenFile('tour/tablette_$name.png'));
+        }
         final Object? e = a ?? b ?? c;
         if (e != null) defauts.add('$name : ${e.toString().split('\n').first}');
       }

@@ -24,7 +24,7 @@ class HelpCenterScreen extends StatelessWidget {
                     leading: Icon(Icons.info_outline),
                     title: Text('Comprendre une cotisation'),
                     subtitle: Text(
-                      'Une déclaration compte une fois confirmée par la trésorerie. Un brouillon n’est pas envoyé.',
+                      'Un paiement compte une fois confirmé par la trésorerie. Un brouillon n’est pas envoyé.',
                     ),
                   ),
                   Divider(),

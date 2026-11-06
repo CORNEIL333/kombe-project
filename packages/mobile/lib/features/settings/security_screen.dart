@@ -27,7 +27,7 @@ class SecurityScreen extends StatelessWidget {
             ListTile(
               leading: Icon(Icons.verified_user_outlined, color: KombeColors.forest),
               title: Text('Contrôles croisés'),
-              subtitle: Text('Personne ne confirme ni ne contrôle ses propres déclarations : KÓMBE l’interdit.'),
+              subtitle: Text('Personne ne confirme ni ne contrôle ses propres paiements : KÓMBE l’interdit.'),
             ),
             Padding(
               padding: EdgeInsets.fromLTRB(20, 24, 20, 0),

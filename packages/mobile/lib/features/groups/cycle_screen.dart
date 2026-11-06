@@ -177,7 +177,7 @@ class _PanneauLancementCycleState extends State<_PanneauLancementCycle> {
               Text(
                 widget.renouvellement
                     ? 'Tous les tours de cette saison ont été servis. Pour la saison suivante, le bureau choisit à nouveau l’ordre de passage : les tours continuent (T13, T14…) et le calendrier est affiché à tous.'
-                    : 'Aucun tour n’est programmé : personne ne reçoit encore. Le bureau lance le cycle une fois les conditions réunies — au moins deux membres actifs, un trésorier désigné, et les statuts acceptés par tous.',
+                    : 'Aucun tour n’est programmé : personne ne reçoit encore. Le bureau lance le cycle une fois les conditions réunies — au moins deux membres actifs, un trésorier désigné, et les règles acceptés par tous.',
                 style: t.bodyMedium,
               ),
             ],
@@ -345,7 +345,13 @@ class _CurrentBeneficiary extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           child: Row(
             children: <Widget>[
-              MemberAvatar(groupId: turn.groupId, memberId: turn.identityId, name: turn.displayName, photoVersion: turn.photoVersion, size: 72),
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: (MediaQuery.maybeDisableAnimationsOf(context) ?? false) ? 1 : .6, end: 1),
+                duration: const Duration(milliseconds: 650),
+                curve: Curves.elasticOut,
+                builder: (BuildContext context, double v, Widget? child) => Transform.scale(scale: v, child: child),
+                child: MemberAvatar(groupId: turn.groupId, memberId: turn.identityId, name: turn.displayName, photoVersion: turn.photoVersion, size: 72),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(

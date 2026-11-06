@@ -21,7 +21,7 @@ class NotificationPreferencesScreen extends StatelessWidget {
             leading: const Icon(Icons.notifications_active_outlined, color: KombeColors.forest),
             title: const Text('Dans l’application'),
             subtitle: const Text(
-              'Toujours actives : déclarations à confirmer, votes, séances, remises, amendes. '
+              'Toujours actives : paiements à confirmer, votes, séances, remises, amendes. '
               'Retrouvez-les dans l’onglet Activité.',
             ),
             trailing: const Icon(Icons.chevron_right_rounded),
