@@ -8,7 +8,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { PaymentChannel } from "@kombe/domain";
 import { argent, tontines, type DueView, type MemberView, type MovementView } from "./api.js";
 import { peut } from "./droits.js";
-import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, useAction, useDonnees, ListeAllegee } from "./ui.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
 import { AvatarPersonne } from "./PhotoGroupe.js";
 import type { Session } from "./api.js";
@@ -239,11 +239,13 @@ export function Argent({ ctx }: { readonly ctx: ContexteGroupe }) {
             liste.length === 0 ? (
               <p className="etat-vide-ligne">{tx("app.vide")}</p>
             ) : (
-              <ul className="liste">
-                {liste.map((m) => (
+              <ListeAllegee
+                items={liste}
+                garder={(m) => m.can.acknowledge || m.state === "declared"}
+                rendre={(m) => (
                   <LigneMouvement photo={{ session: ctx.session, groupId: ctx.groupe.groupId }} key={m.movementId} m={m} actions={m.can.acknowledge ? <Accuse ctx={ctx} m={m} onFini={apres} /> : undefined} />
-                ))}
-              </ul>
+                )}
+              />
             )
           }
         </Charge>

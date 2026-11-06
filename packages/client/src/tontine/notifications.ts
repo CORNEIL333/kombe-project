@@ -18,6 +18,7 @@ const SECTIONS: Readonly<Record<string, string>> = {
   membres: "membres",
   statuts: "statuts",
   decisions: "decisions",
+  votes: "decisions",
   discipline: "discipline",
   secours: "discipline",
   journal: "journal",

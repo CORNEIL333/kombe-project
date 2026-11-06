@@ -1,9 +1,9 @@
 /* KÓMBE — statuts et règlement intérieur (L-12) et registre chaîné. */
 
-import { reglement, discipline } from "./api.js";
+import { reglement, discipline, telechargerExport } from "./api.js";
 import { peut } from "./droits.js";
 import { useState } from "react";
-import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees, ListeAllegee } from "./ui.js";
 import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
@@ -182,8 +182,20 @@ export function Journal({ ctx }: { readonly ctx: ContexteGroupe }) {
   const { tx, date } = useTextes();
   const gid = ctx.groupe.groupId;
   const { etat, recharger } = useDonnees(() => discipline.journal(ctx.session, gid), [gid]);
+  const exporter = useAction();
+  const bureau = peut(ctx.roles, "group.manage") || peut(ctx.roles, "movement.confirm") || peut(ctx.roles, "movement.control");
   return (
     <div className="pile">
+    {bureau ? (
+      <Carte titre={tx("ex.titre")}>
+        <p className="aide-champ">{tx("ex.aide")}</p>
+        <Retour erreur={exporter.erreur} succes={exporter.succes} />
+        <button type="button" className="bouton bouton-avec-icone" disabled={exporter.enCours} onClick={() => void exporter.lancer(() => telechargerExport(ctx.session, gid), tx("ex.pret"))}>
+          <Icone nom="document" taille={18} />
+          <span className="bouton-libelle">{exporter.enCours ? tx("ex.encours") : tx("ex.bouton")}</span>
+        </button>
+      </Carte>
+    ) : null}
     <Historique ctx={ctx} />
     <Carte titre={tx("td.journal")}>
       <Charge etat={etat} recharger={recharger}>
@@ -192,8 +204,11 @@ export function Journal({ ctx }: { readonly ctx: ContexteGroupe }) {
             <p className={j.valid ? "msg msg--succes" : "msg msg--erreur"} role="status">
               {j.valid ? tx("jo.valide") : tx("jo.invalide")}
             </p>
-            <ol className="liste">
-              {[...j.entries].reverse().map((e) => (
+            <ListeAllegee
+              ordonnee
+              n={15}
+              items={[...j.entries].reverse()}
+              rendre={(e) => (
                 <li key={e.seq} className="liste__ligne liste__ligne--haute">
                   <div>
                     <strong>
@@ -204,8 +219,8 @@ export function Journal({ ctx }: { readonly ctx: ContexteGroupe }) {
                     </span>
                   </div>
                 </li>
-              ))}
-            </ol>
+              )}
+            />
           </div>
         )}
       </Charge>

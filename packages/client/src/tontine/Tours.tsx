@@ -3,7 +3,8 @@
 
 import { useState } from "react";
 import type { PaymentChannel, PayoutPolicy } from "@kombe/domain";
-import { cycle, tontines, type RoundView } from "./api.js";
+import { cycle, noms, tontines, type RoundView, type ShareNameView } from "./api.js";
+import { Fragment } from "react";
 import { peut } from "./droits.js";
 import { CANAUX } from "./Argent.js";
 import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
@@ -33,6 +34,7 @@ export function Tours({ ctx }: { readonly ctx: ContexteGroupe }) {
                         {r.seq}. {date(r.date)}
                       </strong>
                       <span className="aide-champ">
+                        {r.shareLabel && r.shareLabel !== r.beneficiaryName ? `${r.shareLabel} · ` : ""}
                         {r.beneficiaryName ?? "—"} · {xaf(r.collected)} / {xaf(r.expectedPot)}
                       </span>
                     </button>
@@ -57,8 +59,80 @@ export function Tours({ ctx }: { readonly ctx: ContexteGroupe }) {
           }}
         />
       ) : null}
+      {ctx.groupe.cycleStarted ? <Noms ctx={ctx} onChange={tours.recharger} /> : null}
       {ctx.groupe.cycleStarted ? <Echanges ctx={ctx} tours={tours.etat.statut === "ok" ? tours.etat.donnees : []} /> : null}
     </div>
+  );
+}
+
+/** Les « noms » du cycle (0041) : une part = un nom, avec sa cotisation et son tour. */
+function Noms({ ctx, onChange }: { readonly ctx: ContexteGroupe; readonly onChange: () => void }) {
+  const { tx, xaf, date } = useTextes();
+  const gid = ctx.groupe.groupId;
+  const { etat, recharger } = useDonnees(() => noms.liste(ctx.session, gid), [gid]);
+  const [edition, setEdition] = useState<{ id: string; texte: string } | null>(null);
+  const action = useAction();
+  return (
+    <Carte titre={tx("nm.titre")}>
+      <p className="aide-champ">{tx("nm.aide")}</p>
+      <Retour erreur={action.erreur} succes={action.succes} />
+      <Charge etat={etat} recharger={recharger}>
+        {(liste) => (
+          <ul className="liste">
+            {liste.map((n: ShareNameView) => (
+              <li key={n.shareId} className="liste__ligne liste__ligne--haute">
+                {edition?.id === n.shareId ? (
+                  <div className="pile">
+                    <Champ id={`nm-${n.shareId}`} libelle={tx("nm.libelle")}>
+                      <input id={`nm-${n.shareId}`} value={edition.texte} maxLength={40} onChange={(e) => setEdition({ id: n.shareId, texte: e.target.value })} />
+                    </Champ>
+                    <div className="actions-formulaire">
+                      <button type="button" className="bouton bouton-secondaire" onClick={() => setEdition(null)}>
+                        {tx("app.annuler")}
+                      </button>
+                      <button
+                        type="button"
+                        className="bouton"
+                        disabled={action.enCours || edition.texte.trim().length < 1}
+                        onClick={() =>
+                          void action.lancer(() => noms.renommer(ctx.session, gid, n.shareId, edition.texte.trim())).then((r) => {
+                            if (r) {
+                              setEdition(null);
+                              recharger();
+                              onChange();
+                            }
+                          })
+                        }
+                      >
+                        {tx("app.enregistrer")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <strong>{n.label}</strong>
+                      <span className="aide-champ">
+                        {n.holders.map((h) => h.name).join(" & ")} · {xaf(n.contributionPerShare)}
+                        {n.roundSeq ? ` · ${tx("nm.tour", { n: n.roundSeq, date: date(n.roundDate) })}` : ""}
+                      </span>
+                    </div>
+                    {n.canRename ? (
+                      <div className="liste__actions">
+                        <button type="button" className="bouton bouton-secondaire bouton-compact bouton-icone-seule" title={tx("nm.renommer")} onClick={() => setEdition({ id: n.shareId, texte: n.label })}>
+                          <Icone nom="modifier" taille={16} />
+                          <span className="bouton-libelle">{tx("nm.renommer")}</span>
+                        </button>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Charge>
+    </Carte>
   );
 }
 
@@ -93,15 +167,27 @@ function DetailTour({ ctx, tour, onFini }: { readonly ctx: ContexteGroupe; reado
                 </thead>
                 <tbody>
                   {g.rows.map((row, i) => (
-                    <tr key={row.membershipId ?? i}>
-                      <td>{row.displayName ?? `#${i + 1}`}</td>
-                      <td>{xaf(row.due)}</td>
-                      <td>{xaf(row.confirmed)}</td>
-                      <td>{xaf(row.declared)}</td>
-                      <td>
-                        <Pastille ton={row.status === "paid" ? "ok" : row.status === "unpaid" ? "alerte" : "attente"}>{dyn(`to.statut.${row.status}`)}</Pastille>
-                      </td>
-                    </tr>
+                    <Fragment key={row.membershipId ?? i}>
+                      <tr>
+                        <td>{row.displayName ?? `#${i + 1}`}</td>
+                        <td>{xaf(row.due)}</td>
+                        <td>{xaf(row.confirmed)}</td>
+                        <td>{xaf(row.declared)}</td>
+                        <td>
+                          <Pastille ton={row.status === "paid" ? "ok" : row.status === "unpaid" ? "alerte" : "attente"}>{dyn(`to.statut.${row.status}`)}</Pastille>
+                        </td>
+                      </tr>
+                      {row.names?.map((n) => (
+                        <tr key={n.shareId} className="tableau__sous-ligne">
+                          <td>↳ {n.label}</td>
+                          <td>{xaf(n.due)}</td>
+                          <td colSpan={2}></td>
+                          <td>
+                            <Pastille ton={n.status === "paid" ? "ok" : n.status === "unpaid" ? "alerte" : "attente"}>{dyn(`to.statut.${n.status}`)}</Pastille>
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>

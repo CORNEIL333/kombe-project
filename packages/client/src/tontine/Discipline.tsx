@@ -26,6 +26,15 @@ export function Discipline({ ctx }: { readonly ctx: ContexteGroupe }) {
   );
 }
 
+/** Historique allégé : ce qui attend une action, puis les 5 plus récents ; le reste sur demande. */
+function allege(liste: readonly FineView[], tout: boolean): readonly FineView[] {
+  if (tout) return liste;
+  const enCours = liste.filter((f) => f.state === "issued" || f.state === "contested" || f.refundDue);
+  const autres = liste.filter((f) => !enCours.includes(f)).slice(0, 5);
+  return [...enCours, ...autres];
+}
+const donneesDe = <T,>(e: { statut: string; donnees?: T }): T | undefined => (e.statut === "ok" ? e.donnees : undefined);
+
 function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
   const { tx, dyn, xaf, date } = useTextes();
   const gid = ctx.groupe.groupId;
@@ -34,6 +43,8 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
   const action = useAction();
   const [motif, setMotif] = useState<{ id: string; quoi: "contester" | "annuler" | "maintenir"; texte: string } | null>(null);
   const [paiement, setPaiement] = useState<FineView | null>(null);
+  const [remboursement, setRemboursement] = useState<FineView | null>(null);
+  const [toutVoir, setToutVoir] = useState(false);
   const [nouvelle, setNouvelle] = useState<{ membershipId: string; kind: FineKind; amount: string; reason: string } | null>(null);
   const caisseAmendes = ctx.groupe.funds.find((f) => f.kind === "fines");
   const moi = membres.etat.statut === "ok" ? membres.etat.donnees.find((m) => m.isMe) : undefined;
@@ -119,8 +130,9 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
           liste.length === 0 ? (
             <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
+            <>
             <ul className="liste">
-              {liste.map((f) => {
+              {allege(liste, toutVoir).map((f) => {
                 const concerne = moi?.membershipId === f.membershipId;
                 return (
                   <li key={f.fineId} className="liste__ligne liste__ligne--haute ligne-riche">
@@ -137,6 +149,8 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
                         {f.issuedByName ? ` · ${f.issuedByName}` : ""}
                       </span>
                       <Pastille ton={f.state === "paid" ? "ok" : f.state === "contested" ? "alerte" : f.state === "cancelled" ? "neutre" : "attente"}>{dyn(`di.e.${f.state}`)}</Pastille>
+                      {f.refundDue ? <Pastille ton="attente">{tx("di.aRembourser")}</Pastille> : null}
+                      {f.refundedAt ? <span className="aide-champ">{tx("di.remboursee", { date: date(f.refundedAt) })}</span> : null}
                     </div>
                     <span className="montant ligne-riche__montant" aria-hidden="true">
                       {xaf(f.amount)}
@@ -154,7 +168,13 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
                           <span className="bouton-libelle">{tx("di.payer")}</span>
                         </button>
                       ) : null}
-                      {(f.state === "contested" || f.state === "issued") && peut(ctx.roles, "member.admit") && !concerne ? (
+                      {f.refundDue && peut(ctx.roles, "movement.confirm") && !concerne ? (
+                        <button type="button" className="bouton bouton-compact bouton-avec-icone" onClick={() => setRemboursement(f)} title={tx("di.rembourser")}>
+                          <Icone nom="especes" taille={18} />
+                          <span className="bouton-libelle">{tx("di.rembourser")}</span>
+                        </button>
+                      ) : null}
+                      {(f.state === "contested" || f.state === "issued" || f.state === "paid") && peut(ctx.roles, "member.admit") && !concerne ? (
                         <>
                           {f.state === "contested" ? (
                             <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => setMotif({ id: f.fineId, quoi: "maintenir", texte: "" })} title={tx("di.maintenir")}>
@@ -173,11 +193,20 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
                 );
               })}
             </ul>
+            {liste.length > allege(liste, false).length ? (
+              <button type="button" className="bouton-lien" aria-expanded={toutVoir} onClick={() => setToutVoir((v) => !v)}>
+                {toutVoir ? tx("app.voirMoins") : tx("app.voirTout", { n: liste.length })}
+              </button>
+            ) : null}
+            </>
           )
         }
       </Charge>
       {motif ? (
         <div className="formulaire-encart pile">
+          {motif.quoi === "annuler" && donneesDe(etat)?.find((f) => f.fineId === motif.id)?.state === "paid" ? (
+            <p className="msg msg--attente">{tx("di.annulerPayee")}</p>
+          ) : null}
           <Champ id="am-motif" libelle={tx("di.motif")}>
             <input id="am-motif" value={motif.texte} maxLength={500} onChange={(e) => setMotif({ ...motif, texte: e.target.value })} />
           </Champ>
@@ -203,6 +232,17 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
             </button>
           </div>
         </div>
+      ) : null}
+      {remboursement ? (
+        <PaiementLie
+          titre={`${tx("di.rembourser")} — ${remboursement.memberName} · ${xaf(remboursement.amount)}`}
+          montantFixe={remboursement.amount}
+          onEnvoyer={(channel, reference) => discipline.rembourser(ctx.session, gid, remboursement.fineId, channel, reference || undefined)}
+          onFini={() => {
+            setRemboursement(null);
+            apres();
+          }}
+        />
       ) : null}
       {paiement && caisseAmendes ? (
         <PaiementLie

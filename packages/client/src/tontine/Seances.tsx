@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import type { AttendanceStatus } from "@kombe/domain";
-import { seances, tontines, type MeetingDetail, type MemberView } from "./api.js";
+import { seances, tontines, type MeetingDetail, type MeetingFormat, type MemberView } from "./api.js";
 import { peut } from "./droits.js";
 import { AConfirmer, FormulaireDeclaration, LigneMouvement } from "./Argent.js";
 import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
@@ -35,7 +35,8 @@ export function Seances({ ctx }: { readonly ctx: ContexteGroupe }) {
                     <button type="button" className="ligne-bouton" aria-pressed={s.meetingId === choisie} onClick={() => setChoisie(s.meetingId)}>
                       <strong>{tx("se.seance", { seq: s.seq, date: date(s.date) })}</strong>
                       <span className="aide-champ">
-                        {s.location ?? ""}
+                        {s.format === "online" ? tx("se.enLigne") : (s.location ?? "")}
+                        {s.format === "hybrid" ? ` · ${tx("se.aussiEnLigne")}` : ""}
                         {s.minutesApproved ? ` · ${tx("se.approuve")}` : ""}
                       </span>
                     </button>
@@ -88,9 +89,10 @@ function DetailSeance({ ctx, meetingId, onChange }: { readonly ctx: ContexteGrou
           >
             <p>
               <Pastille ton={s.state === "open" ? "attente" : s.state === "closed" ? "ok" : "neutre"}>{dyn(`se.etat.${s.state}`)}</Pastille>
-              {s.location ? ` · ${s.location}` : ""}
+              {s.format !== "online" && s.location ? ` · ${s.location}` : ""}
               {s.hostName ? ` · ${s.hostName}` : ""}
             </p>
+            <ModaliteSeance ctx={ctx} s={s} onFini={apres} />
             <Retour erreur={action.erreur} succes={action.succes} />
           </Carte>
 
@@ -344,4 +346,91 @@ function imprimerPv(s: MeetingDetail): void {
   w.document.close();
   w.focus();
   w.print();
+}
+
+/** Présentiel, en ligne ou les deux (0041) : lien affiché aux membres, modifiable par le bureau. */
+function ModaliteSeance({ ctx, s, onFini }: { readonly ctx: ContexteGroupe; readonly s: MeetingDetail; readonly onFini: () => void }) {
+  const { tx, dyn } = useTextes();
+  const action = useAction();
+  const [edition, setEdition] = useState(false);
+  const [format, setFormat] = useState<MeetingFormat>(s.format);
+  const [lien, setLien] = useState(s.onlineUrl ?? "");
+  const [lieu, setLieu] = useState(s.location ?? "");
+  const modifiable = (s.state === "planned" || s.state === "open") && peut(ctx.roles, "meeting.manage");
+  const lienValide = /^https:\/\/\S+$/.test(lien.trim());
+  const pret = format === "in_person" || lienValide;
+  return (
+    <div className="pile">
+      {s.format !== "in_person" && s.onlineUrl ? (
+        <div className="seance-en-ligne">
+          <Icone nom="seance" taille={20} />
+          <div>
+            <strong>{dyn(`se.f.${s.format}`)}</strong>
+            <span className="aide-champ">{tx("se.lienAide")}</span>
+          </div>
+          {s.state !== "closed" && s.state !== "cancelled" ? (
+            <a className="bouton bouton-compact" href={s.onlineUrl} target="_blank" rel="noopener noreferrer">
+              {tx("se.rejoindre")}
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+      {modifiable && !edition ? (
+        <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setEdition(true)}>
+          {tx("se.modalite")}
+        </button>
+      ) : null}
+      {edition ? (
+        <div className="formulaire-encart pile">
+          <fieldset className="pile">
+            <legend>{tx("se.modalite")}</legend>
+            {(["in_person", "online", "hybrid"] as const).map((f) => (
+              <label key={f} className="case">
+                <input type="radio" name={`se-format-${s.meetingId}`} checked={format === f} onChange={() => setFormat(f)} /> {dyn(`se.f.${f}`)}
+              </label>
+            ))}
+          </fieldset>
+          {format !== "online" ? (
+            <Champ id={`se-lieu-${s.meetingId}`} libelle={tx("se.lieu")}>
+              <input id={`se-lieu-${s.meetingId}`} value={lieu} maxLength={120} onChange={(e) => setLieu(e.target.value)} />
+            </Champ>
+          ) : null}
+          {format !== "in_person" ? (
+            <Champ id={`se-lien-${s.meetingId}`} libelle={tx("se.lien")} aide={tx("se.lienFormat")}>
+              <input id={`se-lien-${s.meetingId}`} type="url" inputMode="url" placeholder="https://" value={lien} maxLength={500} onChange={(e) => setLien(e.target.value)} />
+            </Champ>
+          ) : null}
+          <Retour erreur={action.erreur} succes={action.succes} />
+          <div className="actions-formulaire">
+            <button type="button" className="bouton bouton-secondaire" onClick={() => setEdition(false)}>
+              {tx("app.annuler")}
+            </button>
+            <button
+              type="button"
+              className="bouton"
+              disabled={action.enCours || !pret}
+              onClick={() =>
+                void action
+                  .lancer(() =>
+                    seances.modifier(ctx.session, ctx.groupe.groupId, s.meetingId, {
+                      format,
+                      onlineUrl: format === "in_person" ? null : lien.trim(),
+                      ...(format !== "online" ? { location: lieu.trim() || null } : {}),
+                    }),
+                  )
+                  .then((r) => {
+                    if (r) {
+                      setEdition(false);
+                      onFini();
+                    }
+                  })
+              }
+            >
+              {tx("app.enregistrer")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }

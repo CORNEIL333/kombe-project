@@ -40,6 +40,9 @@ import type {
   HistoryImportResult,
   HistorySummary,
   Cadence,
+  MeetingFormat,
+  PollView,
+  ShareNameView,
   PaymentChannel,
 } from "@kombe/domain";
 import { ApiClient, ApiError, loadRuntimeConfig } from "@kombe/dashboard-core";
@@ -47,6 +50,9 @@ import { EnFileAttente, envoyerFile, estErreurReseau, mettreEnFile } from "./fil
 
 export { ApiError };
 export type {
+  MeetingFormat,
+  PollView,
+  ShareNameView,
   AidView,
   CreateFundInput,
   UpdateFundInput,
@@ -343,6 +349,9 @@ export const seances = {
     appel<MeetingDetail>(s, "POST", `${t(id)}/meetings/${encodeURIComponent(mid)}/minutes-approval`, { hash }),
   /** Résumé prêt à coller dans le groupe WhatsApp (sans numéro de téléphone). */
   resume: (s: Session, id: string, mid: string) => appel<{ text: string }>(s, "GET", `${t(id)}/meetings/${encodeURIComponent(mid)}/share-text`),
+  /** Modalités (0041) : présentiel, en ligne (lien https) ou les deux, et le lieu. */
+  modifier: (s: Session, id: string, mid: string, maj: { format?: MeetingFormat; onlineUrl?: string | null; location?: string | null }) =>
+    appel<MeetingDetail>(s, "PATCH", `${t(id)}/meetings/${encodeURIComponent(mid)}`, maj),
 };
 
 /* ── Caisses et mouvements ─────────────────────────────────────────────── */
@@ -444,6 +453,9 @@ export const discipline = {
     appel<FineView>(s, "POST", `${t(id)}/fines/${encodeURIComponent(fid)}/cancel`, { reason }),
   maintenir: (s: Session, id: string, fid: string, reason: string) =>
     appel<FineView>(s, "POST", `${t(id)}/fines/${encodeURIComponent(fid)}/maintain`, { reason }),
+  /** Amende payée puis annulée : la trésorerie rembourse le membre (0041). */
+  rembourser: (s: Session, id: string, fid: string, channel: PaymentChannel, reference?: string) =>
+    appel<FineView>(s, "POST", `${t(id)}/fines/${encodeURIComponent(fid)}/refund`, { channel, ...(reference ? { reference } : {}) }),
   secours: (s: Session, id: string) => appel<AidView[]>(s, "GET", `${t(id)}/aids`),
   demanderSecours: (s: Session, id: string, input: { beneficiaryMembershipId?: string; event: string; eventDate: string; note?: string }) =>
     appel<AidView>(s, "POST", `${t(id)}/aids`, input),
@@ -504,4 +516,57 @@ export function messageErreur(err: unknown): string {
 
 export function estSessionExpiree(err: unknown): boolean {
   return err instanceof ApiError && err.status === 401;
+}
+
+/* ── Votes libres (0041) : ouverts par tout membre, sans effet automatique ── */
+export interface OuvertureVote {
+  readonly question: string;
+  readonly details?: string;
+  readonly options: readonly string[];
+  readonly allowFreeAnswer?: boolean;
+  readonly multiple?: boolean;
+  readonly anonymous?: boolean;
+  readonly hours?: number;
+}
+export const votes = {
+  liste: (s: Session, id: string) => appel<PollView[]>(s, "GET", `${t(id)}/polls`),
+  ouvrir: (s: Session, id: string, input: OuvertureVote) => appel<PollView>(s, "POST", `${t(id)}/polls`, input),
+  repondre: (s: Session, id: string, pid: string, choices: readonly number[], freeAnswer?: string) =>
+    appel<PollView>(s, "PUT", `${t(id)}/polls/${encodeURIComponent(pid)}/ballot`, { choices, ...(freeAnswer ? { freeAnswer } : {}) }),
+  clore: (s: Session, id: string, pid: string) => appel<PollView>(s, "POST", `${t(id)}/polls/${encodeURIComponent(pid)}/close`),
+  annuler: (s: Session, id: string, pid: string) => appel<PollView>(s, "POST", `${t(id)}/polls/${encodeURIComponent(pid)}/cancel`),
+};
+
+/* ── Noms (0041) : une part = un nom à part entière ─────────────────────── */
+export const noms = {
+  liste: (s: Session, id: string) => appel<ShareNameView[]>(s, "GET", `${t(id)}/names`),
+  renommer: (s: Session, id: string, sid: string, label: string) => appel<ShareNameView>(s, "PATCH", `${t(id)}/names/${encodeURIComponent(sid)}`, { label }),
+};
+
+/**
+ * Export Excel du registre (bureau) : le fichier est lu avec la session en
+ * en-tête, puis enregistré depuis la mémoire — aucun jeton dans une URL.
+ */
+export async function telechargerExport(session: Session, groupId: string): Promise<void> {
+  const config = await loadRuntimeConfig();
+  const base = config.apiBaseUrl.replace(/\/+$/, "");
+  const r = await fetch(`${base}${t(groupId)}/export.xlsx`, { headers: { authorization: `Bearer ${session.sessionId}` } });
+  if (!r.ok) {
+    let corps: { message?: string; code?: string } | null = null;
+    try {
+      corps = (await r.json()) as { message?: string; code?: string };
+    } catch {
+      /* corps non JSON */
+    }
+    throw new ApiError(corps?.message ?? "Export impossible", r.status, corps, corps?.code ?? null, r.headers.get("x-correlation-id"));
+  }
+  const nom = /filename="([^"]+)"/.exec(r.headers.get("content-disposition") ?? "")?.[1] ?? "kombe.xlsx";
+  const url = URL.createObjectURL(await r.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nom;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }

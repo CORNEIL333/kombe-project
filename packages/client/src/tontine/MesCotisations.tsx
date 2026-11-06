@@ -6,7 +6,7 @@
 import { argent, acces, type MovementView, type Session, type TontineSummary } from "./api.js";
 import { LigneMouvement } from "./Argent.js";
 import { useNomCaisse } from "./Caisses.js";
-import { BoutonIcone, Carte, Charge, Pastille, useDonnees } from "./ui.js";
+import { BoutonIcone, Carte, Charge, Pastille, useDonnees, ListeAllegee } from "./ui.js";
 import { useTextes } from "./textes.js";
 import { Icone } from "../composants/Icones.js";
 
@@ -76,15 +76,16 @@ export function MesCotisations({ session, onOuvrirGroupe }: { readonly session: 
             liste.length === 0 ? (
               <p className="etat-vide-ligne">{tx("app.vide")}</p>
             ) : (
-              <ul className="liste">
-                {liste.map(({ m, groupe }) => (
+              <ListeAllegee
+                items={liste}
+                rendre={({ m, groupe }) => (
                   <LigneMouvement
                     key={m.movementId}
                     m={m}
                     actions={<BoutonIcone icone="fleche" libelle={tx("pf.ouvrir", { nom: groupe.name })} onClick={() => onOuvrirGroupe(groupe.groupId)} />}
                   />
-                ))}
-              </ul>
+                )}
+              />
             )
           }
         </Charge>
