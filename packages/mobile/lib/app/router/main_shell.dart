@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
-import '../../core/design/kombe_ndop.dart';
 import '../../core/design/kombe_icons.g.dart';
 import '../../core/state/resource.dart';
 import '../../core/update/kombe_update_sheet.dart';
@@ -56,11 +55,11 @@ class KombeTopBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final KombeShellScope? shell = KombeShellScope.of(context);
-    final Color fg = dark ? KombeColors.cream : KombeColors.ink;
+    final Color fg = dark ? Colors.white : KombeColors.ink;
     final int unread = shell?.unread ?? 0;
     return AppBar(
       toolbarHeight: 64,
-      backgroundColor: dark ? KombeColors.forest : KombeColors.cream,
+      backgroundColor: dark ? KombeColors.brand : KombeColors.cream,
       surfaceTintColor: Colors.transparent,
       foregroundColor: fg,
       elevation: 0,
@@ -100,13 +99,13 @@ class ActiveGroupTitle extends StatelessWidget {
     final GroupSummary? g = groups.active;
     if (g == null) return KombeLogo(size: 28, inverse: dark);
     final bool several = groups.list.length > 1;
-    final Color fg = dark ? KombeColors.cream : KombeColors.forest;
+    const Color fg = KombeColors.forest;
     return Semantics(
       button: several,
       label: several ? 'Groupe actif : ${g.name}. Changer de groupe' : 'Groupe : ${g.name}',
       excludeSemantics: true,
       child: Material(
-        color: dark ? Colors.white.withValues(alpha: .14) : KombeColors.mint,
+        color: dark ? Colors.white : KombeColors.mint,
         shape: const StadiumBorder(),
         child: InkWell(
           customBorder: const StadiumBorder(),
@@ -233,7 +232,7 @@ class _GroupTile extends StatelessWidget {
                       const SizedBox(height: 2),
                       Row(
                         children: <Widget>[
-                          Flexible(child: Text(roleLabel(group.role), style: const TextStyle(color: KombeColors.slate, fontSize: 13))),
+                          Flexible(child: Text(roleLabel(group.role), style: const TextStyle(color: KombeColors.slate, fontSize: 14))),
                           if (treasury) ...<Widget>[const SizedBox(width: 8), const RoleBadge(label: 'Trésorier')],
                         ],
                       ),
@@ -264,7 +263,7 @@ class RoleBadge extends StatelessWidget {
           children: <Widget>[
             const Icon(Icons.star_rounded, size: 13, color: KombeColors.goldDark),
             const SizedBox(width: 3),
-            Text(label, style: const TextStyle(color: KombeColors.goldDark, fontWeight: FontWeight.w700, fontSize: 12)),
+            Text(label, style: const TextStyle(color: KombeColors.goldDark, fontWeight: FontWeight.w700, fontSize: 14)),
           ],
         ),
       );
@@ -348,15 +347,15 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                     selectedIndex: widget.navigationShell.currentIndex,
                     onDestinationSelected: _goBranch,
                     labelType: NavigationRailLabelType.all,
-                    backgroundColor: KombeColors.forest,
-                    indicatorColor: KombeColors.goldWarm,
-                    selectedLabelTextStyle: const TextStyle(fontFamily: 'Manrope', color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
-                    unselectedLabelTextStyle: const TextStyle(fontFamily: 'Manrope', color: Color(0xCCFFFFFF), fontSize: 12, fontWeight: FontWeight.w600),
+                    backgroundColor: Colors.white,
+                    indicatorColor: KombeColors.mint,
+                    selectedLabelTextStyle: const TextStyle(fontFamily: 'Manrope', color: KombeColors.forest, fontSize: 14, fontWeight: FontWeight.w800),
+                    unselectedLabelTextStyle: const TextStyle(fontFamily: 'Manrope', color: KombeColors.slate, fontSize: 14, fontWeight: FontWeight.w600),
                     destinations: <NavigationRailDestination>[
                       for (int i = 0; i < items.length; i++)
                         NavigationRailDestination(
-                          icon: _badge(i, KombeIcon(items[i].$1, size: 24, color: Colors.white)),
-                          selectedIcon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.ink)),
+                          icon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.slate)),
+                          selectedIcon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.forest)),
                           label: Text(items[i].$2),
                         ),
                     ],
@@ -377,14 +376,13 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
             ? null
             : NavigationBar(
                 selectedIndex: widget.navigationShell.currentIndex,
-                height: 72,
                 labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                 onDestinationSelected: _goBranch,
                 destinations: <Widget>[
                   for (int i = 0; i < items.length; i++)
                     NavigationDestination(
-                      icon: _badge(i, KombeIcon(items[i].$1, size: 24, color: Colors.white)),
-                      selectedIcon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.ink)),
+                      icon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.slate)),
+                      selectedIcon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.forest)),
                       label: items[i].$2,
                       tooltip: i == ShellBranch.activity && _unread > 0 ? '${items[i].$2}, $_unread non lues' : items[i].$2,
                     ),
@@ -395,7 +393,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   Widget _badge(int branch, Widget icon) => branch == ShellBranch.activity && _unread > 0
-      ? Badge(smallSize: 9, backgroundColor: KombeColors.danger, child: icon)
+      ? Badge(smallSize: 9, backgroundColor: KombeColors.goldWarm, child: icon)
       : icon;
 }
 
@@ -411,19 +409,14 @@ class KombeMenu extends StatelessWidget {
     final ActiveGroupController groups = context.watch<ActiveGroupController>();
     final TextTheme t = Theme.of(context).textTheme;
     return Drawer(
-      backgroundColor: KombeColors.forest,
+      backgroundColor: KombeColors.brand,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.horizontal(right: Radius.circular(28))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          NdopSurface(
-            variant: 2,
-            opacity: .16,
-            fadeTo: Alignment.centerLeft,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(22, MediaQuery.paddingOf(context).top + 18, 16, 22),
-              child: const Align(alignment: Alignment.centerLeft, child: KombeLogo(size: 34, inverse: true)),
-            ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(22, MediaQuery.paddingOf(context).top + 18, 16, 22),
+            child: const Align(alignment: Alignment.centerLeft, child: KombeLogo(size: 34, inverse: true)),
           ),
           Expanded(
             // Material (et non DecoratedBox) : les retours tactiles des lignes restent visibles.

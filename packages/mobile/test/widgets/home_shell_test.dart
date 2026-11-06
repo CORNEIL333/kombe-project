@@ -42,7 +42,7 @@ void main() {
 
     // Groupe actif : le premier par défaut, nommé dans la barre.
     expect(find.descendant(of: find.byType(AppBar), matching: find.text('Les Étoiles de Yaoundé')), findsOneWidget);
-    expect(find.text('À régler'), findsOneWidget);
+    expect(find.text('À payer'), findsOneWidget);
     // Quatre destinations stables, quel que soit le rôle.
     for (final String tab in <String>['Accueil', 'Cotisations', 'Groupes', 'Activité']) {
       expect(find.text(tab), findsWidgets);
@@ -55,10 +55,10 @@ void main() {
     await _settle(tester, steps: 30);
     expect(find.descendant(of: find.byType(AppBar), matching: find.text('Solidarité Bamiléké')), findsOneWidget);
     expect(find.text('2 paiements à confirmer'), findsOneWidget);
-    // Outils du bureau : depuis l'onglet Groupes, seulement là où la personne a une fonction.
+    // Onglet Groupes : une carte par groupe, l'accès au bureau passe par sa fiche.
     await tester.tap(find.text('Groupes').last);
     await _settle(tester, steps: 20);
     expect(find.text('Mes groupes'), findsOneWidget);
-    expect(find.byTooltip('Outils du bureau'), findsOneWidget); // trésorerie de Solidarité Bamiléké
+    expect(find.byTooltip('Créer ou rejoindre'), findsOneWidget);
   });
 }

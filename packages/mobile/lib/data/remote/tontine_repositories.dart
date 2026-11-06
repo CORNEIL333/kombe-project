@@ -308,6 +308,7 @@ final class TontineGroupRepository implements GroupRepository {
         name: '${g['name']}',
         role: roleFrom((g['roles'] as List<dynamic>?) ?? const <dynamic>[]),
         memberCount: (g['memberCount'] as num?)?.toInt() ?? 0,
+        openDueXaf: int.tryParse('${g['myOpenDue'] ?? 0}') ?? 0,
         // Position réelle dans le cycle (serveur) ; 0/0 = hors cycle, jamais inventée.
         cycleIndex: ((g['cyclePosition'] as Map<String, dynamic>?)?['current'] as num?)?.toInt() ?? cycleIndex,
         cycleTotal: ((g['cyclePosition'] as Map<String, dynamic>?)?['total'] as num?)?.toInt() ?? cycleTotal,

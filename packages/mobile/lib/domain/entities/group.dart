@@ -135,6 +135,7 @@ final class GroupSummary {
     required this.nextDueAtUtc,
     this.coverUrl,
     this.photoVersion,
+    this.openDueXaf = 0,
   });
 
   final String id;
@@ -148,6 +149,8 @@ final class GroupSummary {
   final Uri? coverUrl;
   /// Version de la photo du groupe (clé de cache) ; null = initiales.
   final int? photoVersion;
+  /// Ce que je dois encore dans ce groupe (0 : rien à payer).
+  final int openDueXaf;
 }
 
 final class GroupDetails {

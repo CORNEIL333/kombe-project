@@ -124,7 +124,7 @@ class _Journey extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(steps[i], style: TextStyle(fontSize: 12.5, fontWeight: i < reached ? FontWeight.w800 : FontWeight.w600, color: i < reached ? KombeColors.forest : KombeColors.slate)),
+                  Text(steps[i], style: TextStyle(fontSize: 14, fontWeight: i < reached ? FontWeight.w800 : FontWeight.w600, color: i < reached ? KombeColors.forest : KombeColors.slate)),
                 ],
               ),
             ),

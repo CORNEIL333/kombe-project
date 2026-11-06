@@ -53,7 +53,7 @@ void main() {
     expect(find.text('Solidarité Bamiléké'), findsOneWidget);
     expect(find.text('Cycle 4/12'), findsOneWidget);
     expect(find.text('Trésorerie'), findsWidgets);
-    expect(find.text('Prochaine cotisation'), findsWidgets);
+    expect(find.text('À payer'), findsOneWidget);
   });
 
   testWidgets('état vide honnête sans adhésion', (WidgetTester tester) async {

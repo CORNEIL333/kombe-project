@@ -6,9 +6,11 @@ import '../design/kombe_theme.dart';
 
 /// En-tête d'écran : grand titre Fraunces, sous-titre, coin de motif Ndop.
 class KombeScreenHeader extends StatelessWidget {
-  const KombeScreenHeader({super.key, required this.title, this.subtitle, this.inset = 20});
+  const KombeScreenHeader({super.key, required this.title, this.subtitle, this.inset = 20, this.trailing});
   final String title;
   final String? subtitle;
+  /// Action discrète à droite du titre (remplace le coin décoratif).
+  final Widget? trailing;
   /// Marge gauche du texte (0 quand la liste porte déjà sa marge).
   final double inset;
 
@@ -19,11 +21,11 @@ class KombeScreenHeader extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.hardEdge,
           children: <Widget>[
-            const Positioned(
-              right: -20,
-              top: -24,
-              width: 190,
-              height: 150,
+            if (trailing == null) const Positioned(
+              right: -14,
+              top: -18,
+              width: 112,
+              height: 112,
               child: ExcludeSemantics(
                 // Coin Ndop (vectoriel) fondu dans le papier.
                 child: ShaderMask(
@@ -33,8 +35,9 @@ class KombeScreenHeader extends StatelessWidget {
                 ),
               ),
             ),
+            if (trailing != null) Positioned(right: 8, top: 6, child: trailing!),
             Padding(
-              padding: EdgeInsets.fromLTRB(inset, 10, 120, 10),
+              padding: EdgeInsets.fromLTRB(inset, 10, trailing == null ? 116 : 64, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[

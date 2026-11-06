@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/design/kombe_colors.dart';
-import '../../core/design/kombe_ndop.dart';
 import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/xaf.dart';
 import '../../core/widgets/group_avatar.dart';
@@ -20,7 +19,7 @@ String _day(BuildContext context, DateTime utc) =>
     DateFormat('EEEE d MMMM', Localizations.localeOf(context).toLanguageTag()).format(utc.toLocal());
 
 /// Accueil « Ndop ». Emplacements STABLES, dans cet ordre :
-/// héros indigo (salutation, reste à régler, échéance, action principale, à
+/// héros vert (salutation, reste à régler, échéance, action principale, à
 /// confirmer, perles du cycle) ; raccourcis du groupe ; « À faire » (règles explicables : envoi à
 /// reprendre, confirmations de ma fonction, vote ouvert) ; prochaine séance ;
 /// activité récente du groupe. Aucune donnée inventée.
@@ -60,7 +59,7 @@ class HomeContent extends StatelessWidget {
       if (photoMissing)
         _TodoRow(
           icon: Icons.add_a_photo_outlined,
-          tone: KombeTone.coral,
+          tone: KombeTone.brand,
           title: 'Ajoutez votre photo',
           subtitle: 'Votre groupe vous reconnaît',
           onTap: () => context.push('/app/profile'),
@@ -68,7 +67,7 @@ class HomeContent extends StatelessWidget {
       if (data.group.photoVersion == null && canEditGroupPhoto(data.group.role))
         _TodoRow(
           icon: Icons.add_photo_alternate_outlined,
-          tone: KombeTone.coral,
+          tone: KombeTone.brand,
           title: 'Ajoutez la photo du groupe',
           subtitle: data.group.name,
           onTap: () => context.push('/app/groups/$gid'),
@@ -93,7 +92,7 @@ class HomeContent extends StatelessWidget {
           child: Row(
             children: <Widget>[
               _Shortcut(tone: KombeTone.success, icon: Icons.donut_large_rounded, label: 'Cycle', onTap: () => context.push('/app/groups/$gid/cycle')),
-              _Shortcut(tone: KombeTone.coral, icon: Icons.groups_2_outlined, label: 'Membres', onTap: () => context.push('/app/groups/$gid/members')),
+              _Shortcut(tone: KombeTone.brand, icon: Icons.groups_2_outlined, label: 'Membres', onTap: () => context.push('/app/groups/$gid/members')),
               _Shortcut(tone: KombeTone.money, icon: Icons.account_balance_wallet_outlined, label: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
               _Shortcut(tone: KombeTone.info, icon: Icons.menu_book_outlined, label: 'Règles', onTap: () => context.push('/app/groups/$gid/rules')),
             ],
@@ -140,17 +139,13 @@ class _Hero extends StatelessWidget {
   Widget build(BuildContext context) {
     final int due = data.remainingXaf;
     final String gid = Uri.encodeComponent(data.group.id);
-    final TextStyle soft = TextStyle(color: Colors.white.withValues(alpha: .82), fontSize: 15, height: 1.35, fontWeight: FontWeight.w600);
-    const Color alert = Color(0xFFFFB4A6);
+    const TextStyle soft = TextStyle(color: Colors.white, fontSize: 15, height: 1.35, fontWeight: FontWeight.w600);
     final bool cycle = data.group.cycleTotal > 0 && data.group.cycleIndex > 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        NdopSurface(
-          opacity: .2,
-          tile: 34,
-          fadeTo: Alignment.centerLeft,
-          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+        DecoratedBox(
+          decoration: const BoxDecoration(color: KombeColors.brand, borderRadius: BorderRadius.vertical(bottom: Radius.circular(28))),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
             child: Column(
@@ -167,7 +162,7 @@ class _Hero extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 if (due > 0) ...<Widget>[
-                  Text('À régler', style: KombeType.eyebrow.copyWith(color: KombeColors.goldLight, fontSize: 13)),
+                  const Text('À payer', style: soft),
                   const SizedBox(height: 4),
                   FittedBox(
                     fit: BoxFit.scaleDown,
@@ -175,17 +170,13 @@ class _Hero extends StatelessWidget {
                     child: KombeAmount(due, size: 54, color: Colors.white),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    data.late
-                        ? 'En retard'
-                        : data.nextDueDate == null
-                            ? 'Pour ce tour'
-                            : 'Avant le ${_day(context, data.nextDueDate!)}',
-                    style: soft.copyWith(color: data.late ? alert : null, fontWeight: FontWeight.w700),
-                  ),
+                  if (data.late)
+                    const StatusPill('En retard', tone: KombeTone.danger, icon: Icons.error_outline_rounded)
+                  else
+                    Text(data.nextDueDate == null ? 'Pour ce tour' : 'Avant le ${_day(context, data.nextDueDate!)}', style: soft.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 18),
                   FilledButton.icon(
-                    style: FilledButton.styleFrom(backgroundColor: KombeColors.goldWarm, foregroundColor: KombeColors.ink, minimumSize: const Size.fromHeight(56)),
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
                     onPressed: () => context.push('/app/groups/$gid/contributions/new'),
                     icon: const Icon(Icons.check_rounded),
                     label: const Text('J’ai payé'),
@@ -205,10 +196,10 @@ class _Hero extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         child: Row(
                           children: <Widget>[
-                            const Icon(Icons.hourglass_top_rounded, size: 18, color: KombeColors.goldLight),
+                            const Icon(Icons.hourglass_top_rounded, size: 18, color: Colors.white),
                             const SizedBox(width: 8),
                             Expanded(child: Text('${Xaf.format(data.pendingDeclaredXaf)} à confirmer', style: soft)),
-                            Icon(Icons.chevron_right_rounded, size: 20, color: Colors.white.withValues(alpha: .7)),
+                            const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.white),
                           ],
                         ),
                       ),
@@ -219,7 +210,7 @@ class _Hero extends StatelessWidget {
                   const SizedBox(height: 14),
                   KombeCycleBand(index: data.group.cycleIndex, total: data.group.cycleTotal, onDark: true, late: data.late),
                   const SizedBox(height: 8),
-                  Text('Tour ${data.group.cycleIndex} sur ${data.group.cycleTotal}', style: soft.copyWith(fontSize: 14)),
+                  Text('Tour ${data.group.cycleIndex} sur ${data.group.cycleTotal}', style: soft),
                 ],
               ],
             ),
@@ -254,11 +245,11 @@ class _Shortcut extends StatelessWidget {
                   Container(
                     width: 52,
                     height: 52,
-                    decoration: BoxDecoration(color: tone.solid, shape: BoxShape.circle),
-                    child: Icon(icon, color: tone.onSolid, size: 24),
+                    decoration: BoxDecoration(color: tone.bg, shape: BoxShape.circle),
+                    child: Icon(icon, color: tone.fg, size: 24),
                   ),
                   const SizedBox(height: 6),
-                  Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: KombeColors.ink)),
+                  Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: KombeColors.ink)),
                 ],
               ),
             ),
@@ -339,7 +330,7 @@ class HomeSkeleton extends StatelessWidget {
           children: <Widget>[
             Container(
               height: 320,
-              decoration: const BoxDecoration(color: KombeColors.forest, borderRadius: BorderRadius.vertical(bottom: Radius.circular(30))),
+              decoration: const BoxDecoration(color: KombeColors.brand, borderRadius: BorderRadius.vertical(bottom: Radius.circular(28))),
             ),
             const SizedBox(height: 22),
             const Padding(

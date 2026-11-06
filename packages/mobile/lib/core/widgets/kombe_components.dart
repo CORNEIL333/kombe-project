@@ -10,41 +10,22 @@ import '../design/kombe_theme.dart';
 /// Composants « Ndop » partagés par tous les écrans.
 
 /// Tonalité sémantique d'un état (pastilles, pictos, bandeaux).
-enum KombeTone { neutral, brand, success, warning, danger, money, info, coral }
+enum KombeTone { neutral, brand, success, warning, danger, money, info }
 
+/// Trois teintes par écran : vert, safran, neutres. Rouge : retard et erreur.
 extension KombeToneColors on KombeTone {
   Color get fg => switch (this) {
         KombeTone.neutral => KombeColors.slate,
-        KombeTone.brand => KombeColors.forest,
-        KombeTone.success => KombeColors.jade,
-        KombeTone.warning => KombeColors.goldDark,
+        KombeTone.warning || KombeTone.money => KombeColors.ink,
         KombeTone.danger => KombeColors.danger,
-        KombeTone.money => KombeColors.goldDark,
-        KombeTone.info => KombeColors.plum,
-        KombeTone.coral => KombeColors.clay,
+        KombeTone.brand || KombeTone.success || KombeTone.info => KombeColors.forest,
       };
   Color get bg => switch (this) {
         KombeTone.neutral => KombeColors.sand,
-        KombeTone.brand => KombeColors.mint,
-        KombeTone.success => const Color(0xFFE3F2EA),
-        KombeTone.warning => KombeColors.goldPale,
+        KombeTone.warning || KombeTone.money => KombeColors.goldPale,
         KombeTone.danger => const Color(0xFFFBEAE7),
-        KombeTone.money => KombeColors.goldPale,
-        KombeTone.info => const Color(0xFFF1E3F1),
-        KombeTone.coral => const Color(0xFFFBE3DC),
+        KombeTone.brand || KombeTone.success || KombeTone.info => KombeColors.mint,
       };
-  /// Fond plein (pictos, raccourcis) : c'est là que l'interface prend sa couleur.
-  Color get solid => switch (this) {
-        KombeTone.neutral => KombeColors.forest,
-        KombeTone.brand => KombeColors.forest,
-        KombeTone.success => KombeColors.emerald,
-        KombeTone.warning => KombeColors.goldWarm,
-        KombeTone.danger => KombeColors.danger,
-        KombeTone.money => KombeColors.goldWarm,
-        KombeTone.info => KombeColors.plum,
-        KombeTone.coral => KombeColors.clay,
-      };
-  Color get onSolid => this == KombeTone.warning || this == KombeTone.money ? KombeColors.ink : Colors.white;
 }
 
 /// Montant FCFA : chiffres en Fraunces tabulaires, devise en petit Manrope.
@@ -74,7 +55,7 @@ class KombeAmount extends StatelessWidget {
             TextSpan(text: '$sign${digits(xaf.abs())}', style: KombeType.amount(size: size, color: color)),
             TextSpan(
               text: ' FCFA',
-              style: TextStyle(fontSize: math.max(11, size * .42), fontWeight: FontWeight.w700, color: color.withValues(alpha: .72), letterSpacing: .2),
+              style: TextStyle(fontSize: math.max(14, size * .42), fontWeight: FontWeight.w700, color: color.withValues(alpha: .72), letterSpacing: .2),
             ),
           ],
         ),
@@ -106,7 +87,7 @@ class StatusPill extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: tone.fg, height: 1.2),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: tone.fg, height: 1.2),
               ),
             ),
           ],
@@ -125,8 +106,8 @@ class KombeIconBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(color: tone.solid, shape: BoxShape.circle),
-        child: Icon(icon, size: size * .5, color: tone.onSolid),
+        decoration: BoxDecoration(color: tone.bg, shape: BoxShape.circle),
+        child: Icon(icon, size: size * .5, color: tone.fg),
       );
 }
 
@@ -470,14 +451,14 @@ class KombeDateBlock extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(color: KombeColors.clay, borderRadius: BorderRadius.circular(size * .3)),
+        decoration: BoxDecoration(color: KombeColors.mint, borderRadius: BorderRadius.circular(size * .3)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text('${d.day}', style: KombeType.amount(size: size * .4, color: Colors.white)),
+            Text('${d.day}', style: KombeType.amount(size: size * .4)),
             Text(
               DateFormat('MMM', locale).format(d).replaceAll('.', '').toUpperCase(),
-              style: TextStyle(fontSize: size * .17, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: .6, height: 1.1),
+              style: TextStyle(fontSize: math.max(14, size * .22), fontWeight: FontWeight.w800, color: KombeColors.forest, height: 1.1),
             ),
           ],
         ),
@@ -595,17 +576,16 @@ class KombeInlineError extends StatelessWidget {
       );
 }
 
-/// Signature de KÓMBE : le rang de perles du cycle. Une perle par tour :
-/// maïs quand le tour est passé, cerclée pour le tour en cours, vide à venir.
-/// `mine` marque mon tour d'un point vermillon quand il est connu.
+/// Points du cycle, discrets : un par tour, pleins quand le tour est passé,
+/// safran pour le tour en cours, vides à venir. `mine` marque mon tour.
 class KombeCycleBand extends StatelessWidget {
-  const KombeCycleBand({super.key, required this.index, required this.total, this.mine, this.onDark = false, this.height = 26, this.late = false});
+  const KombeCycleBand({super.key, required this.index, required this.total, this.mine, this.onDark = false, this.height = 12, this.late = false});
   final int index;
   final int total;
   final int? mine;
   final bool onDark;
   final double height;
-  /// Tour en retard : la perle en cours passe au corail, sans autre dramatisation.
+  /// Tour en retard : le point en cours passe au rouge.
   final bool late;
 
   @override
@@ -638,24 +618,24 @@ class _CycleBandPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double step = size.width / total;
-    final double r = math.min(size.height / 2, step / 2 - (total > 24 ? .6 : 1.5));
-    final Color current = onDark ? Colors.white : KombeColors.forest;
-    final Color empty = onDark ? const Color(0x59FFFFFF) : KombeColors.lineStrong;
+    final double step = math.min(size.width / total, 17);
+    final double r = math.min(5, step / 2 - .8);
+    final Color done = onDark ? Colors.white : KombeColors.brand;
+    final Color empty = onDark ? const Color(0x80FFFFFF) : KombeColors.lineStrong;
+    final Color now = late ? KombeColors.danger : KombeColors.goldWarm;
     for (int i = 1; i <= total; i++) {
       final Offset c = Offset((i - .5) * step, size.height / 2);
-      // Les perles s'enfilent de gauche à droite.
       final double reveal = ((t * (index + 1)) - (i - 1)).clamp(0, 1);
       if (i <= index && reveal > 0) {
-        canvas.drawCircle(c, r * reveal, Paint()..color = i == index ? current : KombeColors.goldWarm);
-        if (i == index) canvas.drawCircle(c, r * .42 * reveal, Paint()..color = late ? KombeColors.clay : KombeColors.goldWarm);
+        if (i == index && onDark) canvas.drawCircle(c, (r + 1.6) * reveal, Paint()..color = Colors.white);
+        canvas.drawCircle(c, r * reveal, Paint()..color = i == index ? now : done);
       } else {
         canvas.drawCircle(c, r - .7, Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.4
+          ..strokeWidth = 1.3
           ..color = empty);
       }
-      if (mine == i) canvas.drawCircle(Offset(c.dx, size.height + 7), 3.5, Paint()..color = KombeColors.danger);
+      if (mine == i) canvas.drawCircle(Offset(c.dx, size.height + 6), 2.5, Paint()..color = done);
     }
   }
 
@@ -713,7 +693,7 @@ class _SealState extends State<_Seal> with SingleTickerProviderStateMixin {
             child: Container(
               width: 148,
               height: 148,
-              decoration: const BoxDecoration(color: KombeColors.emerald, shape: BoxShape.circle),
+              decoration: const BoxDecoration(color: KombeColors.brand, shape: BoxShape.circle),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
