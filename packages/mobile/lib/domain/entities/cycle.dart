@@ -30,6 +30,7 @@ final class BeneficiaryTurn {
     required this.status,
     this.photoVersion,
     this.groupId = '',
+    this.shareLabel,
   });
 
   final int turnNumber;
@@ -39,6 +40,9 @@ final class BeneficiaryTurn {
   final BeneficiaryStatus status;
   final int? photoVersion;
   final String groupId;
+
+  /// Nom (part) servi à ce tour (0041), quand il diffère du bénéficiaire.
+  final String? shareLabel;
 }
 
 final class CycleDetails {

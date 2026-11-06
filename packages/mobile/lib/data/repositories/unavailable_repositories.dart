@@ -15,6 +15,8 @@ import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
 import '../../domain/entities/profile.dart';
 import '../../domain/entities/poll.dart';
+import '../../domain/entities/share_name.dart';
+import '../../domain/repositories/share_name_repository.dart';
 import '../../domain/repositories/poll_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
@@ -258,6 +260,16 @@ final class UnavailableMeetingRepository implements MeetingRepository {
 
   @override
   Future<Resource<MeetingDetail>> getMeeting({required String groupId, required String meetingId}) async => const ResourceUnavailable<MeetingDetail>();
+
+  @override
+  Future<OperationResult<MeetingDetail>> updateMeeting({
+    required String groupId,
+    required String meetingId,
+    required MeetingFormat format,
+    String? onlineUrl,
+    String? location,
+  }) async =>
+      const OperationBlocked<MeetingDetail>(_reason);
 }
 
 final class UnavailableNotificationRepository implements NotificationRepository {
@@ -290,4 +302,15 @@ final class UnavailableDashboardRepository implements DashboardRepository {
   @override
   Future<Resource<HomeData>> loadHome(GroupSummary group) async =>
       const ResourceUnavailable<HomeData>();
+}
+
+final class UnavailableShareNameRepository implements ShareNameRepository {
+  const UnavailableShareNameRepository();
+
+  @override
+  Future<Resource<List<ShareName>>> listNames(String groupId) async => const ResourceUnavailable<List<ShareName>>();
+
+  @override
+  Future<OperationResult<ShareName>> rename({required String groupId, required String shareId, required String label}) async =>
+      const OperationBlocked<ShareName>(_reason);
 }

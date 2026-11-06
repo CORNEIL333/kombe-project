@@ -254,6 +254,11 @@ export interface DueView {
   readonly declared: Money;
   readonly remaining: Money;
   readonly lateness: "upcoming" | "on_time" | "grace" | "late";
+  /**
+   * Cagnotte d'un membre qui tient plusieurs noms (0041) : le détail nom par
+   * nom ; les versements couvrent les noms dans l'ordre.
+   */
+  readonly names?: readonly { readonly shareId: string; readonly label: string; readonly due: Money; readonly status: "paid" | "declared" | "partial" | "unpaid" }[];
 }
 
 export interface InvitationView {

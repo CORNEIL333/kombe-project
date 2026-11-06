@@ -632,6 +632,16 @@ final class FakeMeetingRepository implements MeetingRepository {
     await _lag();
     return ResourceReady<MeetingDetail>(_detail(groupId, 3, MeetingState.closed));
   }
+
+  @override
+  Future<OperationResult<MeetingDetail>> updateMeeting({
+    required String groupId,
+    required String meetingId,
+    required MeetingFormat format,
+    String? onlineUrl,
+    String? location,
+  }) async =>
+      const OperationBlocked<MeetingDetail>('Indisponible');
 }
 
 final class FakeNotificationRepository implements NotificationRepository {

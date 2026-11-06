@@ -148,6 +148,10 @@ try {
   const grid = await ok(D.token, "GET", `/v1/tontines/${gid}/rounds/1/grid`);
   const cRow = grid.rows.find((r) => r.membershipId === mid(C.name));
   check("GRID-NAME-BY-NAME", cRow?.status === "partial" && cRow.names?.length === 2 && cRow.names.filter((n) => n.status === "paid").length === 1, cRow);
+  const cDues = (await ok(C.token, "GET", `/v1/me/dues?groupId=${gid}`)).find((d) => d.roundSeq === 1 && d.fundKind === "rotation");
+  check("DUES-NAME-BY-NAME", cDues?.names?.length === 2 && cDues.names[0].status === "paid" && cDues.names[1].status === "unpaid" && cDues.names.some((n) => n.label === "Chantal pour sa fille"), cDues);
+  const dDues = (await ok(D.token, "GET", `/v1/me/dues?groupId=${gid}`)).find((d) => d.roundSeq === 1 && d.fundKind === "rotation");
+  check("DUES-ONE-NAME-NO-DETAIL", dDues && dDues.names === undefined, dDues);
 
   /* ── Séance en ligne ─────────────────────────────────────────────── */
   const m1 = (await ok(A.token, "GET", `/v1/tontines/${gid}/meetings`))[0];

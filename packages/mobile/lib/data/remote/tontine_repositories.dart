@@ -21,6 +21,8 @@ import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
 import '../../domain/entities/profile.dart';
 import '../../domain/entities/poll.dart';
+import '../../domain/entities/share_name.dart';
+import '../../domain/repositories/share_name_repository.dart';
 import '../../domain/repositories/poll_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
@@ -442,6 +444,7 @@ final class TontineGroupRepository implements GroupRepository {
                   turnNumber: (r['seq'] as num).toInt(),
                   identityId: '${r['beneficiaryMembershipId'] ?? ''}',
                   displayName: '${r['beneficiaryName'] ?? '—'}',
+                  shareLabel: r['shareLabel'] as String?,
                   photoVersion: (r['beneficiaryPhotoVersion'] as num?)?.toInt(),
                   groupId: groupId,
                   dueAtUtc: _date(r['date']),
@@ -1370,4 +1373,53 @@ final class TontineMeetingRepository implements MeetingRepository {
   @override
   Future<Resource<MeetingDetail>> getMeeting({required String groupId, required String meetingId}) => _read(() async =>
       meetingDetailFrom(groupId, (await _api.get('/tontines/${Uri.encodeComponent(groupId)}/meetings/${Uri.encodeComponent(meetingId)}')).body));
+
+  @override
+  Future<OperationResult<MeetingDetail>> updateMeeting({
+    required String groupId,
+    required String meetingId,
+    required MeetingFormat format,
+    String? onlineUrl,
+    String? location,
+  }) =>
+      _write<MeetingDetail>(() async => meetingDetailFrom(
+            groupId,
+            (await _api.patch('/tontines/${Uri.encodeComponent(groupId)}/meetings/${Uri.encodeComponent(meetingId)}', <String, dynamic>{
+              'format': switch (format) { MeetingFormat.inPerson => 'in_person', MeetingFormat.online => 'online', MeetingFormat.hybrid => 'hybrid' },
+              'onlineUrl': format == MeetingFormat.inPerson ? null : onlineUrl?.trim(),
+              if (format != MeetingFormat.online) 'location': (location?.trim().isEmpty ?? true) ? null : location!.trim(),
+            }, headers: <String, String>{'idempotency-key': newIdempotencyKey()}))
+                .body,
+          ));
+}
+
+ShareName shareNameFrom(Map<String, dynamic> n) => ShareName(
+      shareId: '${n['shareId']}',
+      label: '${n['label']}',
+      holders: <String>[
+        for (final Object? h in (n['holders'] as List<Object?>? ?? const <Object?>[]))
+          if (h is Map<String, dynamic>) '${h['name']}',
+      ],
+      contributionXaf: _xaf(n['contributionPerShare']),
+      canRename: n['canRename'] == true,
+      roundSeq: (n['roundSeq'] as num?)?.toInt(),
+      roundDate: n['roundDate'] == null ? null : _date(n['roundDate']),
+    );
+
+/// Noms du cycle (`/v1/tontines/:id/names`).
+final class TontineShareNameRepository implements ShareNameRepository {
+  const TontineShareNameRepository({required KombeApiClient api}) : _api = api;
+  final KombeApiClient _api;
+
+  @override
+  Future<Resource<List<ShareName>>> listNames(String groupId) => _read(() async => <ShareName>[
+        for (final Map<String, dynamic> n in _items(await _api.get('/tontines/${Uri.encodeComponent(groupId)}/names'))) shareNameFrom(n),
+      ]);
+
+  @override
+  Future<OperationResult<ShareName>> rename({required String groupId, required String shareId, required String label}) => _write<ShareName>(() async => shareNameFrom(
+        (await _api.patch('/tontines/${Uri.encodeComponent(groupId)}/names/${Uri.encodeComponent(shareId)}', <String, dynamic>{'label': label.trim()},
+                headers: <String, String>{'idempotency-key': newIdempotencyKey()}))
+            .body,
+      ));
 }

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/auth.dart';
 import '../../features/governance/poll_screens.dart';
+import '../../features/groups/share_names_screen.dart';
 import '../../features/auth/display_name_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/recovery_request_screen.dart';
@@ -210,6 +211,10 @@ final class AppRouter {
           path: '/app/votes/:voteId',
           builder: (_, state) =>
               VoteDetailScreen(voteId: state.pathParameters['voteId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/names',
+          builder: (_, state) => ShareNamesScreen(groupId: state.pathParameters['groupId']!),
         ),
         GoRoute(
           path: '/app/groups/:groupId/polls',

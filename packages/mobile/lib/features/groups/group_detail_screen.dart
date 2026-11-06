@@ -185,6 +185,8 @@ class _Body extends StatelessWidget {
           children: <Widget>[
             KombeMenuRow(icon: Icons.groups_2_outlined, title: 'Membres', value: '${g.memberCount}', onTap: () => context.push('/app/groups/$gid/members')),
             KombeMenuRow(icon: Icons.donut_large_rounded, tone: KombeTone.success, title: 'Cycle et ordre des tours', onTap: () => context.push('/app/groups/$gid/cycle')),
+            if (details.cycleStarted)
+              KombeMenuRow(icon: Icons.badge_outlined, tone: KombeTone.success, title: 'Les noms du cycle', onTap: () => context.push('/app/groups/$gid/names')),
             KombeMenuRow(icon: Icons.account_balance_wallet_outlined, tone: KombeTone.money, title: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
             KombeMenuRow(icon: Icons.menu_book_outlined, tone: KombeTone.neutral, title: 'Règles', onTap: () => context.push('/app/groups/$gid/rules')),
             KombeMenuRow(

@@ -408,7 +408,16 @@ class _TurnRow extends StatelessWidget {
           const SizedBox(width: 10),
           MemberAvatar(groupId: turn.groupId, memberId: turn.identityId, name: turn.displayName, photoVersion: turn.photoVersion, size: 40),
           const SizedBox(width: 10),
-          Expanded(child: Text(turn.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleSmall)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(turn.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleSmall),
+                if (turn.shareLabel != null && turn.shareLabel != turn.displayName)
+                  Text(turn.shareLabel!, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.bodySmall),
+              ],
+            ),
+          ),
           chip,
           const SizedBox(width: 10),
           Text(DateFormat.MMMd(locale).format(turn.dueAtUtc.toLocal()), style: t.bodySmall),

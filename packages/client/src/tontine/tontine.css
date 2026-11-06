@@ -1057,3 +1057,21 @@ fieldset.champ legend {
   max-width: none;
   min-width: 0;
 }
+
+/* Échéance nom par nom (0041) */
+.noms-echeance {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 14px;
+  background: var(--s-ivoire);
+  display: grid;
+  gap: 0.375rem;
+  font-size: 14px;
+}
+.noms-echeance li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+}

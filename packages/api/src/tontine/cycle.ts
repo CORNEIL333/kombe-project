@@ -309,6 +309,8 @@ export class CycleService {
           namesOf.set(part.membershipId, [...(namesOf.get(part.membershipId) ?? []), { shareId: s.shareId, due: part.amount }]);
         }
       }
+      const tourDe = (id: string) => rounds.find((r) => r.shareId === id)?.seq ?? Number.MAX_SAFE_INTEGER;
+      for (const liste of namesOf.values()) liste.sort((a, b) => tourDe(a.shareId) - tourDe(b.shareId));
       const rows = [...dueMap.entries()].map(([mid, due]) => {
         const p = per.get(mid) ?? { c: 0n, d: 0n };
         let left = p.c;

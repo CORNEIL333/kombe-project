@@ -12,6 +12,7 @@ import {
   lateness,
   memberDueForRound,
   movementSign,
+  splitByWeight,
   type DueView,
   type FundKind,
   type FundView,
@@ -430,6 +431,18 @@ export async function computeDues(
   );
   const holdings = await loadShareHoldings(db, group.groupId);
   const rulesAt = await roundSettingsOf(db, group);
+  const labels = await loadShareLabels(db, group.groupId);
+  /** Noms tenus par le membre à ce tour, avec la part de chacun. */
+  const namesAt = (seq: number): { shareId: string; due: bigint }[] => {
+    const per = BigInt(rulesAt(seq).contributionPerShare);
+    const out: { shareId: string; due: bigint }[] = [];
+    for (const s of sharesAt(holdings, seq)) {
+      for (const part of splitByWeight(per, s.holders)) if (part.membershipId === membershipId) out.push({ shareId: s.shareId, due: part.amount });
+    }
+    // Dans l'ordre des tours : le nom servi le plus tôt d'abord.
+    const tourDe = (id: string) => rounds.find((r) => r.shareId === id)?.seq ?? Number.MAX_SAFE_INTEGER;
+    return out.sort((a, b) => tourDe(a.shareId) - tourDe(b.shareId));
+  };
   const rotationDueAt = (seq: number): bigint => {
     const at = sharesAt(holdings, seq);
     return at.length > 0 ? (memberDueForRound(at, BigInt(rulesAt(seq).contributionPerShare)).get(membershipId) ?? 0n) : 0n;
@@ -489,7 +502,24 @@ export async function computeDues(
       const remaining = due - p.confirmed - p.declared - moved;
       const rem = remaining > 0n ? remaining : 0n;
       if (opts.onlyOpen && rem === 0n) continue;
+      const tenus = f.kind === "rotation" ? namesAt(r.seq) : [];
+      let couvert = p.confirmed + moved;
+      let annonce = p.declared;
+      const names =
+        tenus.length > 1
+          ? tenus.map((n) => {
+              const c = couvert >= n.due ? n.due : couvert;
+              couvert -= c;
+              const resteNom = n.due - c;
+              const d = annonce >= resteNom ? resteNom : annonce;
+              annonce -= d;
+              const status: "paid" | "declared" | "partial" | "unpaid" =
+                c >= n.due ? "paid" : c + d >= n.due ? "declared" : c + d > 0n ? "partial" : "unpaid";
+              return { shareId: n.shareId, label: labels.get(n.shareId) ?? "Nom", due: m(n.due), status };
+            })
+          : null;
       out.push({
+        ...(names ? { names } : {}),
         groupId: group.groupId,
         fundId: f.fundId,
         fundKind: f.kind,

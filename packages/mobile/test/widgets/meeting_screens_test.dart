@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kombe_mobile/core/design/kombe_theme.dart';
+import 'package:kombe_mobile/core/state/operation_result.dart';
 import 'package:kombe_mobile/core/state/resource.dart';
 import 'package:kombe_mobile/data/remote/tontine_repositories.dart';
 import 'package:kombe_mobile/domain/entities/meeting.dart';
@@ -9,6 +10,9 @@ import 'package:kombe_mobile/domain/repositories/meeting_repository.dart';
 import 'package:kombe_mobile/features/meetings/meeting_screens.dart';
 import 'package:kombe_mobile/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
+import 'package:kombe_mobile/data/repositories/unavailable_repositories.dart';
+import 'package:kombe_mobile/domain/repositories/group_repository.dart';
 
 final class _Repo implements MeetingRepository {
   _Repo(this.list, this.detail);
@@ -20,13 +24,26 @@ final class _Repo implements MeetingRepository {
 
   @override
   Future<Resource<MeetingDetail>> getMeeting({required String groupId, required String meetingId}) async => detail;
+
+  @override
+  Future<OperationResult<MeetingDetail>> updateMeeting({
+    required String groupId,
+    required String meetingId,
+    required MeetingFormat format,
+    String? onlineUrl,
+    String? location,
+  }) async =>
+      const OperationBlocked<MeetingDetail>('Indisponible');
 }
 
 MeetingSummary _m(int seq, MeetingState state) =>
     MeetingSummary(meetingId: 'mt$seq', groupId: 'g', seq: seq, date: DateTime.utc(2026, 11, seq), state: state, minutesApproved: false, location: 'Chez Amina');
 
-Widget _app(MeetingRepository r, Widget child) => Provider<MeetingRepository>.value(
-      value: r,
+Widget _app(MeetingRepository r, Widget child) => MultiProvider(
+      providers: <SingleChildWidget>[
+        Provider<MeetingRepository>.value(value: r),
+        Provider<GroupRepository>.value(value: const UnavailableGroupRepository()),
+      ],
       child: MaterialApp(
         theme: KombeTheme.light(),
         locale: const Locale('fr'),
