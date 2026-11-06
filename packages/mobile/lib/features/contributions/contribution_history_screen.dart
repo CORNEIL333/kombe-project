@@ -100,7 +100,7 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
                     for (final MapEntry<String, List<Contribution>> month in _byMonth(context, contributions).entries) ...<Widget>[
                       Padding(
                         padding: const EdgeInsets.fromLTRB(24, 6, 24, 8),
-                        child: Align(alignment: Alignment.centerLeft, child: Text(month.key.toUpperCase(), style: KombeType.eyebrow)),
+                        child: Align(alignment: Alignment.centerLeft, child: Text(toBeginningOfSentenceCase(month.key), style: KombeType.eyebrow)),
                       ),
                       KombeGroupedList(
                         children: <Widget>[for (final Contribution c in month.value) _ContributionRow(c: c)],
@@ -162,9 +162,9 @@ class _Totals extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
       child: Row(
         children: <Widget>[
-          tile('CONFIRMÉ', confirmed, KombeColors.emerald, Colors.white, Icons.check_circle_outline_rounded),
+          tile('Confirmé', confirmed, Colors.white, KombeColors.ink, Icons.check_circle_outline_rounded),
           const SizedBox(width: 12),
-          tile('EN ATTENTE', pending, KombeColors.goldWarm, KombeColors.ink, Icons.hourglass_top_rounded),
+          tile('En attente', pending, Colors.white, KombeColors.ink, Icons.hourglass_top_rounded),
         ],
       ),
     );

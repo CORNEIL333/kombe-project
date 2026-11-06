@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -7,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
 import '../design/kombe_colors.dart';
-import '../design/kombe_ndop.dart';
 import 'kombe_visuals.dart';
 
 const Set<String> _motsVides = <String>{'le', 'la', 'les', 'l', 'de', 'des', 'du', 'd', 'et', 'the', 'of', 'and', 'a', 'à', 'au', 'aux'};
@@ -62,27 +60,9 @@ class MyAvatar extends StatelessWidget {
   }
 }
 
-/// Teinte propre à une tontine, stable : on reconnaît un groupe à sa couleur
-/// et à son motif, comme un pagne d'association.
-class GroupHue {
-  const GroupHue(this.bg, this.accent, this.variant);
-  final Color bg;
-  final Color accent;
-  final int variant;
-}
-
-const List<GroupHue> _hues = <GroupHue>[
-  GroupHue(KombeColors.forest, KombeColors.goldWarm, 2),
-  GroupHue(KombeColors.clay, KombeColors.goldLight, 2),
-  GroupHue(KombeColors.jade, KombeColors.goldLight, 2),
-  GroupHue(KombeColors.plum, KombeColors.goldLight, 2),
-];
-
-GroupHue groupHue(String id) => _hues[id.codeUnits.fold<int>(7, (int a, int c) => (a * 31 + c) & 0x7fffffff) % _hues.length];
-
-/// Blason d'une tontine : sa photo (lue avec la session, jamais par une URL
-/// publique) ; en repli, ses initiales sur le motif du groupe, tant que le bureau
-/// n'a pas ajouté de photo. Aucune photo d'illustration à la place du groupe.
+/// Avatar rond d'une tontine : sa photo (lue avec la session, jamais par une URL
+/// publique) ; en repli, son monogramme serif sur une teinte douce. Aucune photo
+/// d'illustration à la place du groupe.
 class GroupAvatar extends StatelessWidget {
   const GroupAvatar({super.key, required this.groupId, required this.name, this.photoVersion, this.size = 40});
 
@@ -93,7 +73,7 @@ class GroupAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget fallback = _Emblem(hue: groupHue(groupId), name: name, size: size);
+    final Widget fallback = _Monogram(tint: KombeColors.tintOf(groupId), name: name, size: size);
     Widget clip(Widget child) => ExcludeSemantics(child: ClipOval(child: SizedBox.square(dimension: size, child: child)));
     final int? v = photoVersion;
     if (v == null) return clip(fallback);
@@ -118,42 +98,20 @@ class GroupAvatar extends StatelessWidget {
   }
 }
 
-class _Emblem extends StatelessWidget {
-  const _Emblem({required this.hue, required this.name, required this.size});
-  final GroupHue hue;
+class _Monogram extends StatelessWidget {
+  const _Monogram({required this.tint, required this.name, required this.size});
+  final Color tint;
   final String name;
   final double size;
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-        painter: _EmblemPainter(hue),
+  Widget build(BuildContext context) => ColoredBox(
+        color: tint,
         child: Center(
           child: Text(
             groupInitials(name),
-            style: TextStyle(fontFamily: 'Fraunces', color: Colors.white, fontWeight: FontWeight.w700, fontSize: size * .3, height: 1),
+            style: TextStyle(fontFamily: 'Merriweather', color: KombeColors.ink, fontWeight: FontWeight.w400, fontSize: size * .36, height: 1),
           ),
         ),
       );
-}
-
-class _EmblemPainter extends CustomPainter {
-  _EmblemPainter(this.hue);
-  final GroupHue hue;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = hue.bg);
-    NdopPainter(color: hue.accent, opacity: .55, variant: hue.variant, tile: math.max(9, size.shortestSide / 4)).paint(canvas, size);
-    // Disque plein : les initiales se lisent sur un fond uni.
-    final Offset c = size.center(Offset.zero);
-    final double d = size.shortestSide * .34;
-    canvas.drawCircle(c, d, Paint()..color = hue.bg);
-    canvas.drawCircle(c, d, Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = math.max(1.2, size.shortestSide * .03)
-      ..color = hue.accent);
-  }
-
-  @override
-  bool shouldRepaint(covariant _EmblemPainter o) => o.hue != hue;
 }

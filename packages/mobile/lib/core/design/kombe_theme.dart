@@ -4,14 +4,16 @@ import 'kombe_colors.dart';
 import 'kombe_spacing.dart';
 import 'kombe_tokens.g.dart';
 
-/// Typographie « Ndop » :
-/// - Fraunces (serif) pour ce qui se lit comme un titre de page ou une somme :
-///   grands titres d'écran et montants, en chiffres tabulaires ;
-/// - Manrope pour toute l'interface (libellés, listes, boutons, texte).
+/// Typographie sobre et formelle :
+/// - Merriweather Regular pour ce qui se lit comme un titre : écrans, sections,
+///   noms de groupes. Jamais en gras : le sérieux vient de la retenue ;
+/// - Libre Franklin pour l'interface et les montants, en chiffres tabulaires,
+///   comme sur un relevé.
 /// `titre`/`accent` gardent le style de l'écran « Connectez-vous » (Manrope
 /// ExtraBold + olive) : ne pas les convertir.
 abstract final class KombeType {
-  static const String serif = 'Fraunces';
+  static const String serif = 'Merriweather';
+  static const String ui = 'Libre Franklin';
 
   static TextStyle titre({double size = 32, Color color = KombeColors.forest, double height = 1.08, FontWeight weight = FontWeight.w800}) => TextStyle(
         fontFamily: KombeTokens.fontUi,
@@ -23,34 +25,34 @@ abstract final class KombeType {
       );
   static TextStyle accent({double size = 28, Color color = KombeColors.olive, double height = 1.08}) => titre(size: size, color: color, height: height);
 
-  /// Titre éditorial (en-têtes d'écran, demi-fenêtres importantes).
-  static TextStyle display({double size = 30, Color color = KombeColors.forest, double height = 1.1}) => TextStyle(
+  /// Titre (en-têtes d'écran, sections, noms).
+  static TextStyle display({double size = 30, Color color = KombeColors.forest, double height = 1.25}) => TextStyle(
         fontFamily: serif,
-        fontWeight: FontWeight.w700,
-        fontSize: size,
+        fontWeight: FontWeight.w400,
+        fontSize: size * .86,
         height: height,
-        letterSpacing: -size * .025,
+        letterSpacing: -size * .006,
         color: color,
       );
 
-  /// Montant : Fraunces, chiffres tabulaires (les colonnes s'alignent).
-  static TextStyle amount({double size = 28, Color color = KombeColors.forest, FontWeight weight = FontWeight.w700}) => TextStyle(
-        fontFamily: serif,
+  /// Montant : Libre Franklin, chiffres tabulaires (les colonnes s'alignent).
+  static TextStyle amount({double size = 28, Color color = KombeColors.forest, FontWeight weight = FontWeight.w600}) => TextStyle(
+        fontFamily: ui,
         fontWeight: weight,
         fontSize: size,
-        height: 1.05,
-        letterSpacing: -size * .01,
+        height: 1.1,
+        letterSpacing: -size * .012,
         color: color,
         fontFeatures: const <FontFeature>[FontFeature.tabularFigures(), FontFeature.liningFigures()],
       );
 
   /// Sur-titre de section : petites capitales espacées.
   static const TextStyle eyebrow = TextStyle(
-    fontFamily: KombeTokens.fontUi,
+    fontFamily: ui,
     fontWeight: FontWeight.w800,
-    fontSize: 11.5,
+    fontSize: 14,
     height: 1.2,
-    letterSpacing: 1.1,
+    letterSpacing: .1,
     color: KombeColors.slate,
   );
 }
@@ -64,8 +66,8 @@ abstract final class KombeTheme {
       seedColor: KombeColors.forest,
       brightness: Brightness.light,
     ).copyWith(
-      primary: KombeColors.forest,
-      onPrimary: KombeColors.cream,
+      primary: KombeColors.brand,
+      onPrimary: Colors.white,
       primaryContainer: KombeColors.mint,
       onPrimaryContainer: KombeColors.forest,
       secondary: KombeColors.gold,
@@ -94,7 +96,7 @@ abstract final class KombeTheme {
       scaffoldBackgroundColor: KombeColors.cream,
       visualDensity: VisualDensity.standard,
       splashFactory: InkSparkle.splashFactory,
-      fontFamily: KombeTokens.fontUi,
+      fontFamily: KombeType.ui,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: <TargetPlatform, PageTransitionsBuilder>{
           TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
@@ -104,13 +106,13 @@ abstract final class KombeTheme {
     final TextTheme t = base.textTheme;
     TextStyle serif(TextStyle? s, double size) => (s ?? const TextStyle()).copyWith(
           fontFamily: KombeType.serif,
-          fontSize: size,
-          fontWeight: FontWeight.w700,
+          fontSize: size * .86,
+          fontWeight: FontWeight.w400,
           color: KombeColors.forest,
-          height: 1.1,
-          letterSpacing: -size * .025,
+          height: 1.25,
+          letterSpacing: -size * .006,
         );
-    const TextStyle ui = TextStyle(fontFamily: KombeTokens.fontUi);
+    const TextStyle ui = TextStyle(fontFamily: KombeType.ui);
     final BorderRadius field = BorderRadius.circular(KombeSpacing.fieldRadius);
 
     return base.copyWith(
@@ -126,7 +128,7 @@ abstract final class KombeTheme {
         titleSmall: t.titleSmall?.copyWith(fontSize: 14, color: KombeColors.ink, fontWeight: FontWeight.w700),
         bodyLarge: t.bodyLarge?.copyWith(color: KombeColors.ink, height: 1.45),
         bodyMedium: t.bodyMedium?.copyWith(color: KombeColors.slate, height: 1.45),
-        bodySmall: t.bodySmall?.copyWith(color: KombeColors.slate, height: 1.4, fontSize: 12.5),
+        bodySmall: t.bodySmall?.copyWith(color: KombeColors.slate, height: 1.4, fontSize: 14),
         labelLarge: t.labelLarge?.copyWith(fontWeight: FontWeight.w700),
         labelMedium: t.labelMedium?.copyWith(fontWeight: FontWeight.w700, color: KombeColors.slate),
         labelSmall: t.labelSmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: .4, color: KombeColors.slate),
@@ -151,7 +153,7 @@ abstract final class KombeTheme {
         iconColor: KombeColors.forest,
         textColor: KombeColors.ink,
         titleTextStyle: ui.copyWith(fontSize: 15.5, fontWeight: FontWeight.w600, color: KombeColors.ink, height: 1.3),
-        subtitleTextStyle: ui.copyWith(fontSize: 13.5, color: KombeColors.slate, height: 1.35),
+        subtitleTextStyle: ui.copyWith(fontSize: 14, color: KombeColors.slate, height: 1.35),
         leadingAndTrailingTextStyle: ui.copyWith(fontSize: 14, fontWeight: FontWeight.w700, color: KombeColors.forest),
         selectedColor: KombeColors.forest,
         selectedTileColor: KombeColors.mint.withValues(alpha: .5),
@@ -171,7 +173,7 @@ abstract final class KombeTheme {
         labelStyle: ui.copyWith(color: KombeColors.slate, fontWeight: FontWeight.w500),
         floatingLabelStyle: ui.copyWith(color: KombeColors.emerald, fontWeight: FontWeight.w700),
         hintStyle: ui.copyWith(color: KombeColors.slate.withValues(alpha: .7)),
-        helperStyle: ui.copyWith(color: KombeColors.slate, fontSize: 12.5),
+        helperStyle: ui.copyWith(color: KombeColors.slate, fontSize: 14),
         prefixIconColor: KombeColors.slate,
         suffixIconColor: KombeColors.slate,
         border: OutlineInputBorder(borderRadius: field, borderSide: const BorderSide(color: KombeColors.line)),
@@ -185,10 +187,10 @@ abstract final class KombeTheme {
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(52),
           padding: const EdgeInsets.symmetric(horizontal: 22),
-          backgroundColor: KombeColors.forest,
-          foregroundColor: KombeColors.cream,
-          disabledBackgroundColor: KombeColors.forest.withValues(alpha: .14),
-          disabledForegroundColor: KombeColors.forest.withValues(alpha: .45),
+          backgroundColor: KombeColors.goldWarm,
+          foregroundColor: KombeColors.ink,
+          disabledBackgroundColor: KombeColors.sand,
+          disabledForegroundColor: KombeColors.slate,
           shape: KombeTheme.cut,
           textStyle: ui.copyWith(fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -.1),
         ),
@@ -216,8 +218,8 @@ abstract final class KombeTheme {
         style: IconButton.styleFrom(foregroundColor: KombeColors.forest, minimumSize: const Size.square(48)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: KombeColors.forest,
-        foregroundColor: KombeColors.cream,
+        backgroundColor: KombeColors.goldWarm,
+        foregroundColor: KombeColors.ink,
         elevation: 2,
         highlightElevation: 4,
         shape: KombeTheme.cut,
@@ -225,14 +227,14 @@ abstract final class KombeTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: Colors.white,
-        selectedColor: KombeColors.forest,
-        secondarySelectedColor: KombeColors.forest,
+        selectedColor: KombeColors.brand,
+        secondarySelectedColor: KombeColors.brand,
         disabledColor: KombeColors.sand,
         checkmarkColor: KombeColors.cream,
         side: const BorderSide(color: KombeColors.lineStrong),
         shape: KombeTheme.cut,
-        labelStyle: ui.copyWith(fontSize: 13.5, fontWeight: FontWeight.w600, color: KombeColors.ink),
-        secondaryLabelStyle: ui.copyWith(fontSize: 13.5, fontWeight: FontWeight.w700, color: KombeColors.cream),
+        labelStyle: ui.copyWith(fontSize: 14, fontWeight: FontWeight.w600, color: KombeColors.ink),
+        secondaryLabelStyle: ui.copyWith(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         showCheckmark: false,
       ),
@@ -240,9 +242,9 @@ abstract final class KombeTheme {
         style: ButtonStyle(
           shape: const WidgetStatePropertyAll<OutlinedBorder>(KombeTheme.cut),
           side: const WidgetStatePropertyAll<BorderSide>(BorderSide(color: KombeColors.lineStrong)),
-          backgroundColor: WidgetStateProperty.resolveWith((Set<WidgetState> s) => s.contains(WidgetState.selected) ? KombeColors.forest : Colors.white),
-          foregroundColor: WidgetStateProperty.resolveWith((Set<WidgetState> s) => s.contains(WidgetState.selected) ? KombeColors.cream : KombeColors.ink),
-          iconColor: WidgetStateProperty.resolveWith((Set<WidgetState> s) => s.contains(WidgetState.selected) ? KombeColors.cream : KombeColors.forest),
+          backgroundColor: WidgetStateProperty.resolveWith((Set<WidgetState> s) => s.contains(WidgetState.selected) ? KombeColors.brand : Colors.white),
+          foregroundColor: WidgetStateProperty.resolveWith((Set<WidgetState> s) => s.contains(WidgetState.selected) ? Colors.white : KombeColors.ink),
+          iconColor: WidgetStateProperty.resolveWith((Set<WidgetState> s) => s.contains(WidgetState.selected) ? Colors.white : KombeColors.forest),
           textStyle: WidgetStatePropertyAll<TextStyle>(ui.copyWith(fontSize: 14, fontWeight: FontWeight.w700)),
           minimumSize: const WidgetStatePropertyAll<Size>(Size(48, 46)),
         ),
@@ -271,7 +273,7 @@ abstract final class KombeTheme {
       sliderTheme: const SliderThemeData(
         activeTrackColor: KombeColors.emerald,
         inactiveTrackColor: KombeColors.mint,
-        thumbColor: KombeColors.forest,
+        thumbColor: KombeColors.brand,
         overlayColor: Color(0x2216765E),
       ),
       tabBarTheme: TabBarThemeData(
@@ -304,15 +306,15 @@ abstract final class KombeTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: KombeColors.forest,
+        backgroundColor: KombeColors.ink,
         contentTextStyle: ui.copyWith(color: KombeColors.cream, fontSize: 14.5, fontWeight: FontWeight.w600),
-        actionTextColor: KombeColors.goldLight,
+        actionTextColor: KombeColors.goldWarm,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(color: KombeColors.ink, borderRadius: BorderRadius.circular(8)),
-        textStyle: ui.copyWith(color: KombeColors.cream, fontSize: 12.5, fontWeight: FontWeight.w600),
+        textStyle: ui.copyWith(color: KombeColors.cream, fontSize: 14, fontWeight: FontWeight.w600),
       ),
       popupMenuTheme: PopupMenuThemeData(
         color: Colors.white,
@@ -335,19 +337,19 @@ abstract final class KombeTheme {
       ),
       badgeTheme: const BadgeThemeData(backgroundColor: KombeColors.goldWarm, textColor: KombeColors.ink),
       navigationBarTheme: NavigationBarThemeData(
-        height: 72,
+        height: 78,
         elevation: 0,
-        backgroundColor: KombeColors.forest,
+        backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: KombeColors.goldWarm,
+        indicatorColor: KombeColors.mint,
         indicatorShape: KombeTheme.cut,
         iconTheme: WidgetStateProperty.resolveWith(
-          (Set<WidgetState> s) => IconThemeData(color: s.contains(WidgetState.selected) ? KombeColors.ink : Colors.white, size: 24),
+          (Set<WidgetState> s) => IconThemeData(color: s.contains(WidgetState.selected) ? KombeColors.forest : KombeColors.slate, size: 24),
         ),
         labelTextStyle: WidgetStateProperty.resolveWith(
           (Set<WidgetState> states) => ui.copyWith(
-            color: states.contains(WidgetState.selected) ? Colors.white : const Color(0xCCFFFFFF),
-            fontSize: 12,
+            color: states.contains(WidgetState.selected) ? KombeColors.forest : KombeColors.slate,
+            fontSize: 14,
             fontWeight: states.contains(WidgetState.selected) ? FontWeight.w800 : FontWeight.w600,
           ),
         ),
@@ -357,8 +359,8 @@ abstract final class KombeTheme {
       datePickerTheme: DatePickerThemeData(
         backgroundColor: KombeColors.cream,
         surfaceTintColor: Colors.transparent,
-        headerBackgroundColor: KombeColors.forest,
-        headerForegroundColor: KombeColors.cream,
+        headerBackgroundColor: KombeColors.brand,
+        headerForegroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KombeSpacing.sheetRadius)),
       ),
     );

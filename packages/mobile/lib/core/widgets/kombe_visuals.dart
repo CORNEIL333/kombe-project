@@ -33,14 +33,6 @@ class KombeAvatar extends StatelessWidget {
   final Future<Uint8List?>? load;
   final double size;
 
-  static const List<(Color, Color)> _tints = <(Color, Color)>[
-    (KombeColors.forest, Colors.white),
-    (KombeColors.clay, Colors.white),
-    (KombeColors.jade, Colors.white),
-    (KombeColors.goldWarm, KombeColors.ink),
-    (KombeColors.plum, Colors.white),
-  ];
-
   String get _initials {
     final List<String> parts = name.trim().split(RegExp(r'\s+')).where((String p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return '?';
@@ -49,18 +41,15 @@ class KombeAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Teinte stable par personne (menthe, or pâle, sable, bleu, argile) :
-    // une liste de membres se lit d'un coup d'œil sans visage inventé.
-    final int h = name.codeUnits.fold<int>(5, (int a, int c) => (a * 31 + c) & 0x7fffffff);
-    final (Color bg, Color fg) = _tints[h % _tints.length];
+    // Teinte douce stable par personne, initiales toujours en encre.
     final Widget initials = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+      decoration: BoxDecoration(color: KombeColors.tintOf(name), shape: BoxShape.circle),
       child: Text(
         _initials,
-        style: TextStyle(fontFamily: 'Fraunces', color: fg, fontWeight: FontWeight.w700, fontSize: size * .4, height: 1),
+        style: TextStyle(fontFamily: 'Merriweather', color: KombeColors.ink, fontWeight: FontWeight.w400, fontSize: size * .38, height: 1),
       ),
     );
     final Future<Uint8List?>? bytes = load;
@@ -103,7 +92,7 @@ class KombeChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (icon != null) ...<Widget>[Icon(icon, size: 14, color: tone == ChipTone.gold ? KombeColors.gold : fg), const SizedBox(width: 4)],
-          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: fg, fontSize: 12.5, fontWeight: FontWeight.w700))),
+          Flexible(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: fg, fontSize: 14, fontWeight: FontWeight.w700))),
         ],
       ),
     );
@@ -196,6 +185,6 @@ class CycleBadge extends StatelessWidget {
           borderRadius: BorderRadius.circular(99),
           border: Border.all(color: Colors.white.withValues(alpha: .35)),
         ),
-        child: Text('Cycle $index/$total', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+        child: Text('Cycle $index/$total', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
       );
 }

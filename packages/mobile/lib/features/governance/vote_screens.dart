@@ -284,9 +284,9 @@ class _ChoiceTile extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
           decoration: BoxDecoration(
-            color: selected ? KombeColors.forest : Colors.white,
+            color: selected ? KombeColors.brand : Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: selected ? KombeColors.forest : KombeColors.lineStrong, width: 1.4),
+            border: Border.all(color: selected ? KombeColors.brand : KombeColors.lineStrong, width: 1.4),
           ),
           child: Material(
             type: MaterialType.transparency,
@@ -297,13 +297,13 @@ class _ChoiceTile extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
                 child: Column(
                   children: <Widget>[
-                    Icon(selected ? Icons.check_circle_rounded : icon, color: selected ? KombeColors.goldLight : KombeColors.forest),
+                    Icon(selected ? Icons.check_circle_rounded : icon, color: selected ? Colors.white : KombeColors.forest),
                     const SizedBox(height: 6),
                     Text(
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: selected ? KombeColors.cream : KombeColors.forest),
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: selected ? Colors.white : KombeColors.forest),
                     ),
                   ],
                 ),

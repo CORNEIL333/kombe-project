@@ -16,12 +16,14 @@ final class ValidationItem {
     this.groupName = '',
     this.fundName = '',
     this.channel,
+    this.memberPhotoVersion,
   });
 
   final String contributionId;
   final String groupId;
   final String memberIdentityId;
   final String memberDisplayName;
+  final int? memberPhotoVersion;
   final int amountXaf;
   final DateTime declaredAtUtc;
   final int version;

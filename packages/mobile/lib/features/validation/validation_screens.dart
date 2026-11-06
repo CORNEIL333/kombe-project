@@ -12,8 +12,8 @@ import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/kombe_sheet.dart';
-import '../../core/widgets/kombe_visuals.dart';
 import '../../core/widgets/operation_feedback.dart';
+import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/governance.dart';
 import '../../domain/repositories/governance_repository.dart';
@@ -129,7 +129,7 @@ class _ValidationQueueScreenState extends State<ValidationQueueScreen> {
                           for (final ValidationItem item in items)
                             ListTile(
                               minTileHeight: 72,
-                              leading: KombeAvatar(name: item.memberDisplayName, size: 42),
+                              leading: MemberAvatar(groupId: item.groupId, memberId: item.memberIdentityId, name: item.memberDisplayName, photoVersion: item.memberPhotoVersion, size: 42),
                               title: Text(item.memberDisplayName, maxLines: 1, overflow: TextOverflow.ellipsis),
                               subtitle: _meta(item).isEmpty ? null : Text(_meta(item), maxLines: 2, overflow: TextOverflow.ellipsis),
                               trailing: Text(Xaf.format(item.amountXaf), style: KombeType.amount(size: 16)),
@@ -221,6 +221,7 @@ class _DecisionPanelState extends State<DecisionPanel> {
     switch (r) {
       case OperationSuccess<void>():
         unawaited(HapticFeedback.mediumImpact());
+        if (d != ValidationDecision.reject) showKombeSeal(context, 'Confirmé');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(d == ValidationDecision.reject
               ? 'Paiement rejeté. Le membre est prévenu.'
@@ -256,7 +257,7 @@ class _DecisionPanelState extends State<DecisionPanel> {
               children: <Widget>[
                 Row(
                   children: <Widget>[
-                    KombeAvatar(name: item.memberDisplayName, size: 44),
+                    MemberAvatar(groupId: item.groupId, memberId: item.memberIdentityId, name: item.memberDisplayName, photoVersion: item.memberPhotoVersion, size: 44),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(

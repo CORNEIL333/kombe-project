@@ -65,11 +65,11 @@ function motif(cle: string): string {
   return String(h % 3);
 }
 
-/** Teinte stable d'une tontine (0 forêt, 1 corail, 2 émeraude, 3 prune) : la même sur mobile. */
+/** Teinte stable d'une tontine (0 à 7, teintes douces) : la même sur mobile. */
 export function teinteGroupe(cle: string): string {
   let h = 7;
   for (let i = 0; i < cle.length; i++) h = (h * 31 + cle.charCodeAt(i)) & 0x7fffffff;
-  return String(h % 4);
+  return String(h % 8);
 }
 
 /** Blason d'un groupe : photo ou initiales + motif. */

@@ -425,7 +425,7 @@ void main() {
     expect(d.nextMeetingPlace, 'Chez Awa');
     // Seules les notifications du groupe actif, avec leur destination.
     expect(d.recent.single.subjectId, 'mv_7');
-    expect(d.recent.single.title, 'Une déclaration attend votre confirmation');
+    expect(d.recent.single.title, 'Un paiement attend votre confirmation');
     expect(calls.where((http.Request c) => c.url.path == '/v1/me/tontines'), isEmpty);
   });
 

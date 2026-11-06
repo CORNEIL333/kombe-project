@@ -26,7 +26,8 @@ Future<void> _loadFonts() async {
   }
 
   await family('Manrope', <String>['Manrope-400.ttf', 'Manrope-500.ttf', 'Manrope-600.ttf', 'Manrope-700.ttf', 'Manrope-800.ttf']);
-  await family('Fraunces', <String>['Fraunces-600.ttf', 'Fraunces-700.ttf']);
+  await family('Merriweather', <String>['Merriweather-400.ttf']);
+  await family('Libre Franklin', <String>['LibreFranklin-400.ttf', 'LibreFranklin-500.ttf', 'LibreFranklin-600.ttf', 'LibreFranklin-700.ttf', 'LibreFranklin-800.ttf']);
   final File icons = File('${Platform.environment['FLUTTER_ROOT'] ?? ''}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
   if (icons.existsSync()) {
     final FontLoader l = FontLoader('MaterialIcons')..addFont(Future<ByteData>.value(ByteData.sublistView(Uint8List.fromList(icons.readAsBytesSync()))));
@@ -147,7 +148,7 @@ void main() {
   // Contrôle mesuré, pas seulement visuel : tout écran du tour, sur le plus
   // petit téléphone visé et avec un texte agrandi, sans aucun débordement
   // (un RenderFlex qui déborde fait échouer ce test).
-  for (final (double width, double scale) in const <(double, double)>[(320, 1), (360, 1.3)]) {
+  for (final (double width, double scale) in const <(double, double)>[(320, 1), (360, 1.3), (820, 1)]) {
     testWidgets('aucun débordement à $width px, texte × $scale', (WidgetTester tester) async {
       tester.view.physicalSize = Size(width * 2, 640 * 2);
       tester.view.devicePixelRatio = 2;
@@ -176,6 +177,9 @@ void main() {
           await tester.pump(const Duration(milliseconds: 100));
         }
         final Object? c = tester.takeException();
+        if (enabled && width == 820 && (name == '01_accueil' || name == '02_groupes')) {
+          await expectLater(find.byType(KombeApp), matchesGoldenFile('tour/tablette_$name.png'));
+        }
         final Object? e = a ?? b ?? c;
         if (e != null) defauts.add('$name : ${e.toString().split('\n').first}');
       }

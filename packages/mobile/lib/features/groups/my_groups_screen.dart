@@ -9,10 +9,10 @@ import '../../app/active_group_controller.dart';
 import '../../app/router/main_shell.dart';
 import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_theme.dart';
-import '../../core/design/kombe_ndop.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/kombe_components.dart';
+import '../../core/widgets/kombe_sheet.dart';
 import '../../core/widgets/kombe_screen_header.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
@@ -71,25 +71,18 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
         child: ListView(
           padding: const EdgeInsets.only(bottom: 28),
           children: <Widget>[
-            const KombeScreenHeader(title: 'Mes groupes'),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 14),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _Tile(icon: Icons.add_circle_outline_rounded, label: 'Créer une tontine', strong: true, onTap: () => context.push('/app/groups/create')),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _Tile(icon: Icons.person_add_alt_1_outlined, label: 'Rejoindre un groupe', onTap: () => context.push('/app/groups/join')),
-                  ),
-                ],
+            KombeScreenHeader(
+              title: 'Mes groupes',
+              trailing: IconButton.filledTonal(
+                tooltip: 'Créer ou rejoindre',
+                onPressed: () => _addGroup(context),
+                icon: const Icon(Icons.add_rounded),
               ),
             ),
             if (loading) const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator())),
             if (!loading && groups.isEmpty && pending.isEmpty)
               const EmptyState(title: 'Aucune tontine', body: 'Rejoignez une tontine avec le code reçu du bureau, ou créez la vôtre.'),
-            for (final GroupSummary g in groups)
+            for (final GroupSummary g in _byUrgency(groups))
               _GroupCard(
                 group: g,
                 active: g.id == active?.active?.id,
@@ -101,12 +94,24 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
             for (final MemberGroup m in pending)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: ListTile(
-                  tileColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                  leading: GroupAvatar(groupId: m.groupId, name: m.displayName, size: 48),
-                  title: Text(m.displayName, style: const TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: const Text('Adhésion en attente de l’accord du bureau'),
+                child: KombeCard(
+                  color: KombeColors.sand,
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: <Widget>[
+                      GroupAvatar(groupId: m.groupId, name: m.displayName, size: 52),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(m.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: KombeType.display(size: 20, color: KombeColors.ink)),
+                            const Text('En attente', style: TextStyle(color: KombeColors.slate, fontSize: 14, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],
@@ -116,43 +121,44 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
   }
 }
 
-class _Tile extends StatelessWidget {
-  const _Tile({required this.icon, required this.label, required this.onTap, this.strong = false});
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool strong;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color fg = strong ? KombeColors.ink : Colors.white;
-    return Material(
-      color: strong ? KombeColors.goldWarm : KombeColors.emerald,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 88),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Icon(icon, color: fg, size: 26),
-                const SizedBox(height: 6),
-                Text(label, textAlign: TextAlign.center, style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 14)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+/// Le plus urgent d'abord : ce qui est à payer, par date ; puis le reste.
+List<GroupSummary> _byUrgency(List<GroupSummary> all) {
+  final List<GroupSummary> out = <GroupSummary>[...all];
+  out.sort((GroupSummary a, GroupSummary b) {
+    if ((a.openDueXaf > 0) != (b.openDueXaf > 0)) return a.openDueXaf > 0 ? -1 : 1;
+    return a.nextDueAtUtc.compareTo(b.nextDueAtUtc);
+  });
+  return out;
 }
 
-/// Coupon de tissu : chaque tontine a sa couleur et son motif ; sa photo, son
-/// nom, les perles du cycle et l'échéance.
+Future<void> _addGroup(BuildContext context) => showKombeSheet<void>(
+      context,
+      title: 'Ajouter un groupe',
+      builder: (BuildContext sheet) => KombeGroupedList(
+        children: <Widget>[
+          KombeMenuRow(
+            icon: Icons.group_add_outlined,
+            title: 'Rejoindre avec un code',
+            onTap: () {
+              Navigator.of(sheet).pop();
+              context.push('/app/groups/join');
+            },
+          ),
+          KombeMenuRow(
+            icon: Icons.add_rounded,
+            title: 'Créer une tontine',
+            onTap: () {
+              Navigator.of(sheet).pop();
+              context.push('/app/groups/create');
+            },
+          ),
+        ],
+      ),
+    );
+
+/// Carte de groupe, une seule structure : avatar, nom, fonction ; « À payer »
+/// en plus gros texte quand il y a quelque chose à payer ; points du cycle.
+/// Toute la carte s'ouvre, un seul chevron. Le liseré porte l'identité.
 class _GroupCard extends StatelessWidget {
   const _GroupCard({required this.group, required this.active, required this.onOpen});
   final GroupSummary group;
@@ -162,82 +168,82 @@ class _GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final GroupSummary g = group;
-    final GroupHue hue = groupHue(g.id);
     final bool inCycle = g.cycleTotal > 0 && g.cycleIndex > 0;
-    final String date = DateFormat('d MMM y', Localizations.localeOf(context).toLanguageTag()).format(g.nextDueAtUtc.toLocal());
-    const TextStyle soft = TextStyle(color: Color(0xE6FFFFFF), fontSize: 14, fontWeight: FontWeight.w600);
+    final bool due = g.openDueXaf > 0;
+    final bool late = due && g.nextDueAtUtc.isBefore(DateTime.now());
+    final String date = DateFormat('d MMM', Localizations.localeOf(context).toLanguageTag()).format(g.nextDueAtUtc.toLocal());
+    final Color edge = HSLColor.fromColor(KombeColors.tintOf(g.id)).withLightness(.62).toColor();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          NdopSurface(
-            color: hue.bg,
-            variant: hue.variant,
-            opacity: .18,
-            tile: 30,
-            fadeTo: Alignment.centerLeft,
-            borderRadius: BorderRadius.circular(24),
-            child: Material(
-              type: MaterialType.transparency,
-              child: InkWell(
-                onTap: onOpen,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 12, 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Row(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onOpen,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 168),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  ColoredBox(color: edge, child: const SizedBox(width: 5)),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
-                          GroupAvatar(groupId: g.id, name: g.name, photoVersion: g.photoVersion, size: 60),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          Row(
+                            children: <Widget>[
+                              GroupAvatar(groupId: g.id, name: g.name, photoVersion: g.photoVersion, size: 48),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: <Widget>[
+                                    Text(g.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: KombeType.display(size: 20, color: KombeColors.ink)),
+                                    Text(g.role == GroupRole.member ? 'Membre' : roleLabel(g.role), style: const TextStyle(color: KombeColors.slate, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded, color: KombeColors.slate),
+                            ],
+                          ),
+                          if (due) ...<Widget>[
+                            const SizedBox(height: 12),
+                            const Text('À payer', style: TextStyle(color: KombeColors.ink, fontSize: 14, fontWeight: FontWeight.w700)),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: <Widget>[
-                                Text(g.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: KombeType.display(size: 24, color: Colors.white)),
-                                const SizedBox(height: 4),
-                                Text('${g.memberCount} membres', style: soft),
+                                Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(g.openDueXaf, size: 30, color: KombeColors.ink))),
+                                const SizedBox(width: 8),
+                                if (late)
+                                  const StatusPill('En retard', tone: KombeTone.danger)
+                                else
+                                  Text('avant le $date', style: const TextStyle(color: KombeColors.ink, fontSize: 14, fontWeight: FontWeight.w600)),
                               ],
                             ),
-                          ),
-                          if (active) const Icon(Icons.check_circle_rounded, color: KombeColors.goldWarm, semanticLabel: 'Groupe actif'),
-                        ],
-                      ),
-                      if (inCycle) ...<Widget>[
-                        const SizedBox(height: 14),
-                        KombeCycleBand(index: g.cycleIndex, total: g.cycleTotal, onDark: true, height: 20),
-                        const SizedBox(height: 6),
-                        Text('Cycle ${g.cycleIndex}/${g.cycleTotal}', style: soft),
-                      ],
-                      const SizedBox(height: 12),
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          ],
+                          const Spacer(),
+                          if (inCycle) ...<Widget>[
+                            const SizedBox(height: 10),
+                            Row(
                               children: <Widget>[
-                                const Text('Prochaine cotisation', style: soft),
-                                Text(date, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                                Expanded(child: KombeCycleBand(index: g.cycleIndex, total: g.cycleTotal)),
+                                Text('Cycle ${g.cycleIndex}/${g.cycleTotal}', style: const TextStyle(color: KombeColors.slate, fontSize: 14)),
                               ],
                             ),
-                          ),
-                          StatusPill(g.role == GroupRole.member ? 'Membre' : roleLabel(g.role), tone: KombeTone.money, icon: g.role == GroupRole.member ? null : Icons.star_rounded),
-                          if (g.role != GroupRole.member)
-                            IconButton(
-                              tooltip: 'Outils du bureau',
-                              onPressed: () => context.push('/app/groups/${Uri.encodeComponent(g.id)}/bureau'),
-                              icon: const Icon(Icons.work_outline_rounded, color: Colors.white),
-                            ),
+                          ],
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

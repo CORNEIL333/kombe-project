@@ -304,6 +304,7 @@ export interface MovementView {
   readonly amount: Money;
   readonly membershipId: string | null;
   readonly memberName: string | null;
+  readonly memberPhotoVersion?: number | null;
   readonly roundSeq: number | null;
   readonly meetingId: string | null;
   readonly state: MovementState;

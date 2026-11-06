@@ -10,6 +10,8 @@ import { argent, tontines, type DueView, type MemberView, type MovementView } fr
 import { peut } from "./droits.js";
 import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
 import { Icone, type NomIcone } from "../composants/Icones.js";
+import { AvatarPersonne } from "./PhotoGroupe.js";
+import type { Session } from "./api.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 import { useNomCaisse } from "./Caisses.js";
@@ -130,15 +132,19 @@ export function FormulaireDeclaration({
   );
 }
 
-export function LigneMouvement({ m, actions }: { readonly m: MovementView; readonly actions?: ReactNode }) {
+export function LigneMouvement({ m, actions, photo }: { readonly m: MovementView; readonly actions?: ReactNode; readonly photo?: { readonly session: Session; readonly groupId: string } }) {
   const { tx, dyn, xaf, date } = useTextes();
   const nomCaisse = useNomCaisse();
   const pourCompte = m.declaredByName && m.memberName && m.declaredByName !== m.memberName;
   return (
     <li className="liste__ligne liste__ligne--haute ligne-riche">
-      <span className={`ligne-riche__ico ligne-riche__ico--${tonMouvement(m.state)}`} aria-hidden="true">
-        <Icone nom={ICONE_CANAL[m.channel] ?? "especes"} taille={20} />
-      </span>
+      {photo && m.membershipId && m.memberPhotoVersion ? (
+        <AvatarPersonne session={photo.session} groupId={photo.groupId} membreId={m.membershipId} nom={m.memberName ?? ""} version={m.memberPhotoVersion} taille={40} />
+      ) : (
+        <span className={`ligne-riche__ico ligne-riche__ico--${tonMouvement(m.state)}`} aria-hidden="true">
+          <Icone nom={ICONE_CANAL[m.channel] ?? "especes"} taille={20} />
+        </span>
+      )}
       <div>
         <strong>
           {dyn(`ar.type.${m.kind}`)}
@@ -235,7 +241,7 @@ export function Argent({ ctx }: { readonly ctx: ContexteGroupe }) {
             ) : (
               <ul className="liste">
                 {liste.map((m) => (
-                  <LigneMouvement key={m.movementId} m={m} actions={m.can.acknowledge ? <Accuse ctx={ctx} m={m} onFini={apres} /> : undefined} />
+                  <LigneMouvement photo={{ session: ctx.session, groupId: ctx.groupe.groupId }} key={m.movementId} m={m} actions={m.can.acknowledge ? <Accuse ctx={ctx} m={m} onFini={apres} /> : undefined} />
                 ))}
               </ul>
             )
@@ -294,7 +300,7 @@ export function AConfirmer({ ctx, onFini, meetingId }: { readonly ctx: ContexteG
             <>
               <ul className="liste">
                 {liste.map((m) => (
-                  <LigneMouvement
+                  <LigneMouvement photo={{ session: ctx.session, groupId: ctx.groupe.groupId }}
                     key={m.movementId}
                     m={m}
                     actions={
@@ -394,7 +400,7 @@ export function AControler({ ctx, onFini }: { readonly ctx: ContexteGroupe; read
           ) : (
             <ul className="liste">
               {aControler.map((m) => (
-                <LigneMouvement
+                <LigneMouvement photo={{ session: ctx.session, groupId: ctx.groupe.groupId }}
                   key={m.movementId}
                   m={m}
                   actions={

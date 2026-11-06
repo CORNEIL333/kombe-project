@@ -68,7 +68,7 @@ final class FakeWorld {
     nextDue = DateTime.utc(now.year, now.month, now.day).add(const Duration(days: 6));
     groups = <GroupSummary>[
       GroupSummary(id: 'essai-etoiles', name: 'Les Étoiles de Yaoundé', role: GroupRole.member, memberCount: 12, cycleIndex: 4, cycleTotal: 12, contributionAmountXaf: 25000, nextDueAtUtc: nextDue),
-      GroupSummary(id: 'essai-bamileke', name: 'Solidarité Bamiléké', role: GroupRole.treasurer, memberCount: 10, cycleIndex: 2, cycleTotal: 10, contributionAmountXaf: 15000, nextDueAtUtc: nextDue.add(const Duration(days: 5))),
+      GroupSummary(openDueXaf: 26000, id: 'essai-bamileke', name: 'Solidarité Bamiléké', role: GroupRole.treasurer, memberCount: 10, cycleIndex: 2, cycleTotal: 10, contributionAmountXaf: 15000, nextDueAtUtc: nextDue.add(const Duration(days: 5))),
       GroupSummary(id: 'essai-vision', name: 'Vision Entrepreneurs', role: GroupRole.member, memberCount: 8, cycleIndex: 5, cycleTotal: 8, contributionAmountXaf: 50000, nextDueAtUtc: nextDue.add(const Duration(days: 3))),
     ];
     history = <Contribution>[

@@ -31,9 +31,9 @@ final class NotificationEntry {
 }
 
 const Map<String, NotificationEntry> notificationCatalog = <String, NotificationEntry>{
-  'declared': NotificationEntry(NotificationKind.validation, 'Une déclaration attend votre confirmation'),
+  'declared': NotificationEntry(NotificationKind.validation, 'Un paiement attend votre confirmation'),
   'toControl': NotificationEntry(NotificationKind.validation, 'Des paiements confirmés attendent votre contrôle'),
-  'rejected': NotificationEntry(NotificationKind.contribution, 'Une déclaration a été rejetée'),
+  'rejected': NotificationEntry(NotificationKind.contribution, 'Un paiement a été rejeté'),
   'due': NotificationEntry(NotificationKind.contribution, 'Une cotisation arrive à échéance'),
   'payout': NotificationEntry(NotificationKind.contribution, 'Remise enregistrée : confirmez la réception'),
   'received': NotificationEntry(NotificationKind.contribution, 'Réception de la remise confirmée'),
@@ -50,7 +50,7 @@ const Map<String, NotificationEntry> notificationCatalog = <String, Notification
   'aidPaid': NotificationEntry(NotificationKind.contribution, 'Secours versé'),
   'meetingSoon': NotificationEntry(NotificationKind.meeting, 'Séance dans les prochains jours'),
   'minutes': NotificationEntry(NotificationKind.meeting, 'Procès-verbal disponible'),
-  'statutes': NotificationEntry(NotificationKind.system, 'Nouveaux statuts à lire et accepter'),
+  'statutes': NotificationEntry(NotificationKind.system, 'Nouvelles règles à lire et accepter'),
   'admission': NotificationEntry(NotificationKind.system, 'Votre adhésion est acceptée'),
   'join': NotificationEntry(NotificationKind.system, 'Nouvelle demande d’adhésion'),
   'role': NotificationEntry(NotificationKind.system, 'Une fonction vous a été confiée'),

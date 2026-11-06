@@ -40,7 +40,8 @@ flutter:
   generate: true
   assets:
     - assets/fonts/OFL-Manrope.txt
-    - assets/fonts/OFL-Fraunces.txt
+    - assets/fonts/OFL-Merriweather.txt
+    - assets/fonts/OFL-LibreFranklin.txt
     - assets/images/
     - assets/images/fonds/
   # Polices OFL auto-hébergées : instances statiques tirées des fichiers
@@ -58,9 +59,19 @@ flutter:
           weight: 700
         - asset: assets/fonts/Manrope-800.ttf
           weight: 800
-    - family: Fraunces
+    - family: Merriweather
       fonts:
-        - asset: assets/fonts/Fraunces-600.ttf
+        - asset: assets/fonts/Merriweather-400.ttf
+          weight: 400
+    - family: Libre Franklin
+      fonts:
+        - asset: assets/fonts/LibreFranklin-400.ttf
+          weight: 400
+        - asset: assets/fonts/LibreFranklin-500.ttf
+          weight: 500
+        - asset: assets/fonts/LibreFranklin-600.ttf
           weight: 600
-        - asset: assets/fonts/Fraunces-700.ttf
+        - asset: assets/fonts/LibreFranklin-700.ttf
           weight: 700
+        - asset: assets/fonts/LibreFranklin-800.ttf
+          weight: 800

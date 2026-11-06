@@ -42,7 +42,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           onRetry: _load,
           emptyWhen: (List<KombeDocument> items) => items.isEmpty,
           emptyTitle: 'Aucun document',
-          emptyBody: 'Relevés, rapports de cycle et statuts publiés par le bureau apparaîtront ici.',
+          emptyBody: 'Relevés, rapports de cycle et règles publiés par le bureau apparaîtront ici.',
           builder: (BuildContext context, List<KombeDocument> items) => ListView(
             padding: const EdgeInsets.only(top: 8, bottom: 32),
             children: <Widget>[

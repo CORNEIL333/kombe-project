@@ -126,10 +126,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         label: Text(label),
                         selected: _filter == f,
                         showCheckmark: false,
-                        selectedColor: KombeColors.forest,
+                        selectedColor: KombeColors.brand,
                         backgroundColor: Colors.white,
-                        side: BorderSide(color: _filter == f ? KombeColors.forest : KombeColors.line),
-                        labelStyle: TextStyle(color: _filter == f ? KombeColors.cream : KombeColors.ink, fontWeight: FontWeight.w700),
+                        side: BorderSide(color: _filter == f ? KombeColors.brand : KombeColors.line),
+                        labelStyle: TextStyle(color: _filter == f ? Colors.white : KombeColors.ink, fontWeight: FontWeight.w700),
                         onSelected: (_) => setState(() => _filter = f),
                       ),
                     ),
@@ -143,7 +143,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               onRetry: _load,
               emptyWhen: (List<KombeNotification> items) => items.isEmpty,
               emptyTitle: 'Aucune activité',
-              emptyBody: 'Les déclarations, votes et séances de vos groupes apparaîtront ici.',
+              emptyBody: 'Les paiements, votes et séances de vos groupes apparaîtront ici.',
               builder: (BuildContext context, List<KombeNotification> items) {
                 final List<KombeNotification> visible = items.where((KombeNotification n) => _matches(_filter, n)).toList();
                 if (visible.isEmpty) {
@@ -203,10 +203,8 @@ class NotificationTile extends StatelessWidget {
     final KombeTone tone = _isMoney(n)
         ? KombeTone.money
         : _matches(_Filter.votes, n)
-            ? KombeTone.info
-            : _matches(_Filter.decisions, n)
-                ? KombeTone.coral
-                : KombeTone.success;
+            ? KombeTone.brand
+            : KombeTone.neutral;
     return Semantics(
       label: n.read ? null : 'non lue',
       child: Material(
@@ -216,12 +214,12 @@ class NotificationTile extends StatelessWidget {
           leading: Container(
             width: 42,
             height: 42,
-            decoration: BoxDecoration(color: tone.solid, shape: BoxShape.circle),
-            child: Icon(notificationIcon(n.kind), size: 21, color: tone.onSolid),
+            decoration: BoxDecoration(color: tone.bg, shape: BoxShape.circle),
+            child: Icon(notificationIcon(n.kind), size: 21, color: tone.fg),
           ),
           title: Text(n.title, style: TextStyle(fontWeight: n.read ? FontWeight.w600 : FontWeight.w800, fontSize: 15.5)),
           subtitle: Text(<String>[if (n.body.isNotEmpty) n.body, relativeTime(n.createdAtUtc, now: now)].join(' · ')),
-          trailing: n.read ? null : const Icon(Icons.circle, size: 11, color: KombeColors.danger),
+          trailing: n.read ? null : const Icon(Icons.circle, size: 11, color: KombeColors.goldWarm, semanticLabel: 'non lue'),
           onTap: onTap,
         ),
       ),

@@ -10,44 +10,25 @@ import '../design/kombe_theme.dart';
 /// Composants « Ndop » partagés par tous les écrans.
 
 /// Tonalité sémantique d'un état (pastilles, pictos, bandeaux).
-enum KombeTone { neutral, brand, success, warning, danger, money, info, coral }
+enum KombeTone { neutral, brand, success, warning, danger, money, info }
 
+/// Trois teintes par écran : vert, safran, neutres. Rouge : retard et erreur.
 extension KombeToneColors on KombeTone {
   Color get fg => switch (this) {
         KombeTone.neutral => KombeColors.slate,
-        KombeTone.brand => KombeColors.forest,
-        KombeTone.success => KombeColors.jade,
-        KombeTone.warning => KombeColors.goldDark,
+        KombeTone.warning || KombeTone.money => KombeColors.ink,
         KombeTone.danger => KombeColors.danger,
-        KombeTone.money => KombeColors.goldDark,
-        KombeTone.info => KombeColors.plum,
-        KombeTone.coral => KombeColors.clay,
+        KombeTone.brand || KombeTone.success || KombeTone.info => KombeColors.forest,
       };
   Color get bg => switch (this) {
         KombeTone.neutral => KombeColors.sand,
-        KombeTone.brand => KombeColors.mint,
-        KombeTone.success => const Color(0xFFE3F2EA),
-        KombeTone.warning => KombeColors.goldPale,
+        KombeTone.warning || KombeTone.money => KombeColors.goldPale,
         KombeTone.danger => const Color(0xFFFBEAE7),
-        KombeTone.money => KombeColors.goldPale,
-        KombeTone.info => const Color(0xFFF1E3F1),
-        KombeTone.coral => const Color(0xFFFBE3DC),
+        KombeTone.brand || KombeTone.success || KombeTone.info => KombeColors.mint,
       };
-  /// Fond plein (pictos, raccourcis) : c'est là que l'interface prend sa couleur.
-  Color get solid => switch (this) {
-        KombeTone.neutral => KombeColors.forest,
-        KombeTone.brand => KombeColors.forest,
-        KombeTone.success => KombeColors.emerald,
-        KombeTone.warning => KombeColors.goldWarm,
-        KombeTone.danger => KombeColors.danger,
-        KombeTone.money => KombeColors.goldWarm,
-        KombeTone.info => KombeColors.plum,
-        KombeTone.coral => KombeColors.clay,
-      };
-  Color get onSolid => this == KombeTone.warning || this == KombeTone.money ? KombeColors.ink : Colors.white;
 }
 
-/// Montant FCFA : chiffres en Fraunces tabulaires, devise en petit Manrope.
+/// Montant FCFA : chiffres tabulaires, devise en petit Manrope.
 class KombeAmount extends StatelessWidget {
   const KombeAmount(this.xaf, {super.key, this.size = 28, this.color = KombeColors.forest, this.signed = false});
   final int xaf;
@@ -58,8 +39,8 @@ class KombeAmount extends StatelessWidget {
 
   static final NumberFormat _f = NumberFormat.decimalPattern('fr_FR');
 
-  /// Groupes de milliers séparés par une espace insécable (U+00A0) : Fraunces
-  /// n'a pas l'espace fine (U+202F) de `fr_FR`, qui disparaîtrait.
+  /// Groupes de milliers séparés par une espace insécable (U+00A0) : certaines
+  /// polices n'ont pas l'espace fine (U+202F) de `fr_FR`.
   static String digits(int v) => _f.format(v).replaceAll('\u202F', '\u00A0');
 
   @override
@@ -74,7 +55,7 @@ class KombeAmount extends StatelessWidget {
             TextSpan(text: '$sign${digits(xaf.abs())}', style: KombeType.amount(size: size, color: color)),
             TextSpan(
               text: ' FCFA',
-              style: TextStyle(fontSize: math.max(11, size * .42), fontWeight: FontWeight.w700, color: color.withValues(alpha: .72), letterSpacing: .2),
+              style: TextStyle(fontSize: math.max(14, size * .42), fontWeight: FontWeight.w700, color: color.withValues(alpha: .72), letterSpacing: .2),
             ),
           ],
         ),
@@ -106,7 +87,7 @@ class StatusPill extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: tone.fg, height: 1.2),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: tone.fg, height: 1.2),
               ),
             ),
           ],
@@ -125,8 +106,8 @@ class KombeIconBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(color: tone.solid, shape: BoxShape.circle),
-        child: Icon(icon, size: size * .5, color: tone.onSolid),
+        decoration: BoxDecoration(color: tone.bg, shape: BoxShape.circle),
+        child: Icon(icon, size: size * .5, color: tone.fg),
       );
 }
 
@@ -456,7 +437,7 @@ class _CycleRingPainter extends CustomPainter {
   bool shouldRepaint(covariant _CycleRingPainter old) => old.progress != progress || old.onDark != onDark;
 }
 
-/// Pavé de date (calendrier) : jour en Fraunces, mois abrégé.
+/// Pavé de date (calendrier) : jour en grand, mois abrégé.
 class KombeDateBlock extends StatelessWidget {
   const KombeDateBlock(this.date, {super.key, this.size = 56});
   final DateTime date;
@@ -470,14 +451,14 @@ class KombeDateBlock extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(color: KombeColors.clay, borderRadius: BorderRadius.circular(size * .3)),
+        decoration: BoxDecoration(color: KombeColors.mint, borderRadius: BorderRadius.circular(size * .3)),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text('${d.day}', style: KombeType.amount(size: size * .4, color: Colors.white)),
+            Text('${d.day}', style: KombeType.amount(size: size * .4)),
             Text(
               DateFormat('MMM', locale).format(d).replaceAll('.', '').toUpperCase(),
-              style: TextStyle(fontSize: size * .17, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: .6, height: 1.1),
+              style: TextStyle(fontSize: math.max(14, size * .22), fontWeight: FontWeight.w800, color: KombeColors.forest, height: 1.1),
             ),
           ],
         ),
@@ -547,7 +528,7 @@ class KombeFact extends StatelessWidget {
       );
 }
 
-/// Tête de formulaire : picto de la tâche, titre Fraunces, une phrase utile.
+/// Tête de formulaire : picto de la tâche, titre serif, une phrase utile.
 class KombeFormHeader extends StatelessWidget {
   const KombeFormHeader({super.key, required this.icon, required this.title, required this.body, this.tone = KombeTone.brand});
   final IconData icon;
@@ -595,16 +576,17 @@ class KombeInlineError extends StatelessWidget {
       );
 }
 
-/// Signature de KÓMBE : le rang de perles du cycle. Une perle par tour :
-/// maïs quand le tour est passé, cerclée pour le tour en cours, vide à venir.
-/// `mine` marque mon tour d'un point vermillon quand il est connu.
+/// Points du cycle, discrets : un par tour, pleins quand le tour est passé,
+/// safran pour le tour en cours, vides à venir. `mine` marque mon tour.
 class KombeCycleBand extends StatelessWidget {
-  const KombeCycleBand({super.key, required this.index, required this.total, this.mine, this.onDark = false, this.height = 26});
+  const KombeCycleBand({super.key, required this.index, required this.total, this.mine, this.onDark = false, this.height = 12, this.late = false});
   final int index;
   final int total;
   final int? mine;
   final bool onDark;
   final double height;
+  /// Tour en retard : le point en cours passe au rouge.
+  final bool late;
 
   @override
   Widget build(BuildContext context) {
@@ -618,7 +600,7 @@ class KombeCycleBand extends StatelessWidget {
         curve: Curves.easeOutCubic,
         builder: (BuildContext context, double t, Widget? _) => CustomPaint(
           size: Size(double.infinity, height),
-          painter: _CycleBandPainter(index: index, total: total, mine: mine, onDark: onDark, t: t),
+          painter: _CycleBandPainter(index: index, total: total, mine: mine, onDark: onDark, t: t, late: late),
         ),
       ),
     );
@@ -626,36 +608,103 @@ class KombeCycleBand extends StatelessWidget {
 }
 
 class _CycleBandPainter extends CustomPainter {
-  _CycleBandPainter({required this.index, required this.total, required this.mine, required this.onDark, required this.t});
+  _CycleBandPainter({required this.index, required this.total, required this.mine, required this.onDark, required this.t, this.late = false});
   final int index;
   final int total;
   final int? mine;
   final bool onDark;
   final double t;
+  final bool late;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double step = size.width / total;
-    final double r = math.min(size.height / 2, step / 2 - (total > 24 ? .6 : 1.5));
-    final Color current = onDark ? Colors.white : KombeColors.forest;
-    final Color empty = onDark ? const Color(0x59FFFFFF) : KombeColors.lineStrong;
+    final double step = math.min(size.width / total, 17);
+    final double r = math.min(5, step / 2 - .8);
+    final Color done = onDark ? Colors.white : KombeColors.brand;
+    final Color empty = onDark ? const Color(0x80FFFFFF) : KombeColors.lineStrong;
+    final Color now = late ? KombeColors.danger : KombeColors.goldWarm;
     for (int i = 1; i <= total; i++) {
       final Offset c = Offset((i - .5) * step, size.height / 2);
-      // Les perles s'enfilent de gauche à droite.
       final double reveal = ((t * (index + 1)) - (i - 1)).clamp(0, 1);
       if (i <= index && reveal > 0) {
-        canvas.drawCircle(c, r * reveal, Paint()..color = i == index ? current : KombeColors.goldWarm);
-        if (i == index) canvas.drawCircle(c, r * .42 * reveal, Paint()..color = KombeColors.goldWarm);
+        if (i == index && onDark) canvas.drawCircle(c, (r + 1.6) * reveal, Paint()..color = Colors.white);
+        canvas.drawCircle(c, r * reveal, Paint()..color = i == index ? now : done);
       } else {
         canvas.drawCircle(c, r - .7, Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.4
+          ..strokeWidth = 1.3
           ..color = empty);
       }
-      if (mine == i) canvas.drawCircle(Offset(c.dx, size.height + 7), 3.5, Paint()..color = KombeColors.danger);
+      if (mine == i) canvas.drawCircle(Offset(c.dx, size.height + 6), 2.5, Paint()..color = done);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _CycleBandPainter o) => o.index != index || o.total != total || o.mine != mine || o.onDark != onDark || o.t != t;
+  bool shouldRepaint(covariant _CycleBandPainter o) => o.index != index || o.total != total || o.mine != mine || o.onDark != onDark || o.t != t || o.late != late;
+}
+
+/// Sceau de confirmation : un disque émeraude qui se pose, puis s'efface.
+/// Le moment « paiement confirmé » a son propre geste ; immobile si les
+/// animations sont coupées.
+void showKombeSeal(BuildContext context, String label) {
+  final OverlayState overlay = Overlay.of(context, rootOverlay: true);
+  late final OverlayEntry entry;
+  entry = OverlayEntry(builder: (_) => _Seal(label: label, onDone: () => entry.remove()));
+  overlay.insert(entry);
+}
+
+class _Seal extends StatefulWidget {
+  const _Seal({required this.label, required this.onDone});
+  final String label;
+  final VoidCallback onDone;
+
+  @override
+  State<_Seal> createState() => _SealState();
+}
+
+class _SealState extends State<_Seal> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+
+  @override
+  void initState() {
+    super.initState();
+    _c.forward().whenComplete(() {
+      if (mounted) widget.onDone();
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final Animation<double> scale = still ? const AlwaysStoppedAnimation<double>(1) : CurvedAnimation(parent: _c, curve: const Interval(0, .4, curve: Curves.elasticOut));
+    final Animation<double> fade = ReverseAnimation(CurvedAnimation(parent: _c, curve: const Interval(.75, 1)));
+    return IgnorePointer(
+      child: Center(
+        child: FadeTransition(
+          opacity: fade,
+          child: ScaleTransition(
+            scale: scale,
+            child: Container(
+              width: 148,
+              height: 148,
+              decoration: const BoxDecoration(color: KombeColors.brand, shape: BoxShape.circle),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  const Icon(Icons.check_rounded, size: 54, color: Colors.white),
+                  Text(widget.label, style: const TextStyle(decoration: TextDecoration.none, color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

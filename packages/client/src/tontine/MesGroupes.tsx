@@ -13,26 +13,30 @@ import { AvatarGroupe, teinteGroupe } from "./PhotoGroupe.js";
 import { useTextes } from "./textes.js";
 import { Icone } from "../composants/Icones.js";
 
+/** Le plus urgent d'abord : à payer, par date ; puis les autres ; les adhésions en attente à la fin. */
+function parUrgence(a: TontineSummary, b: TontineSummary): number {
+  const poids = (g: TontineSummary) => (g.membershipState === "pending" ? 2 : BigInt(g.myOpenDue || "0") > 0n ? 0 : 1);
+  return poids(a) - poids(b) || (a.nextMeetingDate ?? "9").localeCompare(b.nextMeetingDate ?? "9");
+}
+
 export function MesGroupes({ session, groupes, aller }: { readonly session: Session; readonly groupes: GroupeActif; readonly aller: (r: Route) => void }) {
   const { tx, dyn, xaf, date } = useTextes();
   const liste = groupes.groupes;
   const role = (g: TontineSummary) => g.roles.find((r) => r !== "member") ?? "member";
   return (
     <div className="pile ecran groupes">
-      <header className="entete-ecran">
+      <header className="entete-liste">
         <h1 className="ecran-titre-simple">{tx("gr.titre")}</h1>
-        <p className="ecran-sous-titre">{tx("gr.sousTitre")}</p>
+        <div className="entete-liste__actions">
+          <button type="button" className="bouton-petit" onClick={() => aller({ ecran: "rejoindre" })}>
+            {tx("gr.rejoindre")}
+          </button>
+          <button type="button" className="bouton-petit" onClick={() => aller({ ecran: "creer" })}>
+            <Icone nom="plus" taille={18} />
+            {tx("gr.creer")}
+          </button>
+        </div>
       </header>
-      <div className="tuiles-groupes">
-        <button type="button" className="tuile-groupe tuile-groupe--forte" onClick={() => aller({ ecran: "creer" })}>
-          <Icone nom="plus" taille={24} />
-          <span>{tx("gr.creerTuile")}</span>
-        </button>
-        <button type="button" className="tuile-groupe" onClick={() => aller({ ecran: "rejoindre" })}>
-          <Icone nom="inviter" taille={24} />
-          <span>{tx("gr.rejoindreTuile")}</span>
-        </button>
-      </div>
       {liste === null ? (
         <ul className="cartes-groupes" aria-busy="true">
           {[0, 1, 2].map((i) => (
@@ -43,62 +47,45 @@ export function MesGroupes({ session, groupes, aller }: { readonly session: Sess
         <p className="msg">{tx("gr.aucun")}</p>
       ) : (
         <ul className="cartes-groupes">
-          {liste.map((g) => {
+          {[...liste].sort(parUrgence).map((g) => {
             const actif = g.groupId === groupes.actif?.groupId;
             const attente = g.membershipState === "pending";
             const du = BigInt(g.myOpenDue || "0");
             const r = role(g);
             const cy = g.cyclePosition;
-            const pct = cy && cy.total > 0 ? Math.round((cy.current / cy.total) * 100) : null;
+            const retard = du > 0n && !!g.nextMeetingDate && new Date(g.nextMeetingDate).getTime() < Date.now();
             const ouvrir = () => {
               groupes.choisir(g.groupId);
               aller({ ecran: "groupe", groupId: g.groupId });
             };
             return (
-              <li key={g.groupId} className={actif ? "carte-groupe is-actif" : "carte-groupe"} data-teinte={teinteGroupe(g.groupId)}>
+              <li key={g.groupId} className={attente ? "carte-groupe is-attente" : "carte-groupe"} data-teinte={attente ? undefined : teinteGroupe(g.groupId)}>
                 <button type="button" className="carte-groupe__corps" disabled={attente} onClick={ouvrir}>
-                  <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={84} />
-                  <span className="carte-groupe__texte">
-                    <span className="carte-groupe__nom">{g.name}</span>
-                    <span className="carte-groupe__meta">
-                      <Icone nom="personnes" taille={16} />
-                      {tx("acc.membres", { n: g.memberCount })}
-                      <span className={r === "member" ? "etiquette etiquette--ok" : "etiquette etiquette--or"}>
-                        {r === "member" ? null : "★ "}
-                        {dyn(`role.${r}`)}
+                  <span className="carte-groupe__tete">
+                    <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={48} />
+                    <span className="carte-groupe__texte">
+                      <span className="carte-groupe__nom">{g.name}</span>
+                      <span className="carte-groupe__role">{attente ? tx("acc.enAttente") : dyn(`role.${r}`)}</span>
+                    </span>
+                    {attente ? null : <Icone nom="chevron" taille={22} />}
+                  </span>
+                  {du > 0n ? (
+                    <span className="carte-groupe__payer">
+                      <span className="carte-groupe__payer-libelle">{tx("ho.aRegler")}</span>
+                      <span className="carte-groupe__payer-ligne">
+                        <strong>{xaf(g.myOpenDue)}</strong>
+                        {retard ? <span className="pastille pastille--alerte">{tx("ho.enRetard")}</span> : g.nextMeetingDate ? <span>{tx("ho.avant", { date: date(g.nextMeetingDate) })}</span> : null}
                       </span>
                     </span>
-                    {attente ? (
-                      <span className="etiquette etiquette--attente">{tx("acc.enAttente")}</span>
-                    ) : cy && pct !== null ? (
-                      <span className="carte-groupe__cycle">
-                        <span>{tx("gr.cycle", { n: cy.current, total: cy.total })}</span>
-                        <BandeCycle courant={cy.current} total={cy.total} libelle={tx("gr.cycle", { n: cy.current, total: cy.total })} />
-                      </span>
-                    ) : null}
-                  </span>
-                  <Icone nom="chevron" taille={20} />
+                  ) : null}
+                  {!attente && cy ? (
+                    <span className="carte-groupe__cycle">
+                      <BandeCycle courant={cy.current} total={cy.total} libelle={tx("gr.cycle", { n: cy.current, total: cy.total })} clair />
+                      <span>{tx("gr.cycle", { n: cy.current, total: cy.total })}</span>
+                    </span>
+                  ) : null}
                   {actif ? <span className="visuellement-cache">{tx("gr.actif")}</span> : null}
                 </button>
-                {!attente ? (
-                  <div className="carte-groupe__pied">
-                    <button type="button" className="carte-groupe__prochaine" onClick={ouvrir}>
-                      <span className="carte-groupe__calendrier" aria-hidden="true">
-                        <Icone nom="seance" taille={18} />
-                      </span>
-                      <span className="carte-groupe__prochaine-texte">
-                        <span>{du > 0n ? tx("acc.aRegler", { montant: xaf(g.myOpenDue) }) : tx("ho.prochaineCotisation")}</span>
-                        <strong>{g.nextMeetingDate ? date(g.nextMeetingDate) : "—"}</strong>
-                      </span>
-                      <Icone nom="chevron" taille={18} />
-                    </button>
-                    {estBureau(g.roles) ? (
-                      <button type="button" className="carte-groupe__bureau" aria-label={tx("app.bureauDe", { nom: g.name })} title={tx("app.bureau")} onClick={() => ouvrirBureau(session, g.groupId)}>
-                        <Icone nom="bureau" taille={20} />
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
               </li>
             );
           })}

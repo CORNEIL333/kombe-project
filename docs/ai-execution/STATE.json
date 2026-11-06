@@ -1,7 +1,7 @@
 {
   "branch": "refonte/premium-photos",
   "base": "refonte/ux-integrale",
-  "step": "G-mise-a-jour-0.8.0",
+  "step": "H-apres-0.8.0",
   "done": [
     "A-photo-serveur",
     "B1-pwa-4-onglets-groupes-photo",
@@ -11,24 +11,23 @@
     "F1-socle-cercle-ndop-flutter+pwa"
   ],
   "remaining": [
-    "F2-flutter: auth, création/adhésion, caisses, détail membre, invitation, déclaration, hors ligne",
-    "F3-pwa: relecture captures qa5, Profil montant Fraunces, barre du bas sur bureau",
-    "F4-avant/après chiffré + rapport",
-    "PR refonte/premium-photos"
+    "déployer le site et publier une 0.8.1 pour les modifications de la branche",
+    "fusion master (voir docs/refonte/TRI_AUTRE_SESSION.md)",
+    "tableaux de bord",
+    "écrans natifs séances/amendes"
   ],
   "blocked": [
-    "déploiement : CLI Vercel déconnecté (vercel login requis)",
-    "sauvegarde et migrations 0032-0035 : kombe_prod invisible depuis le connecteur Neon",
     "recette appareil Android/iOS"
   ],
   "evidence": {
     "domain_tests": 444,
     "api_tests": 249,
     "pwa_tests": 30,
-    "mobile_tests": 49,
+    "mobile_tests": 50,
     "pwa_playwright": "360/390/430/768/1024/1440 sans erreur ni défilement horizontal",
     "login_pwa": "0 pixel de différence avec la production",
-    "apk_0_8_0": "construit en local le 2026-11-05, non publié"
+    "apk_0_8_0": "construit en local le 2026-11-05, non publié",
+    "production": "0.8.0 en ligne le 2026-11-05"
   },
-  "next": "Après vercel login : sauvegarde Neon, vercel --prod depuis le worktree, vérifier /v1/health/ready et les routes photo, puis node scripts/mobile/publier.mjs."
+  "next": "Test sur téléphone, puis décisions listées dans FINAL_REPORT.md."
 }

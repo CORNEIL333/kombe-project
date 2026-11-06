@@ -324,7 +324,7 @@ class _TurnTrack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return KombeCycleBand(index: current, total: total, height: 30);
+    return KombeCycleBand(index: current, total: total);
   }
 }
 
@@ -340,11 +340,17 @@ class _CurrentBeneficiary extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Container(
-          decoration: BoxDecoration(color: KombeColors.goldWarm, borderRadius: BorderRadius.circular(22)),
+          decoration: BoxDecoration(color: KombeColors.mint, borderRadius: BorderRadius.circular(22)),
           padding: const EdgeInsets.all(18),
           child: Row(
             children: <Widget>[
-              MemberAvatar(groupId: turn.groupId, memberId: turn.identityId, name: turn.displayName, photoVersion: turn.photoVersion, size: 72),
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: (MediaQuery.maybeDisableAnimationsOf(context) ?? false) ? 1 : .6, end: 1),
+                duration: const Duration(milliseconds: 650),
+                curve: Curves.elasticOut,
+                builder: (BuildContext context, double v, Widget? child) => Transform.scale(scale: v, child: child),
+                child: MemberAvatar(groupId: turn.groupId, memberId: turn.identityId, name: turn.displayName, photoVersion: turn.photoVersion, size: 72),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -397,7 +403,7 @@ class _TurnRow extends StatelessWidget {
               color: current ? KombeColors.goldDark : Colors.white,
               border: Border.all(color: current ? Colors.transparent : KombeColors.lineStrong),
             ),
-            child: Text('${turn.turnNumber}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: current ? Colors.white : KombeColors.ink)),
+            child: Text('${turn.turnNumber}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: current ? Colors.white : KombeColors.ink)),
           ),
           const SizedBox(width: 10),
           MemberAvatar(groupId: turn.groupId, memberId: turn.identityId, name: turn.displayName, photoVersion: turn.photoVersion, size: 40),
