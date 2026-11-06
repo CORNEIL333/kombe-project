@@ -86,16 +86,58 @@ export function isoInstant(value: unknown): string | null {
  */
 const ambient = new AsyncLocalStorage<{ readonly db: Db; depth: number }>();
 
+/**
+ * Ouverture de transaction en UN SEUL aller-retour (protocole simple, sans
+ * paramètre) au lieu de quatre : chaque aller-retour coûte une latence réseau
+ * vers la base (pooler compris) et occupe la connexion. Délais :
+ * 9 s < 10 s — en serverless la plateforme coupe la fonction ; mieux vaut un
+ * échec métier propre (translatePgError) qu'un 500 sans réponse.
+ */
+const OPEN_TX_WITH_TIMEOUTS =
+  "BEGIN; SET LOCAL idle_in_transaction_session_timeout = '9s'; SET LOCAL lock_timeout = '3s'; SET LOCAL statement_timeout = '9s'";
+/** Garde de moindre privilège (avant de prendre une connexion), puis ouverture :
+ *  délais déjà posés par la connexion (vérifié une fois par instance) → simple BEGIN. */
+async function connectTx(pool: pg.Pool): Promise<pg.PoolClient> {
+  const c = await assertDbRole(pool);
+  const db = await pool.connect();
+  try {
+    await db.query(c.timeoutsSet ? "BEGIN" : OPEN_TX_WITH_TIMEOUTS);
+  } catch (error) {
+    db.release();
+    throw error;
+  }
+  return db;
+}
+
+/**
+ * Cache de LECTURE limité à une requête en lecture seule (`inReadTx`) : un même
+ * chargeur (tours, caisses, parts, règlement, noms) appelé deux fois pour le
+ * même groupe pendant la requête ne relit pas la base (mesuré : 5 lectures en
+ * double sur 31 pour l'écran « mes tontines »). Jamais actif hors de inReadTx :
+ * une requête qui écrit relit toujours la base.
+ */
+const readCache = new AsyncLocalStorage<Map<string, Promise<unknown>>>();
+export function cachedRead<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const c = readCache.getStore();
+  if (!c) return load();
+  let p = c.get(key) as Promise<T> | undefined;
+  if (!p) {
+    p = load();
+    c.set(key, p);
+    p.catch(() => c.delete(key));
+  }
+  return p;
+}
+/** Transaction de LECTURE SEULE (aucune écriture dans `fn`) avec cache de requête. */
+export async function inReadTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promise<T> {
+  return readCache.run(new Map(), () => inTx(pool, fn));
+}
+
 /** Ouvre la transaction d'une commande idempotente (voir `write` dans routes.ts). */
 export async function inCommandTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promise<T> {
   if (ambient.getStore()) throw new Error("inCommandTx imbriqué");
-  await assertDbRole(pool);
-  const db = await pool.connect();
+  const db = await connectTx(pool);
   try {
-    await db.query("BEGIN");
-    await db.query("SET LOCAL idle_in_transaction_session_timeout = '9s'");
-    await db.query("SET LOCAL lock_timeout = '3s'");
-    await db.query("SET LOCAL statement_timeout = '9s'");
     const out = await ambient.run({ db, depth: 0 }, () => fn(db));
     await db.query("COMMIT");
     return out;
@@ -126,15 +168,8 @@ export async function inTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promis
       throw translatePgError(error);
     }
   }
-  await assertDbRole(pool);
-  const db = await pool.connect();
+  const db = await connectTx(pool);
   try {
-    await db.query("BEGIN");
-    await db.query("SET LOCAL idle_in_transaction_session_timeout = '9s'");
-    await db.query("SET LOCAL lock_timeout = '3s'");
-    // 9 s < 10 s : en serverless la plateforme tue la fonction à 10 s — mieux
-    // vaut un échec métier propre (translatePgError) qu'un 500 sans réponse.
-    await db.query("SET LOCAL statement_timeout = '9s'");
     const out = await fn(db);
     await db.query("COMMIT");
     return out;

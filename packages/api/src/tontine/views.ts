@@ -25,7 +25,7 @@ import {
   type TontineSettings,
   type TontineState,
 } from "@kombe/domain";
-import { type Actor, type Db, isoDate, isoInstant, m, maskLogin, may, membershipsWithRoles, onlyHolderIsSubject } from "./infra.js";
+import { type Actor, type Db, cachedRead, isoDate, isoInstant, m, maskLogin, may, membershipsWithRoles, onlyHolderIsSubject } from "./infra.js";
 
 export interface GroupRow {
   readonly groupId: string;
@@ -62,6 +62,7 @@ export interface Names {
 }
 
 export async function loadNames(db: Db, groupId: string): Promise<Names> {
+  return cachedRead(`noms:${groupId}`, async () => {
   const r = await db.query(`SELECT membership_id, identity_id, display_name, state FROM membership WHERE group_id = $1`, [groupId]);
   const byMembership = new Map<string, string>();
   const byIdentity = new Map<string, string>();
@@ -77,6 +78,7 @@ export async function loadNames(db: Db, groupId: string): Promise<Names> {
     }
   }
   return { byMembership, byIdentity, identityOf, membershipOf };
+  });
 }
 
 export async function cycleStarted(db: Db, groupId: string): Promise<boolean> {
@@ -109,6 +111,7 @@ export interface ShareHolding {
 }
 
 export async function loadShareHoldings(db: Db, groupId: string): Promise<ShareHolding[]> {
+  return cachedRead(`parts:${groupId}`, async () => {
   const r = await db.query(
     `SELECT s.share_id, h.membership_id, h.weight, h.from_seq, h.until_seq FROM share s
        JOIN share_holder h ON h.group_id = s.group_id AND h.share_id = s.share_id
@@ -122,6 +125,7 @@ export async function loadShareHoldings(db: Db, groupId: string): Promise<ShareH
     fromSeq: Number(row.from_seq),
     untilSeq: row.until_seq === null || row.until_seq === undefined ? null : Number(row.until_seq),
   }));
+  });
 }
 
 /**
@@ -211,6 +215,7 @@ export interface FundRow {
 }
 
 export async function loadFundRows(db: Db, groupId: string): Promise<FundRow[]> {
+  return cachedRead(`caisses:${groupId}`, async () => {
   const r = await db.query(`SELECT fund_id, kind, name, state, rules FROM fund WHERE group_id = $1 ORDER BY created_at, fund_id`, [groupId]);
   return r.rows.map((row) => ({
     fundId: String(row.fund_id),
@@ -220,6 +225,7 @@ export async function loadFundRows(db: Db, groupId: string): Promise<FundRow[]> 
     perMeeting: BigInt(String(row.rules?.perMeeting ?? "0")),
     custom: row.kind === "custom" ? parseCustomFundRules(row.rules) : null,
   }));
+  });
 }
 
 export async function fundOfKind(db: Db, groupId: string, kind: FundKind): Promise<FundRow | null> {
@@ -288,6 +294,7 @@ export async function loadFunds(db: Db, groupId: string, today: string = new Dat
  * entre deux saisons ne réécrit donc jamais ce qui était dû aux tours passés.
  */
 export async function roundSettingsOf(db: Db, group: GroupRow): Promise<(seq: number) => TontineSettings> {
+  return cachedRead(`reglements:${group.groupId}`, async () => {
   const r = await db.query(
     `SELECT r.seq, v.snapshot FROM round r LEFT JOIN rule_version v ON v.group_id = r.group_id AND v.rules_version = r.rules_version
       WHERE r.group_id = $1`,
@@ -299,6 +306,7 @@ export async function roundSettingsOf(db: Db, group: GroupRow): Promise<(seq: nu
     if (snap?.kind === "tontine_settings" && snap.settings) bySeq.set(Number(row.seq), snap.settings);
   }
   return (seq: number) => bySeq.get(seq) ?? group.settings;
+  });
 }
 
 /** Cotisation par séance d'une caisse du règlement d'après un règlement donné. */
@@ -318,6 +326,7 @@ export interface RoundRow {
 }
 
 export async function loadRoundRows(db: Db, groupId: string): Promise<RoundRow[]> {
+  return cachedRead(`tours:${groupId}`, async () => {
   const r = await db.query(
     `SELECT seq, due_date_business::text AS d, state, beneficiary_membership_id, share_id FROM round WHERE group_id = $1 ORDER BY seq`,
     [groupId],
@@ -329,6 +338,7 @@ export async function loadRoundRows(db: Db, groupId: string): Promise<RoundRow[]
     beneficiaryMembershipId: row.beneficiary_membership_id ? String(row.beneficiary_membership_id) : null,
     shareId: row.share_id ? String(row.share_id) : null,
   }));
+  });
 }
 
 export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> {

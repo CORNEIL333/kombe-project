@@ -17,6 +17,26 @@ Les paliers sont indicatifs : nombre de membres actifs, chacun ouvrant l'applica
   - Répétition réussie sur une copie de la production Neon, via le point d'accès `-pooler`.
 - **Reste à faire par le propriétaire** : la bascule (runbook, « Bascule de l'API vers le pooler »), au prochain déploiement de cette branche.
 
+## Dimensionnement pour 5 000 personnes simultanées et au-delà (mesuré, voir 09)
+
+**Base (Neon, la ressource partagée).** Environ 5,6 ms de CPU par requête.
+- 5 000 personnes en régime établi (≈ 200 req/s) : ≈ 1,1 vCPU.
+- Toutes arrivant en une minute, à l'heure d'une séance (≈ 360 req/s) : ≈ 2 vCPU.
+- Réglage recommandé :
+  - **mise à l'échelle automatique de 1 à 4 CU** pour la branche de production, pour garder environ 50 % de marge au pic ;
+  - mise en veille désactivée ;
+  - **API branchée sur le pooler** (`kombe_api`, voir 11).
+- Avec un maximum de 8 CU, la même base absorbe environ 10 000 personnes arrivant en une minute.
+
+Ces valeurs sont des ordres de grandeur mesurés sur PostgreSQL 16 local. Il faut les confirmer par une charge sur une branche Neon jetable, avec l'accord du propriétaire.
+
+**API (Vercel).** Environ 2,9 ms de CPU par requête, soit environ 1 vCPU au total à 360 req/s, réparti automatiquement entre les instances. Garder `KOMBE_PG_POOL_MAX=10` par instance, le pooler partageant les connexions serveur.
+
+**Leviers suivants (non faits)**, par gain attendu sur le CPU de la base :
+1. **Requêtes préparées nommées** (le pooler Neon les accepte en mode transaction). Elles suppriment l'analyse et la planification répétées de chaque instruction.
+2. **Écran « mes tontines »** calculé en une requête agrégée (R-04 ci-dessous).
+3. **Ouverture de l'application** : regrouper tontines, détail et échéances en une seule réponse.
+
 ## R-04 : `/v1/me/tontines`
 
 Remplacer la boucle par groupe (chargement du groupe et de son résumé) par une requête agrégée : prochaine séance, montant dû et rôle, en un aller-retour.

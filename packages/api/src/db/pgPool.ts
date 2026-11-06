@@ -28,6 +28,9 @@ export interface PgPoolOptions {
  *  `SET LOCAL`, à portée de TRANSACTION, donc compatible. */
 export const API_LOGIN_ROLE = "kombe_api";
 
+/** Délais de la connexion applicative (mêmes valeurs que les SET LOCAL de repli). */
+export const CONNECTION_TIMEOUTS = "-c statement_timeout=9s -c lock_timeout=3s -c idle_in_transaction_session_timeout=9s";
+
 /** Vrai si l'URL se connecte déjà avec le rôle dédié (pas d'option `role`). */
 export function connectsAsApiRole(connectionString: string): boolean {
   try {
@@ -47,7 +50,10 @@ export function connectsAsApiRole(connectionString: string): boolean {
 export function createApiPool(opts: PgPoolOptions): pg.Pool {
   return new pg.Pool({
     connectionString: opts.connectionString,
-    ...(connectsAsApiRole(opts.connectionString) ? {} : { options: "-c role=kombe_app" }),
+    // Délais par défaut de la connexion (9 s < 10 s, limite serverless) : posés
+    // ici en mode historique, par `ALTER ROLE kombe_api SET` en mode pooler
+    // (0040) — plus de SET LOCAL à chaque transaction (voir infra.ts, OPEN_TX).
+    ...(connectsAsApiRole(opts.connectionString) ? {} : { options: `-c role=kombe_app ${CONNECTION_TIMEOUTS}` }),
     max: opts.max ?? readPoolMax(),
     // Une connexion inactive est rendue vite (serverless : beaucoup d'instances,
     // plafond de connexions directes côté Neon) ; une attente de connexion
@@ -85,6 +91,8 @@ export interface DbRoleCheck {
   readonly ok: boolean;
   readonly currentUser: string;
   readonly reasons: readonly string[];
+  /** Délais posés par la connexion (rôle ou options) : plus besoin de SET LOCAL. */
+  readonly timeoutsSet: boolean;
 }
 
 /**
@@ -104,7 +112,10 @@ export async function checkDbRole(db: { query: pg.Pool["query"] }): Promise<DbRo
                       AND pg_has_role(current_user, c.relowner, 'MEMBER')) AS owner_reach,
            EXISTS (SELECT 1 FROM pg_roles x
                     WHERE (x.rolsuper OR x.rolbypassrls) AND x.rolname <> current_user
-                      AND pg_has_role(current_user, x.oid, 'MEMBER')) AS escalate
+                      AND pg_has_role(current_user, x.oid, 'MEMBER')) AS escalate,
+           (SELECT setting::bigint FROM pg_settings WHERE name = 'statement_timeout') AS st,
+           (SELECT setting::bigint FROM pg_settings WHERE name = 'lock_timeout') AS lt,
+           (SELECT setting::bigint FROM pg_settings WHERE name = 'idle_in_transaction_session_timeout') AS it
       FROM pg_roles r WHERE r.rolname = current_user`);
   const x = r.rows[0] ?? {};
   const reasons: string[] = [];
@@ -113,12 +124,14 @@ export async function checkDbRole(db: { query: pg.Pool["query"] }): Promise<DbRo
   if (x.app !== true) reasons.push("n'hérite pas de kombe_app");
   if (x.owner_reach === true) reasons.push("peut agir comme propriétaire de tables (RLS contournée)");
   if (x.escalate === true) reasons.push("peut endosser un rôle superutilisateur ou BYPASSRLS");
-  return { ok: reasons.length === 0, currentUser: String(x.u ?? "?"), reasons };
+  const within = (v: unknown, max: number) => Number(v) > 0 && Number(v) <= max;
+  const timeoutsSet = within(x.st, 9000) && within(x.lt, 3000) && within(x.it, 9000);
+  return { ok: reasons.length === 0, currentUser: String(x.u ?? "?"), reasons, timeoutsSet };
 }
 
 const verified = new WeakMap<object, Promise<DbRoleCheck>>();
 /** Vérifie une fois par pool (et par instance) ; refuse de servir sinon (fermé par défaut). */
-export async function assertDbRole(pool: { query: pg.Pool["query"] }): Promise<void> {
+export async function assertDbRole(pool: { query: pg.Pool["query"] }): Promise<DbRoleCheck> {
   let p = verified.get(pool);
   if (!p) {
     p = checkDbRole(pool);
@@ -127,4 +140,5 @@ export async function assertDbRole(pool: { query: pg.Pool["query"] }): Promise<v
   }
   const c = await p;
   if (!c.ok) throw new Error(`Connexion applicative trop privilégiée (${c.currentUser} : ${c.reasons.join(", ")}) — service refusé`);
+  return c;
 }

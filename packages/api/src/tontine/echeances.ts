@@ -10,7 +10,8 @@
  * est dédupliqué : relancer deux fois le même calcul n'envoie rien de plus.
  */
 import { dayReminderStage, reminderStage, reminderStageOpensAt, type GroupRole } from "@kombe/domain";
-import { type Db, appendEvent, identitiesWithRoles, notify, scopeGroup, todayDouala } from "./infra.js";
+import type pg from "pg";
+import { type Db, appendEvent, identitiesWithRoles, inTx, notify, scopeGroup, todayDouala } from "./infra.js";
 import { computeDues, cycleInProgress, loadGroup, type GroupRow } from "./views.js";
 import { statutesSigners } from "./groups.js";
 
@@ -240,4 +241,37 @@ export async function processAllGroups(db: Db, nowMs: number): Promise<{ groups:
     }
   }
   return { groups: n };
+}
+
+/**
+ * Tâche planifiée à l'échelle : UNE transaction par groupe (un échec n'annule
+ * que son groupe, aucune transaction longue), dans un budget de temps.
+ * Point de départ tournant selon l'heure : si le budget ne suffit pas, les
+ * groupes non traités passent en tête au déclenchement suivant. Rejouable sans
+ * effet double (relances dédoublonnées).
+ */
+export async function processAllGroupsInBatches(
+  pool: pg.Pool,
+  nowMs: number,
+  budgetMs = 240_000,
+): Promise<{ groups: number; failed: number; total: number; remaining: number }> {
+  const ids = await inTx(pool, async (db) => (await db.query(`SELECT kombe_groups_to_process() AS g`)).rows.map((r) => String(r.g)));
+  const start = ids.length ? Math.floor(nowMs / 3_600_000) % ids.length : 0;
+  const t0 = Date.now();
+  let groups = 0;
+  let failed = 0;
+  for (let i = 0; i < ids.length; i += 1) {
+    if (Date.now() - t0 > budgetMs) break;
+    const gid = ids[(start + i) % ids.length] as string;
+    try {
+      await inTx(pool, async (db) => {
+        await scopeGroup(db, gid);
+        await processGroupDeadlines(db, gid, nowMs);
+      });
+      groups += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  return { groups, failed, total: ids.length, remaining: ids.length - groups - failed };
 }

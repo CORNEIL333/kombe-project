@@ -46,6 +46,7 @@ import {
   scopeGroup,
   sessionIdentity,
   todayDouala,
+  inReadTx,
 } from "./infra.js";
 import {
   PAYOUT_REJECTED_REASON,
@@ -302,7 +303,7 @@ export class MoneyService {
   /** Échéances ouvertes de la personne connectée (toutes ses associations, ou une seule). */
   async myDues(headers: Record<string, unknown>, groupId?: string): Promise<DueView[]> {
     const nowMs = this.now();
-    return inTx(this.pool, async (db) => {
+    return inReadTx(this.pool, async (db) => {
       await sessionIdentity(db, headers, nowMs);
       const r = await db.query(`SELECT group_id, membership_id FROM kombe_my_memberships() WHERE membership_state = 'active'`);
       const out: DueView[] = [];

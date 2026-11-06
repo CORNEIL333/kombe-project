@@ -13,9 +13,17 @@ import { type Db, appendEvent, groupActor, inTx, requireAct, scopeGroup, session
 const CHANGEMENTS_PAR_HEURE = 6;
 
 /** La table existe-t-elle ? (API déployée avant la migration : pas de photo, pas d'erreur.) */
-async function tablePresente(db: Db): Promise<boolean> {
-  const r = await db.query(`SELECT to_regclass('public.group_photo') IS NOT NULL AS ok`);
+/* Une table présente ne disparaît pas : on ne la cherche plus une fois trouvée
+   (une requête de moins sur presque chaque écran — banc 5 000 personnes). */
+const tablesTrouvees = new Set<string>();
+async function tableTrouvee(db: Db, table: string): Promise<boolean> {
+  if (tablesTrouvees.has(table)) return true;
+  const r = await db.query(`SELECT to_regclass($1) IS NOT NULL AS ok`, [`public.${table}`]);
+  if (r.rows[0]?.ok === true) tablesTrouvees.add(table);
   return r.rows[0]?.ok === true;
+}
+async function tablePresente(db: Db): Promise<boolean> {
+  return tableTrouvee(db, "group_photo");
 }
 
 /** Version de la photo (clé de cache) ; null = pas de photo. Contexte de groupe déjà posé. */
@@ -129,8 +137,7 @@ export class PhotoService {
    groupe partagé (groupActor pose le groupe, la RLS fait le reste). */
 
 async function tableMembrePresente(db: Db): Promise<boolean> {
-  const r = await db.query(`SELECT to_regclass('public.identity_photo') IS NOT NULL AS ok`);
-  return r.rows[0]?.ok === true;
+  return tableTrouvee(db, "identity_photo");
 }
 
 /** Versions des photos des membres d'un groupe (membership_id → version). Contexte de groupe déjà posé. */

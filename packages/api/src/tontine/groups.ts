@@ -42,6 +42,7 @@ import {
   scopeGroup,
   sessionIdentity,
   todayDouala,
+  inReadTx,
 } from "./infra.js";
 import { parseSettings, aidScaleOf, fineScheduleOf } from "./settings.js";
 import { photoVersionOf } from "./photos.js";
@@ -286,7 +287,7 @@ export class GroupService {
 
   async detail(headers: Record<string, unknown>, groupId: string): Promise<TontineDetail> {
     const nowMs = this.now();
-    return inTx(this.pool, async (db) => {
+    return inReadTx(this.pool, async (db) => {
       const identityId = await sessionIdentity(db, headers, nowMs);
       return tontineDetail(db, await groupActor(db, identityId, groupId), nowMs);
     });
@@ -327,7 +328,7 @@ export class GroupService {
 
   async mine(headers: Record<string, unknown>): Promise<TontineSummary[]> {
     const nowMs = this.now();
-    return inTx(this.pool, async (db) => {
+    return inReadTx(this.pool, async (db) => {
       await sessionIdentity(db, headers, nowMs);
       const r = await db.query(`SELECT group_id, membership_id, membership_state, roles FROM kombe_my_memberships()`);
       const out: TontineSummary[] = [];

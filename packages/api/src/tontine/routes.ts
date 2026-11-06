@@ -11,7 +11,7 @@ import { AID_EVENTS, ATTENDANCE_STATUSES, BALLOT_CHOICES, DECISION_KINDS, FINE_K
 import type { EmailSender } from "../email/emailSender.js";
 import { TontineAuth, neonAuthFromEnv, type NeonAuthConfig } from "./auth.js";
 import { CycleService } from "./cycle.js";
-import { processAllGroups } from "./echeances.js";
+import { processAllGroupsInBatches } from "./echeances.js";
 import { inCommandTx, inTx } from "./infra.js";
 import { clientIp } from "../httpGuards.js";
 import { DecisionService } from "./decisions.js";
@@ -227,7 +227,10 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
       dispatcherOptionsFromEnv({ codeSender, emailSender: opts.emailSender, emailSimulated: opts.emailSimulated, emailAvailable: opts.emailAvailable !== false }),
   );
   /** Après une écriture validée : les notifications créées partent sans attendre la tâche planifiée. */
-  const kick = () => afterResponse(() => dispatcher.drain({ rounds: 1, batch: 20, budgetMs: 3000 }));
+  const kick = () => {
+    const p = dispatcher.kick();
+    afterResponse(() => p);
+  };
   const photos = new PhotoService(pool, now);
   const memberPhotos = new MemberPhotoService(pool, now);
   const decisions = new DecisionService(pool, now);
@@ -295,7 +298,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   app.get("/v1/internal/cron/echeances", async (req, reply) => {
     const secret = process.env.CRON_SECRET;
     if (!secret || req.headers.authorization !== `Bearer ${secret}`) return reply.code(404).send({ code: "OBJET_INTROUVABLE", message: "Introuvable" });
-    const echeances = await inTx(pool, (db) => processAllGroups(db, now()));
+    const echeances = await processAllGroupsInBatches(pool, now());
     const delivery = await dispatcher.drain({ rounds: 20, batch: 100, budgetMs: 20_000 });
     return { ...(echeances as object), delivery };
   });

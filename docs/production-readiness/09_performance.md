@@ -51,3 +51,53 @@ Les 200 rejeux ont tous répondu `idempotent-replay`, sans double effet.
 - **Démarrages à froid Vercel.**
 
 Les résultats bruts sont dans `mesures/charge-2026-11-04-*.json`.
+
+
+## 5 000 personnes simultanées (06/11/2026)
+
+**Outil** : `scripts/loadtest-5000.mjs`, qui refuse toute cible non locale.
+
+**Modèle**
+- 500 groupes de 10 membres, construits par l'API réelle.
+- Chaque personne se comporte comme un membre :
+  - **ouverture de l'application** : tontines, détail du groupe, échéances ;
+  - **pastille** toutes les 60 s ;
+  - **une action** toutes les 30 à 90 s ;
+  - **sa déclaration** de cotisation une fois.
+- **Les 5 000 arrivent en 60 s**, comme à l'heure d'une séance, puis restent connectées 3 minutes.
+
+**Banc** : 3 instances d'API (Node 22, en grappe), PgBouncer en mode transaction (20 connexions serveur, rôle `kombe_api`) et PostgreSQL 16. Les **4 cœurs** de la machine sont partagés avec le générateur de charge.
+
+### Avant et après les correctifs (mêmes conditions)
+
+| | Avant | Après |
+|---|---|---|
+| Requêtes, erreurs | 42 503, **0** | 42 448, **0** |
+| p50 / p95 / p99 global | 32 / 1 912 / 2 320 ms | 22 / **916** / 1 146 ms |
+| Ouverture de l'application, p95 | 6 257 ms | **2 972 ms** |
+| Régime établi (après l'arrivée), p95 | ≈ 50 ms | **≈ 30 ms** |
+| Pastille, p50 | 20 ms | **5 ms** |
+| Rafale d'arrivée, débit au pic | ≈ 310 req/s | ≈ 360 req/s |
+
+Les résultats bruts sont dans `mesures/charge-5000-simultanes-2026-11-06-*.json`.
+
+### Défauts trouvés par la mesure et corrigés
+
+1. **`membership` sans index sur `identity_id`.** `kombe_my_memberships()`, appelée par presque chaque écran, parcourait toute la table : 131 M de lignes lues en 3 minutes. Index ajouté (0040) : environ 2 ms → 0,5 ms par appel.
+2. **Limitation de débit.** Le ménage de `kombe_rate_hit` parcourait toute la table à chaque tentative de connexion (100 M de lignes lues). Corrigé par un index et un ménage effectué un appel sur cinquante (0040).
+3. **Ouverture de transaction.** Elle coûtait 4 allers-retours ; il n'en reste qu'un, et les délais sont posés par la connexion. La pastille passe de 8,2 à 5 instructions par requête.
+4. **Dispatcher de notifications.** Une réclamation était lancée à chaque écriture (27 000 réclamations vides). Les déclenchements sont désormais regroupés : un traitement à la fois, plus un traitement de suite. Résultat : environ 4 fois moins de réclamations, et toujours un envoi en moins d'une seconde environ.
+5. **Relances.** Elles étaient produites personne par personne ; elles le sont maintenant par groupe, au plus toutes les 2 minutes.
+6. **Lectures en double** (tours, caisses, parts, règlement, noms) dans une même requête de lecture : cache limité à la requête (« mes tontines » : 31 → 26 instructions).
+7. **Existence de la table photo** vérifiée à chaque requête : désormais retenue une fois trouvée.
+8. **Tâche planifiée.** Tous les groupes passaient dans une seule transaction. Désormais : une transaction par groupe, un budget de temps et un départ tournant.
+
+### Coût par requête au pic (mesuré pendant la simulation)
+
+| Composant | CPU par requête | À 360 req/s (pic d'arrivée) | À 200 req/s (5 000 personnes en régime établi) |
+|---|---|---|---|
+| PostgreSQL | **5,6 ms** | ≈ 2,0 cœurs | ≈ 1,1 cœur |
+| API (Node) | 2,9 ms | ≈ 1,0 cœur, réparti entre les instances | ≈ 0,6 cœur |
+| Pooler | 1,0 ms | géré par Neon | géré par Neon |
+
+**Conclusion.** Sur le banc, la saturation pendant la rafale vient de la machine : les 4 cœurs sont partagés entre la base, le pooler, 3 API et le générateur. Le code tient la charge sans erreur. En production, l'API se répartit sur les instances Vercel, et **la ressource à dimensionner est le calcul Neon** (voir 12).

@@ -36,12 +36,33 @@ async function produceReminders(db: Db, identityId: string, nowMs: number): Prom
    et l'ouverture de la liste, elle, produit toujours. */
 const REMINDER_WINDOW_MS = 10 * 60_000;
 const lastReminderRun = new Map<string, number>();
+/* Production PAR GROUPE (pour tous ses membres) au plus toutes les 2 min et
+   par instance : à 5 000 personnes, la production par personne refaisait le
+   même calcul pour chacun des membres d'un groupe (mesuré, banc 5 000). Le
+   traitement de groupe est un sur-ensemble du traitement par personne. */
+const GROUP_WINDOW_MS = 2 * 60_000;
+const lastGroupRun = new Map<string, number>();
 async function produceRemindersThrottled(db: Db, identityId: string, nowMs: number): Promise<void> {
   const last = lastReminderRun.get(identityId);
   if (last !== undefined && nowMs - last >= 0 && nowMs - last < REMINDER_WINDOW_MS) return;
   if (lastReminderRun.size > 50_000) lastReminderRun.clear();
   lastReminderRun.set(identityId, nowMs);
-  await produceReminders(db, identityId, nowMs);
+  const mine = await db.query(`SELECT DISTINCT group_id FROM kombe_my_memberships() WHERE membership_state IN ('active','pending')`);
+  for (const row of mine.rows) {
+    const gid = String(row.group_id);
+    const g = lastGroupRun.get(gid);
+    if (g !== undefined && nowMs - g >= 0 && nowMs - g < GROUP_WINDOW_MS) continue;
+    if (lastGroupRun.size > 50_000) lastGroupRun.clear();
+    lastGroupRun.set(gid, nowMs);
+    await db.query("SAVEPOINT rappel");
+    try {
+      await scopeGroup(db, gid);
+      await processGroupDeadlines(db, gid, nowMs);
+      await db.query("RELEASE SAVEPOINT rappel");
+    } catch {
+      await db.query("ROLLBACK TO SAVEPOINT rappel");
+    }
+  }
 }
 
 const EVENT_LABELS: Readonly<Record<string, string>> = {
