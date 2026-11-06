@@ -1,0 +1,69 @@
+{
+  "$description": "Jetons KÓMBE réellement utilisés en production (kombe_colors.dart, kombe_theme.dart, systeme.css). Format W3C Design Tokens. packages/brand/tokens/kombe.tokens.json contient encore l'ancienne palette.",
+  "couleur": {
+    "marque": {
+      "vert": { "$type": "color", "$value": "#12805C", "$description": "Aplats, héros, sélection. Texte blanc dessus : 4,9:1" },
+      "safran": { "$type": "color", "$value": "#F2B01E", "$description": "L'action, texte encre dessus" },
+      "foret": { "$type": "color", "$value": "#103C32", "$description": "Texte et icônes uniquement, jamais en aplat" },
+      "olive": { "$type": "color", "$value": "#A8AD3B", "$description": "Accent de l'écran de connexion uniquement" }
+    },
+    "neutre": {
+      "ivoire": { "$type": "color", "$value": "#FBF8F1" },
+      "sable": { "$type": "color", "$value": "#F3ECDD" },
+      "menthe": { "$type": "color", "$value": "#DCEFE6" },
+      "menthe-pale": { "$type": "color", "$value": "#EEF7F2" },
+      "blanc": { "$type": "color", "$value": "#FFFFFF" },
+      "trait": { "$type": "color", "$value": "#E7DCC6" },
+      "trait-fort": { "$type": "color", "$value": "#D9D0BC" }
+    },
+    "texte": {
+      "encre": { "$type": "color", "$value": "#13211C" },
+      "ardoise": { "$type": "color", "$value": "#56645E" }
+    },
+    "etat": {
+      "danger": { "$type": "color", "$value": "#B42318", "$description": "Retard et erreur seulement" },
+      "danger-fond": { "$type": "color", "$value": "#FBEAE7" },
+      "succes-fond": { "$type": "color", "$value": "#E3F2EA" },
+      "attente-fond": { "$type": "color", "$value": "#FBF0DE" },
+      "or-texte": { "$type": "color", "$value": "#8A5F14" },
+      "or-pale": { "$type": "color", "$value": "#FFEDBF" }
+    },
+    "teinte": {
+      "1": { "$type": "color", "$value": "#D5EBDF" },
+      "2": { "$type": "color", "$value": "#F6E7BF" },
+      "3": { "$type": "color", "$value": "#EFE6D2" },
+      "4": { "$type": "color", "$value": "#E6EBCB" },
+      "5": { "$type": "color", "$value": "#F0DED2" },
+      "6": { "$type": "color", "$value": "#DEE8E6" },
+      "7": { "$type": "color", "$value": "#E9E4D8" },
+      "8": { "$type": "color", "$value": "#E3EFE6" }
+    }
+  },
+  "rayon": {
+    "carte": { "$type": "dimension", "$value": "22px" },
+    "champ": { "$type": "dimension", "$value": "16px" },
+    "pastille": { "$type": "dimension", "$value": "999px" }
+  },
+  "espace": {
+    "1": { "$type": "dimension", "$value": "4px" },
+    "2": { "$type": "dimension", "$value": "8px" },
+    "3": { "$type": "dimension", "$value": "12px" },
+    "4": { "$type": "dimension", "$value": "16px" },
+    "5": { "$type": "dimension", "$value": "20px" },
+    "6": { "$type": "dimension", "$value": "24px" },
+    "8": { "$type": "dimension", "$value": "32px" },
+    "12": { "$type": "dimension", "$value": "48px" },
+    "cible-tactile": { "$type": "dimension", "$value": "48px" }
+  },
+  "texte": {
+    "Titre/Écran": { "$type": "typography", "$value": { "fontFamily": "Merriweather", "fontWeight": 400, "fontSize": "26px", "lineHeight": "32px" } },
+    "Titre/Section": { "$type": "typography", "$value": { "fontFamily": "Merriweather", "fontWeight": 400, "fontSize": "19px", "lineHeight": "24px" } },
+    "Titre/Nom de groupe": { "$type": "typography", "$value": { "fontFamily": "Merriweather", "fontWeight": 400, "fontSize": "18px", "lineHeight": "24px" } },
+    "Montant/Héros": { "$type": "typography", "$value": { "fontFamily": "Libre Franklin", "fontWeight": 600, "fontSize": "48px", "lineHeight": "53px" } },
+    "Montant/Carte": { "$type": "typography", "$value": { "fontFamily": "Libre Franklin", "fontWeight": 600, "fontSize": "30px", "lineHeight": "33px" } },
+    "Interface/Corps": { "$type": "typography", "$value": { "fontFamily": "Libre Franklin", "fontWeight": 400, "fontSize": "16px", "lineHeight": "24px" } },
+    "Interface/Libellé": { "$type": "typography", "$value": { "fontFamily": "Libre Franklin", "fontWeight": 600, "fontSize": "14px", "lineHeight": "20px" } },
+    "Interface/Petit": { "$type": "typography", "$value": { "fontFamily": "Libre Franklin", "fontWeight": 400, "fontSize": "14px", "lineHeight": "20px" } },
+    "Connexion/Titre": { "$type": "typography", "$value": { "fontFamily": "Manrope", "fontWeight": 800, "fontSize": "40px", "lineHeight": "44px" } }
+  }
+}

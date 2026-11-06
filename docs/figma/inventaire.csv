@@ -1,0 +1,235 @@
+﻿groupe;ecran;route;largeur;hauteur;source;format
+console-bureau-1440;accueil;/bureau/#/;1440;952;Web;Calques + PNG
+console-bureau-1440;collecte;/bureau/#/collecte;1440;1196;Web;Calques + PNG
+console-bureau-1440;connexion;/bureau/;1440;900;Web;Calques + PNG
+console-bureau-1440;discipline;/bureau/#/discipline;1440;900;Web;Calques + PNG
+console-bureau-1440;membres;/bureau/#/membres;1440;1121;Web;Calques + PNG
+console-bureau-1440;mouvements;/bureau/#/mouvements;1440;1144;Web;Calques + PNG
+console-bureau-1440;registre;/bureau/#/registre;1440;900;Web;Calques + PNG
+console-bureau-1440;reglement;/bureau/#/reglement;1440;941;Web;Calques + PNG
+console-bureau-1440;seances;/bureau/#/seances;1440;900;Web;Calques + PNG
+console-bureau-1440;votes;/bureau/#/votes;1440;900;Web;Calques + PNG
+console-bureau-390;accueil;/bureau/#/;390;1868;Web;Calques + PNG
+console-bureau-390;collecte;/bureau/#/collecte;390;2297;Web;Calques + PNG
+console-bureau-390;connexion;/bureau/;390;1005;Web;Calques + PNG
+console-bureau-390;discipline;/bureau/#/discipline;390;1282;Web;Calques + PNG
+console-bureau-390;membres;/bureau/#/membres;390;1770;Web;Calques + PNG
+console-bureau-390;mouvements;/bureau/#/mouvements;390;1662;Web;Calques + PNG
+console-bureau-390;registre;/bureau/#/registre;390;1098;Web;Calques + PNG
+console-bureau-390;reglement;/bureau/#/reglement;390;1377;Web;Calques + PNG
+console-bureau-390;seances;/bureau/#/seances;390;1019;Web;Calques + PNG
+console-bureau-390;votes;/bureau/#/votes;390;1156;Web;Calques + PNG
+console-direction-1440;accueil;/direction/#/;1440;1731;Web;Calques + PNG
+console-direction-1440;cohorts;/direction/#/cohorts;1440;900;Web;Calques + PNG
+console-direction-1440;connexion;/direction/;1440;900;Web;Calques + PNG
+console-direction-1440;economics;/direction/#/economics;1440;900;Web;Calques + PNG
+console-direction-1440;funnel;/direction/#/funnel;1440;900;Web;Calques + PNG
+console-direction-1440;gates;/direction/#/gates;1440;900;Web;Calques + PNG
+console-direction-1440;pilote;/direction/#/pilote;1440;900;Web;Calques + PNG
+console-direction-1440;risks;/direction/#/risks;1440;1347;Web;Calques + PNG
+console-direction-390;accueil;/direction/#/;390;2788;Web;Calques + PNG
+console-direction-390;cohorts;/direction/#/cohorts;390;844;Web;Calques + PNG
+console-direction-390;connexion;/direction/;390;1005;Web;Calques + PNG
+console-direction-390;economics;/direction/#/economics;390;1292;Web;Calques + PNG
+console-direction-390;funnel;/direction/#/funnel;390;844;Web;Calques + PNG
+console-direction-390;gates;/direction/#/gates;390;902;Web;Calques + PNG
+console-direction-390;pilote;/direction/#/pilote;390;936;Web;Calques + PNG
+console-direction-390;risks;/direction/#/risks;390;1752;Web;Calques + PNG
+console-engineering-1440;accueil;/engineering/#/;1440;1051;Web;Calques + PNG
+console-engineering-1440;connexion;/engineering/;1440;900;Web;Calques + PNG
+console-engineering-1440;integration;/engineering/#/integration;1749;2262;Web;Calques + PNG
+console-engineering-390;accueil;/engineering/#/;390;1801;Web;Calques + PNG
+console-engineering-390;connexion;/engineering/;390;1005;Web;Calques + PNG
+console-engineering-390;integration;/engineering/#/integration;808;4540;Web;Calques + PNG
+console-ops-1440;accueil;/ops/#/;1440;967;Web;Calques + PNG
+console-ops-1440;connexion;/ops/;1440;900;Web;Calques + PNG
+console-ops-1440;groupes;/ops/#/groupes;1440;900;Web;Calques + PNG
+console-ops-1440;runbooks;/ops/#/runbooks;1440;1080;Web;Calques + PNG
+console-ops-1440;sante;/ops/#/sante;1440;900;Web;Calques + PNG
+console-ops-1440;support;/ops/#/support;1440;900;Web;Calques + PNG
+console-ops-390;accueil;/ops/#/;390;1973;Web;Calques + PNG
+console-ops-390;connexion;/ops/;390;1005;Web;Calques + PNG
+console-ops-390;groupes;/ops/#/groupes;390;1050;Web;Calques + PNG
+console-ops-390;runbooks;/ops/#/runbooks;390;2074;Web;Calques + PNG
+console-ops-390;sante;/ops/#/sante;390;844;Web;Calques + PNG
+console-ops-390;support;/ops/#/support;390;1343;Web;Calques + PNG
+mobile-tablette;app_00_accueil_membre;;820;1240;Flutter;PNG
+mobile-tablette;app_01_accueil;;820;1310;Flutter;PNG
+mobile-tablette;app_02_cotisations;;820;1180;Flutter;PNG
+mobile-tablette;app_03_groupes;;820;1180;Flutter;PNG
+mobile-tablette;app_04_notifications;;820;1180;Flutter;PNG
+mobile-tablette;app_05_bureau;;820;1180;Flutter;PNG
+mobile-tablette;app_07_rejoindre;;820;1180;Flutter;PNG
+mobile-tablette;app_08_creer_groupe;;820;1797;Flutter;PNG
+mobile-tablette;auth_00_bienvenue;;820;1180;Flutter;PNG
+mobile-tablette;auth_01_connexion;;820;1180;Flutter;PNG
+mobile-tablette;auth_02_inscription;;820;1180;Flutter;PNG
+mobile-tablette;auth_03_code;;820;1180;Flutter;PNG
+mobile-tablette;auth_04_recuperation;;820;1180;Flutter;PNG
+mobile-tablette;auth_05_serveur_requis;;820;1180;Flutter;PNG
+mobile-tablette;decision_01_votes;;820;1180;Flutter;PNG
+mobile-tablette;decision_02_vote;;820;1180;Flutter;PNG
+mobile-tablette;decision_03_amendes;;820;1180;Flutter;PNG
+mobile-tablette;groupe_01_detail;;820;1180;Flutter;PNG
+mobile-tablette;groupe_02_membres;;820;1180;Flutter;PNG
+mobile-tablette;groupe_03_membre;;820;1180;Flutter;PNG
+mobile-tablette;groupe_04_cycle;;820;1180;Flutter;PNG
+mobile-tablette;groupe_05_beneficiaires;;820;1180;Flutter;PNG
+mobile-tablette;groupe_06_bureau;;820;1180;Flutter;PNG
+mobile-tablette;groupe_07_caisses;;820;1180;Flutter;PNG
+mobile-tablette;groupe_08_regles;;820;1180;Flutter;PNG
+mobile-tablette;groupe_09_inviter;;820;1180;Flutter;PNG
+mobile-tablette;groupe_10_reglages;;820;1180;Flutter;PNG
+mobile-tablette;groupe_11_seances;;820;1180;Flutter;PNG
+mobile-tablette;groupe_12_seance;;820;1180;Flutter;PNG
+mobile-tablette;info_01_documents;;820;1180;Flutter;PNG
+mobile-tablette;info_02_aide;;820;1180;Flutter;PNG
+mobile-tablette;info_03_support;;820;1180;Flutter;PNG
+mobile-tablette;info_04_hors_ligne;;820;1180;Flutter;PNG
+mobile-tablette;info_05_a_propos;;820;1180;Flutter;PNG
+mobile-tablette;nav_01_menu;;820;1180;Flutter;PNG
+mobile-tablette;nav_02_changer_groupe;;820;1180;Flutter;PNG
+mobile-tablette;paiement_01_declarer;;820;1180;Flutter;PNG
+mobile-tablette;paiement_02_detail;;820;1180;Flutter;PNG
+mobile-tablette;paiement_03_validations;;820;1180;Flutter;PNG
+mobile-tablette;paiement_04_validation;;820;1180;Flutter;PNG
+mobile-tablette;profil_01_profil;;820;1295;Flutter;PNG
+mobile-tablette;profil_02_modifier;;820;1180;Flutter;PNG
+mobile-tablette;reglages_01_securite;;820;1180;Flutter;PNG
+mobile-tablette;reglages_02_langue;;820;1180;Flutter;PNG
+mobile-tablette;reglages_03_alertes;;820;1180;Flutter;PNG
+mobile-tablette;reglages_04_confidentialite;;820;1180;Flutter;PNG
+mobile-telephone;app_00_accueil_membre;;390;1324;Flutter;PNG
+mobile-telephone;app_01_accueil;;390;1310;Flutter;PNG
+mobile-telephone;app_02_cotisations;;390;844;Flutter;PNG
+mobile-telephone;app_03_groupes;;390;844;Flutter;PNG
+mobile-telephone;app_04_notifications;;390;844;Flutter;PNG
+mobile-telephone;app_05_bureau;;390;943;Flutter;PNG
+mobile-telephone;app_07_rejoindre;;390;844;Flutter;PNG
+mobile-telephone;app_08_creer_groupe;;390;2165;Flutter;PNG
+mobile-telephone;auth_00_bienvenue;;390;957;Flutter;PNG
+mobile-telephone;auth_01_connexion;;390;844;Flutter;PNG
+mobile-telephone;auth_02_inscription;;390;844;Flutter;PNG
+mobile-telephone;auth_03_code;;390;844;Flutter;PNG
+mobile-telephone;auth_04_recuperation;;390;844;Flutter;PNG
+mobile-telephone;auth_05_serveur_requis;;390;844;Flutter;PNG
+mobile-telephone;decision_01_votes;;390;844;Flutter;PNG
+mobile-telephone;decision_02_vote;;390;844;Flutter;PNG
+mobile-telephone;decision_03_amendes;;390;844;Flutter;PNG
+mobile-telephone;groupe_01_detail;;390;893;Flutter;PNG
+mobile-telephone;groupe_02_membres;;390;1130;Flutter;PNG
+mobile-telephone;groupe_03_membre;;390;844;Flutter;PNG
+mobile-telephone;groupe_04_cycle;;390;912;Flutter;PNG
+mobile-telephone;groupe_05_beneficiaires;;390;982;Flutter;PNG
+mobile-telephone;groupe_06_bureau;;390;873;Flutter;PNG
+mobile-telephone;groupe_07_caisses;;390;1007;Flutter;PNG
+mobile-telephone;groupe_08_regles;;390;844;Flutter;PNG
+mobile-telephone;groupe_09_inviter;;390;844;Flutter;PNG
+mobile-telephone;groupe_10_reglages;;390;844;Flutter;PNG
+mobile-telephone;groupe_11_seances;;390;844;Flutter;PNG
+mobile-telephone;groupe_12_seance;;390;849;Flutter;PNG
+mobile-telephone;info_01_documents;;390;844;Flutter;PNG
+mobile-telephone;info_02_aide;;390;844;Flutter;PNG
+mobile-telephone;info_03_support;;390;844;Flutter;PNG
+mobile-telephone;info_04_hors_ligne;;390;844;Flutter;PNG
+mobile-telephone;info_05_a_propos;;390;844;Flutter;PNG
+mobile-telephone;nav_01_menu;;390;844;Flutter;PNG
+mobile-telephone;nav_02_changer_groupe;;390;844;Flutter;PNG
+mobile-telephone;paiement_01_declarer;;390;912;Flutter;PNG
+mobile-telephone;paiement_02_detail;;390;844;Flutter;PNG
+mobile-telephone;paiement_03_validations;;390;844;Flutter;PNG
+mobile-telephone;paiement_04_validation;;390;844;Flutter;PNG
+mobile-telephone;profil_01_profil;;390;1335;Flutter;PNG
+mobile-telephone;profil_02_modifier;;390;844;Flutter;PNG
+mobile-telephone;reglages_01_securite;;390;844;Flutter;PNG
+mobile-telephone;reglages_02_langue;;390;844;Flutter;PNG
+mobile-telephone;reglages_03_alertes;;390;844;Flutter;PNG
+mobile-telephone;reglages_04_confidentialite;;390;844;Flutter;PNG
+pwa-1440;accueil;#/;1440;1036;Web;Calques + PNG
+pwa-1440;aide;#/aide;1440;1330;Web;Calques + PNG
+pwa-1440;connexion;#/ (déconnecté);1440;941;Web;Calques + PNG
+pwa-1440;cotisations;#/cotisations;1440;3999;Web;Calques + PNG
+pwa-1440;creer;#/creer;1440;900;Web;Calques + PNG
+pwa-1440;documents;#/documents;1440;1498;Web;Calques + PNG
+pwa-1440;groupe_grp-etoiles_apercu;#/groupe/grp-etoiles/apercu;1440;2460;Web;Calques + PNG
+pwa-1440;groupe_grp-etoiles_argent;#/groupe/grp-etoiles/argent;1440;2758;Web;Calques + PNG
+pwa-1440;groupe_grp-etoiles_decisions;#/groupe/grp-etoiles/decisions;1440;1142;Web;Calques + PNG
+pwa-1440;groupe_grp-etoiles_discipline;#/groupe/grp-etoiles/discipline;1440;1198;Web;Calques + PNG
+pwa-1440;groupe_grp-etoiles_journal;#/groupe/grp-etoiles/journal;1440;1829;Web;Calques + PNG
+pwa-1440;groupe_grp-etoiles_membres;#/groupe/grp-etoiles/membres;1440;2092;Web;Calques + PNG
+pwa-1440;groupe_grp-etoiles_reglages;#/groupe/grp-etoiles/reglages;1440;1727;Web;Calques + PNG
+pwa-1440;groupe_grp-etoiles_seances;#/groupe/grp-etoiles/seances;1440;1866;Web;Calques + PNG
+pwa-1440;groupe_grp-etoiles_statuts;#/groupe/grp-etoiles/statuts;1440;1084;Web;Calques + PNG
+pwa-1440;groupe_grp-etoiles_tours;#/groupe/grp-etoiles/tours;1440;2903;Web;Calques + PNG
+pwa-1440;groupes;#/groupes;1440;900;Web;Calques + PNG
+pwa-1440;notifications;#/notifications;1440;900;Web;Calques + PNG
+pwa-1440;profil;#/profil;1440;1719;Web;Calques + PNG
+pwa-1440;rejoindre;#/rejoindre;1440;900;Web;Calques + PNG
+pwa-1440;rejoindre_ETOILE7;#/rejoindre/ETOILE7;1440;900;Web;Calques + PNG
+pwa-1440;validations;#/validations;1440;900;Web;Calques + PNG
+pwa-390;accueil;#/;390;1326;Web;Calques + PNG
+pwa-390;aide;#/aide;390;1965;Web;Calques + PNG
+pwa-390;connexion;#/ (déconnecté);390;2138;Web;Calques + PNG
+pwa-390;cotisations;#/cotisations;390;6901;Web;Calques + PNG
+pwa-390;creer;#/creer;390;844;Web;Calques + PNG
+pwa-390;documents;#/documents;390;1681;Web;Calques + PNG
+pwa-390;groupe_grp-etoiles_apercu;#/groupe/grp-etoiles/apercu;390;4442;Web;Calques + PNG
+pwa-390;groupe_grp-etoiles_argent;#/groupe/grp-etoiles/argent;390;3596;Web;Calques + PNG
+pwa-390;groupe_grp-etoiles_decisions;#/groupe/grp-etoiles/decisions;390;1478;Web;Calques + PNG
+pwa-390;groupe_grp-etoiles_discipline;#/groupe/grp-etoiles/discipline;390;1481;Web;Calques + PNG
+pwa-390;groupe_grp-etoiles_journal;#/groupe/grp-etoiles/journal;390;2345;Web;Calques + PNG
+pwa-390;groupe_grp-etoiles_membres;#/groupe/grp-etoiles/membres;390;3500;Web;Calques + PNG
+pwa-390;groupe_grp-etoiles_reglages;#/groupe/grp-etoiles/reglages;390;1940;Web;Calques + PNG
+pwa-390;groupe_grp-etoiles_seances;#/groupe/grp-etoiles/seances;390;2079;Web;Calques + PNG
+pwa-390;groupe_grp-etoiles_statuts;#/groupe/grp-etoiles/statuts;390;1224;Web;Calques + PNG
+pwa-390;groupe_grp-etoiles_tours;#/groupe/grp-etoiles/tours;390;3727;Web;Calques + PNG
+pwa-390;groupes;#/groupes;390;954;Web;Calques + PNG
+pwa-390;notifications;#/notifications;390;846;Web;Calques + PNG
+pwa-390;profil;#/profil;390;2894;Web;Calques + PNG
+pwa-390;rejoindre;#/rejoindre;390;844;Web;Calques + PNG
+pwa-390;rejoindre_ETOILE7;#/rejoindre/ETOILE7;390;844;Web;Calques + PNG
+pwa-390;validations;#/validations;390;844;Web;Calques + PNG
+pwa-820;accueil;#/;820;1248;Web;Calques + PNG
+pwa-820;aide;#/aide;820;1396;Web;Calques + PNG
+pwa-820;connexion;#/ (déconnecté);820;1586;Web;Calques + PNG
+pwa-820;cotisations;#/cotisations;820;4251;Web;Calques + PNG
+pwa-820;creer;#/creer;820;900;Web;Calques + PNG
+pwa-820;documents;#/documents;820;1563;Web;Calques + PNG
+pwa-820;groupe_grp-etoiles_apercu;#/groupe/grp-etoiles/apercu;820;3358;Web;Calques + PNG
+pwa-820;groupe_grp-etoiles_argent;#/groupe/grp-etoiles/argent;820;2791;Web;Calques + PNG
+pwa-820;groupe_grp-etoiles_decisions;#/groupe/grp-etoiles/decisions;820;1179;Web;Calques + PNG
+pwa-820;groupe_grp-etoiles_discipline;#/groupe/grp-etoiles/discipline;820;1251;Web;Calques + PNG
+pwa-820;groupe_grp-etoiles_journal;#/groupe/grp-etoiles/journal;820;1849;Web;Calques + PNG
+pwa-820;groupe_grp-etoiles_membres;#/groupe/grp-etoiles/membres;820;2119;Web;Calques + PNG
+pwa-820;groupe_grp-etoiles_reglages;#/groupe/grp-etoiles/reglages;820;1676;Web;Calques + PNG
+pwa-820;groupe_grp-etoiles_seances;#/groupe/grp-etoiles/seances;820;1919;Web;Calques + PNG
+pwa-820;groupe_grp-etoiles_statuts;#/groupe/grp-etoiles/statuts;820;1113;Web;Calques + PNG
+pwa-820;groupe_grp-etoiles_tours;#/groupe/grp-etoiles/tours;820;2984;Web;Calques + PNG
+pwa-820;groupes;#/groupes;820;900;Web;Calques + PNG
+pwa-820;notifications;#/notifications;820;900;Web;Calques + PNG
+pwa-820;profil;#/profil;820;2498;Web;Calques + PNG
+pwa-820;rejoindre;#/rejoindre;820;900;Web;Calques + PNG
+pwa-820;rejoindre_ETOILE7;#/rejoindre/ETOILE7;820;900;Web;Calques + PNG
+pwa-820;validations;#/validations;820;900;Web;Calques + PNG
+site-1440;site;/site/;1440;9610;Web;Calques + PNG
+site-1440;site_a-propos;/site/a-propos/;1440;3867;Web;Calques + PNG
+site-1440;site_aide;/site/aide/;1440;5303;Web;Calques + PNG
+site-1440;site_legal;/site/legal/;1440;2227;Web;Calques + PNG
+site-1440;site_legal_conditions;/site/legal/conditions/;1440;4463;Web;Calques + PNG
+site-1440;site_legal_confidentialite;/site/legal/confidentialite/;1440;4109;Web;Calques + PNG
+site-1440;site_legal_cookies;/site/legal/cookies/;1440;3078;Web;Calques + PNG
+site-1440;site_legal_mentions-legales;/site/legal/mentions-legales/;1440;2651;Web;Calques + PNG
+site-1440;site_securite;/site/securite/;1440;4248;Web;Calques + PNG
+site-1440;site_telecharger;/site/telecharger/;1440;3455;Web;Calques + PNG
+site-1440;telecharger;/telecharger/;1440;933;Web;Calques + PNG
+site-390;site;/site/;390;11813;Web;Calques + PNG
+site-390;site_a-propos;/site/a-propos/;390;5068;Web;Calques + PNG
+site-390;site_aide;/site/aide/;390;7548;Web;Calques + PNG
+site-390;site_legal;/site/legal/;390;2641;Web;Calques + PNG
+site-390;site_legal_conditions;/site/legal/conditions/;390;6700;Web;Calques + PNG
+site-390;site_legal_confidentialite;/site/legal/confidentialite/;580;4980;Web;Calques + PNG
+site-390;site_legal_cookies;/site/legal/cookies/;580;3660;Web;Calques + PNG
+site-390;site_legal_mentions-legales;/site/legal/mentions-legales/;390;3182;Web;Calques + PNG
+site-390;site_securite;/site/securite/;390;5910;Web;Calques + PNG
+site-390;site_telecharger;/site/telecharger/;390;4145;Web;Calques + PNG
+site-390;telecharger;/telecharger/;390;1032;Web;Calques + PNG
