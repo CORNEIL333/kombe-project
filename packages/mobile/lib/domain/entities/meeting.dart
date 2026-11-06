@@ -16,6 +16,21 @@ String meetingStateLabel(MeetingState s) => switch (s) {
       MeetingState.cancelled => 'Annulée',
     };
 
+/// Modalité d'une séance (0041).
+enum MeetingFormat { inPerson, online, hybrid }
+
+MeetingFormat meetingFormatFrom(Object? v) => switch ('$v') {
+      'online' => MeetingFormat.online,
+      'hybrid' => MeetingFormat.hybrid,
+      _ => MeetingFormat.inPerson,
+    };
+
+String meetingFormatLabel(MeetingFormat f) => switch (f) {
+      MeetingFormat.inPerson => 'Sur place',
+      MeetingFormat.online => 'En ligne',
+      MeetingFormat.hybrid => 'Sur place et en ligne',
+    };
+
 enum AttendanceStatus { present, late, excused, absent, represented, unknown }
 
 AttendanceStatus attendanceStatusFrom(Object? v) => switch ('$v') {
@@ -47,6 +62,8 @@ class MeetingSummary {
     this.location,
     this.hostName,
     this.roundSeq,
+    this.format = MeetingFormat.inPerson,
+    this.onlineUrl,
   });
 
   final String meetingId;
@@ -58,6 +75,10 @@ class MeetingSummary {
   final String? location;
   final String? hostName;
   final int? roundSeq;
+
+  /// Présentiel, en ligne ou les deux (0041) ; lien https si en ligne.
+  final MeetingFormat format;
+  final String? onlineUrl;
 }
 
 final class MeetingAttendance {
@@ -87,6 +108,8 @@ final class MeetingDetail extends MeetingSummary {
     super.location,
     super.hostName,
     super.roundSeq,
+    super.format,
+    super.onlineUrl,
     this.notes,
     this.minutes,
   });

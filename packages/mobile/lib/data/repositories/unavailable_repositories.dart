@@ -14,6 +14,8 @@ import '../../domain/entities/governance.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
 import '../../domain/entities/profile.dart';
+import '../../domain/entities/poll.dart';
+import '../../domain/repositories/poll_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
@@ -220,6 +222,32 @@ final class UnavailableFineRepository implements FineRepository {
   @override
   Future<OperationResult<MyFine>> contestFine({required MyFine fine, required String reason}) async =>
       const OperationBlocked<MyFine>(_reason);
+
+  @override
+  Future<Resource<List<MyFine>>> listGroupFines({required String groupId, required String groupName}) async => const ResourceUnavailable<List<MyFine>>();
+
+  @override
+  Future<OperationResult<MyFine>> cancelFine({required MyFine fine, required String reason}) async => const OperationBlocked<MyFine>(_reason);
+
+  @override
+  Future<OperationResult<MyFine>> refundFine({required MyFine fine, required String channel, String? reference}) async => const OperationBlocked<MyFine>(_reason);
+}
+
+final class UnavailablePollRepository implements PollRepository {
+  const UnavailablePollRepository();
+
+  @override
+  Future<Resource<List<Poll>>> listPolls(String groupId) async => const ResourceUnavailable<List<Poll>>();
+
+  @override
+  Future<OperationResult<Poll>> openPoll(String groupId, PollDraft draft) async => const OperationBlocked<Poll>(_reason);
+
+  @override
+  Future<OperationResult<Poll>> answer({required String groupId, required String pollId, required List<int> choices, String? freeAnswer}) async =>
+      const OperationBlocked<Poll>(_reason);
+
+  @override
+  Future<OperationResult<Poll>> end({required String groupId, required String pollId, required bool cancel}) async => const OperationBlocked<Poll>(_reason);
 }
 
 final class UnavailableMeetingRepository implements MeetingRepository {

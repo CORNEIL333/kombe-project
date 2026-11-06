@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/formatters/douala_time.dart';
 import '../../core/state/resource.dart';
@@ -58,7 +59,8 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
                 Text('Séance ${m.seq}', style: t.titleMedium),
                 const SizedBox(height: 2),
                 Text(DoualaTime.date(m.date), style: t.bodyMedium),
-                if (m.location != null) Text(m.location!, style: t.bodySmall),
+                if (m.format != MeetingFormat.online && m.location != null) Text(m.location!, style: t.bodySmall),
+                if (m.format != MeetingFormat.inPerson) Text(meetingFormatLabel(m.format), style: t.bodySmall),
                 const SizedBox(height: 8),
                 StatusPill(meetingStateLabel(m.state), tone: _toneOf(m.state)),
               ],
@@ -144,12 +146,21 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                         StatusPill(meetingStateLabel(m.state), tone: _toneOf(m.state)),
                         const SizedBox(height: 12),
                         KombeFact(icon: Icons.event_outlined, label: 'Date', value: DoualaTime.date(m.date)),
-                        if (m.location != null) KombeFact(icon: Icons.place_outlined, label: 'Lieu', value: m.location!),
+                        KombeFact(icon: Icons.videocam_outlined, label: 'Modalité', value: meetingFormatLabel(m.format)),
+                        if (m.format != MeetingFormat.online && m.location != null) KombeFact(icon: Icons.place_outlined, label: 'Lieu', value: m.location!),
                         if (m.hostName != null) KombeFact(icon: Icons.home_outlined, label: 'Reçoit', value: m.hostName!),
                         if (m.roundSeq != null) KombeFact(icon: Icons.donut_large_rounded, label: 'Tour', value: '${m.roundSeq}'),
                       ],
                     ),
                   ),
+                  if (m.onlineUrl != null && m.format != MeetingFormat.inPerson && (m.state == MeetingState.planned || m.state == MeetingState.open)) ...<Widget>[
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: () => launchUrl(Uri.parse(m.onlineUrl!), mode: LaunchMode.externalApplication),
+                      icon: const Icon(Icons.videocam_rounded),
+                      label: const Text('Rejoindre la réunion en ligne'),
+                    ),
+                  ],
                   if (m.notes != null && m.notes!.isNotEmpty) ...<Widget>[
                     const KombeSection('Notes'),
                     KombeCard(child: Text(m.notes!)),

@@ -20,6 +20,8 @@ import '../../domain/entities/governance.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
 import '../../domain/entities/profile.dart';
+import '../../domain/entities/poll.dart';
+import '../../domain/repositories/poll_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
@@ -1087,6 +1089,16 @@ final class TontineDashboardRepository implements DashboardRepository {
             .toList()
           ..sort();
         final Map<String, dynamic>? meeting = r[1].body['nextMeeting'] as Map<String, dynamic>?;
+        // Tableau de bord et votes libres : lectures tolérantes (un échec n'empêche pas l'accueil).
+        List<Map<String, dynamic>> rounds = const <Map<String, dynamic>>[];
+        List<Map<String, dynamic>> polls = const <Map<String, dynamic>>[];
+        try {
+          final List<ApiResponse> extra = await Future.wait(<Future<ApiResponse>>[_api.get('$t/rounds'), _api.get('$t/polls')]);
+          rounds = _items(extra[0]);
+          polls = _items(extra[1]);
+        } on Object {
+          // accueil sans tableau de bord
+        }
         final List<Map<String, dynamic>> mine = _items(r[2]).where((Map<String, dynamic> m) => m['kind'] == 'contribution').toList();
         final List<PendingVote> votes = _items(r[3])
             .where((Map<String, dynamic> d) =>
@@ -1119,6 +1131,19 @@ final class TontineDashboardRepository implements DashboardRepository {
               .take(3)
               .map(TontineNotificationRepository.notification)
               .toList(),
+          rounds: <RoundProgress>[
+            for (final Map<String, dynamic> x in rounds)
+              RoundProgress(
+                seq: (x['seq'] as num).toInt(),
+                date: _date(x['date']),
+                collectedXaf: _xaf(x['collected']),
+                expectedXaf: _xaf(x['expectedPot']),
+                open: x['state'] == 'open',
+                label: (x['shareLabel'] ?? x['beneficiaryName']) as String?,
+              ),
+          ],
+          openPolls: polls.where((Map<String, dynamic> p) => p['state'] == 'open' && p['myBallot'] == null).length,
+          nextMeetingOnline: meeting != null && meeting['format'] != null && meeting['format'] != 'in_person',
         );
       });
 }
@@ -1136,6 +1161,10 @@ MyFine fineFrom(String groupId, String groupName, Map<String, dynamic> f) => MyF
       state: fineStateFrom(f['state']),
       issuedAtUtc: _date(f['issuedAt']),
       issuedByName: f['issuedByName'] as String?,
+      memberName: '${f['memberName'] ?? ''}',
+      membershipId: '${f['membershipId'] ?? ''}',
+      refundDue: f['refundDue'] == true,
+      refundedAtUtc: f['refundedAt'] == null ? null : _date(f['refundedAt']),
     );
 
 /// Les désaccords sur une amende passent par sa contestation
@@ -1168,6 +1197,114 @@ final class TontineFineRepository implements FineRepository {
             .body;
         return fineFrom(fine.groupId, fine.groupName, b);
       });
+
+  @override
+  Future<Resource<List<MyFine>>> listGroupFines({required String groupId, required String groupName}) => _read(() async => <MyFine>[
+        for (final Map<String, dynamic> f in _items(await _api.get('/tontines/${Uri.encodeComponent(groupId)}/fines'))) fineFrom(groupId, groupName, f),
+      ]);
+
+  @override
+  Future<OperationResult<MyFine>> cancelFine({required MyFine fine, required String reason}) => _write<MyFine>(() async => fineFrom(
+        fine.groupId,
+        fine.groupName,
+        (await _api.postOnce(
+          '/tontines/${Uri.encodeComponent(fine.groupId)}/fines/${Uri.encodeComponent(fine.fineId)}/cancel',
+          <String, dynamic>{'reason': reason.trim()},
+        ))
+            .body,
+      ));
+
+  @override
+  Future<OperationResult<MyFine>> refundFine({required MyFine fine, required String channel, String? reference}) => _write<MyFine>(() async => fineFrom(
+        fine.groupId,
+        fine.groupName,
+        (await _api.postOnce(
+          '/tontines/${Uri.encodeComponent(fine.groupId)}/fines/${Uri.encodeComponent(fine.fineId)}/refund',
+          <String, dynamic>{'channel': channel, if (reference != null && reference.trim().isNotEmpty) 'reference': reference.trim()},
+        ))
+            .body,
+      ));
+}
+
+/// `PollView` → [Poll].
+Poll pollFrom(String groupId, Map<String, dynamic> p) {
+  List<int> ints(Object? v) => <int>[for (final Object? x in (v as List<Object?>? ?? const <Object?>[])) (x as num).toInt()];
+  final Map<String, dynamic>? mine = p['myBallot'] as Map<String, dynamic>?;
+  final List<Object?>? voters = p['voters'] as List<Object?>?;
+  return Poll(
+    pollId: '${p['pollId']}',
+    groupId: groupId,
+    question: '${p['question']}',
+    details: p['details'] as String?,
+    options: <String>[for (final Object? o in (p['options'] as List<Object?>? ?? const <Object?>[])) '$o'],
+    allowFreeAnswer: p['allowFreeAnswer'] == true,
+    multiple: p['multiple'] == true,
+    anonymous: p['anonymous'] == true,
+    state: pollStateFrom(p['state']),
+    createdByName: '${p['createdByName'] ?? ''}',
+    createdAtUtc: _date(p['createdAt']),
+    closesAtUtc: p['closesAt'] == null ? null : _date(p['closesAt']),
+    electorate: (p['electorate'] as num?)?.toInt() ?? 0,
+    ballotCount: (p['ballotCount'] as num?)?.toInt() ?? 0,
+    counts: ints(p['counts']),
+    freeAnswers: <PollFreeAnswer>[
+      for (final Object? f in (p['freeAnswers'] as List<Object?>? ?? const <Object?>[]))
+        if (f is Map<String, dynamic>) PollFreeAnswer(text: '${f['text']}', name: f['name'] as String?),
+    ],
+    voters: voters == null
+        ? null
+        : <PollVoter>[
+            for (final Object? v in voters)
+              if (v is Map<String, dynamic>) PollVoter(name: '${v['name']}', choices: ints(v['choices'])),
+          ],
+    myChoices: mine == null ? null : ints(mine['choices']),
+    myFreeAnswer: mine?['freeAnswer'] as String?,
+    canManage: p['canManage'] == true,
+  );
+}
+
+/// Votes libres (`/v1/tontines/:id/polls`) : sans effet automatique.
+final class TontinePollRepository implements PollRepository {
+  const TontinePollRepository({required KombeApiClient api}) : _api = api;
+  final KombeApiClient _api;
+
+  String _p(String gid) => '/tontines/${Uri.encodeComponent(gid)}/polls';
+
+  @override
+  Future<Resource<List<Poll>>> listPolls(String groupId) =>
+      _read(() async => <Poll>[for (final Map<String, dynamic> p in _items(await _api.get(_p(groupId)))) pollFrom(groupId, p)]);
+
+  @override
+  Future<OperationResult<Poll>> openPoll(String groupId, PollDraft d) => _write<Poll>(() async => pollFrom(
+        groupId,
+        (await _api.postOnce(_p(groupId), <String, dynamic>{
+          'question': d.question.trim(),
+          if (d.details != null && d.details!.trim().isNotEmpty) 'details': d.details!.trim(),
+          'options': <String>[for (final String o in d.options) if (o.trim().isNotEmpty) o.trim()],
+          'allowFreeAnswer': d.allowFreeAnswer,
+          'multiple': d.multiple,
+          'anonymous': d.anonymous,
+          if (d.hours != null) 'hours': d.hours,
+        }))
+            .body,
+      ));
+
+  @override
+  Future<OperationResult<Poll>> answer({required String groupId, required String pollId, required List<int> choices, String? freeAnswer}) =>
+      _write<Poll>(() async => pollFrom(
+            groupId,
+            (await _api.put('${_p(groupId)}/${Uri.encodeComponent(pollId)}/ballot', <String, dynamic>{
+              'choices': choices,
+              if (freeAnswer != null && freeAnswer.trim().isNotEmpty) 'freeAnswer': freeAnswer.trim(),
+            }, headers: <String, String>{'idempotency-key': newIdempotencyKey()}))
+                .body,
+          ));
+
+  @override
+  Future<OperationResult<Poll>> end({required String groupId, required String pollId, required bool cancel}) => _write<Poll>(() async => pollFrom(
+        groupId,
+        (await _api.postOnce('${_p(groupId)}/${Uri.encodeComponent(pollId)}/${cancel ? 'cancel' : 'close'}', <String, dynamic>{})).body,
+      ));
 }
 
 /// `MeetingSummary` → [MeetingSummary].
@@ -1181,6 +1318,8 @@ MeetingSummary meetingFrom(String groupId, Map<String, dynamic> m) => MeetingSum
       location: m['location'] as String?,
       hostName: m['hostName'] as String?,
       roundSeq: (m['roundSeq'] as num?)?.toInt(),
+      format: meetingFormatFrom(m['format']),
+      onlineUrl: m['onlineUrl'] as String?,
     );
 
 /// `MeetingDetail` → [MeetingDetail] ; les amendes de la réponse ne sont pas reprises.
@@ -1197,6 +1336,8 @@ MeetingDetail meetingDetailFrom(String groupId, Map<String, dynamic> m) {
     location: s.location,
     hostName: s.hostName,
     roundSeq: s.roundSeq,
+    format: s.format,
+    onlineUrl: s.onlineUrl,
     notes: m['notes'] as String?,
     attendance: <MeetingAttendance>[
       for (final Object? a in (m['attendance'] as List<Object?>? ?? const <Object?>[]))

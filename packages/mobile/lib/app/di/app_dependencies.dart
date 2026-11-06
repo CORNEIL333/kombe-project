@@ -11,6 +11,7 @@ import '../../data/remote/stored_session_codec.dart';
 import '../../data/remote/tontine_fund_repository.dart';
 import '../../data/remote/tontine_repositories.dart';
 import '../../data/repositories/unavailable_repositories.dart';
+import '../../domain/repositories/poll_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
@@ -42,6 +43,7 @@ final class AppDependencies {
     required this.biometricService,
     required this.secureSessionStore,
     this.fundRepository = const UnavailableFundRepository(),
+    this.pollRepository = const UnavailablePollRepository(),
   });
 
   factory AppDependencies.unconfigured() {
@@ -102,6 +104,7 @@ final class AppDependencies {
       profileRepository: TontineProfileRepository(api: api),
       groupRepository: TontineGroupRepository(api: api),
       fundRepository: TontineFundRepository(api: api),
+      pollRepository: TontinePollRepository(api: api),
       contributionRepository: TontineContributionRepository(api: api),
       governanceRepository: TontineGovernanceRepository(api: api),
       fineRepository: TontineFineRepository(api: api),
@@ -125,6 +128,7 @@ final class AppDependencies {
   final ContributionRepository contributionRepository;
   final GovernanceRepository governanceRepository;
   final FineRepository fineRepository;
+  final PollRepository pollRepository;
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
   final DocumentRepository documentRepository;

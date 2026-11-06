@@ -46,6 +46,9 @@ enum TontineAct {
   /// Démarrage du cycle : la route exige `schedule.manage` (président,
   /// vice-président, secrétaire général).
   startCycle,
+
+  /// `movement.confirm` : trésorier, trésorier adjoint (rembourse une amende).
+  confirmMovement,
 }
 
 extension TontineActRoles on TontineAct {
@@ -55,6 +58,7 @@ extension TontineActRoles on TontineAct {
         TontineAct.assignRole => const <String>{'animator', 'vice_president'},
         TontineAct.publishStatutes => const <String>{'animator', 'vice_president', 'secretary'},
         TontineAct.startCycle => const <String>{'animator', 'vice_president', 'secretary'},
+        TontineAct.confirmMovement => const <String>{'treasurer', 'treasurer_deputy'},
       };
 }
 

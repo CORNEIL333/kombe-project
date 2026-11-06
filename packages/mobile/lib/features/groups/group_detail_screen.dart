@@ -193,6 +193,7 @@ class _Body extends StatelessWidget {
               title: 'Séances et procès-verbaux',
               onTap: () => context.push('/app/groups/$gid/meetings'),
             ),
+            KombeMenuRow(icon: Icons.how_to_vote_outlined, tone: KombeTone.info, title: 'Votes libres', onTap: () => context.push('/app/groups/$gid/polls')),
             KombeMenuRow(icon: Icons.receipt_long_outlined, tone: KombeTone.warning, title: 'Mes amendes', onTap: () => context.push('/app/fines')),
             KombeMenuRow(
               icon: Icons.gavel_outlined,
@@ -208,6 +209,7 @@ class _Body extends StatelessWidget {
           KombeGroupedList(
             children: <Widget>[
               KombeMenuRow(icon: Icons.work_outline_rounded, tone: KombeTone.money, title: 'Outils du bureau', onTap: () => context.push('/app/groups/$gid/bureau')),
+              KombeMenuRow(icon: Icons.gavel_rounded, tone: KombeTone.warning, title: 'Amendes du groupe', onTap: () => context.push('/app/groups/$gid/fines')),
               KombeMenuRow(icon: Icons.tune_rounded, tone: KombeTone.neutral, title: 'Paramètres du groupe', onTap: () => context.push('/app/groups/$gid/settings')),
             ],
           ),

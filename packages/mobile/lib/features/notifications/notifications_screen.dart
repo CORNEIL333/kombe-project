@@ -161,8 +161,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: <Widget>[
-                                for (final KombeNotification n in visible.where((KombeNotification n) => _period(n.createdAtUtc, now) == p))
-                                  NotificationTile(n: n, now: widget.now?.toUtc(), onTap: () => _open(n)),
+                                for (final List<KombeNotification> pack in groupNotifications(
+                                  visible.where((KombeNotification n) => _period(n.createdAtUtc, now) == p).toList(),
+                                ))
+                                  pack.length == 1
+                                      ? NotificationTile(n: pack.first, now: widget.now?.toUtc(), onTap: () => _open(pack.first))
+                                      : _NotificationPack(items: pack, now: widget.now?.toUtc(), onOpen: _open),
                               ],
                             ),
                           ],
@@ -223,6 +227,75 @@ class NotificationTile extends StatelessWidget {
           onTap: onTap,
         ),
       ),
+    );
+  }
+}
+
+/// Regroupe les notifications de même nature dans un même groupe (ex. trois
+/// rappels de cotisation) : une seule ligne, dépliable. L'ordre est conservé.
+List<List<KombeNotification>> groupNotifications(List<KombeNotification> items) {
+  final Map<String, List<KombeNotification>> packs = <String, List<KombeNotification>>{};
+  for (final KombeNotification n in items) {
+    packs.putIfAbsent('${n.code}|${n.topic}|${n.groupId ?? ''}', () => <KombeNotification>[]).add(n);
+  }
+  return packs.values.toList();
+}
+
+class _NotificationPack extends StatefulWidget {
+  const _NotificationPack({required this.items, required this.onOpen, this.now});
+  final List<KombeNotification> items;
+  final Future<void> Function(KombeNotification) onOpen;
+  final DateTime? now;
+
+  @override
+  State<_NotificationPack> createState() => _NotificationPackState();
+}
+
+class _NotificationPackState extends State<_NotificationPack> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final KombeNotification head = widget.items.first;
+    final int unread = widget.items.where((KombeNotification n) => !n.read).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Material(
+          type: MaterialType.transparency,
+          child: ListTile(
+            minVerticalPadding: 10,
+            leading: Badge(
+              label: Text('${widget.items.length}'),
+              backgroundColor: KombeColors.brand,
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: const BoxDecoration(color: KombeColors.mint, shape: BoxShape.circle),
+                child: Icon(notificationIcon(head.kind), size: 21, color: KombeColors.forest),
+              ),
+            ),
+            title: Text(head.title, style: TextStyle(fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.w600, fontSize: 15.5)),
+            subtitle: Text(<String>[
+              if (head.groupName != null) head.groupName!,
+              '${widget.items.length} notifications',
+              if (unread > 0) '$unread non lue(s)',
+            ].join(' · ')),
+            trailing: Icon(_open ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+            onTap: () => setState(() => _open = !_open),
+          ),
+        ),
+        if (_open)
+          Padding(
+            padding: const EdgeInsets.only(left: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (final KombeNotification n in widget.items) NotificationTile(n: n, now: widget.now, onTap: () => widget.onOpen(n)),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

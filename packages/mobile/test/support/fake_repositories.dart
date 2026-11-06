@@ -587,6 +587,17 @@ final class FakeFineRepository implements FineRepository {
     w.fines[w.fines.indexWhere((MyFine f) => f.fineId == fine.fineId)] = c;
     return OperationSuccess<MyFine>(c);
   }
+  @override
+  Future<Resource<List<MyFine>>> listGroupFines({required String groupId, required String groupName}) async {
+    await _lag();
+    return ResourceReady<List<MyFine>>(List<MyFine>.unmodifiable(w.fines.where((MyFine f) => f.groupId == groupId)));
+  }
+
+  @override
+  Future<OperationResult<MyFine>> cancelFine({required MyFine fine, required String reason}) async => OperationSuccess<MyFine>(fine);
+
+  @override
+  Future<OperationResult<MyFine>> refundFine({required MyFine fine, required String channel, String? reference}) async => OperationSuccess<MyFine>(fine);
 }
 
 final class FakeMeetingRepository implements MeetingRepository {

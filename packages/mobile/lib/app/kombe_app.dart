@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
 import '../core/design/kombe_theme.dart';
+import '../domain/repositories/poll_repository.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/contribution_repository.dart';
 import '../domain/repositories/dashboard_repository.dart';
@@ -72,6 +73,7 @@ class _KombeAppState extends State<KombeApp> {
         Provider<ContributionRepository>.value(value: widget.dependencies.contributionRepository),
         Provider<GovernanceRepository>.value(value: widget.dependencies.governanceRepository),
         Provider<FineRepository>.value(value: widget.dependencies.fineRepository),
+        Provider<PollRepository>.value(value: widget.dependencies.pollRepository),
         Provider<MeetingRepository>.value(value: widget.dependencies.meetingRepository),
         Provider<NotificationRepository>.value(value: widget.dependencies.notificationRepository),
         Provider<DocumentRepository>.value(value: widget.dependencies.documentRepository),
