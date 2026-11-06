@@ -29,6 +29,11 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 | GET | `/v1/me/dues` | `?groupId=` → `DueView[]` (mes échéances ouvertes) |
 | GET | `/v1/me/notifications` | `?unread=1` (non lues seulement) → `NotificationView[]` (100 au plus ; `topic` = nature précise, `subjectId` = objet visé, `target` = écran du groupe) |
 | POST | `/v1/me/notifications/read` | `{ ids: string[] \| "all" }` → `{ updated }` |
+| GET | `/v1/me/support-tickets` | Mes demandes au support (CRM, ADR-0046) → `{ ticketId, ref, subject, category, status, groupName, createdAt, updatedAt, satisfaction }[]` |
+| POST | `/v1/me/support-tickets` | `{ subject, category, body, groupId? }` → `{ ticketId, ref }` (référence KMB-000001 ; cinq demandes ouvertes au plus) |
+| GET | `/v1/me/support-tickets/:ticketId` | Demande et messages publics (`from` = `moi` \| `support` ; notes internes jamais renvoyées) |
+| POST | `/v1/me/support-tickets/:ticketId/messages` | `{ body }` → `{ messageId }` (refusé si la demande est close) |
+| POST | `/v1/me/support-tickets/:ticketId/satisfaction` | `{ score: 1..5, comment? }` → `{ rated: true }` (une fois, après résolution) |
 
 ## Association
 

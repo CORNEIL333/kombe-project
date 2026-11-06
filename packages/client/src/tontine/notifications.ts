@@ -92,7 +92,8 @@ function libelleBrut(kind: string): string {
 export type DestinationNotification =
   | { readonly ecran: "groupe"; readonly groupId: string; readonly onglet: string }
   | { readonly ecran: "validations" }
-  | { readonly ecran: "cotisations" };
+  | { readonly ecran: "cotisations" }
+  | { readonly ecran: "aide"; readonly demande: string };
 
 const CATALOGUE: Readonly<Record<string, { readonly cle: CleTexte; readonly icone: NomIcone }>> = {
   declared: { cle: "nt.declared", icone: "validations" },
@@ -191,6 +192,9 @@ export function destinationNotification(n: {
   readonly target?: string | null;
 }): DestinationNotification | null {
   if (n.topic === "declared" || n.topic === "toControl") return { ecran: "validations" };
+  // Réponse du support (CRM) : la demande, jamais un groupe.
+  const demande = /^\/aide\/demandes\/(tk_[0-9a-f]{20})$/.exec(n.target ?? "");
+  if (demande?.[1]) return { ecran: "aide", demande: demande[1] };
   if (!n.groupId) return null;
   // Nature connue → son onglet ; sinon la cible posée par le serveur (ADR-0042).
   return { ecran: "groupe", groupId: n.groupId, onglet: ONGLET[n.topic ?? ""] ?? ongletDe({ target: n.target ?? null }) ?? "apercu" };

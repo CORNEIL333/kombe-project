@@ -124,6 +124,7 @@ export type DomainErrorCode =
   | "DECISION_INVALID"
   | "DECISION_STATE_INVALID"
   | "PREFERENCE_INVALID"
+  | "CRM_INVALID"
   | "PAYOUT_SUSPENDED"
   /* API produit (0026). */
   | "STATE_CONFLICT"

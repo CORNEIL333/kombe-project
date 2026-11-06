@@ -68,6 +68,7 @@ const TITRES: Readonly<Record<string, string>> = {
   fine_issued: "Nouvelle amende dans votre groupe",
   fine_cancelled: "Une amende a été annulée",
   fine_contested: "Une amende est contestée",
+  support_reply: "Le support KÓMBE vous a répondu",
   aid_requested: "Nouvelle demande de secours",
   aid_decided: "Une demande de secours a été tranchée",
   order_change: "L'ordre des tours a changé",

@@ -347,3 +347,23 @@ body {
 .bouton.bouton-icone-seule { width: 42px; min-width: 42px; padding: 0; }
 .bouton-icone-seule .icone-kombe { margin-right: 0; }
 .bouton-icone-seule .bouton-libelle { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Assistance : mes demandes au support (CRM, ADR-0046). */
+.liste-demandes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ligne-demande { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid var(--c-trait); border-radius: 12px; background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit; }
+.ligne-demande:hover, .ligne-demande:focus-visible { border-color: var(--c-foret); }
+.ligne-demande__textes { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.ligne-demande__textes strong { overflow-wrap: anywhere; }
+.formulaire-demande { padding: 12px 0; border-top: 1px solid var(--c-trait); }
+.formulaire-demande textarea, .formulaire-demande select, .formulaire-demande input { width: 100%; }
+.fil-demande { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.fil-demande__message { max-width: 88%; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--c-trait); }
+.fil-demande__message p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fil-demande__message--moi { justify-self: end; background: var(--c-foret); color: #fff; border-color: transparent; }
+.fil-demande__message--moi .fil-demande__auteur { color: rgba(255, 255, 255, 0.85); }
+.fil-demande__auteur { font-size: 0.85rem; color: var(--c-texte-2); }
+.notation { display: flex; gap: 8px; border: 0; margin: 0; padding: 0; flex-wrap: wrap; }
+.notation__choix { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border: 1px solid var(--c-trait); border-radius: 50%; font-weight: 700; cursor: pointer; }
+.notation__choix input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.notation__choix--actif { background: var(--c-foret); color: #fff; border-color: transparent; }
+.notation__choix:focus-within { outline: 2px solid var(--c-foret); outline-offset: 2px; }

@@ -34,7 +34,7 @@ export type Route =
   | { readonly ecran: "profil" }
   | { readonly ecran: "cotisations" }
   | { readonly ecran: "validations" }
-  | { readonly ecran: "aide" }
+  | { readonly ecran: "aide"; readonly demande?: string }
   | { readonly ecran: "documents" }
   | { readonly ecran: "rejoindre"; readonly code?: string }
   | { readonly ecran: "groupe"; readonly groupId: string; readonly onglet?: string };
@@ -49,7 +49,7 @@ export function lireRoute(hash: string): Route {
   if (tete === "profil") return { ecran: "profil" };
   if (tete === "cotisations") return { ecran: "cotisations" };
   if (tete === "validations") return { ecran: "validations" };
-  if (tete === "aide") return { ecran: "aide" };
+  if (tete === "aide") return arg === "demandes" && sous ? { ecran: "aide", demande: sous } : { ecran: "aide" };
   if (tete === "documents") return { ecran: "documents" };
   if (tete === "groupe" && arg) return sous ? { ecran: "groupe", groupId: arg, onglet: sous } : { ecran: "groupe", groupId: arg };
   return { ecran: "accueil" };
@@ -72,7 +72,7 @@ export function ecrireRoute(r: Route): string {
     case "validations":
       return "#/validations";
     case "aide":
-      return "#/aide";
+      return r.demande ? `#/aide/demandes/${encodeURIComponent(r.demande)}` : "#/aide";
     case "documents":
       return "#/documents";
     case "rejoindre":
@@ -350,7 +350,7 @@ export function App() {
         ) : route.ecran === "validations" ? (
           <Validations key="validations" session={session} onOuvrirGroupe={(groupId) => aller({ ecran: "groupe", groupId })} />
         ) : route.ecran === "aide" ? (
-          <Aide key="aide" />
+          <Aide key="aide" session={session} groupes={groupes.groupes ?? []} demande={route.demande ?? null} aller={aller} />
         ) : route.ecran === "documents" ? (
           <Documents key="documents" session={session} onOuvrir={(groupId, onglet) => aller({ ecran: "groupe", groupId, onglet })} />
         ) : route.ecran === "groupes" ? (

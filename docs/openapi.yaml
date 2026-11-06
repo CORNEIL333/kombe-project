@@ -25,6 +25,10 @@ security:
 tags:
   - name: tontine
     description: API produit « tontine réelle » — connexion par téléphone, associations, séances, caisses, amendes, secours, dettes (docs/API_TONTINE.md)
+  - name: crm
+    description: CRM de la plateforme (ADR-0046) — demandes avec délais de service, comptes, contacts pseudonymes, notes, tâches, segments, journal d'audit, conformité. Opérateurs uniquement, par fonction, second facteur exigé.
+  - name: support
+    description: Assistance côté membre — mes demandes au support KÓMBE
   - name: ops-console
     description: Console d’exploitation réservée aux opérateurs de la plateforme (agrégats, sans donnée individuelle)
   - name: ops
@@ -7946,6 +7950,1581 @@ paths:
                 $ref: '#/components/schemas/TontineError'
         '409':
           description: Conflit d’état
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/dashboard:
+    get:
+      tags:
+      - crm
+      operationId: getCrmDashboard
+      summary: Tableau de bord du CRM
+      description: 'Fonctions : support, operations, direction. Demandes par état et priorité, dépassements de délais, satisfaction (90 j), mes tâches.'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/tickets:
+    get:
+      tags:
+      - crm
+      operationId: getCrmTickets
+      summary: Demandes
+      description: 'Fonctions : support, operations. Filtres : ?status=ouvertes|nouveau|en_cours|attente_membre|resolu|ferme, ?priority=1..4, ?assignee=moi|personne, ?category, ?groupId, ?q (référence ou objet).'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+    post:
+      tags:
+      - crm
+      operationId: postCrmTicket
+      summary: Créer une demande (téléphone, e-mail, WhatsApp, sur place)
+      description: 'Fonctions : support, operations. Priorité calculée par la base (impact × urgence).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - subject
+              - category
+              - channel
+              - body
+              properties:
+                subject:
+                  type: string
+                  minLength: 3
+                  maxLength: 140
+                category:
+                  type: string
+                  enum: [connexion, cotisation, remise, amende, statuts, application, donnees_personnelles, reclamation, autre]
+                channel:
+                  type: string
+                  enum: [application, telephone, email, whatsapp, sur_place]
+                impact:
+                  type: integer
+                  minimum: 1
+                  maximum: 3
+                urgency:
+                  type: integer
+                  minimum: 1
+                  maximum: 3
+                groupId:
+                  type: string
+                contactId:
+                  type: string
+                  pattern: '^ct_[0-9a-f]{20}$'
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/tickets/{ticketId}:
+    get:
+      tags:
+      - crm
+      operationId: getCrmTicket
+      summary: Demande et fil de messages (consultation journalisée)
+      description: 'Fonctions : support, operations.'
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+    patch:
+      tags:
+      - crm
+      operationId: patchCrmTicket
+      summary: Trier, assigner, changer l’état
+      description: 'Fonctions : support, operations. En-tête if-match-version obligatoire ; version périmée → 409.'
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: if-match-version
+        in: header
+        required: true
+        description: Version lue (verrou optimiste)
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [nouveau, en_cours, attente_membre, resolu, ferme]
+                impact:
+                  type: integer
+                  minimum: 1
+                  maximum: 3
+                urgency:
+                  type: integer
+                  minimum: 1
+                  maximum: 3
+                category:
+                  type: string
+                  enum: [connexion, cotisation, remise, amende, statuts, application, donnees_personnelles, reclamation, autre]
+                assigneeContactId:
+                  type: [string, 'null']
+                groupId:
+                  type: [string, 'null']
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/tickets/{ticketId}/messages:
+    post:
+      tags:
+      - crm
+      operationId: postCrmTicketMessage
+      summary: Répondre (public) ou noter (interne)
+      description: 'Fonctions : support, operations. Une réponse publique notifie le demandeur dans l’application.'
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - body
+              - visibility
+              properties:
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+                visibility:
+                  type: string
+                  enum: [public, interne]
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/accounts:
+    get:
+      tags:
+      - crm
+      operationId: getCrmAccounts
+      summary: Comptes (groupes) et segments
+      description: 'Fonctions : support, operations, direction. Aucune donnée individuelle.'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/accounts/{groupId}:
+    get:
+      tags:
+      - crm
+      operationId: getCrmAccount
+      summary: Fiche d’un groupe
+      description: 'Fonctions : support, operations. Responsables (identifiant masqué), santé, demandes, notes, tâches. Consultation journalisée.'
+      parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/contacts/search:
+    post:
+      tags:
+      - crm
+      operationId: postCrmContactSearch
+      summary: Trouver un contact par identifiant exact
+      description: 'Fonctions : support, operations. Recherche journalisée.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - login
+              properties:
+                login:
+                  type: string
+                  minLength: 3
+                  maxLength: 120
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/contacts/{contactId}:
+    get:
+      tags:
+      - crm
+      operationId: getCrmContact
+      summary: Fiche d’un contact (pseudonyme)
+      description: 'Fonctions : support, operations. Identifiant masqué ; consultation journalisée.'
+      parameters:
+      - name: contactId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/contacts/{contactId}/reveal:
+    post:
+      tags:
+      - crm
+      operationId: postCrmContactReveal
+      summary: Afficher l’identifiant en clair
+      description: 'Fonctions : support, operations. Motif écrit obligatoire (10 caractères au moins), journalisé.'
+      parameters:
+      - name: contactId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - motif
+              properties:
+                motif:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/notes:
+    post:
+      tags:
+      - crm
+      operationId: postCrmNote
+      summary: Note interne sur un groupe OU un contact
+      description: 'Fonctions : support, operations. Ajout seul.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - body
+              properties:
+                groupId:
+                  type: string
+                contactId:
+                  type: string
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/tasks:
+    get:
+      tags:
+      - crm
+      operationId: getCrmTasks
+      summary: Tâches
+      description: 'Fonctions : support, operations. ?scope=miennes|toutes, ?status=ouvertes|toutes.'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+    post:
+      tags:
+      - crm
+      operationId: postCrmTask
+      summary: Créer une tâche
+      description: 'Fonctions : support, operations.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - title
+              properties:
+                title:
+                  type: string
+                  minLength: 3
+                  maxLength: 160
+                dueAt:
+                  type: string
+                  format: date-time
+                assigneeContactId:
+                  type: string
+                groupId:
+                  type: string
+                contactId:
+                  type: string
+                ticketId:
+                  type: string
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/tasks/{taskId}:
+    patch:
+      tags:
+      - crm
+      operationId: patchCrmTask
+      summary: Terminer ou annuler une tâche
+      description: 'Fonctions : support, operations. En-tête if-match-version obligatoire.'
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: if-match-version
+        in: header
+        required: true
+        description: Version lue (verrou optimiste)
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - status
+              properties:
+                status:
+                  type: string
+                  enum: [a_faire, fait, annule]
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/operators:
+    get:
+      tags:
+      - crm
+      operationId: getCrmOperators
+      summary: Opérateurs (assignation)
+      description: 'Fonctions : support, operations.'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/segments:
+    get:
+      tags:
+      - crm
+      operationId: getCrmSegments
+      summary: Segments de groupes à suivre
+      description: 'Fonctions : support, operations, direction.'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/audit:
+    get:
+      tags:
+      - crm
+      operationId: getCrmAudit
+      summary: Journal d’audit du CRM
+      description: 'Fonction : admin. ?objectKind, ?objectId. Ajout seul ; la consultation est elle-même journalisée.'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/compliance:
+    get:
+      tags:
+      - crm
+      operationId: getCrmCompliance
+      summary: 'Conformité : registre des traitements, demandes de droits, conservation'
+      description: 'Fonctions : direction, admin.'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /crm/compliance/anonymize:
+    post:
+      tags:
+      - crm
+      operationId: postCrmAnonymize
+      summary: Anonymiser les demandes closes anciennes
+      description: 'Fonction : admin. 365 jours au moins (730 par défaut).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                olderThanDays:
+                  type: integer
+                  minimum: 365
+                  maximum: 3650
+                  default: 730
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /me/support-tickets:
+    get:
+      tags:
+      - support
+      operationId: getMeSupportTickets
+      summary: Mes demandes au support
+      description: 'Session membre. Seulement les demandes de la personne.'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+    post:
+      tags:
+      - support
+      operationId: postMeSupportTicket
+      summary: Contacter le support
+      description: 'Session membre. Cinq demandes ouvertes au plus. Réponse : { ticketId, ref }.'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - subject
+              - category
+              - body
+              properties:
+                subject:
+                  type: string
+                  minLength: 3
+                  maxLength: 140
+                category:
+                  type: string
+                  enum: [connexion, cotisation, remise, amende, statuts, application, donnees_personnelles, reclamation, autre]
+                body:
+                  type: string
+                  minLength: 10
+                  maxLength: 4000
+                groupId:
+                  type: string
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /me/support-tickets/{ticketId}:
+    get:
+      tags:
+      - support
+      operationId: getMeSupportTicket
+      summary: Une de mes demandes et ses messages publics
+      description: 'Session membre. Les notes internes ne sont jamais renvoyées.'
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /me/support-tickets/{ticketId}/messages:
+    post:
+      tags:
+      - support
+      operationId: postMeSupportTicketMessage
+      summary: Répondre au support
+      description: 'Session membre. Refusé si la demande est close.'
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - body
+              properties:
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+      responses:
+        '201':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '422':
+          description: Saisie invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+  /me/support-tickets/{ticketId}/satisfaction:
+    post:
+      tags:
+      - support
+      operationId: postMeSupportTicketSatisfaction
+      summary: Noter la réponse (1 à 5)
+      description: 'Session membre. Une fois, après résolution.'
+      parameters:
+      - name: ticketId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - score
+              properties:
+                score:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+                  maxLength: 500
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Requête refusée (en-tête de version absent, cible incohérente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '401':
+          description: Session absente ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '403':
+          description: Fonction requise absente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '404':
+          description: Objet hors portée (jamais « existe ailleurs »)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TontineError'
+        '409':
+          description: Conflit d’état (version périmée, règle de la base)
           content:
             application/json:
               schema:

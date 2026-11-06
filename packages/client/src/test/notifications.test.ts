@@ -22,6 +22,16 @@ describe("notifications : libellé exact et destination contrôlée", () => {
     expect(destinationNotification({ topic: "inconnu", groupId: null })).toBeNull();
   });
 
+  it("réponse du support : ouvre la demande (sans groupe), aller-retour de l'adresse", () => {
+    const d = destinationNotification({ topic: null, groupId: null, target: "/aide/demandes/tk_0123456789abcdef0123" });
+    expect(d).toEqual({ ecran: "aide", demande: "tk_0123456789abcdef0123" });
+    expect(lireRoute(ecrireRoute(d as never))).toEqual(d);
+    // Cible malformée : jamais suivie.
+    expect(destinationNotification({ topic: null, groupId: null, target: "/aide/demandes/../../x" })).toBeNull();
+    expect(fr["notif.support_reply"]).toBeTruthy();
+    expect(en["notif.support_reply"]).toBeTruthy();
+  });
+
   it("serveur sans `topic` : repli sur la catégorie, jamais vide", () => {
     expect(entreeNotification({ kind: "meeting_reminder" }).cle).toBe("notif.meeting_reminder");
   });

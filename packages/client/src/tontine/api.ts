@@ -227,6 +227,36 @@ export const acces = {
   majPreferencesNotif: (s: Session, p: PreferencesNotifSaisie) => appel<PreferencesNotif>(s, "PUT", "/v1/me/notification-preferences", p),
 };
 
+/* ── Assistance : mes demandes au support (CRM, ADR-0046) ─────────────── */
+
+export const CATEGORIES_DEMANDE = ["connexion", "cotisation", "remise", "amende", "statuts", "application", "donnees_personnelles", "reclamation", "autre"] as const;
+export type CategorieDemande = (typeof CATEGORIES_DEMANDE)[number];
+export type StatutDemande = "nouveau" | "en_cours" | "attente_membre" | "resolu" | "ferme";
+export interface DemandeResume {
+  readonly ticketId: string;
+  readonly ref: string;
+  readonly subject: string;
+  readonly category: CategorieDemande;
+  readonly status: StatutDemande;
+  readonly groupName: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly satisfaction: number | null;
+}
+export interface DemandeDetail extends Omit<DemandeResume, "groupName"> {
+  readonly messages: readonly { readonly messageId: string; readonly from: "moi" | "support"; readonly body: string; readonly createdAt: string }[];
+}
+const st = (id: string) => `/v1/me/support-tickets/${encodeURIComponent(id)}`;
+export const assistance = {
+  mesDemandes: (s: Session) => appel<DemandeResume[]>(s, "GET", "/v1/me/support-tickets"),
+  ouvrir: (s: Session, d: { subject: string; category: CategorieDemande; body: string; groupId?: string }) =>
+    appel<{ ticketId: string; ref: string }>(s, "POST", "/v1/me/support-tickets", d),
+  demande: (s: Session, id: string) => appel<DemandeDetail>(s, "GET", st(id)),
+  repondre: (s: Session, id: string, body: string) => appel<{ messageId: string }>(s, "POST", `${st(id)}/messages`, { body }),
+  noter: (s: Session, id: string, score: number, comment?: string) =>
+    appel<{ rated: true }>(s, "POST", `${st(id)}/satisfaction`, { score, ...(comment ? { comment } : {}) }),
+};
+
 export interface PreferencesNotifSaisie {
   readonly pushEnabled: boolean;
   readonly smsEnabled: boolean;

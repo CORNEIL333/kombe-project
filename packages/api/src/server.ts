@@ -47,6 +47,7 @@ import { resolveSession, resolveGroupActor, type GroupActor } from "./db/pgSessi
 import { NullEmailSender, ResendEmailSender, type EmailSender } from "./email/emailSender.js";
 import { registerTontineRoutes } from "./tontine/routes.js";
 import { EXPECTED_LATEST_MIGRATION, registerOpsRoutes } from "./ops/opsRoutes.js";
+import { registerCrmRoutes } from "./crm/crmRoutes.js";
 import { checkDbRole } from "./db/pgPool.js";
 import type { CodeSender } from "./tontine/sms.js";
 import {
@@ -248,6 +249,7 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   METRICS_RISQUE_CRITIQUE_SANS_CONTROLE: 409,
   // Tontine réelle (API produit, docs/API_TONTINE.md).
   TONTINE_FORBIDDEN: 403,
+  CRM_INVALID: 400,
   OBJET_INTROUVABLE: 404,
   STATE_CONFLICT: 409,
   AUTH_THROTTLED: 429,
@@ -1187,6 +1189,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     });
     // Console d'exploitation (opérateurs seulement, 0029_ops_console).
     registerOpsRoutes(app, { pool, now });
+    // CRM (fusion Opérations + Direction + Engineering, 0041_crm, ADR-0046).
+    registerCrmRoutes(app, { pool, now });
   }
 
   // Routes du squelette C00 (pipeline fictif) : n'existent PAS en mode réel

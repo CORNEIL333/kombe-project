@@ -28,6 +28,7 @@ import { EmailCodeSender, codeSenderFromEnv, type CodeSender } from "./sms.js";
 import { NotificationDispatcher, afterResponse, dispatcherOptionsFromEnv, type DispatcherOptions } from "./delivery.js";
 import { NotificationPrefs } from "./notificationPrefs.js";
 import { translatePgError } from "./infra.js";
+import { SupportTickets } from "../crm/crmRoutes.js";
 
 const id = z.string().min(3).max(200);
 // Plafond aligné sur le domaine base `kombe_money` (bigint ≤ 1e9, 0001_init) :
@@ -220,6 +221,7 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   const discipline = new DisciplineService(pool, now);
   const inbox = new InboxService(pool, now);
   const prefs = new NotificationPrefs(pool, now);
+  const support = new SupportTickets(pool, now);
   const dispatcher = new NotificationDispatcher(
     pool,
     now,
@@ -319,6 +321,17 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   app.get("/v1/me/notifications/unread-count", async (req) => inbox.unreadCount(H(req)));
   app.get("/v1/me/notifications", async (req) => inbox.notifications(H(req), { unreadOnly: (req.query as Q).unread === "1" }));
   app.post("/v1/me/notifications/read", async (req, reply) => write(req, reply, 200, () => inbox.markRead(H(req), S.notificationsRead.parse(req.body).ids)));
+
+  /* ── Assistance : mes demandes au support (CRM, 0041) ─────────────── */
+  app.get("/v1/me/support-tickets", async (req) => support.mine(H(req)));
+  app.post("/v1/me/support-tickets", async (req, reply) => write(req, reply, 201, () => support.open(H(req), req.body)));
+  app.get("/v1/me/support-tickets/:ticketId", async (req) => support.one(H(req), (req.params as P).ticketId as string));
+  app.post("/v1/me/support-tickets/:ticketId/messages", async (req, reply) =>
+    write(req, reply, 201, () => support.reply(H(req), (req.params as P).ticketId as string, req.body)),
+  );
+  app.post("/v1/me/support-tickets/:ticketId/satisfaction", async (req, reply) =>
+    write(req, reply, 200, () => support.rate(H(req), (req.params as P).ticketId as string, req.body)),
+  );
 
   /* ── Associations ──────────────────────────────────────────────────── */
   app.post("/v1/tontines", async (req, reply) => write(req, reply, 201, () => groups.create(H(req), S.create.parse(req.body) as CreateTontineInput)));

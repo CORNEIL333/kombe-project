@@ -194,6 +194,7 @@ export function translatePgError(error: unknown): unknown {
   }
   if (code === "23505") return new DomainError("STATE_CONFLICT", "Déjà enregistré");
   if (code === "22P02") return new DomainError("REQUEST_INVALID", "Identifiant ou valeur mal formée");
+  if (code === "22023") return new DomainError("REQUEST_INVALID", "Valeur refusée");
   if (code === "23514" || code === "23503" || code === "23502") {
     return new DomainError("STATE_CONFLICT", "Opération refusée par les règles du registre");
   }
@@ -381,7 +382,8 @@ export type NotificationKind =
   | "payout_to_confirm"
   | "fund_created"
   | "movement_rejected"
-  | "fine_contested";
+  | "fine_contested"
+  | "support_reply";
 
 /** Détail court d'une notification (lu après authentification, jamais en push). */
 export type NotificationParams = Readonly<Record<string, string | number | boolean | null>>;

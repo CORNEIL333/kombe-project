@@ -64,6 +64,7 @@ String _meetingStage(String stage) => switch (stage) {
       'fine_issued' => (kind: NotificationKind.dispute, title: 'Une amende vous a été notifiée'),
       'fine_cancelled' => (kind: NotificationKind.dispute, title: 'Amende annulée'),
       'fine_contested' => (kind: NotificationKind.dispute, title: 'Une amende est contestée'),
+      'support_reply' => (kind: NotificationKind.system, title: 'Le support KÓMBE vous a répondu'),
       'aid_requested' => (kind: NotificationKind.system, title: 'Demande de secours à examiner'),
       'aid_decided' => (kind: NotificationKind.system, title: 'Décision sur une demande de secours'),
       'decision' => (kind: NotificationKind.vote, title: 'Vote ouvert'),
