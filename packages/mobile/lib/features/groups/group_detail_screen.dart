@@ -191,8 +191,7 @@ class _Body extends StatelessWidget {
               icon: Icons.event_outlined,
               tone: KombeTone.info,
               title: 'Séances et procès-verbaux',
-              external: true,
-              onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/seances', title: 'Séances'),
+              onTap: () => context.push('/app/groups/$gid/meetings'),
             ),
             KombeMenuRow(icon: Icons.receipt_long_outlined, tone: KombeTone.warning, title: 'Mes amendes', onTap: () => context.push('/app/fines')),
             KombeMenuRow(

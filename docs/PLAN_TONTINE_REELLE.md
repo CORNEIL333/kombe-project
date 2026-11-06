@@ -51,7 +51,7 @@ Vérification commune (racine), **exécutée** :
 | L-01 | Identité par téléphone (+237, code 6 chiffres, simulateur) | ✓ | ✓ | ✓ | ✓ | done (fournisseur SMS : BLOCKED) | `259d5fa`, `4f238ca` |
 | L-02 | Tour complet de bout en bout + E2E 3 identités | ✓ | ✓ | ✓ | ✓ | done | `259d5fa` |
 | L-03 | Calendrier réel (6 cadences, heure limite, Douala) ; pause votée | ✓ | ✓ | — | ✓ | done | `79dd98d` |
-| L-04 | Séance (présence, statut, liaison tour) | ✓ | ✓ | — | ✓ | done | `259d5fa` |
+| L-04 | Séance (présence, statut, liaison tour) | ✓ | ✓ | ✓ (lecture) | ✓ | done | `259d5fa` |
 | L-05 | Collecte en lot ; mode séance hors connexion | ✓ | ✓ | (brouillons locaux) | — | done (PWA) | `afc6b47` |
 | L-06 | Remise devant témoins, PV, approbation ; PDF | ✓ | ✓ | — | ✓ (impression → PDF) | done | `44106fd` |
 | L-07 | Caisses multiples | ✓ | ✓ | ✓ | ✓ | done | `259d5fa` |

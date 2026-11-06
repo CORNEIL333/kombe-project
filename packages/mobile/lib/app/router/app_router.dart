@@ -13,6 +13,7 @@ import '../../features/contributions/contribution_history_screen.dart';
 import '../../features/contributions/contribution_start_screen.dart';
 import '../../features/documents/document_screens.dart';
 import '../../features/fines/fine_screens.dart';
+import '../../features/meetings/meeting_screens.dart';
 import '../../features/governance/vote_screens.dart';
 import '../../features/groups/beneficiaries_screen.dart';
 import '../../features/groups/create_group_screen.dart';
@@ -208,6 +209,17 @@ final class AppRouter {
           path: '/app/votes/:voteId',
           builder: (_, state) =>
               VoteDetailScreen(voteId: state.pathParameters['voteId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/meetings',
+          builder: (_, state) => MeetingsScreen(groupId: state.pathParameters['groupId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/meetings/:meetingId',
+          builder: (_, state) => MeetingDetailScreen(
+            groupId: state.pathParameters['groupId']!,
+            meetingId: state.pathParameters['meetingId']!,
+          ),
         ),
         GoRoute(
           path: '/app/fines',

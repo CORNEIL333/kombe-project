@@ -9,6 +9,7 @@ import '../../domain/entities/cycle.dart';
 import '../../domain/entities/dashboard.dart';
 import '../../domain/entities/document.dart';
 import '../../domain/entities/fine.dart';
+import '../../domain/entities/meeting.dart';
 import '../../domain/entities/governance.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
@@ -18,6 +19,7 @@ import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../../domain/repositories/document_repository.dart';
 import '../../domain/repositories/fine_repository.dart';
+import '../../domain/repositories/meeting_repository.dart';
 import '../../domain/repositories/governance_repository.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
@@ -218,6 +220,16 @@ final class UnavailableFineRepository implements FineRepository {
   @override
   Future<OperationResult<MyFine>> contestFine({required MyFine fine, required String reason}) async =>
       const OperationBlocked<MyFine>(_reason);
+}
+
+final class UnavailableMeetingRepository implements MeetingRepository {
+  const UnavailableMeetingRepository();
+
+  @override
+  Future<Resource<List<MeetingSummary>>> listMeetings(String groupId) async => const ResourceUnavailable<List<MeetingSummary>>();
+
+  @override
+  Future<Resource<MeetingDetail>> getMeeting({required String groupId, required String meetingId}) async => const ResourceUnavailable<MeetingDetail>();
 }
 
 final class UnavailableNotificationRepository implements NotificationRepository {

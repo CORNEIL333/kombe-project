@@ -16,6 +16,7 @@ import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../../domain/repositories/document_repository.dart';
 import '../../domain/repositories/fine_repository.dart';
+import '../../domain/repositories/meeting_repository.dart';
 import '../../domain/repositories/draft_repository.dart';
 import '../../domain/repositories/governance_repository.dart';
 import '../../domain/repositories/fund_repository.dart';
@@ -32,6 +33,7 @@ final class AppDependencies {
     required this.contributionRepository,
     required this.governanceRepository,
     required this.fineRepository,
+    required this.meetingRepository,
     required this.notificationRepository,
     required this.documentRepository,
     required this.dashboardRepository,
@@ -51,6 +53,7 @@ final class AppDependencies {
       contributionRepository: const UnavailableContributionRepository(),
       governanceRepository: const UnavailableGovernanceRepository(),
       fineRepository: const UnavailableFineRepository(),
+      meetingRepository: const UnavailableMeetingRepository(),
       notificationRepository: const UnavailableNotificationRepository(),
       documentRepository: const UnavailableDocumentRepository(),
       dashboardRepository: const UnavailableDashboardRepository(),
@@ -102,6 +105,7 @@ final class AppDependencies {
       contributionRepository: TontineContributionRepository(api: api),
       governanceRepository: TontineGovernanceRepository(api: api),
       fineRepository: TontineFineRepository(api: api),
+      meetingRepository: TontineMeetingRepository(api: api),
       notificationRepository: TontineNotificationRepository(api: api),
       documentRepository: TontineDocumentRepository(api: api, webBase: webBase),
       dashboardRepository: TontineDashboardRepository(api: api),
@@ -121,6 +125,7 @@ final class AppDependencies {
   final ContributionRepository contributionRepository;
   final GovernanceRepository governanceRepository;
   final FineRepository fineRepository;
+  final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
   final DocumentRepository documentRepository;
   final DashboardRepository dashboardRepository;

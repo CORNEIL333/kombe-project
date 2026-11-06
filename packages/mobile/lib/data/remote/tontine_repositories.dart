@@ -15,6 +15,7 @@ import '../../domain/entities/cycle.dart';
 import '../../domain/entities/dashboard.dart';
 import '../../domain/entities/document.dart';
 import '../../domain/entities/fine.dart';
+import '../../domain/entities/meeting.dart';
 import '../../domain/entities/governance.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
@@ -24,6 +25,7 @@ import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../../domain/repositories/document_repository.dart';
 import '../../domain/repositories/fine_repository.dart';
+import '../../domain/repositories/meeting_repository.dart';
 import '../../domain/repositories/governance_repository.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
@@ -1166,4 +1168,65 @@ final class TontineFineRepository implements FineRepository {
             .body;
         return fineFrom(fine.groupId, fine.groupName, b);
       });
+}
+
+/// `MeetingSummary` → [MeetingSummary].
+MeetingSummary meetingFrom(String groupId, Map<String, dynamic> m) => MeetingSummary(
+      meetingId: '${m['meetingId']}',
+      groupId: groupId,
+      seq: (m['seq'] as num?)?.toInt() ?? 0,
+      date: DateTime.parse('${m['date']}'),
+      state: meetingStateFrom(m['state']),
+      minutesApproved: m['minutesApproved'] == true,
+      location: m['location'] as String?,
+      hostName: m['hostName'] as String?,
+      roundSeq: (m['roundSeq'] as num?)?.toInt(),
+    );
+
+/// `MeetingDetail` → [MeetingDetail] ; les amendes de la réponse ne sont pas reprises.
+MeetingDetail meetingDetailFrom(String groupId, Map<String, dynamic> m) {
+  final MeetingSummary s = meetingFrom(groupId, m);
+  final Map<String, dynamic>? minutes = m['minutes'] as Map<String, dynamic>?;
+  return MeetingDetail(
+    meetingId: s.meetingId,
+    groupId: groupId,
+    seq: s.seq,
+    date: s.date,
+    state: s.state,
+    minutesApproved: s.minutesApproved,
+    location: s.location,
+    hostName: s.hostName,
+    roundSeq: s.roundSeq,
+    notes: m['notes'] as String?,
+    attendance: <MeetingAttendance>[
+      for (final Object? a in (m['attendance'] as List<Object?>? ?? const <Object?>[]))
+        if (a is Map<String, dynamic>)
+          MeetingAttendance(membershipId: '${a['membershipId']}', displayName: '${a['displayName']}', status: attendanceStatusFrom(a['status'])),
+    ],
+    minutes: minutes == null
+        ? null
+        : MeetingMinutes(
+            text: '${minutes['text']}',
+            approvedAtUtc: minutes['approvedAt'] == null ? null : DateTime.parse('${minutes['approvedAt']}'),
+          ),
+  );
+}
+
+/// Séances d'un groupe (`GET /v1/tontines/:id/meetings`), en lecture.
+final class TontineMeetingRepository implements MeetingRepository {
+  const TontineMeetingRepository({required KombeApiClient api}) : _api = api;
+  final KombeApiClient _api;
+
+  @override
+  Future<Resource<List<MeetingSummary>>> listMeetings(String groupId) => _read(() async {
+        final List<MeetingSummary> out = <MeetingSummary>[
+          for (final Map<String, dynamic> m in _items(await _api.get('/tontines/${Uri.encodeComponent(groupId)}/meetings'))) meetingFrom(groupId, m),
+        ];
+        out.sort((MeetingSummary a, MeetingSummary b) => b.seq.compareTo(a.seq));
+        return out;
+      });
+
+  @override
+  Future<Resource<MeetingDetail>> getMeeting({required String groupId, required String meetingId}) => _read(() async =>
+      meetingDetailFrom(groupId, (await _api.get('/tontines/${Uri.encodeComponent(groupId)}/meetings/${Uri.encodeComponent(meetingId)}')).body));
 }
