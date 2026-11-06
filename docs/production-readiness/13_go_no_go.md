@@ -4,10 +4,16 @@
 
 Le code de la branche `claude/continue-previous-a102rx` est prêt. La production l'est dès que le propriétaire a fait les **deux conditions bloquantes** ci-dessous (environ 10 minutes). Sans elles, le build refuse lui-même de déployer : c'est voulu.
 
-### Conditions bloquantes (propriétaire)
+### Conditions bloquantes : levées le 06/11/2026
 
-1. Poser `KOMBE_MFA_KEY` et `KOMBE_TOKEN_PEPPER` dans Vercel Production (voir 11, étape 1).
-2. Fusionner ou déployer la branche, vérifier `/v1/health/ready`, puis attribuer le premier opérateur et activer son second facteur (voir 11).
+1. `KOMBE_MFA_KEY` et `KOMBE_TOKEN_PEPPER` sont posés dans Vercel.
+2. La branche est déployée (migrations 0036 à 0040). Contrôles passés : `/v1/health/ready` répond prêt avec le schéma à jour, SMOKE_PASS, rendu sans erreur.
+3. L'API passe par le pooler en `kombe_api`.
+
+**Reste au propriétaire :**
+- **premier opérateur** : `grant-operator.mjs`, puis activer son second facteur (voir 11) ;
+- **décision d'achat Neon**, si la rafale de 5 000 arrivées en une minute doit rester rapide (voir 12) ;
+- **publication de l'application mobile** depuis le PC qui porte la clé de signature.
 
 ### Critères remplis (avec preuves)
 

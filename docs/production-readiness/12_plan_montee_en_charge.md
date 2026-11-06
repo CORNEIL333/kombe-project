@@ -28,7 +28,24 @@ Les paliers sont indicatifs : nombre de membres actifs, chacun ouvrant l'applica
   - **API branchée sur le pooler** (`kombe_api`, voir 11).
 - Avec un maximum de 8 CU, la même base absorbe environ 10 000 personnes arrivant en une minute.
 
-Ces valeurs sont des ordres de grandeur mesurés sur PostgreSQL 16 local. Il faut les confirmer par une charge sur une branche Neon jetable, avec l'accord du propriétaire.
+**Confirmation sur Neon (06/11/2026).** La même micro-mesure a été lancée, côté serveur, sur une copie de la production (5 000 membres synthétiques, transaction annulée) et en local. Médiane de 3 passages :
+
+| | Local | Neon |
+|---|---|---|
+| CPU brut | 23,1 ms | 23,8 ms |
+| `kombe_my_memberships` | 0,19 ms | 0,03 ms |
+| `kombe_rate_hit` | 0,021 ms | 0,021 ms |
+| Lecture type | 0,79 ms | 0,69 ms |
+
+**1 CU Neon équivaut à un cœur du banc.** Les estimations ci-dessus valent donc pour Neon.
+
+Une charge complète de 5 000 personnes contre Neon n'a pas pu être lancée depuis l'environnement de travail : chaque requête y traverse un proxy, soit 3 à 5 s.
+
+**Plan Neon actuel : gratuit**, avec un maximum de 2 CU et une mise en veille automatique impossible à désactiver.
+- **Régime établi de 5 000 personnes** (≈ 1,1 CU) : il tient dans 2 CU.
+- **Rafale de 5 000 arrivées en une minute** (≈ 2 CU) : elle occupe **la totalité** des 2 CU, et les temps de réponse s'allongent.
+- Il faut le **plan payant** pour régler la mise à l'échelle de 1 à 4 CU et désactiver la mise en veille. C'est une décision d'achat du propriétaire.
+- Sur le plan gratuit, ne **pas** relever le minimum : un calcul toujours actif épuise le quota d'heures mensuel, et Neon suspend alors la base.
 
 **API (Vercel).** Environ 2,9 ms de CPU par requête, soit environ 1 vCPU au total à 360 req/s, réparti automatiquement entre les instances. Garder `KOMBE_PG_POOL_MAX=10` par instance, le pooler partageant les connexions serveur.
 

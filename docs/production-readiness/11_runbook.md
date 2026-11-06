@@ -10,15 +10,24 @@
 | Base | **`neondb`** | **`kombe_prod`** : malgré son nom, une ancienne piste **vide** (51 tables, aucune donnée, migrations arrêtées à 0025 le 09/10/2026). Personne n'y pointe. Conservée, ne jamais la migrer ni la sauvegarder. |
 | Variables Vercel (Production) | `KOMBE_API_DATABASE_URL` (application) et `KOMBE_MIGRATION_DATABASE_URL` (migrations du build) pointent vers `neondb` sur `production`. Le journal du build affiche « Base migrée : <point d'accès> / <base> ». | — |
 
-État au 06/11/2026 :
-- dernières migrations `0034_group_photo` et `0035_member_photo`, appliquées le 05/11 à 08:40 UTC par le déploiement 0.8.0 ;
-- 20 identités, 6 groupes, 14 adhésions.
+État au 06/11/2026 (après le déploiement de 16:30 UTC) :
+- code : branche `claude/continue-previous-a102rx` @ `f68903f`, qui contient la 0.8.0 et les 4 commits suivants de `refonte/premium-photos` ;
+- migrations jusqu'à `0040_performance_charge` (0036 à 0040 appliquées par le build, base `ep-ancient-glade / neondb`) ;
+- **API branchée sur le pooler** en `kombe_api` (`KOMBE_API_DATABASE_URL` poolée) ;
+- `KOMBE_MFA_KEY` et `KOMBE_TOKEN_PEPPER` posées ;
+- 20 identités, 6 groupes, 14 adhésions, aucun opérateur.
+
+Retours arrière possibles :
+- le déploiement d'avant le pooler (même code, connexion directe) ;
+- la 0.8.0 (`dpl_BnCUaCTNXxPigXEeo69SxjkPWQpf`).
+
+Les migrations 0036 à 0040 sont additives : l'ancien code fonctionne avec elles.
 
 Règle : la production est **la branche par défaut du projet**, jamais une base désignée par son nom.
 
 ## Bascule de l'API vers le pooler (rôle `kombe_api`, ADR-0045)
 
-**Préalable.** Une version contenant la migration `0039_role_api` doit être déployée. Son build crée le rôle **sans connexion** et lui accorde `kombe_app`. Le déploiement 0.8.0 du 05/11 ne la contient pas encore.
+**Fait le 06/11/2026.** `kombe_api` est ouvert en production et l'URL poolée est en place. Le pooler est vérifié côté base : `pg_stat_activity` montre `kombe_api` avec `application_name = pgbouncer`. La procédure ci-dessous reste valable pour changer le mot de passe ou pour revenir en arrière.
 
 **Étapes.**
 1. **Ouvrir le rôle**, dans l'éditeur SQL de Neon : branche `production`, base `neondb`, rôle `neondb_owner`. Le mot de passe est généré par `openssl rand -hex 24`, ne contient que des caractères hexadécimaux et ne doit jamais être conservé ailleurs.
