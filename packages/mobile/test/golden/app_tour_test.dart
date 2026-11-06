@@ -26,7 +26,8 @@ Future<void> _loadFonts() async {
   }
 
   await family('Manrope', <String>['Manrope-400.ttf', 'Manrope-500.ttf', 'Manrope-600.ttf', 'Manrope-700.ttf', 'Manrope-800.ttf']);
-  await family('Fraunces', <String>['Fraunces-600.ttf', 'Fraunces-700.ttf']);
+  await family('Merriweather', <String>['Merriweather-400.ttf']);
+  await family('Libre Franklin', <String>['LibreFranklin-400.ttf', 'LibreFranklin-500.ttf', 'LibreFranklin-600.ttf', 'LibreFranklin-700.ttf', 'LibreFranklin-800.ttf']);
   final File icons = File('${Platform.environment['FLUTTER_ROOT'] ?? ''}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
   if (icons.existsSync()) {
     final FontLoader l = FontLoader('MaterialIcons')..addFont(Future<ByteData>.value(ByteData.sublistView(Uint8List.fromList(icons.readAsBytesSync()))));

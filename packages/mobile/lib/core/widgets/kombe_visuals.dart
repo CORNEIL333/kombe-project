@@ -49,7 +49,7 @@ class KombeAvatar extends StatelessWidget {
       decoration: BoxDecoration(color: KombeColors.tintOf(name), shape: BoxShape.circle),
       child: Text(
         _initials,
-        style: TextStyle(fontFamily: 'Fraunces', color: KombeColors.ink, fontWeight: FontWeight.w700, fontSize: size * .38, height: 1),
+        style: TextStyle(fontFamily: 'Merriweather', color: KombeColors.ink, fontWeight: FontWeight.w400, fontSize: size * .38, height: 1),
       ),
     );
     final Future<Uint8List?>? bytes = load;

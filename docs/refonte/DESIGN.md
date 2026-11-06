@@ -25,7 +25,7 @@ Fichier verrouillé : tout écran, mobile comme PWA, en dérive. Toute exception
 
 ## 1. Direction retenue : le calme
 
-**Une seule audace par écran, tout le reste est calme.** La personnalité vient du serif, des monogrammes, de la langue et d'un seul accent, pas de la quantité de couleurs. Essais abandonnés : indigo (cassait l'identité), multicolore (illisible).
+**Une seule audace par écran, tout le reste est calme.** La personnalité vient d'un serif sobre, des monogrammes, de la langue et d'un seul accent, pas de la quantité de couleurs. Essais abandonnés : indigo (cassait l'identité), multicolore (illisible).
 
 | Jeton | Hex | Rôle |
 |---|---|---|
@@ -37,7 +37,7 @@ Fichier verrouillé : tout écran, mobile comme PWA, en dérive. Toute exception
 | Danger | `#B42318` | Retard et erreur seulement |
 | 8 teintes douces | voir `KombeColors.tints` | Monogrammes et liserés, texte toujours encre |
 
-**Règles.** Trois teintes au plus par écran. Motif jamais derrière du texte, une seule zone décorative par écran au maximum. Texte 14 px minimum, contraste 4,5:1, cibles 48 px. Fraunces sur les noms et les montants, Manrope pour le reste. Tout est rond. Pas de photo décorative.
+**Règles.** Trois teintes au plus par écran. Motif jamais derrière du texte, une seule zone décorative par écran au maximum. Texte 14 px minimum, contraste 4,5:1, cibles 48 px. Merriweather Regular sur les titres et les noms, jamais en gras. Libre Franklin pour l'interface et les montants, en chiffres tabulaires. L'écran de connexion garde Manrope. Tout est rond. Pas de photo décorative.
 
 **Carte de groupe.** Une structure, même hauteur : avatar, nom, fonction, « À payer » en plus gros texte, points du cycle, un seul chevron, liseré d'identité. Rien à payer : ligne masquée. En attente : carte grise, « En attente ». Tri par urgence.
 

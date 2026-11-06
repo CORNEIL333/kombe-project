@@ -35,7 +35,8 @@ Future<void> _loadFonts() async {
   }
 
   await family('Manrope', <String>['Manrope-400.ttf', 'Manrope-500.ttf', 'Manrope-600.ttf', 'Manrope-700.ttf', 'Manrope-800.ttf']);
-  await family('Fraunces', <String>['Fraunces-600.ttf', 'Fraunces-700.ttf']);
+  await family('Merriweather', <String>['Merriweather-400.ttf']);
+  await family('Libre Franklin', <String>['LibreFranklin-400.ttf', 'LibreFranklin-500.ttf', 'LibreFranklin-600.ttf', 'LibreFranklin-700.ttf', 'LibreFranklin-800.ttf']);
   // Icônes Material pour que les glyphes ne soient pas des carrés.
   final String? flutterRoot = Platform.environment['FLUTTER_ROOT'];
   final File icons = File('${flutterRoot ?? ''}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');

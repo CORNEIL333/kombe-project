@@ -4,14 +4,16 @@ import 'kombe_colors.dart';
 import 'kombe_spacing.dart';
 import 'kombe_tokens.g.dart';
 
-/// Typographie « Ndop » :
-/// - Fraunces (serif) pour ce qui se lit comme un titre de page ou une somme :
-///   grands titres d'écran et montants, en chiffres tabulaires ;
-/// - Manrope pour toute l'interface (libellés, listes, boutons, texte).
+/// Typographie sobre et formelle :
+/// - Merriweather Regular pour ce qui se lit comme un titre : écrans, sections,
+///   noms de groupes. Jamais en gras : le sérieux vient de la retenue ;
+/// - Libre Franklin pour l'interface et les montants, en chiffres tabulaires,
+///   comme sur un relevé.
 /// `titre`/`accent` gardent le style de l'écran « Connectez-vous » (Manrope
 /// ExtraBold + olive) : ne pas les convertir.
 abstract final class KombeType {
-  static const String serif = 'Fraunces';
+  static const String serif = 'Merriweather';
+  static const String ui = 'Libre Franklin';
 
   static TextStyle titre({double size = 32, Color color = KombeColors.forest, double height = 1.08, FontWeight weight = FontWeight.w800}) => TextStyle(
         fontFamily: KombeTokens.fontUi,
@@ -23,30 +25,30 @@ abstract final class KombeType {
       );
   static TextStyle accent({double size = 28, Color color = KombeColors.olive, double height = 1.08}) => titre(size: size, color: color, height: height);
 
-  /// Titre éditorial (en-têtes d'écran, demi-fenêtres importantes).
-  static TextStyle display({double size = 30, Color color = KombeColors.forest, double height = 1.1}) => TextStyle(
+  /// Titre (en-têtes d'écran, sections, noms).
+  static TextStyle display({double size = 30, Color color = KombeColors.forest, double height = 1.25}) => TextStyle(
         fontFamily: serif,
-        fontWeight: FontWeight.w700,
-        fontSize: size,
+        fontWeight: FontWeight.w400,
+        fontSize: size * .86,
         height: height,
-        letterSpacing: -size * .025,
+        letterSpacing: -size * .006,
         color: color,
       );
 
-  /// Montant : Fraunces, chiffres tabulaires (les colonnes s'alignent).
-  static TextStyle amount({double size = 28, Color color = KombeColors.forest, FontWeight weight = FontWeight.w700}) => TextStyle(
-        fontFamily: serif,
+  /// Montant : Libre Franklin, chiffres tabulaires (les colonnes s'alignent).
+  static TextStyle amount({double size = 28, Color color = KombeColors.forest, FontWeight weight = FontWeight.w600}) => TextStyle(
+        fontFamily: ui,
         fontWeight: weight,
         fontSize: size,
-        height: 1.05,
-        letterSpacing: -size * .01,
+        height: 1.1,
+        letterSpacing: -size * .012,
         color: color,
         fontFeatures: const <FontFeature>[FontFeature.tabularFigures(), FontFeature.liningFigures()],
       );
 
   /// Sur-titre de section : petites capitales espacées.
   static const TextStyle eyebrow = TextStyle(
-    fontFamily: KombeTokens.fontUi,
+    fontFamily: ui,
     fontWeight: FontWeight.w800,
     fontSize: 14,
     height: 1.2,
@@ -94,7 +96,7 @@ abstract final class KombeTheme {
       scaffoldBackgroundColor: KombeColors.cream,
       visualDensity: VisualDensity.standard,
       splashFactory: InkSparkle.splashFactory,
-      fontFamily: KombeTokens.fontUi,
+      fontFamily: KombeType.ui,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: <TargetPlatform, PageTransitionsBuilder>{
           TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
@@ -104,13 +106,13 @@ abstract final class KombeTheme {
     final TextTheme t = base.textTheme;
     TextStyle serif(TextStyle? s, double size) => (s ?? const TextStyle()).copyWith(
           fontFamily: KombeType.serif,
-          fontSize: size,
-          fontWeight: FontWeight.w700,
+          fontSize: size * .86,
+          fontWeight: FontWeight.w400,
           color: KombeColors.forest,
-          height: 1.1,
-          letterSpacing: -size * .025,
+          height: 1.25,
+          letterSpacing: -size * .006,
         );
-    const TextStyle ui = TextStyle(fontFamily: KombeTokens.fontUi);
+    const TextStyle ui = TextStyle(fontFamily: KombeType.ui);
     final BorderRadius field = BorderRadius.circular(KombeSpacing.fieldRadius);
 
     return base.copyWith(

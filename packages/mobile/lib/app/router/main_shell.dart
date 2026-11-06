@@ -349,8 +349,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                     labelType: NavigationRailLabelType.all,
                     backgroundColor: Colors.white,
                     indicatorColor: KombeColors.mint,
-                    selectedLabelTextStyle: const TextStyle(fontFamily: 'Manrope', color: KombeColors.forest, fontSize: 14, fontWeight: FontWeight.w800),
-                    unselectedLabelTextStyle: const TextStyle(fontFamily: 'Manrope', color: KombeColors.slate, fontSize: 14, fontWeight: FontWeight.w600),
+                    selectedLabelTextStyle: const TextStyle(fontFamily: 'Libre Franklin', color: KombeColors.forest, fontSize: 14, fontWeight: FontWeight.w800),
+                    unselectedLabelTextStyle: const TextStyle(fontFamily: 'Libre Franklin', color: KombeColors.slate, fontSize: 14, fontWeight: FontWeight.w600),
                     destinations: <NavigationRailDestination>[
                       for (int i = 0; i < items.length; i++)
                         NavigationRailDestination(

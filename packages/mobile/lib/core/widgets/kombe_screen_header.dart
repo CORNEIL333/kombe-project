@@ -4,7 +4,7 @@ import '../design/kombe_colors.dart';
 import '../design/kombe_ndop.dart';
 import '../design/kombe_theme.dart';
 
-/// En-tête d'écran : grand titre Fraunces, sous-titre, coin de motif Ndop.
+/// En-tête d'écran : grand titre serif, sous-titre, coin de motif Ndop.
 class KombeScreenHeader extends StatelessWidget {
   const KombeScreenHeader({super.key, required this.title, this.subtitle, this.inset = 20, this.trailing});
   final String title;

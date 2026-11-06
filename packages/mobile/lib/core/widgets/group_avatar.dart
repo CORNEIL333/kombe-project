@@ -110,7 +110,7 @@ class _Monogram extends StatelessWidget {
         child: Center(
           child: Text(
             groupInitials(name),
-            style: TextStyle(fontFamily: 'Fraunces', color: KombeColors.ink, fontWeight: FontWeight.w700, fontSize: size * .36, height: 1),
+            style: TextStyle(fontFamily: 'Merriweather', color: KombeColors.ink, fontWeight: FontWeight.w400, fontSize: size * .36, height: 1),
           ),
         ),
       );

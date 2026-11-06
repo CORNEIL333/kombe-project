@@ -28,7 +28,7 @@ extension KombeToneColors on KombeTone {
       };
 }
 
-/// Montant FCFA : chiffres en Fraunces tabulaires, devise en petit Manrope.
+/// Montant FCFA : chiffres tabulaires, devise en petit Manrope.
 class KombeAmount extends StatelessWidget {
   const KombeAmount(this.xaf, {super.key, this.size = 28, this.color = KombeColors.forest, this.signed = false});
   final int xaf;
@@ -39,8 +39,8 @@ class KombeAmount extends StatelessWidget {
 
   static final NumberFormat _f = NumberFormat.decimalPattern('fr_FR');
 
-  /// Groupes de milliers séparés par une espace insécable (U+00A0) : Fraunces
-  /// n'a pas l'espace fine (U+202F) de `fr_FR`, qui disparaîtrait.
+  /// Groupes de milliers séparés par une espace insécable (U+00A0) : certaines
+  /// polices n'ont pas l'espace fine (U+202F) de `fr_FR`.
   static String digits(int v) => _f.format(v).replaceAll('\u202F', '\u00A0');
 
   @override
@@ -437,7 +437,7 @@ class _CycleRingPainter extends CustomPainter {
   bool shouldRepaint(covariant _CycleRingPainter old) => old.progress != progress || old.onDark != onDark;
 }
 
-/// Pavé de date (calendrier) : jour en Fraunces, mois abrégé.
+/// Pavé de date (calendrier) : jour en grand, mois abrégé.
 class KombeDateBlock extends StatelessWidget {
   const KombeDateBlock(this.date, {super.key, this.size = 56});
   final DateTime date;
@@ -528,7 +528,7 @@ class KombeFact extends StatelessWidget {
       );
 }
 
-/// Tête de formulaire : picto de la tâche, titre Fraunces, une phrase utile.
+/// Tête de formulaire : picto de la tâche, titre serif, une phrase utile.
 class KombeFormHeader extends StatelessWidget {
   const KombeFormHeader({super.key, required this.icon, required this.title, required this.body, this.tone = KombeTone.brand});
   final IconData icon;
