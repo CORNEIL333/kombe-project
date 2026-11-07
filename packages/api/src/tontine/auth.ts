@@ -362,7 +362,7 @@ export class TontineAuth {
     const sid = bearerOf(headers);
     await inTx(this.pool, async (db) => {
       await sessionIdentity(db, headers, this.now());
-      await db.query(`UPDATE access_session SET revoked_at = now() WHERE session_id = $1 AND revoked_at IS NULL`, [sid]);
+      await db.query(`UPDATE access_session SET revoked_at = now() WHERE session_id = kombe_session_key($1) AND revoked_at IS NULL`, [sid]);
     });
   }
 

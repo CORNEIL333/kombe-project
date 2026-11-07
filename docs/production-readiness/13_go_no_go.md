@@ -15,6 +15,12 @@ Le code de la branche `claude/continue-previous-a102rx` est prêt. La production
 - **décision d'achat Neon**, si la rafale de 5 000 arrivées en une minute doit rester rapide (voir 12) ;
 - **publication de l'application mobile** depuis le PC qui porte la clé de signature.
 
+### Faille corrigée le 07/11/2026 — **à déployer en priorité** (V-18, voir 02)
+
+- En production, tout membre connecté peut aujourd'hui obtenir la liste des identifiants de connexion de tous les comptes (`POST /v1/privacy/restore-points`). Il peut aussi écrire les mentions légales et le registre des traitements.
+- Aucune trace d'usage n'a été relevée (lecture seule du 07/11).
+- Le correctif (`c52f0c9`) réserve ces routes à l'admin avec second facteur. Elles ne renvoient plus que des comptes.
+
 ### CRM de la plateforme (07/11/2026, ADR-0046) — code prêt, **non déployé**
 
 - Les consoles Opérations, Direction et Engineering sont réunies dans **`/crm/`** ; les anciennes adresses y redirigent.
@@ -52,8 +58,8 @@ Le code de la branche `claude/continue-previous-a102rx` est prêt. La production
 
 | Risque | Plan |
 |---|---|
-| R-01 : jetons de session en clair | Empreinte prévue |
-| R-02 : tables « vie privée » sans RLS | Exposées seulement en cas d'injection SQL |
+| R-01 : jetons de session en clair | Corrigé dans le code (0042, empreinte SHA-256), à déployer |
+| R-02 : tables « vie privée » sans RLS | Corrigé dans le code (0042), à déployer ; reste `"group"`, sans donnée personnelle |
 | R-03 : connexions directes | Code livré et prouvé (ADR-0045) ; bascule propriétaire |
 | R-04 : N+1 sur `/v1/me/tontines` | — |
 | R-05 : tâche planifiée quotidienne | — |

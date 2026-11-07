@@ -250,7 +250,7 @@ export async function activateMfa(pool: pg.Pool, headers: Record<string, unknown
       step,
       codes.map((c) => recoveryHash(c)),
     ]);
-    await db.query(`UPDATE access_session SET mfa_verified_at = $2 WHERE session_id = $1`, [bearerOf(headers), new Date(nowMs)]);
+    await db.query(`UPDATE access_session SET mfa_verified_at = $2 WHERE session_id = kombe_session_key($1)`, [bearerOf(headers), new Date(nowMs)]);
     return { recoveryCodes: codes };
   });
   if (failed || !out) {
@@ -289,7 +289,7 @@ export async function verifyMfa(
       await db.query(`UPDATE operator_mfa SET recovery_hashes = $2, updated_at = now() WHERE identity_id = $1`, [st.identityId, left]);
       outcome = "recovery";
     } else return mfaFailure(db, `mfa:${st.identityId}`, nowMs);
-    await db.query(`UPDATE access_session SET mfa_verified_at = $2 WHERE session_id = $1`, [bearerOf(headers), new Date(nowMs)]);
+    await db.query(`UPDATE access_session SET mfa_verified_at = $2 WHERE session_id = kombe_session_key($1)`, [bearerOf(headers), new Date(nowMs)]);
   });
   if (outcome === "failed") {
     await audit(pool, headers, nowMs, "mfa_failed", "verification");

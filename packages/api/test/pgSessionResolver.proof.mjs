@@ -91,7 +91,7 @@ try {
   `);
 
   const DOWN = [
-    "migrations/0041_crm.down.sql",
+    "migrations/0042_securite_residuelle.down.sql", "migrations/0041_crm.down.sql",
     "migrations/0040_performance_charge.down.sql",
     "migrations/0039_role_api.down.sql",
     "migrations/0038_notifications_livraison.down.sql",
@@ -117,7 +117,7 @@ try {
     "migrations/0010_dispute_cases.sql", "migrations/0011_disbursement.sql", "migrations/0012_proposal.sql",
     "migrations/0013_outbox.sql", "migrations/0014_support_security.sql", "migrations/0015_export_manifest.sql",
     "migrations/0016_privacy_law.sql", "migrations/0017_pilot_metrics.sql",
-    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "migrations/0032_audit_indexes.sql", "migrations/0033_custom_funds.sql", "migrations/0034_echeances_notifications.sql", "migrations/0034_group_photo.sql", "migrations/0035_member_photo.sql", "migrations/0036_securite_operateurs.sql", "migrations/0037_rls_identite.sql", "migrations/0038_notifications_livraison.sql", "migrations/0039_role_api.sql", "migrations/0040_performance_charge.sql", "migrations/0041_crm.sql", "provision/roles.sql",
+    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "migrations/0032_audit_indexes.sql", "migrations/0033_custom_funds.sql", "migrations/0034_echeances_notifications.sql", "migrations/0034_group_photo.sql", "migrations/0035_member_photo.sql", "migrations/0036_securite_operateurs.sql", "migrations/0037_rls_identite.sql", "migrations/0038_notifications_livraison.sql", "migrations/0039_role_api.sql", "migrations/0040_performance_charge.sql", "migrations/0041_crm.sql", "migrations/0042_securite_residuelle.sql", "provision/roles.sql",
   ];
   for (const f of UP) await runSql(migrator, f);
 
@@ -216,10 +216,27 @@ try {
   // A2-RLS-DIRECT : requête directe SANS passer par la fonction, SANS poser
   // kombe.identity_id -> RLS self-scope doit masquer la ligne (0 résultat).
   const direct = await withTx(async (c) => {
-    const r = await c.query("SELECT * FROM access_session WHERE session_id = $1", ["sess_valid"]);
+    const r = await c.query("SELECT * FROM access_session WHERE session_id = kombe_session_key($1)", ["sess_valid"]);
     return r.rows.length;
   });
   check("A2-RLS-DIRECT", direct === 0, { rows_visible_without_identity_context: direct });
+
+  // R-01 (0042) : la base ne garde que l'empreinte du jeton ; présenter
+  // l'empreinte comme jeton ne résout rien ; un jeton en clair ne peut pas
+  // être stocké, même par le propriétaire des tables.
+  const stored = await migrator.query("SELECT session_id FROM access_session WHERE identity_id = 'idn_valid'");
+  const empreinte = String(stored.rows[0]?.session_id ?? "");
+  check("R01-STORED-HASHED", /^sha256:[0-9a-f]{64}$/.test(empreinte) && !empreinte.includes("sess_valid"), { empreinte: empreinte.slice(0, 14) });
+  let hashAsTokenCode = null;
+  try {
+    await withTx((c) => resolveSession(c, empreinte, NOW));
+  } catch (e) { hashAsTokenCode = e instanceof DomainError ? e.code : String(e); }
+  check("R01-HASH-NOT-A-TOKEN", hashAsTokenCode === "SESSION_INVALID", { hashAsTokenCode });
+  let clearRefused = null;
+  try {
+    await migrator.query("UPDATE access_session SET session_id = 'jeton-en-clair' WHERE identity_id = 'idn_valid'");
+  } catch (e) { clearRefused = e.code; }
+  check("R01-CLEAR-TOKEN-REFUSED", clearRefused === "23514", { clearRefused });
 
   // A2-GROUPACTOR : adhésion active + rôle accepté.
   const actor = await withTx(async (c) => {

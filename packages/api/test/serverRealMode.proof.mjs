@@ -111,7 +111,7 @@ try {
   `);
 
   const DOWN = [
-    "migrations/0041_crm.down.sql",
+    "migrations/0042_securite_residuelle.down.sql", "migrations/0041_crm.down.sql",
     "migrations/0040_performance_charge.down.sql",
     "migrations/0039_role_api.down.sql",
     "migrations/0038_notifications_livraison.down.sql",
@@ -137,7 +137,7 @@ try {
     "migrations/0010_dispute_cases.sql", "migrations/0011_disbursement.sql", "migrations/0012_proposal.sql",
     "migrations/0013_outbox.sql", "migrations/0014_support_security.sql", "migrations/0015_export_manifest.sql",
     "migrations/0016_privacy_law.sql", "migrations/0017_pilot_metrics.sql",
-    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "migrations/0032_audit_indexes.sql", "migrations/0033_custom_funds.sql", "migrations/0034_echeances_notifications.sql", "migrations/0034_group_photo.sql", "migrations/0035_member_photo.sql", "migrations/0036_securite_operateurs.sql", "migrations/0037_rls_identite.sql", "migrations/0038_notifications_livraison.sql", "migrations/0039_role_api.sql", "migrations/0040_performance_charge.sql", "migrations/0041_crm.sql", "provision/roles.sql",
+    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "migrations/0032_audit_indexes.sql", "migrations/0033_custom_funds.sql", "migrations/0034_echeances_notifications.sql", "migrations/0034_group_photo.sql", "migrations/0035_member_photo.sql", "migrations/0036_securite_operateurs.sql", "migrations/0037_rls_identite.sql", "migrations/0038_notifications_livraison.sql", "migrations/0039_role_api.sql", "migrations/0040_performance_charge.sql", "migrations/0041_crm.sql", "migrations/0042_securite_residuelle.sql", "provision/roles.sql",
   ];
   for (const f of UP) await runSql(migrator, f);
 
@@ -953,6 +953,35 @@ try {
       c16Restore.json().deletedIdentityVisible === true &&
       !c16Restore.body.includes("@example.test"),
     { status: c16Restore.statusCode, body: c16Restore.json() },
+  );
+
+  // ── R-02 (0042) : RLS des tables « vie privée » et du registre des risques.
+  // Sans identité posée, le rôle applicatif ne voit rien (sauf les mentions
+  // légales, publiques) ; une personne ne voit que SES consentements.
+  const rls = await (async () => {
+    const c = await pool.connect();
+    try {
+      await c.query("BEGIN");
+      const anon = (await c.query(`SELECT
+          (SELECT count(*) FROM personal_consent) AS consent, (SELECT count(*) FROM restore_point) AS points,
+          (SELECT count(*) FROM processing_record) AS registre, (SELECT count(*) FROM data_erasure_tombstone) AS tombes,
+          (SELECT count(*) FROM pilot_risk) AS risques, (SELECT count(*) FROM legal_notice) AS notices`)).rows[0];
+      await c.query("SELECT set_config('kombe.identity_id', 'bob@example.test', true)");
+      const bob = (await c.query("SELECT count(*) AS n FROM personal_consent WHERE identity_id = 'alice@example.test'")).rows[0];
+      let forged = null;
+      try {
+        await c.query("SAVEPOINT f");
+        await c.query("INSERT INTO personal_consent (identity_id, category, granted, updated_at) VALUES ('alice@example.test','research',false,now())");
+      } catch (e) { forged = e.code; await c.query("ROLLBACK TO SAVEPOINT f"); }
+      await c.query("ROLLBACK");
+      return { anon, bobSeesAlice: Number(bob.n), forged };
+    } finally { c.release(); }
+  })();
+  check(
+    "R02-RLS-PRIVACY",
+    ["consent", "points", "registre", "tombes", "risques"].every((k) => Number(rls.anon[k]) === 0) &&
+      Number(rls.anon.notices) >= 1 && rls.bobSeesAlice === 0 && rls.forged === "42501",
+    rls,
   );
 
   // ── A3-FICTIF-INTACT : sans pool, le squelette fictif répond encore ────

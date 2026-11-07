@@ -4,10 +4,12 @@
  * les fonctions pures de `@kombe/domain` (`privacy.ts`). Schéma réel :
  * migration 0016_privacy_law.sql.
  *
- * Tables SANS RLS (`legal_notice`, `processing_record`, `personal_consent`,
- * `data_erasure_tombstone`) : non scopées par groupe, lues/écrites par
- * requête directe sur le pool (pas de `withGroupTx` nécessaire — il n'y a
- * pas de `kombe.group_id` à poser). Seule `rights_request` porte une RLS
+ * Tables non scopées par groupe (`legal_notice`, `processing_record`,
+ * `personal_consent`, `data_erasure_tombstone`, `restore_point`) : RLS par
+ * IDENTITÉ depuis 0042 (la personne pour ses consentements et son effacement,
+ * les opérateurs pour le registre, la restauration et l'ajout de mentions ;
+ * lecture publique des mentions). Chaque accès ouvre donc une transaction
+ * sous l'identité de l'acteur (`withIdentityTx`). Seule `rights_request` porte une RLS
  * `tenant_isolation` sur `group_id` : ses méthodes prennent donc un `groupId`
  * explicite, ABSENT du contrat fictif (`FictitiousPrivacyStore`), pour les
  * mêmes raisons déjà documentées dans pgContributionStore.ts/pgSupportStore.ts
@@ -52,7 +54,7 @@ import {
   type RightsRequest,
   type Tombstone,
 } from "@kombe/domain";
-import { withGroupTx } from "./txContext.js";
+import { withGroupTx, withIdentityTx } from "./txContext.js";
 
 export interface PrivacyContext {
   readonly actorIdentityId: string;
@@ -122,10 +124,10 @@ export class PgPrivacyStore {
   async publishNotice(ctx: PrivacyContext, input: NoticeInput): Promise<LegalNotice> {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
     const notice = buildLegalNotice(input);
-    await this.pool.query(
+    await withIdentityTx(this.pool, ctx.actorIdentityId, (c) => c.query(
       `INSERT INTO legal_notice (notice_id, version, kind, last_updated_at, body) VALUES ($1,$2,$3,$4,$5)`,
       [notice.noticeId, notice.version, notice.kind, notice.lastUpdatedAt, notice.body],
-    );
+    ));
     return notice;
   }
 
@@ -161,7 +163,7 @@ export class PgPrivacyStore {
   ): Promise<ProcessingRecord> {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
     const record = buildProcessingRecord(input);
-    await this.pool.query(
+    await withIdentityTx(this.pool, ctx.actorIdentityId, (c) => c.query(
       `INSERT INTO processing_record (record_id, purpose, data_categories, legal_basis, recipients, country, retention_days)
        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [
@@ -173,7 +175,7 @@ export class PgPrivacyStore {
         record.country,
         record.retentionDays,
       ],
-    );
+    ));
     return record;
   }
 
@@ -194,9 +196,8 @@ export class PgPrivacyStore {
   /* --- 13.4 consentement (identité-scopé, pas de RLS déclarée) --- */
 
   private async consentOf(identityId: string, now: number): Promise<ConsentState> {
-    const res = await this.pool.query(
-      `SELECT category, granted FROM personal_consent WHERE identity_id = $1`,
-      [identityId],
+    const res = await withIdentityTx(this.pool, identityId, (c) =>
+      c.query(`SELECT category, granted FROM personal_consent WHERE identity_id = $1`, [identityId]),
     );
     let state = initialConsent(identityId, now);
     for (const row of res.rows) {
@@ -206,9 +207,9 @@ export class PgPrivacyStore {
   }
 
   private async isActiveMember(identityId: string): Promise<boolean> {
-    const erasedRes = await this.pool.query(`SELECT 1 FROM data_erasure_tombstone WHERE identity_id = $1`, [
-      identityId,
-    ]);
+    const erasedRes = await withIdentityTx(this.pool, identityId, (c) =>
+      c.query(`SELECT 1 FROM data_erasure_tombstone WHERE identity_id = $1`, [identityId]),
+    );
     if (erasedRes.rows.length > 0) return false;
     // `membership` porte une RLS par groupe (0001) : une lecture directe sans
     // `kombe.group_id` ne voit RIEN. La fonction SECURITY DEFINER étroite
@@ -231,12 +232,12 @@ export class PgPrivacyStore {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
     const current = await this.consentOf(ctx.actorIdentityId, ctx.serverNow);
     const next = setConsent(current, category, granted, ctx.serverNow);
-    await this.pool.query(
+    await withIdentityTx(this.pool, ctx.actorIdentityId, (c) => c.query(
       `INSERT INTO personal_consent (identity_id, category, granted, updated_at)
        VALUES ($1,$2,$3,$4)
        ON CONFLICT (identity_id, category) DO UPDATE SET granted = EXCLUDED.granted, updated_at = EXCLUDED.updated_at`,
       [ctx.actorIdentityId, category, granted, new Date(ctx.serverNow * 1000)],
-    );
+    ));
     return this.consentView(next);
   }
 
@@ -357,9 +358,8 @@ export class PgPrivacyStore {
     // réelles déjà posées : identity + personal_consent comme champs
     // propriétaires, aucun champ privé d'un tiers n'est jamais inclus par
     // construction d'`extractPersonalDataExport`).
-    const fieldsRes = await this.pool.query(
-      `SELECT identity_id, category, granted FROM personal_consent WHERE identity_id = $1`,
-      [subject],
+    const fieldsRes = await withIdentityTx(this.pool, subject, (c) =>
+      c.query(`SELECT identity_id, category, granted FROM personal_consent WHERE identity_id = $1`, [subject]),
     );
     const fields: PersonalField[] = fieldsRes.rows.map((r) => ({
       key: `consent.${r.category}`,
@@ -392,9 +392,11 @@ export class PgPrivacyStore {
     });
     // Tombstone réel, append-only, HORS transaction group-scopée (table non
     // group-scopée) : idempotent par ON CONFLICT (ré-effacer ne duplique pas).
-    await this.pool.query(
-      `INSERT INTO data_erasure_tombstone (identity_id, erased_at) VALUES ($1,$2) ON CONFLICT (identity_id) DO NOTHING`,
-      [subject, new Date(ctx.serverNow * 1000)],
+    await withIdentityTx(this.pool, subject, (c) =>
+      c.query(
+        `INSERT INTO data_erasure_tombstone (identity_id, erased_at) VALUES ($1,$2) ON CONFLICT (identity_id) DO NOTHING`,
+        [subject, new Date(ctx.serverNow * 1000)],
+      ),
     );
     await this.effacerPhoto(subject);
     return view;
@@ -434,10 +436,9 @@ export class PgPrivacyStore {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
     const res = await this.pool.query(`SELECT identity_id FROM kombe_privacy_active_identities()`);
     const point: RestorePoint = { takenAt: ctx.serverNow, identities: res.rows.map((r) => String(r.identity_id)) };
-    await this.pool.query(`INSERT INTO restore_point (taken_at, identities) VALUES ($1,$2)`, [
-      new Date(ctx.serverNow * 1000),
-      point.identities,
-    ]);
+    await withIdentityTx(this.pool, ctx.actorIdentityId, (c) =>
+      c.query(`INSERT INTO restore_point (taken_at, identities) VALUES ($1,$2)`, [new Date(ctx.serverNow * 1000), point.identities]),
+    );
     return point;
   }
 
@@ -446,16 +447,16 @@ export class PgPrivacyStore {
    *  ET révocations ; une identité effacée après le point reste invisible. */
   async restoreLatest(ctx: PrivacyContext, probeIdentityId: string): Promise<RestoreReceipt> {
     if (!ctx.actorIdentityId) throw new DomainError("FEATURE_PILOT_FORBIDDEN", "Acteur non authentifié");
-    const pointRes = await this.pool.query(
-      `SELECT taken_at, identities FROM restore_point ORDER BY point_id DESC LIMIT 1`,
-    );
+    const { pointRes, tombRes } = await withIdentityTx(this.pool, ctx.actorIdentityId, async (c) => ({
+      pointRes: await c.query(`SELECT taken_at, identities FROM restore_point ORDER BY point_id DESC LIMIT 1`),
+      tombRes: await c.query(`SELECT identity_id, erased_at FROM data_erasure_tombstone`),
+    }));
     const pointRow = pointRes.rows[0];
     if (!pointRow) throw new DomainError("RESERVATION_INCOHERENTE", "Aucun point de restauration");
     const point: RestorePoint = {
       takenAt: Math.floor(new Date(pointRow.taken_at as string).getTime() / 1000),
       identities: pointRow.identities as string[],
     };
-    const tombRes = await this.pool.query(`SELECT identity_id, erased_at FROM data_erasure_tombstone`);
     const tombstones: Tombstone[] = tombRes.rows.map((r) => ({
       identityId: String(r.identity_id),
       erasedAt: Math.floor(new Date(r.erased_at as string).getTime() / 1000),
@@ -476,7 +477,9 @@ export class PgPrivacyStore {
   }
 
   async isErasedProbe(identityId: string): Promise<boolean> {
-    const res = await this.pool.query(`SELECT 1 FROM data_erasure_tombstone WHERE identity_id = $1`, [identityId]);
+    const res = await withIdentityTx(this.pool, identityId, (c) =>
+      c.query(`SELECT 1 FROM data_erasure_tombstone WHERE identity_id = $1`, [identityId]),
+    );
     return res.rows.length > 0;
   }
 }
