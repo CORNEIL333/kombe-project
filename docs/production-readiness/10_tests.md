@@ -13,7 +13,7 @@
 | consoles | 11/11 |
 | mobile (Flutter, après fusion) | 60 réussis, 1 ignoré : le golden de la visite, qui ne tourne qu'avec `KOMBE_TOUR`. `flutter analyze` : 0 erreur. |
 
-**Preuves sur PostgreSQL 16 réel** (`scripts/proofs-local.sh`, et en CI `proofs-postgres.yml`) : **27/27 PASS**.
+**Preuves sur PostgreSQL 16 réel** (`scripts/proofs-local.sh`, et en CI `proofs-postgres.yml`) : **28/28 PASS** (07/11/2026, dont `crm.proof.mjs`), en connexion directe comme via PgBouncer (`kombe_api`).
 - Preuves historiques : isolation, journal, contributions, validations, recours, versements, propositions, règles, calendrier, sessions, métriques, découverte du worker, mode réel du serveur, API tontine, cycles, décisions, caisses, échéances, Neon Auth, migration à vide, console.
 - Nouvelles preuves : `idempotence` (10 contrôles), `operatorSecurity` (25, dont 4 de RLS), `authHardening`, `notificationDelivery` (26).
 

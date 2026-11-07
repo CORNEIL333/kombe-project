@@ -12,7 +12,7 @@ Les paliers sont indicatifs : nombre de membres actifs, chacun ouvrant l'applica
 
 - **Code et migration livrés.** Rôle `kombe_api` (LOGIN, membre de `kombe_app`, sans BYPASSRLS). Le pool n'envoie plus d'option de démarrage quand il se connecte avec ce rôle. Une garde de moindre privilège refuse de servir si la connexion est trop privilégiée.
 - **Prouvé.**
-  - 27/27 preuves via PgBouncer en mode transaction.
+  - 28/28 preuves via PgBouncer en mode transaction (07/11/2026).
   - Charge à 32 clients : 407 req/s, p95 de 108 ms, 0 erreur, **10 connexions serveur** pour environ 25 000 requêtes.
   - Répétition réussie sur une copie de la production Neon, via le point d'accès `-pooler`.
 - **Reste à faire par le propriétaire** : la bascule (runbook, « Bascule de l'API vers le pooler »), au prochain déploiement de cette branche.

@@ -34,7 +34,7 @@ Le code de la branche `claude/continue-previous-a102rx` est prêt. La production
   - journal immuable ;
   - KÓMBE ne valide jamais un paiement à la place d'une personne ;
   - modules sensibles fermés.
-- **Tests** : preuves PostgreSQL (dont celle du CRM, 43/43 en direct et via PgBouncer) et toutes les suites unitaires, exécutées en CI à chaque poussée.
+- **Tests** : 28/28 preuves PostgreSQL (dont celle du CRM), en direct et via PgBouncer et toutes les suites unitaires, exécutées en CI à chaque poussée.
 - **Mise à niveau** répétée sur une copie de la production.
 - **Restauration** démontrée en moins d'une minute (06).
 - **Matrice adverse** : 12/12 PASS (10).
