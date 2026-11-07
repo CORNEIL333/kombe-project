@@ -815,10 +815,30 @@ try {
   );
 
   // ── A4-C16 : notices, consentement, droits, export perso, restauration ─
+  // Actes d'administration (mentions légales, registre, restauration) : un
+  // opérateur « support » est refusé (403), seule la fonction admin passe.
+  const noticeBody = {
+    noticeId: "not_a4_refused", kind: "privacy", version: "1.0.0", lastUpdatedAt: "2026-10-08",
+    body: "KÓMBE est un registre partagé de tontine. Les paiements restent hors application.",
+  };
+  const c16NoticeRefused = await inject({ method: "POST", url: "/v1/privacy/notices", headers: aliceAuth, payload: noticeBody });
+  const c16RecordRefused = await inject({
+    method: "POST", url: "/v1/privacy/processing-records", headers: aliceAuth,
+    payload: { purpose: "Tentative", dataCategories: ["nom"], legalBasis: "consent", recipients: ["x"], country: "Cameroun", retentionDays: 30 },
+  });
+  const c16PointRefused = await inject({ method: "POST", url: "/v1/privacy/restore-points", headers: aliceAuth });
+  const c16RestoreRefused = await inject({ method: "POST", url: "/v1/privacy/restorations", headers: aliceAuth, payload: { probeIdentityId: "bob@example.test" } });
+  check(
+    "A4-PRIVACY-ADMIN-ONLY",
+    [c16NoticeRefused, c16RecordRefused, c16PointRefused, c16RestoreRefused].every((r) => r.statusCode === 403) &&
+      !c16PointRefused.body.includes("@example.test") && !c16RestoreRefused.body.includes("@example.test"),
+    [c16NoticeRefused, c16RecordRefused, c16PointRefused, c16RestoreRefused].map((r) => r.statusCode),
+  );
+  await migrator.query(`INSERT INTO operator_role (identity_id, role, granted_by) VALUES ('carol@example.test', 'admin', 'proof') ON CONFLICT DO NOTHING`);
   const c16Notice = await inject({
     method: "POST",
     url: "/v1/privacy/notices",
-    headers: aliceAuth,
+    headers: carolAuth,
     payload: {
       noticeId: "not_a4",
       kind: "privacy",
@@ -915,18 +935,24 @@ try {
   const c16RestorePoint = await inject({
     method: "POST",
     url: "/v1/privacy/restore-points",
-    headers: aliceAuth,
+    headers: carolAuth,
   });
-  const restoreIdentities = Array.isArray(c16RestorePoint.json().identities)
-    ? c16RestorePoint.json().identities
-    : [];
+  // Administration seule, et des COMPTES : aucun identifiant de connexion.
   check(
     "A4-PRIVACY-RESTORE-POINT",
     c16RestorePoint.statusCode === 201 &&
-      restoreIdentities.includes("alice@example.test") &&
-      restoreIdentities.includes("bob@example.test") &&
-      restoreIdentities.includes("carol@example.test"),
-    { status: c16RestorePoint.statusCode, identities: restoreIdentities },
+      c16RestorePoint.json().identityCount >= 3 &&
+      !c16RestorePoint.body.includes("@example.test"),
+    { status: c16RestorePoint.statusCode, body: c16RestorePoint.json() },
+  );
+  const c16Restore = await inject({ method: "POST", url: "/v1/privacy/restorations", headers: carolAuth, payload: { probeIdentityId: "bob@example.test" } });
+  check(
+    "A4-PRIVACY-RESTORATION-COUNTS",
+    c16Restore.statusCode === 200 &&
+      c16Restore.json().visibleCount >= 3 &&
+      c16Restore.json().deletedIdentityVisible === true &&
+      !c16Restore.body.includes("@example.test"),
+    { status: c16Restore.statusCode, body: c16Restore.json() },
   );
 
   // ── A3-FICTIF-INTACT : sans pool, le squelette fictif répond encore ────

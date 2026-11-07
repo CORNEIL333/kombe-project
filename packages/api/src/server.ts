@@ -981,6 +981,24 @@ function realSupportCtxFrom(identityId: string, nowMs: number): PgSupportContext
   };
 }
 
+/** Réponses de restauration : des comptes, jamais des identifiants de connexion. */
+function restorePointView(p: { readonly takenAt: number; readonly identities: readonly string[] }) {
+  return { takenAt: p.takenAt, identityCount: p.identities.length };
+}
+function restoreReceiptView(r: {
+  readonly visible: readonly string[];
+  readonly reAppliedErasures: number;
+  readonly reAppliedRevocations: readonly string[];
+  readonly deletedIdentityVisible: boolean;
+}) {
+  return {
+    visibleCount: r.visible.length,
+    reAppliedErasures: r.reAppliedErasures,
+    reAppliedRevocationsCount: r.reAppliedRevocations.length,
+    deletedIdentityVisible: r.deletedIdentityVisible,
+  };
+}
+
 /** Contexte C16 réel (droits) : session seule, horloge serveur. */
 function realPrivacyCtxFrom(identityId: string, nowMs: number): PgPrivacyContext {
   return {
@@ -2616,10 +2634,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // Publication d'une notice légale versionnée (13.1). Le domaine refuse une
   // notice à placeholder ou promettant une garantie/preuve (422 stable).
+  // Réservée à l'administration de la plateforme (second facteur) : un membre
+  // ne publie pas les mentions légales de tous.
   app.post("/v1/privacy/notices", async (request, reply) => {
     const body = legalNoticeBody.parse(request.body);
     if (pool && realPrivacy) {
-      const identityId = await realIdentityFrom(pool, request, now);
+      const identityId = await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["admin"]);
       const ctx = realPrivacyCtxFrom(identityId, now());
       return reply.code(201).send(await realPrivacy.publishNotice(ctx, body));
     }
@@ -2637,10 +2657,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   // Enregistrement d'un traitement au registre (13.3) — factuel, base connue.
+  // Réservé à l'administration (second facteur) : le registre engage KÓMBE.
   app.post("/v1/privacy/processing-records", async (request, reply) => {
     const body = processingRecordBody.parse(request.body);
     if (pool && realPrivacy) {
-      const identityId = await realIdentityFrom(pool, request, now);
+      const identityId = await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["admin"]);
       const ctx = realPrivacyCtxFrom(identityId, now());
       return reply.code(201).send(await realPrivacy.registerProcessing(ctx, body));
     }
@@ -2756,14 +2777,17 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   // Point de restauration (18.10) : instantané des identités visibles.
+  // Administration seule (second facteur). La réponse ne porte que des
+  // COMPTES : jamais la liste des identifiants de connexion (minimisation ;
+  // auparavant, tout membre connecté recevait les identifiants de tous).
   app.post("/v1/privacy/restore-points", async (request, reply) => {
     if (pool && realPrivacy) {
-      const identityId = await realIdentityFrom(pool, request, now);
+      const identityId = await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["admin"]);
       const ctx = realPrivacyCtxFrom(identityId, now());
-      return reply.code(201).send(await realPrivacy.snapshotRestorePoint(ctx));
+      return reply.code(201).send(restorePointView(await realPrivacy.snapshotRestorePoint(ctx)));
     }
     const ctx = privacyCtxFrom(request);
-    return reply.code(201).send(privacyStore.snapshotRestorePoint(ctx));
+    return reply.code(201).send(restorePointView(privacyStore.snapshotRestorePoint(ctx)));
   });
 
   // Restauration (C16-RESTORE) : réapplique effacements ET révocations ; une
@@ -2771,12 +2795,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/privacy/restorations", async (request, reply) => {
     const body = restorationBody.parse(request.body);
     if (pool && realPrivacy) {
-      const identityId = await realIdentityFrom(pool, request, now);
+      const identityId = await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["admin"]);
       const ctx = realPrivacyCtxFrom(identityId, now());
-      return reply.code(200).send(await realPrivacy.restoreLatest(ctx, body.probeIdentityId));
+      return reply.code(200).send(restoreReceiptView(await realPrivacy.restoreLatest(ctx, body.probeIdentityId)));
     }
     const ctx = privacyCtxFrom(request);
-    return reply.code(200).send(privacyStore.restoreLatest(ctx, body.probeIdentityId));
+    return reply.code(200).send(restoreReceiptView(privacyStore.restoreLatest(ctx, body.probeIdentityId)));
   });
 
   /* --- C18 : mesure pilote / économie unitaire (16.1, 16.2, 16.3, 18.13) --- */

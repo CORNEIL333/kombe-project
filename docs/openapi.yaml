@@ -1785,6 +1785,7 @@ paths:
       tags: [privacy]
       summary: Publier une notice légale versionnée (13.1, 13.2)
       description: >
+        Réservée à l'opérateur `admin` (second facteur), 403 sinon.
         Refusée (422) si le corps contient un placeholder (« bientôt », « TBD »…)
         ou une promesse de garantie des fonds / de valeur juridique. Une notice
         publiée est immuable (version = nouvelle ligne en base, 0016).
@@ -1825,6 +1826,7 @@ paths:
       tags: [privacy]
       summary: Enregistrer un traitement au registre (13.3)
       description: >
+        Réservé à l'opérateur `admin` (second facteur), 403 sinon.
         Enregistrement factuel : finalité et pays sans placeholder, catégories
         non vides, base juridique connue, durée de conservation entière positive.
       parameters:
@@ -2003,6 +2005,7 @@ paths:
     post:
       tags: [privacy]
       summary: Prendre un point de restauration (18.10)
+      description: Réservé à l'opérateur `admin` (second facteur). Réponse en comptes, sans identifiant.
       parameters:
         - { $ref: "#/components/parameters/ServerDate" }
       responses:
@@ -2018,6 +2021,7 @@ paths:
       tags: [privacy]
       summary: Restaurer en réappliquant effacements ET révocations (C16-RESTORE)
       description: >
+        Réservée à l'opérateur `admin` (second facteur) ; réponse en comptes.
         Restaure depuis le dernier point en réappliquant les effacements
         (tombstones) et les révocations postérieurs avant réouverture : une
         identité effacée après le point reste invisible
@@ -10708,10 +10712,11 @@ components:
     RestorePointView:
       type: object
       additionalProperties: false
-      required: [takenAt, identities]
+      required: [takenAt, identityCount]
+      description: Comptes seulement, jamais d'identifiant de connexion (minimisation). Administration seule.
       properties:
         takenAt: { type: integer, format: int64, description: Horodatage serveur (secondes d'époque). }
-        identities: { type: array, items: { type: string } }
+        identityCount: { type: integer, minimum: 0 }
     RestorationInput:
       type: object
       additionalProperties: false
@@ -10721,11 +10726,12 @@ components:
     RestoreReceiptView:
       type: object
       additionalProperties: false
-      required: [visible, reAppliedErasures, reAppliedRevocations, deletedIdentityVisible]
+      required: [visibleCount, reAppliedErasures, reAppliedRevocationsCount, deletedIdentityVisible]
+      description: Comptes seulement, jamais d'identifiant de connexion (minimisation). Administration seule.
       properties:
-        visible: { type: array, items: { type: string } }
+        visibleCount: { type: integer, minimum: 0 }
         reAppliedErasures: { type: integer, minimum: 0 }
-        reAppliedRevocations: { type: array, items: { type: string } }
+        reAppliedRevocationsCount: { type: integer, minimum: 0 }
         deletedIdentityVisible:
           type: boolean
           description: >
