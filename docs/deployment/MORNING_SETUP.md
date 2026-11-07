@@ -4,9 +4,8 @@ Dernière mise à jour : 13 octobre 2026 (branche `claude/continue-previous-a102
 Parcours des utilisateurs : `docs/PARCOURS_UTILISATEURS.md` · rapport : `docs/RAPPORT_FINAL_TONTINE_REELLE.md`.
 
 **Tout le produit tient dans UN seul projet Vercel** : l'API (`/v1/…`), la PWA
-des membres (`/`), l'Espace bureau (`/bureau/`) et les tableaux de bord
-Opérations (`/ops/`), Direction (`/direction/`) et Engineering
-(`/engineering/`). Même adresse pour tout : pas de CORS à régler, pas d'URL à
+des membres (`/`), l'Espace bureau (`/bureau/`) et le CRM de la plateforme
+(`/crm/`, qui réunit Opérations, Direction et Technique — ADR-0046). Même adresse pour tout : pas de CORS à régler, pas d'URL à
 recopier dans des fichiers, pas de compte Cloudflare. Les migrations de la base
 s'appliquent toutes seules pendant le build de production.
 
@@ -89,14 +88,14 @@ KOMBE_SMOKE_BASE_URL=https://<votre-projet>.vercel.app node scripts/release-smok
 1. Ouvrir `https://<votre-projet>.vercel.app/` → se connecter (e-mail du
    compte Resend, ou téléphone si le SMS est configuré) → saisir son nom.
 2. Donner à ce compte la fonction d'**opérateur de la plateforme** (accès à
-   `/ops/`, `/direction/`, `/engineering/`). Au choix :
+   `/crm/`). Au choix :
    - console Neon → *SQL Editor* → branche `production`, base `neondb` :
      ```sql
      UPDATE identity_access SET is_operator = true
       WHERE identity_id = 'votre@email.cm';   -- ou '+2376XXXXXXXX'
      ```
    - ou depuis un poste : `KOMBE_DATABASE_URL=<chaîne neondb_owner> node packages/db/scripts/grant-operator.mjs votre@email.cm`
-3. Ouvrir `/ops/`, `/direction/`, `/engineering/` : l'Engineering doit
+3. Ouvrir `/crm/` → Technique → Production : la page doit
    afficher **Schéma : À jour** (30 migrations + rôles).
 
 Le bureau d'un groupe (président, secrétaire, trésorier, commissaire) n'a
@@ -111,7 +110,7 @@ besoin de rien : il ouvre `/bureau/` avec son propre compte.
 | Vérifier un domaine chez Resend (DKIM/SPF) et mettre `KOMBE_EMAIL_FROM=no-reply@votre-domaine` | Resend + Vercel | sinon les codes e-mail n'arrivent qu'au propriétaire du compte Resend |
 | Compte Africa's Talking (SMS Cameroun) + 3 variables | Africa's Talking + Vercel | connexion par téléphone, la plus naturelle pour les membres |
 | Domaine personnalisé (ex. `app.kombe.cm`) | Vercel → Domains | les liens d'invitation WhatsApp utilisent automatiquement ce domaine ; sinon `KOMBE_PUBLIC_APP_URL` |
-| Numéro d'astreinte et contact données personnelles | `/ops/` → Incidents & runbooks | exigé avant ouverture |
+| Numéro d'astreinte et contact données personnelles | `/crm/` → Opérations → Incidents & runbooks | exigé avant ouverture |
 
 ## Ce qui reste hors de ce guide (non bloquant)
 

@@ -206,7 +206,8 @@ quand le propriétaire crée le projet séparé.
 
 **Un seul projet Vercel sert tout, à la même origine** (plus de CORS, plus
 d'URL collée au build) : `scripts/build-web.mjs` assemble `dist-web/` —
-`/` PWA (packages/client), `/bureau/`, `/ops/`, `/direction/`, `/engineering/`,
+`/` PWA (packages/client), `/bureau/`, `/crm/` (ADR-0046 ; `/ops/`, `/direction/`,
+`/engineering/` y redirigent),
 `/site/` — et `vercel.json` racine route `/v1/:path*` vers la fonction
 serverless (`api/serverless.js`). Le build Vercel (`scripts/vercel-build.mjs`)
 compile l'API, assemble le web, et en production applique les migrations
@@ -238,8 +239,7 @@ manquantes avec le vrai runner (idempotent) via `KOMBE_MIGRATION_DATABASE_URL`.
 ### 7.3–7.5 (supersedé) — Dashboards Cloudflare / PWA Flutter Vercel / admin séparé
 
 **Supersedé le 2026-10-09 par le projet Vercel unique (§7.2).** Les tableaux de
-bord sont assemblés dans `dist-web/` sous leur préfixe (`/ops/`, `/direction/`,
-`/engineering/`, `/bureau/`), la PWA web est la Vite `packages/client` et le
+bord sont assemblés dans `dist-web/` sous leur préfixe (`/crm/`, `/bureau/`), la PWA web est la Vite `packages/client` et le
 livrable mobile est l'APK Android (workflow `mobile-ci.yml`, servi par
 `/telecharger/`). Les étapes Cloudflare Pages/Workers, PWA Flutter sur Vercel et
 dashboard admin en projet séparé ne sont plus à exécuter — historique conservé

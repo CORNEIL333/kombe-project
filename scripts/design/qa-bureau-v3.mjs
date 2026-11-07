@@ -28,11 +28,11 @@ const shot = async (p, url, name, full = false) => {
 };
 const anon = await page(false);
 await shot(anon, "/bureau/", "connexion");
-await shot(anon, "/ops/", "ops-connexion");
+await shot(anon, "/crm/", "crm-connexion");
 const p = await page(true);
 await shot(p, "/bureau/#/", "apercu", true);
 await shot(p, "/bureau/#/collecte", "collecte", true);
 await shot(p, "/bureau/#/mouvements", "mouvements");
-await shot(p, "/direction/", "direction");
+await shot(p, "/crm/#/direction", "direction");
 console.log(JSON.stringify({ errors }));
 await b.close();

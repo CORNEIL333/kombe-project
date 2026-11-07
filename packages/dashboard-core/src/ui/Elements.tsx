@@ -1,6 +1,7 @@
 import { logoSvg } from '@kombe/brand/logo';
 import type {PropsWithChildren,ReactNode} from 'react';import {useLocale} from '../i18n/locale';
-export interface NavItem{readonly path:string;readonly label:string;readonly icon?:string}
+/** Entrée de navigation ; `section` regroupe les entrées sous un intitulé (console unifiée). */
+export interface NavItem{readonly path:string;readonly label:string;readonly icon?:string;readonly section?:string}
 /** Logotype « L'Orbite » : le Ó est un cercle, son accent (or) désigne la personne concernée. */
 /* Logo de la charte (anneau à 4 nœuds + nom + signature), tracé depuis la
    géométrie partagée @kombe/brand/logo. `variante` : clair sur fond forêt

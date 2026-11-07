@@ -15,6 +15,16 @@ Le code de la branche `claude/continue-previous-a102rx` est prêt. La production
 - **décision d'achat Neon**, si la rafale de 5 000 arrivées en une minute doit rester rapide (voir 12) ;
 - **publication de l'application mobile** depuis le PC qui porte la clé de signature.
 
+### CRM de la plateforme (07/11/2026, ADR-0046) — code prêt, **non déployé**
+
+- Les consoles Opérations, Direction et Engineering sont réunies dans **`/crm/`** ; les anciennes adresses y redirigent.
+- **Avant de déployer :** sauvegarde Neon, puis migration **0041_crm** (additive). Le build l'exige : `/v1/health/ready` attend `0041_crm`.
+- **Preuves :**
+  - `crm.proof.mjs` : 43/43 contrôles, en connexion directe et via PgBouncer ;
+  - 40 pages analysées par axe (CRM et PWA, bureau et téléphone) sans violation ;
+  - toutes les suites unitaires vertes.
+- **À faire valider par un juriste :** la base légale du support (intérêt légitime) et la conservation de 730 jours.
+
 ### Critères remplis (avec preuves)
 
 - **Sécurité P0** : 8 défauts corrigés et prouvés (02, 10).
@@ -24,7 +34,7 @@ Le code de la branche `claude/continue-previous-a102rx` est prêt. La production
   - journal immuable ;
   - KÓMBE ne valide jamais un paiement à la place d'une personne ;
   - modules sensibles fermés.
-- **Tests** : 27/27 preuves PostgreSQL et toutes les suites unitaires, exécutées en CI à chaque poussée.
+- **Tests** : preuves PostgreSQL (dont celle du CRM, 43/43 en direct et via PgBouncer) et toutes les suites unitaires, exécutées en CI à chaque poussée.
 - **Mise à niveau** répétée sur une copie de la production.
 - **Restauration** démontrée en moins d'une minute (06).
 - **Matrice adverse** : 12/12 PASS (10).

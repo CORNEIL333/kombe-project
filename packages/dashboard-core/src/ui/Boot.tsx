@@ -38,6 +38,7 @@ const HEROS: Readonly<Record<string, Hero>> = {
   'Espace bureau': { photo: 'tresoriere', title: 'Le registre du bureau,', accent: 'sans zone d’ombre.', lead: 'Collecte en lot, procès-verbaux, votes et registre chaîné : les mêmes données que l’application des membres, pensées pour le grand écran.' },
   'Opérations & Support': { photo: 'mains-telephone', title: 'Chaque groupe', accent: 'bien accompagné.', lead: 'Console des opérateurs de la plateforme : santé du service, demandes d’aide et suivi des groupes.' },
   'Direction & Analytics': { photo: 'decision', title: 'Décider sur des faits,', accent: 'pas sur des impressions.', lead: 'Activité réelle du pilote, entonnoir, cohortes et risques — uniquement des mesures servies par l’API.' },
+  'KÓMBE CRM': { photo: 'mains-telephone', title: 'Chaque personne', accent: 'bien suivie.', lead: 'Le CRM de la plateforme : demandes d’assistance avec délais de service, comptes et contacts, opérations, pilotage et technique — sur un seul écran, avec un journal de chaque consultation.' },
   Engineering: { photo: 'quartier', title: 'Un registre fiable,', accent: 'de bout en bout.', lead: 'État du service, qualité et passerelle dépôt pour l’équipe technique.' },
 };
 

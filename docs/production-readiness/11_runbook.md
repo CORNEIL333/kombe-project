@@ -88,7 +88,16 @@ Ne jamais les coller ailleurs. Les perdre n'est pas grave mais a deux effets :
 KOMBE_DATABASE_URL='<URL migrateur>' node packages/db/scripts/grant-operator.mjs +2376XXXXXXXX --roles=admin
 ```
 
-Ensuite, ouvrir `/ops/`, activer le second facteur et **ranger les codes de secours**. Restreindre ensuite chaque personne au strict nécessaire, par exemple `--roles=support`.
+Ensuite, ouvrir `/crm/`, activer le second facteur et **ranger les codes de secours**. Restreindre ensuite chaque personne au strict nécessaire, par exemple `--roles=support`.
+
+**Fonctions et sections du CRM (ADR-0046) :**
+
+| Fonction | Sections visibles dans `/crm/` |
+|---|---|
+| `support`, `operations` | CRM (demandes, comptes, contacts, tâches, segments), Opérations |
+| `direction` | Tableau de bord, comptes, segments, Direction, Conformité |
+| `engineering` | Technique, runbooks |
+| `admin` | Tout, y compris le journal d'audit et l'anonymisation |
 
 ## Incidents
 
@@ -101,9 +110,13 @@ Ensuite, ouvrir `/ops/`, activer le second facteur et **ranger les codes de seco
 | Opérateur bloqué (téléphone perdu) | Il utilise un code de secours. Sinon, un admin lui retire puis lui rend ses fonctions, et il réactive son second facteur. |
 | Notifications non reçues hors de l'application | Lire `notification_outbox` (`state`, `last_code`). Si le code est `EXTERNAL_DISABLED`, le canal n'est pas ouvert (voir 07). |
 | Restauration nécessaire | Voir 06, « Procédure de restauration ». |
+| Un membre dit « le support ne me répond pas » | `/crm/#/demandes`, filtre « Personne » : assigner la demande. Les dépassements de délai sont comptés au tableau de bord. |
+| Demande d'accès, de rectification ou d'effacement de données | Catégorie « Données personnelles » : 30 jours au plus, suivie dans `/crm/#/conformite`. |
 
 ## Routines
 
 - **Hebdomadaire.** `security.yml` (audit des dépendances, secrets). Lire les échecs.
+- **Mensuelle.** Relecture du journal d'audit du CRM par un `admin` (affichages d'identifiants et leurs motifs).
 - **Trimestrielle.** Exercice de restauration sur une branche Neon (voir 06). Revue des fonctions d'opérateur avec `grant-operator --revoke` pour les départs.
+- **Annuelle.** Anonymisation des demandes closes depuis plus de 730 jours (`/crm/#/conformite`, fonction `admin`).
 - **Avant chaque migration non triviale.** Répétition sur une branche Neon jetable.

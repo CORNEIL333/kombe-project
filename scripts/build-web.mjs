@@ -5,9 +5,9 @@
 //
 //   /              PWA (membres)           packages/client
 //   /bureau/       Espace bureau           apps/dashboard-group-admin
-//   /ops/          Opérations & Support    apps/dashboard-operations
-//   /direction/    Direction & Analytics   apps/dashboard-direction
-//   /engineering/  Engineering             apps/dashboard-engineering
+//   /crm/          CRM de la plateforme    apps/dashboard-crm (fusion Opérations,
+//                                          Direction, Engineering — ADR-0046)
+//   /ops/, /direction/, /engineering/      pages de redirection vers /crm/
 //   /site/         Site de présentation    apps/site
 //   /v1/*          API (fonction serverless, voir vercel.json)
 //
@@ -25,9 +25,7 @@ const out = resolve(root, "dist-web");
 
 const APPS = [
   { dir: "apps/dashboard-group-admin", base: "/bureau/" },
-  { dir: "apps/dashboard-operations", base: "/ops/" },
-  { dir: "apps/dashboard-direction", base: "/direction/" },
-  { dir: "apps/dashboard-engineering", base: "/engineering/" },
+  { dir: "apps/dashboard-crm", base: "/crm/" },
   { dir: "apps/site", base: "/site/" },
 ];
 
@@ -56,6 +54,20 @@ for (const app of APPS) {
   for (const f of ["kombe-dashboard-config.json", "kombe-dashboard-config.example.json"]) rmSync(resolve(dest, f), { force: true });
   // Les images de marque référencées en absolu (/brand/…) existent déjà à la racine (PWA).
   if (existsSync(resolve(dest, "brand")) && !existsSync(resolve(out, "brand"))) cpSync(resolve(dest, "brand"), resolve(out, "brand"), { recursive: true });
+}
+
+// 2 bis) Anciennes consoles fusionnées dans le CRM : les adresses connues
+//    (favoris, runbooks) mènent à la bonne section. Redirection sans script
+//    (la CSP interdit le JavaScript en ligne).
+const ANCIENNES = { ops: "/crm/#/ops", direction: "/crm/#/direction", engineering: "/crm/#/technique" };
+for (const [dossier, cible] of Object.entries(ANCIENNES)) {
+  const d = resolve(out, dossier);
+  rmSync(d, { recursive: true, force: true });
+  mkdirSync(d, { recursive: true });
+  writeFileSync(
+    resolve(d, "index.html"),
+    `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0; url=${cible}"><title>KÓMBE CRM</title></head><body><p>Cette console fait désormais partie du <a href="${cible}">CRM KÓMBE</a>.</p></body></html>\n`,
+  );
 }
 
 // 3) Configuration unique, même origine par défaut.
