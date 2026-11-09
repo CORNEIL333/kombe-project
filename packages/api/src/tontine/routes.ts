@@ -25,7 +25,7 @@ import { MeetingService } from "./meetings.js";
 import { MoneyService } from "./money.js";
 import { cadenceSchema, settingsSchema } from "./settings.js";
 import { EmailCodeSender, codeSenderFromEnv, type CodeSender } from "./sms.js";
-import { NotificationDispatcher, afterResponse, dispatcherOptionsFromEnv, type DispatcherOptions } from "./delivery.js";
+import { NotificationDispatcher, afterResponse, createPiggyback, dispatcherOptionsFromEnv, piggybackInterval, type DispatcherOptions } from "./delivery.js";
 import { NotificationPrefs } from "./notificationPrefs.js";
 import { translatePgError } from "./infra.js";
 import { SupportTickets } from "../crm/crmRoutes.js";
@@ -233,6 +233,11 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     const p = dispatcher.kick();
     afterResponse(() => p);
   };
+  // R-05 : relève des envois différés au passage d'un membre connecté.
+  const releve = createPiggyback(piggybackInterval(), () => Date.now(), kick);
+  app.addHook("onResponse", async (req) => {
+    releve(req.method, typeof req.headers.authorization === "string");
+  });
   const photos = new PhotoService(pool, now);
   const memberPhotos = new MemberPhotoService(pool, now);
   const decisions = new DecisionService(pool, now);

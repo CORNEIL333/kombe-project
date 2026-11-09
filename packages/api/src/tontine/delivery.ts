@@ -340,6 +340,31 @@ export function dispatcherOptionsFromEnv(
  * (Vercel : contexte de requête `waitUntil`) ; sinon tâche détachée dont
  * l'échec est ignoré — la tâche planifiée reprend toujours les lignes dues.
  */
+/**
+ * R-05 : le plan Vercel n'autorise qu'une tâche planifiée par jour. Les envois
+ * différés (heures de silence, nouvelles tentatives) partent donc aussi au
+ * passage d'un membre connecté : au plus une relève par intervalle et par
+ * instance, après la réponse. `KOMBE_DELIVERY_PIGGYBACK_MS` règle l'intervalle
+ * (défaut 60 s ; 0 désactive).
+ */
+export function piggybackInterval(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env.KOMBE_DELIVERY_PIGGYBACK_MS;
+  if (raw === undefined || raw === "") return env.NODE_ENV === "test" ? 0 : 60_000;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : 60_000;
+}
+export function createPiggyback(intervalMs: number, clock: () => number, kick: () => void): (method: string, hasSession: boolean) => boolean {
+  let last = Number.NEGATIVE_INFINITY;
+  return (method, hasSession) => {
+    if (intervalMs <= 0 || method !== "GET" || !hasSession) return false;
+    const t = clock();
+    if (t - last < intervalMs) return false;
+    last = t;
+    kick();
+    return true;
+  };
+}
+
 export function afterResponse(task: () => Promise<unknown>): void {
   const p = task().catch(() => undefined);
   const ctx = (globalThis as Record<symbol, { get?: () => { waitUntil?: (p: Promise<unknown>) => void } } | undefined>)[Symbol.for("@vercel/request-context")]?.get?.();
