@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // KÓMBE — commande de build du projet Vercel unique (API + web).
 //
-// 1. compile le domaine et l'API (fonction serverless api/serverless.js) ;
+// 1. compile le domaine et l'API (fonction serverless api/serverless.mjs) ;
 // 2. assemble le web (PWA + 4 tableaux de bord + site) dans dist-web/ ;
 // 3. si KOMBE_MIGRATION_DATABASE_URL est posée ET qu'il s'agit du déploiement
 //    de PRODUCTION (VERCEL_ENV=production), applique les migrations manquantes
@@ -29,7 +29,33 @@ step("Assemblage du web (PWA + tableaux de bord)", process.execPath, ["scripts/b
 
 const migrationUrl = process.env.KOMBE_MIGRATION_DATABASE_URL;
 const isProd = (process.env.VERCEL_ENV ?? "production") === "production";
+// Production : un build dont la compatibilité avec le schéma n'est pas
+// démontrée ne sort JAMAIS. Sans chaîne de migration, on s'arrête (le code
+// attendrait des tables absentes). Échappatoire explicite et tracée :
+// KOMBE_SKIP_MIGRATIONS=1 (ex. base migrée à la main juste avant).
+if (isProd && !migrationUrl && process.env.KOMBE_SKIP_MIGRATIONS !== "1") {
+  process.stderr.write(
+    "\n✖ Production sans KOMBE_MIGRATION_DATABASE_URL : déploiement refusé (schéma non vérifié).\n" +
+      "  Posez la variable dans Vercel, ou KOMBE_SKIP_MIGRATIONS=1 si la base est déjà migrée.\n",
+  );
+  process.exit(1);
+}
+// Secrets indispensables à la production (jamais affichés).
+if (isProd && process.env.VERCEL) {
+  const manquants = ["KOMBE_API_DATABASE_URL", "KOMBE_MFA_KEY", "KOMBE_TOKEN_PEPPER", "CRON_SECRET"].filter((k) => !process.env[k]);
+  if (manquants.length) {
+    process.stderr.write(`\n✖ Variables de production manquantes : ${manquants.join(", ")} — déploiement refusé.\n`);
+    process.exit(1);
+  }
+}
 if (migrationUrl && isProd) {
+  // Trace sans secret : quelle base est migrée (hôte, nom de base, utilisateur).
+  try {
+    const u = new URL(migrationUrl);
+    process.stdout.write(`\nℹ Base migrée : ${u.hostname.split(".")[0]} / ${u.pathname.slice(1)} (utilisateur ${u.username})\n`);
+  } catch {
+    process.stdout.write("\nℹ Base migrée : URL illisible\n");
+  }
   step("Migrations de la base de production", process.execPath, ["packages/db/scripts/migrate.mjs", "migrate"], {
     ...process.env,
     KOMBE_DATABASE_URL: migrationUrl,

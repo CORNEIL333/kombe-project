@@ -1,21 +1,27 @@
+import '../core/widgets/kombe_ouverture.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
 import '../core/design/kombe_theme.dart';
+import '../domain/repositories/poll_repository.dart';
+import '../domain/repositories/share_name_repository.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/contribution_repository.dart';
 import '../domain/repositories/dashboard_repository.dart';
-import '../domain/repositories/dispute_repository.dart';
 import '../domain/repositories/document_repository.dart';
 import '../domain/repositories/draft_repository.dart';
+import '../domain/repositories/fine_repository.dart';
+import '../domain/repositories/meeting_repository.dart';
 import '../domain/repositories/governance_repository.dart';
+import '../domain/repositories/fund_repository.dart';
 import '../domain/repositories/group_repository.dart';
 import '../domain/repositories/notification_repository.dart';
 import '../domain/repositories/profile_repository.dart';
 import '../domain/repositories/preferences_repository.dart';
 import '../l10n/app_localizations.dart';
+import 'active_group_controller.dart';
 import 'app_settings_controller.dart';
 import 'di/app_dependencies.dart';
 import 'router/app_router.dart';
@@ -33,19 +39,25 @@ class _KombeAppState extends State<KombeApp> {
   late final AppSettingsController _settings;
   late final SessionController _session;
   late final AppRouter _router;
+  late final ActiveGroupController _activeGroup;
 
   @override
   void initState() {
     super.initState();
     _settings = AppSettingsController(widget.dependencies.preferencesRepository);
-    _session = SessionController(widget.dependencies.authRepository)..start();
+    _session = SessionController(
+      widget.dependencies.authRepository,
+      profileRepository: widget.dependencies.profileRepository,
+    )..start();
     _router = AppRouter(sessionController: _session);
+    _activeGroup = ActiveGroupController(widget.dependencies.groupRepository, _session);
     _settings.initialize();
   }
 
   @override
   void dispose() {
     _router.dispose();
+    _activeGroup.dispose();
     _session.dispose();
     _settings.dispose();
     super.dispose();
@@ -58,9 +70,13 @@ class _KombeAppState extends State<KombeApp> {
         Provider<AuthRepository>.value(value: widget.dependencies.authRepository),
         Provider<ProfileRepository>.value(value: widget.dependencies.profileRepository),
         Provider<GroupRepository>.value(value: widget.dependencies.groupRepository),
+        Provider<FundRepository>.value(value: widget.dependencies.fundRepository),
         Provider<ContributionRepository>.value(value: widget.dependencies.contributionRepository),
         Provider<GovernanceRepository>.value(value: widget.dependencies.governanceRepository),
-        Provider<DisputeRepository>.value(value: widget.dependencies.disputeRepository),
+        Provider<FineRepository>.value(value: widget.dependencies.fineRepository),
+        Provider<PollRepository>.value(value: widget.dependencies.pollRepository),
+        Provider<ShareNameRepository>.value(value: widget.dependencies.shareNameRepository),
+        Provider<MeetingRepository>.value(value: widget.dependencies.meetingRepository),
         Provider<NotificationRepository>.value(value: widget.dependencies.notificationRepository),
         Provider<DocumentRepository>.value(value: widget.dependencies.documentRepository),
         Provider<DashboardRepository>.value(value: widget.dependencies.dashboardRepository),
@@ -69,6 +85,7 @@ class _KombeAppState extends State<KombeApp> {
         Provider.value(value: widget.dependencies.biometricService),
         ChangeNotifierProvider<AppSettingsController>.value(value: _settings),
         ChangeNotifierProvider<SessionController>.value(value: _session),
+        ChangeNotifierProvider<ActiveGroupController>.value(value: _activeGroup),
       ],
       child: AnimatedBuilder(
         animation: _settings,
@@ -85,6 +102,8 @@ class _KombeAppState extends State<KombeApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
           routerConfig: _router.router,
+          // Ouverture animée de la marque, au-dessus de l'app qui se charge dessous.
+          builder: (BuildContext context, Widget? child) => KombeOuverture(child: child ?? const SizedBox.shrink()),
         ),
       ),
     );

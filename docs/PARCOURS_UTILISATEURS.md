@@ -30,7 +30,7 @@ contre l'API et PostgreSQL, ou script contre PostgreSQL 16).
 
 | Étape | Écran | Règle | Preuve |
 |---|---|---|---|
-| « Créer une tontine » : nom, rythme (hebdo, quinzaine, mensuel, « 2e samedi », tous les N jours, quotidien), première séance, heure limite | Création, 7 étapes | heure de Douala | E2E |
+| « Créer une tontine » : nom, rythme (hebdo, quinzaine, mensuel, « 2e samedi », tous les N jours, quotidien), première séance, heure limite | Création, 7 étapes | heure de Douala ; **rien n’est imposé** : rythme, date, montant et caisses annexes sont choisis par le bureau (aucune valeur pré-remplie) | E2E |
 | Cotisation par part, nombre de membres (2 à 60), cagnotte affichée | | montants entiers en FCFA | E2E |
 | Ordre (tirage vérifiable, ordre d'arrivée, ordre décidé), témoins de remise, amendes, secours, fonctionnement, réserve de fin d'année, transparence | | | E2E |
 | Inviter : code + lien + **partage WhatsApp** | Membres | code révocable, durée et usages bornés | E2E |
@@ -38,8 +38,10 @@ contre l'API et PostgreSQL, ou script contre PostgreSQL 16).
 | Nommer trésorier, secrétaire, commissaire, censeur… | Membres | la personne nommée **accepte** ; jamais une fonction financière à soi-même | E2E, preuve ROLES |
 | Ajouter un **membre sans smartphone**, représenté par un proche | Membres | | preuve |
 | Régler les **parts** : 1 à 5 mains, ou **part partagée** (« demi-main ») | Membres | avant démarrage | `decisions.proof.mjs` SHARE-* |
-| Publier les statuts ; chacun les accepte | Statuts | empreinte affichée ; impression / PDF | E2E |
-| Démarrer le cycle (liste « À faire » sur l'Aperçu) | Aperçu | ordre figé ensuite (sauf échange ou tour prioritaire acceptés) | E2E |
+| Publier les statuts avec une **date limite d'acceptation** (1 à 60 jours, 7 par défaut) et la conséquence : **exclusion** des retardataires (avant démarrage) ou **signalement** au bureau | Statuts | qui publie accepte d'office ; liste « pas encore accepté » ; **Relancer** (toutes les 6 h au plus) ; **Prolonger** ; relances automatiques J-7, J-3, J-2, J-1, H-6 (ADR-0042) | `echeances.proof.mjs`, E2E |
+| Les membres acceptent (bouton en haut de l'écran, échéance affichée) | Statuts | à l'échéance, les retardataires admis sont exclus (jamais la présidence ; pendant un cycle : bureau prévenu, vote possible) | `echeances.proof.mjs` |
+| Démarrer le cycle : chaque condition manquante a un bouton qui mène à l'écran où la régler ; les noms des retardataires sont affichés | Aperçu | une demande d'adhésion en attente ne bloque pas ; ordre décidé = une ligne par part ; ordre figé ensuite (sauf échange ou tour prioritaire acceptés) | E2E |
+| Entre deux saisons : changer montant, rythme, caisses pour la saison suivante | Réglages | les tours passés gardent leurs règles (instantané par tour) | `tontineCycles.proof.mjs` |
 
 ## 3. Membre — payer, suivre, recevoir
 
@@ -51,7 +53,7 @@ contre l'API et PostgreSQL, ou script contre PostgreSQL 16).
 | **Diaspora** : « Transfert depuis l'étranger » (Western Union, WorldRemit, Wave…) — montant **reçu** en FCFA | Cotisations | référence obligatoire | ABROAD-* |
 | Voir la grille « qui a payé » | Tours | selon la transparence choisie | preuve |
 | Le jour de mon tour : « J'ai bien reçu » | Cotisations | le tour ne se clôt qu'après cet accusé | E2E |
-| Notifications : rappels de séance, d'échéance, votes | Notifications | libellés sans montant ni nom (écran verrouillé) | preuves |
+| Notifications précises et **cliquables** : la ligne ouvre l'écran concerné (statuts, argent, séances, votes…) et se marque lue ; détail (groupe, échéance, tour, reste à verser) ; rappels de cotisation l'avant-veille, la veille et le jour J, de séance la veille et le jour J, de vote les dernières 24 h | Notifications | titre sans montant ni nom (ADR-0016) ; tâche quotidienne + à l'ouverture (ADR-0042) | `echeances.proof.mjs`, `notifications.test.ts` |
 | Demander un **tour prioritaire** (deuil, maladie, frais de scolarité) | Tours | les personnes déplacées acceptent, le bureau non concerné approuve | PRIORITY-* |
 | Demander un **échange de tour** | Tours | idem | SWAP-APPLIED |
 | Demander un **secours** (naissance, décès, mariage, maladie) | Amendes & secours | barème et plafond annuel | preuve AID-* |

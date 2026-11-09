@@ -8,11 +8,15 @@
  *    stores PostgreSQL sous RLS. Une route sans implémentation PG n'existe PAS
  *    en mode réel (404 Fastify) : aucune donnée fictive n'est jamais servie.
  */
+import { randomUUID } from "node:crypto";
+import type { DispatcherOptions } from "./tontine/delivery.js";
+import type { NeonAuthConfig } from "./tontine/auth.js";
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import type pg from "pg";
 import { registerHttpGuards } from "./httpGuards.js";
-import { DISPLAY_TZ, DomainError, type DomainErrorCode } from "@kombe/domain";
+import { DISPLAY_TZ, DomainError, assertCanAct, configureCodePepper, type DomainErrorCode } from "@kombe/domain";
+import { assertOperator } from "./ops/operatorAccess.js";
 import type { CycleSchedule, ContributionDeclaration } from "@kombe/domain";
 import { PgContributionStore } from "./db/pgContributionStore.js";
 import { PgAccessStore } from "./db/pgAccessStore.js";
@@ -42,7 +46,9 @@ import {
 import { resolveSession, resolveGroupActor, type GroupActor } from "./db/pgSessionResolver.js";
 import { NullEmailSender, ResendEmailSender, type EmailSender } from "./email/emailSender.js";
 import { registerTontineRoutes } from "./tontine/routes.js";
-import { registerOpsRoutes } from "./ops/opsRoutes.js";
+import { EXPECTED_LATEST_MIGRATION, registerOpsRoutes } from "./ops/opsRoutes.js";
+import { registerCrmRoutes } from "./crm/crmRoutes.js";
+import { checkDbRole } from "./db/pgPool.js";
 import type { CodeSender } from "./tontine/sms.js";
 import {
   FictitiousCommandStore,
@@ -162,6 +168,7 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   APPROVER_NOT_DISTINCT: 403,
   CHANNEL_NOT_VERIFIED: 403,
   PRIVILEGE_NOT_GRANTED: 403,
+  OPERATOR_MFA_REQUIRED: 403,
   RESERVATION_INCOHERENTE: 404,
   EVENT_CHAIN_BREAK: 409,
   ROLE_ACCEPTANCE_REQUIRED: 409,
@@ -242,9 +249,13 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   METRICS_RISQUE_CRITIQUE_SANS_CONTROLE: 409,
   // Tontine réelle (API produit, docs/API_TONTINE.md).
   TONTINE_FORBIDDEN: 403,
+  CRM_INVALID: 400,
   OBJET_INTROUVABLE: 404,
   STATE_CONFLICT: 409,
   AUTH_THROTTLED: 429,
+  PHOTO_THROTTLED: 429,
+  PHOTO_INVALID: 422,
+  REQUEST_INVALID: 400,
   SMS_DELIVERY_FAILED: 502,
   PHONE_INVALID: 422,
   GROUP_NAME_INVALID: 422,
@@ -267,6 +278,9 @@ const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
   IMPORT_INVALID: 422,
   DECISION_INVALID: 422,
   DECISION_STATE_INVALID: 409,
+  POLL_INVALID: 422,
+  POLL_STATE_INVALID: 409,
+  MEETING_INVALID: 422,
   PAYOUT_SUSPENDED: 409,
   RECONCILIATION_INCOHERENTE: 409,
   /* Amorçage tontine (C03 §2.1-2.3, C05 §5.3, C21, parrainage) */
@@ -330,6 +344,10 @@ export interface BuildAppOptions {
   /** Envoi des codes de connexion (SMS) de l'API tontine ; par défaut lu
    *  depuis `KOMBE_SMS_PROVIDER` (simulateur interdit en production). */
   readonly codeSender?: CodeSender;
+  /** Neon Auth (ADR-0040) : configuration injectée (tests) ; sinon lue dans l'environnement. */
+  readonly neonAuth?: NeonAuthConfig | null;
+  /** Livraison des notifications hors application (ADR-0044) ; absent = environnement. */
+  readonly delivery?: DispatcherOptions;
 }
 
 /** Résolution d'acteur FICTIVE pour la recette du squelette (C01 la remplacera
@@ -966,6 +984,24 @@ function realSupportCtxFrom(identityId: string, nowMs: number): PgSupportContext
   };
 }
 
+/** Réponses de restauration : des comptes, jamais des identifiants de connexion. */
+function restorePointView(p: { readonly takenAt: number; readonly identities: readonly string[] }) {
+  return { takenAt: p.takenAt, identityCount: p.identities.length };
+}
+function restoreReceiptView(r: {
+  readonly visible: readonly string[];
+  readonly reAppliedErasures: number;
+  readonly reAppliedRevocations: readonly string[];
+  readonly deletedIdentityVisible: boolean;
+}) {
+  return {
+    visibleCount: r.visible.length,
+    reAppliedErasures: r.reAppliedErasures,
+    reAppliedRevocationsCount: r.reAppliedRevocations.length,
+    deletedIdentityVisible: r.deletedIdentityVisible,
+  };
+}
+
 /** Contexte C16 réel (droits) : session seule, horloge serveur. */
 function realPrivacyCtxFrom(identityId: string, nowMs: number): PgPrivacyContext {
   return {
@@ -988,29 +1024,10 @@ function realExportCtxFrom(identityId: string, nowMs: number): PgExportContext {
  *  horloge SERVEUR en secondes d'époque (§27 — jamais `x-server-date`) ;
  *  `actorRole` ne participe à aucune décision du store mesure (inerte). */
 /**
- * X-08 : en mode réel, la console support et les indicateurs globaux de la
- * plateforme sont réservés aux OPÉRATEURS (identity_access.is_operator, état
- * actif — 0029_ops_console). Un membre ordinaire reçoit 403, quelle que soit
- * l'interface utilisée.
+ * X-08 / ADR-0043 : en mode réel, la console support et les indicateurs de la
+ * plateforme sont réservés aux OPÉRATEURS tenant la fonction voulue, second
+ * facteur vérifié — voir `ops/operatorAccess.ts` (`assertOperator`).
  */
-async function assertRealOperator(dbPool: pg.Pool, identityId: string): Promise<void> {
-  const client = await dbPool.connect();
-  try {
-    await client.query("BEGIN");
-    await client.query("SELECT set_config('kombe.identity_id', $1, true)", [identityId]);
-    const r = await client.query("SELECT kombe_is_operator() AS ok");
-    await client.query("COMMIT");
-    if (r.rows[0]?.ok !== true) {
-      throw new DomainError("PRIVILEGE_NOT_GRANTED", "Réservé aux opérateurs de la plateforme");
-    }
-  } catch (e) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    throw e;
-  } finally {
-    client.release();
-  }
-}
-
 function realMetricsCtxFrom(identityId: string, nowMs: number): MetricsContext {
   return {
     actorIdentityId: identityId,
@@ -1025,8 +1042,31 @@ export function registeredRoutes(app: FastifyInstance): readonly { method: strin
   return ROUTE_REGISTRY.get(app) ?? [];
 }
 
+/**
+ * Journaux structurés (JSON, pino) : niveau `KOMBE_LOG_LEVEL` (défaut « warn » :
+ * erreurs et refus anormaux seulement, jamais chaque requête). Jetons,
+ * cookies et clés d'idempotence masqués ; aucun corps de requête journalisé.
+ * Silencieux sous test.
+ */
+export function loggerOptions(env: NodeJS.ProcessEnv = process.env): false | Record<string, unknown> {
+  const level = env.KOMBE_LOG_LEVEL ?? (env.NODE_ENV === "test" ? "silent" : "warn");
+  if (level === "silent") return false;
+  return {
+    level,
+    redact: { paths: ["req.headers.authorization", "req.headers.cookie", 'req.headers["idempotency-key"]', 'req.headers["x-kombe-session"]'], censor: "[masqué]" },
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: false });
+  // Poivre serveur des codes de connexion (ADR-0043) : hors base, jamais journalisé.
+  configureCodePepper(process.env.KOMBE_TOKEN_PEPPER);
+  const app = Fastify({ logger: loggerOptions(), genReqId: () => randomUUID(), requestIdHeader: false });
+  // Identifiant de corrélation : renvoyé sur CHAQUE réponse et présent dans
+  // chaque ligne de journal (reqId) — un incident se retrouve sans données
+  // personnelles (les consoles l'affichent avec l'erreur).
+  app.addHook("onRequest", async (request, reply) => {
+    reply.header("x-correlation-id", request.id);
+  });
   const declared: { method: string; url: string }[] = [];
   ROUTE_REGISTRY.set(app, declared);
   app.addHook("onRoute", (r) => {
@@ -1114,7 +1154,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     if (typeof proto === "number" && proto >= 400 && proto < 500) {
       return reply.code(proto).send({ code: "INVALID_REQUEST", message: "Requête invalide" });
     }
-    app.log.error(error);
+    _request.log.error({ err: error }, "erreur interne");
     return reply.code(500).send({ code: "INTERNAL", message: "Erreur interne" });
   });
 
@@ -1125,8 +1165,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/health/ready", async (request, reply) => {
     if (!pool) return { status: "ready", mode: "fictif" };
     try {
-      await pool.query("SELECT 1");
-      return { status: "ready", mode: "réel" };
+      // Connexion applicative au moindre privilège (ADR-0045) : sinon, refus.
+      const role = await checkDbRole(pool);
+      if (!role.ok) {
+        request.log.error({ user: role.currentUser, reasons: role.reasons }, "readiness : connexion applicative trop privilégiée");
+        return reply.code(503).send({ status: "degraded", mode: "réel", privilege: { ok: false } });
+      }
+      // Schéma attendu par CE build appliqué ? (sinon : déploiement sans migration)
+      const r = await pool.query("SELECT kombe_schema_has($1) AS ok", [EXPECTED_LATEST_MIGRATION]);
+      const upToDate = r.rows[0]?.ok === true;
+      if (!upToDate) {
+        request.log.error({ expected: EXPECTED_LATEST_MIGRATION }, "readiness : schéma en retard sur le build");
+        return reply.code(503).send({ status: "degraded", mode: "réel", schema: { expected: EXPECTED_LATEST_MIGRATION, upToDate } });
+      }
+      return { status: "ready", mode: "réel", schema: { expected: EXPECTED_LATEST_MIGRATION, upToDate } };
     } catch (error) {
       request.log.error({ err: error }, "readiness : PostgreSQL injoignable");
       return reply.code(503).send({ status: "degraded", mode: "réel" });
@@ -1153,9 +1205,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       emailSimulated: emailSender instanceof NullEmailSender,
       emailAvailable: !(emailSender instanceof DisabledEmailSender),
       ...(options.codeSender ? { codeSender: options.codeSender } : {}),
+      ...(options.neonAuth !== undefined ? { neonAuth: options.neonAuth } : {}),
+      ...(options.delivery ? { delivery: options.delivery } : {}),
     });
     // Console d'exploitation (opérateurs seulement, 0029_ops_console).
     registerOpsRoutes(app, { pool, now });
+    // CRM (fusion Opérations + Direction + Engineering, 0041_crm, ADR-0046).
+    registerCrmRoutes(app, { pool, now });
   }
 
   // Routes du squelette C00 (pipeline fictif) : n'existent PAS en mode réel
@@ -1252,12 +1308,20 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   }
 
   // Privilège opérateur RECALCULÉ serveur, jamais depuis le jeton (C02-PRIVILEGE).
+  // Mode réel : la session est OBLIGATOIRE et le privilège consulté est celui
+  // de l'IDENTITÉ APPELANTE — l'URL ne désigne jamais une tierce identité
+  // (avant ce garde, un appel non authentifié sondait le statut opérateur de
+  // n'importe quelle identité). Le mode fictif (recette) garde la lecture directe.
   app.get("/v1/access/operators/:identityId/privilege", async (request, reply) => {
     const { identityId } = request.params as { identityId: string };
-    const out = realAccess
-      ? await realAccess.operatorAccess(identityId)
-      : access.operatorAccess(identityId);
-    return reply.code(200).send(out);
+    if (realAccess && pool) {
+      const caller = await realIdentityFrom(pool, request, now);
+      if (identityId !== caller) {
+        throw new DomainError("PRIVILEGE_NOT_GRANTED", "Privilège d'une autre identité non consultable");
+      }
+      return reply.code(200).send(await realAccess.operatorAccess(caller));
+    }
+    return reply.code(200).send(access.operatorAccess(identityId));
   });
 
   // --- Connexion RÉELLE (ADR-0024, Piste A3) : additive, active SEULEMENT
@@ -1304,22 +1368,25 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return reply.code(200).send(governance.readiness(groupId));
   });
 
-  // Démarrage du cycle — porte serveur (C03-BOOT : fondateur seul ⇒ 409).
+  // Démarrage du cycle — porte serveur (C03-BOOT) ET porte L-11 : la
+  // présidence seule (avant : tout membre actif pouvait démarrer le cycle).
   app.post("/v1/groups/:groupId/cycle-starts", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     if (pool && realGovernance) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "cycle.start");
       return reply.code(201).send(await realGovernance.startCycle(groupId));
     }
     return reply.code(201).send(governance.startCycle(groupId));
   });
 
-  // Transition d'état du groupe (2.7).
+  // Transition d'état du groupe (2.7) — bureau uniquement en mode réel.
   app.post("/v1/groups/:groupId/state-transitions", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = groupTransitionBody.parse(request.body);
     if (pool && realGovernance) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "group.manage");
       return reply.code(200).send(await realGovernance.transition(groupId, body.to));
     }
     return reply.code(200).send(governance.transition(groupId, body.to));
@@ -1340,12 +1407,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   // Invitation directe d'un handle connu (adhésion pending) — distincte du
-  // rachat d'invitation anonyme (4.1).
+  // rachat d'invitation anonyme (4.1). Bureau (member.invite) en mode réel.
   app.post("/v1/groups/:groupId/memberships", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = inviteMemberBody.parse(request.body);
     if (pool && realGovernance) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "member.invite");
       return reply.code(201).send(await realGovernance.inviteMember(groupId, body.handle));
     }
     return reply.code(201).send(governance.inviteMember(groupId, body.handle));
@@ -1353,11 +1421,14 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // Terminaison d'une adhésion (départ/révocation), avant la prochaine commande.
   // `body.identityId` est la CIBLE (objet métier légitime), pas l'acteur.
+  // Réservée à la présidence (member.remove) en mode réel — avant ce garde,
+  // tout membre actif pouvait EXCLURE n'importe qui.
   app.post("/v1/groups/:groupId/membership-terminations", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = membershipTerminationBody.parse(request.body);
     if (pool && realGovernance) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "member.remove");
       return reply.code(200).send(await realGovernance.terminateMembership(groupId, body.identityId));
     }
     return reply.code(200).send(governance.terminateMembership(groupId, body.identityId));
@@ -1512,11 +1583,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return reply.code(200).send(rules.evaluateChange(groupId, body.version, body.concerned));
   });
 
-  // Recalcul du cycle courant sous garde de non-rétroactivité (C04-RETRO).
+  // Recalcul du cycle courant sous garde de non-rétroactivité (C04-RETRO) —
+  // bureau (schedule.manage) en mode réel.
   app.post("/v1/groups/:groupId/cycle-recalculations", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     if (pool && realRules) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "schedule.manage");
       return reply.code(200).send(await realRules.recalculateCurrentCycle(groupId));
     }
     return reply.code(200).send(rules.recalculateCurrentCycle(groupId));
@@ -1573,7 +1646,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { groupId } = request.params as { groupId: string };
     const body = buildScheduleBody.parse(request.body);
     if (pool && realSchedule) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "schedule.manage");
       const s = await realSchedule.build(groupId, {
         ruleVersion: body.ruleVersion,
         members: body.members,
@@ -1607,11 +1681,13 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     return reply.code(200).send(viewSchedule(schedule.get(groupId)));
   });
 
-  // Démarrage (gel) du calendrier — ordre des bénéficiaires figé (5.3).
+  // Démarrage (gel) du calendrier — ordre des bénéficiaires figé (5.3) —
+  // bureau (schedule.manage) en mode réel.
   app.post("/v1/groups/:groupId/schedule-starts", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     if (pool && realSchedule) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "schedule.manage");
       return reply.code(201).send(await realSchedule.start(groupId));
     }
     return reply.code(201).send(schedule.start(groupId));
@@ -1623,7 +1699,8 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { seq } = request.params as { seq: string };
     const body = beneficiaryReassignmentBody.parse(request.body);
     if (pool && realSchedule) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "schedule.manage");
       const s = await realSchedule.reassign(groupId, Number(seq), body.newBeneficiaryId);
       return reply.code(200).send({ seq: Number(seq), beneficiaryId: s.schedule[Number(seq) - 1]!.beneficiaryId });
     }
@@ -1632,23 +1709,28 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   // Départ d'un membre — la dette reste affectée, les tours non réduits.
-  // `body.identityId` désigne la CIBLE du départ ; l'acteur vient de la session.
+  // `body.identityId` désigne la CIBLE du départ ; l'acteur vient de la
+  // session. Départ de soi toujours permis ; exclure AUTRUI est réservé à la
+  // présidence (member.remove) en mode réel.
   app.post("/v1/groups/:groupId/departures", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = departureBody.parse(request.body);
     if (pool && realSchedule) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      if (body.identityId !== actor.identityId) assertCanAct(actor.roles, "member.remove");
       return reply.code(200).send(await realSchedule.depart(groupId, body.identityId));
     }
     return reply.code(200).send(schedule.depart(groupId, body.identityId));
   });
 
-  // Plan de renouvellement (5.5) — nouvelles acceptations si engagement changé.
+  // Plan de renouvellement (5.5) — nouvelles acceptations si engagement
+  // changé. Acte de la présidence (cycle.start) en mode réel.
   app.post("/v1/groups/:groupId/cycle-renewals", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
     const body = cycleRenewalBody.parse(request.body);
     if (pool && realSchedule) {
-      await realGroupActorFrom(pool, request, groupId, now);
+      const actor = await realGroupActorFrom(pool, request, groupId, now);
+      assertCanAct(actor.roles, "cycle.start");
       return reply
         .code(200)
         .send(await realSchedule.renew(groupId, { version: body.version, memberCount: body.memberCount, contribution: body.contribution, rounds: body.rounds }));
@@ -1691,14 +1773,19 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // Émission d'un checkpoint externe scellé — rôle tenant l'action
   // `journal.checkpoint` uniquement (auditor/secretary/treasurer) (9.2).
+  // Mode réel : l'auteur scellé est l'IDENTITÉ de session et la date est
+  // l'HORLOGE SERVEUR — le corps (validé en forme) n'est qu'indicatif,
+  // jamais une source d'attribution (§14 : le client ne choisit pas ses
+  // données métier).
   app.post("/v1/groups/:groupId/journal-checkpoints", async (request, reply) => {
     const { groupId } = request.params as { groupId: string };
-    const body = checkpointBody.parse(request.body);
+    checkpointBody.parse(request.body);
     if (pool && realJournal) {
       const actor = await realGroupActorFrom(pool, request, groupId, now);
-      return reply.code(201).send(await realJournal.checkpoint(groupId, actor.role, body.issuedBy, body.issuedAt));
+      return reply.code(201).send(await realJournal.checkpoint(groupId, actor.role, actor.identityId, new Date(now()).toISOString()));
     }
     const actor = actorFrom(request);
+    const body = checkpointBody.parse(request.body);
     return reply.code(201).send(journal.checkpoint(groupId, actor.role, body.issuedBy, body.issuedAt));
   });
 
@@ -2374,7 +2461,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     };
     if (pool && realSupport) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["support"]);
       const ctx = realSupportCtxFrom(identityId, now());
       return reply.code(201).send(await realSupport.request(ctx, input));
     }
@@ -2391,9 +2478,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       const identityId = await realIdentityFrom(pool, request, now);
       const groupId = await supportRequestGroup(pool, requestId);
       if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["support"]);
       const ctx = realSupportCtxFrom(identityId, now());
-      return reply.code(200).send(await realSupport.approve(ctx, groupId, requestId, body.ttlSeconds));
+      // Version vue par l'approbateur EXIGÉE : deux administrateurs ne
+      // peuvent pas agir sur des états différents de la même demande (409).
+      return reply.code(200).send(await realSupport.approve(ctx, groupId, requestId, body.ttlSeconds, expectedVersion.parse(request.headers["if-match-version"])));
     }
     const ctx = supportCtxFrom(request);
     return reply.code(200).send(support.approve(ctx, requestId, body.ttlSeconds));
@@ -2410,7 +2499,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       const identityId = await realIdentityFrom(pool, request, now);
       const groupId = await supportRequestGroup(pool, requestId);
       if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["support"]);
       const ctx = realSupportCtxFrom(identityId, now());
       return reply.code(200).send(await realSupport.act(ctx, groupId, requestId, body.action));
     }
@@ -2425,9 +2514,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       const identityId = await realIdentityFrom(pool, request, now);
       const groupId = await supportRequestGroup(pool, requestId);
       if (!groupId) throw new DomainError("RESERVATION_INCOHERENTE", "Demande d'accès introuvable");
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["support"]);
       const ctx = realSupportCtxFrom(identityId, now());
-      return reply.code(200).send(await realSupport.revoke(ctx, groupId, requestId));
+      return reply.code(200).send(await realSupport.revoke(ctx, groupId, requestId, expectedVersion.parse(request.headers["if-match-version"])));
     }
     const ctx = supportCtxFrom(request);
     return reply.code(200).send(support.revoke(ctx, requestId));
@@ -2439,7 +2528,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { groupId, requestId } = request.params as { groupId: string; requestId: string };
     if (pool && realSupport) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["support"]);
       const ctx = realSupportCtxFrom(identityId, now());
       return reply.code(200).send(await realSupport.view(ctx, groupId, requestId));
     }
@@ -2548,10 +2637,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   // Publication d'une notice légale versionnée (13.1). Le domaine refuse une
   // notice à placeholder ou promettant une garantie/preuve (422 stable).
+  // Réservée à l'administration de la plateforme (second facteur) : un membre
+  // ne publie pas les mentions légales de tous.
   app.post("/v1/privacy/notices", async (request, reply) => {
     const body = legalNoticeBody.parse(request.body);
     if (pool && realPrivacy) {
-      const identityId = await realIdentityFrom(pool, request, now);
+      const identityId = await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["admin"]);
       const ctx = realPrivacyCtxFrom(identityId, now());
       return reply.code(201).send(await realPrivacy.publishNotice(ctx, body));
     }
@@ -2569,10 +2660,11 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   // Enregistrement d'un traitement au registre (13.3) — factuel, base connue.
+  // Réservé à l'administration (second facteur) : le registre engage KÓMBE.
   app.post("/v1/privacy/processing-records", async (request, reply) => {
     const body = processingRecordBody.parse(request.body);
     if (pool && realPrivacy) {
-      const identityId = await realIdentityFrom(pool, request, now);
+      const identityId = await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["admin"]);
       const ctx = realPrivacyCtxFrom(identityId, now());
       return reply.code(201).send(await realPrivacy.registerProcessing(ctx, body));
     }
@@ -2688,14 +2780,17 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   });
 
   // Point de restauration (18.10) : instantané des identités visibles.
+  // Administration seule (second facteur). La réponse ne porte que des
+  // COMPTES : jamais la liste des identifiants de connexion (minimisation ;
+  // auparavant, tout membre connecté recevait les identifiants de tous).
   app.post("/v1/privacy/restore-points", async (request, reply) => {
     if (pool && realPrivacy) {
-      const identityId = await realIdentityFrom(pool, request, now);
+      const identityId = await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["admin"]);
       const ctx = realPrivacyCtxFrom(identityId, now());
-      return reply.code(201).send(await realPrivacy.snapshotRestorePoint(ctx));
+      return reply.code(201).send(restorePointView(await realPrivacy.snapshotRestorePoint(ctx)));
     }
     const ctx = privacyCtxFrom(request);
-    return reply.code(201).send(privacyStore.snapshotRestorePoint(ctx));
+    return reply.code(201).send(restorePointView(privacyStore.snapshotRestorePoint(ctx)));
   });
 
   // Restauration (C16-RESTORE) : réapplique effacements ET révocations ; une
@@ -2703,12 +2798,12 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/privacy/restorations", async (request, reply) => {
     const body = restorationBody.parse(request.body);
     if (pool && realPrivacy) {
-      const identityId = await realIdentityFrom(pool, request, now);
+      const identityId = await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["admin"]);
       const ctx = realPrivacyCtxFrom(identityId, now());
-      return reply.code(200).send(await realPrivacy.restoreLatest(ctx, body.probeIdentityId));
+      return reply.code(200).send(restoreReceiptView(await realPrivacy.restoreLatest(ctx, body.probeIdentityId)));
     }
     const ctx = privacyCtxFrom(request);
-    return reply.code(200).send(privacyStore.restoreLatest(ctx, body.probeIdentityId));
+    return reply.code(200).send(restoreReceiptView(privacyStore.restoreLatest(ctx, body.probeIdentityId)));
   });
 
   /* --- C18 : mesure pilote / économie unitaire (16.1, 16.2, 16.3, 18.13) --- */
@@ -2754,6 +2849,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const query = request.query as { groupId?: string };
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
+      // Analyse plateforme : même porte opérateur que economics/risks (un
+      // membre ne consulte pas les entonnoirs, fussent ceux de son groupe).
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.analyticsFunnel(ctx, cohortId, query.groupId));
     }
@@ -2768,6 +2866,9 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const body = cohortBody.parse(request.body);
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
+      // Écriture d'une cohorte pilote : réservée aux opérateurs (RLS ou non,
+      // un membre ne façonne pas les métriques de son propre groupe).
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(201).send(await realMetrics.upsertCohort(ctx, body));
     }
@@ -2780,6 +2881,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const { groupId } = request.params as { groupId: string };
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.getCohort(ctx, groupId));
     }
@@ -2794,7 +2896,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const body = economicsBody.parse(request.body);
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.computeEconomics(ctx, body));
     }
@@ -2808,7 +2910,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
     const body = riskBody.parse(request.body);
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(201).send(await realMetrics.addRisk(ctx, body));
     }
@@ -2820,7 +2922,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/metrics/risks", async (request, reply) => {
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.listRisks(ctx));
     }
@@ -2833,7 +2935,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.post("/v1/metrics/extension-check", async (request, reply) => {
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.extensionStatus(ctx));
     }
@@ -2847,7 +2949,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   app.get("/v1/metrics/extension-check", async (request, reply) => {
     if (pool && realMetrics) {
       const identityId = await realIdentityFrom(pool, request, now);
-      await assertRealOperator(pool, identityId);
+      await assertOperator(pool, request.headers as Record<string, unknown>, now(), ["direction"]);
       const ctx = realMetricsCtxFrom(identityId, now());
       return reply.code(200).send(await realMetrics.extensionStatus(ctx));
     }

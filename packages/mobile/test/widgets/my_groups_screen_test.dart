@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kombe_mobile/app/active_group_controller.dart';
+import 'package:kombe_mobile/app/session_controller.dart';
 import 'package:kombe_mobile/domain/repositories/group_repository.dart';
 import 'package:kombe_mobile/features/groups/my_groups_screen.dart';
 import 'package:kombe_mobile/l10n/app_localizations.dart';
@@ -8,60 +10,58 @@ import 'package:provider/provider.dart';
 
 import '../support/fake_repositories.dart';
 
-Widget _wrap(Widget child) => MaterialApp(
-      locale: const Locale('fr'),
-      supportedLocales: const <Locale>[Locale('fr'), Locale('en')],
-      localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      home: child,
-    );
+Future<Widget> _app(FakeWorld world) async {
+  final FakeGroupRepository repo = FakeGroupRepository(world);
+  final ActiveGroupController groups = ActiveGroupController(
+    repo,
+    SessionController(FakeAuthRepository()),
+    readChoice: () async => null,
+    writeChoice: (_) async {},
+  );
+  await groups.refresh();
+  return MaterialApp(
+    locale: const Locale('fr'),
+    supportedLocales: const <Locale>[Locale('fr'), Locale('en')],
+    localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    home: MultiProvider(
+      providers: <Provider<Object>>[Provider<GroupRepository>.value(value: repo)],
+      child: ChangeNotifierProvider<ActiveGroupController>.value(value: groups, child: const MyGroupsScreen()),
+    ),
+  );
+}
 
-/// C21 §2.5 — la vue consolidée « Mes tontines » doit réellement AFFICHER les
-/// tontines servies par `GET /me/groups` (multi-adhésion), avec modèle ·
-/// typologie · état d'adhésion, et la supervision parent quand elle existe.
-/// Dépôt factice : deux adhésions actives.
+/// Onglet Groupes (planche) : toutes les tontines actives avec leur fonction,
+/// la progression RÉELLE du cycle (servie par l'API) et la prochaine
+/// cotisation ; état vide honnête sans adhésion.
 void main() {
-  testWidgets('MyGroupsScreen liste les tontines adhérentes + états',
-      (WidgetTester tester) async {
-    final FakeWorld world = FakeWorld();
-    await tester.pumpWidget(
-      _wrap(
-        Provider<GroupRepository>(
-          create: (_) => FakeGroupRepository(world),
-          child: const MyGroupsScreen(),
-        ),
-      ),
-    );
-    // Chargement : Loading → resolution du Future (ResourceReady).
+  testWidgets('liste les tontines, fonction, progression du cycle', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1236, 2745);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final Widget app = await tester.runAsync(() => _app(FakeWorld())) as Widget;
+    await tester.pumpWidget(app);
+    await tester.pump(const Duration(seconds: 1)); // latence simulée du dépôt
     await tester.pumpAndSettle();
 
-    expect(find.text('Mes tontines'), findsOneWidget);
+    expect(find.text('Mes groupes'), findsOneWidget);
     expect(find.text('Les Étoiles de Yaoundé'), findsOneWidget);
     expect(find.text('Solidarité Bamiléké'), findsOneWidget);
-    // Étiquette d'adhésion + modèle décodés côté écran (pas de champ financier).
-    // FakeWorld sert 3 adhésions.
-    expect(find.text('Membre actif'), findsNWidgets(3));
-    expect(find.text('Famille'), findsNWidgets(3));
+    expect(find.text('Cycle 4/12'), findsOneWidget);
+    expect(find.text('Trésorerie'), findsWidgets);
+    expect(find.text('À payer'), findsOneWidget);
   });
 
-  testWidgets('MyGroupsScreen affiche l’état vide honnête sans adhésion',
-      (WidgetTester tester) async {
-    final FakeWorld world = FakeWorld();
-    world.groups.clear();
-    await tester.pumpWidget(
-      _wrap(
-        Provider<GroupRepository>(
-          create: (_) => FakeGroupRepository(world),
-          child: const MyGroupsScreen(),
-        ),
-      ),
-    );
+  testWidgets('état vide honnête sans adhésion', (WidgetTester tester) async {
+    final FakeWorld world = FakeWorld()..groups.clear();
+    final Widget app = await tester.runAsync(() => _app(world)) as Widget;
+    await tester.pumpWidget(app);
+    await tester.pump(const Duration(seconds: 1)); // latence simulée du dépôt
     await tester.pumpAndSettle();
-
     expect(find.text('Aucune tontine'), findsOneWidget);
   });
 }

@@ -3,11 +3,16 @@
  * groupe courant (RLS `tenant_isolation`) ; aucun total n'est stocké : tout
  * est recalculé depuis les mouvements, les tours et les parts.
  */
+import { memberPhotoVersions } from "./photos.js";
 import {
   DomainError,
+  customFundDue,
+  parseCustomFundRules,
+  type CustomFundRules,
   lateness,
   memberDueForRound,
   movementSign,
+  splitByWeight,
   type DueView,
   type FundKind,
   type FundView,
@@ -21,7 +26,7 @@ import {
   type TontineSettings,
   type TontineState,
 } from "@kombe/domain";
-import { type Actor, type Db, isoDate, isoInstant, m, maskLogin, may, membershipsWithRoles, onlyHolderIsSubject } from "./infra.js";
+import { type Actor, type Db, cachedRead, isoDate, isoInstant, m, maskLogin, may, membershipsWithRoles, onlyHolderIsSubject } from "./infra.js";
 
 export interface GroupRow {
   readonly groupId: string;
@@ -58,6 +63,7 @@ export interface Names {
 }
 
 export async function loadNames(db: Db, groupId: string): Promise<Names> {
+  return cachedRead(`noms:${groupId}`, async () => {
   const r = await db.query(`SELECT membership_id, identity_id, display_name, state FROM membership WHERE group_id = $1`, [groupId]);
   const byMembership = new Map<string, string>();
   const byIdentity = new Map<string, string>();
@@ -73,6 +79,7 @@ export async function loadNames(db: Db, groupId: string): Promise<Names> {
     }
   }
   return { byMembership, byIdentity, identityOf, membershipOf };
+  });
 }
 
 export async function cycleStarted(db: Db, groupId: string): Promise<boolean> {
@@ -105,6 +112,7 @@ export interface ShareHolding {
 }
 
 export async function loadShareHoldings(db: Db, groupId: string): Promise<ShareHolding[]> {
+  return cachedRead(`parts:${groupId}`, async () => {
   const r = await db.query(
     `SELECT s.share_id, h.membership_id, h.weight, h.from_seq, h.until_seq FROM share s
        JOIN share_holder h ON h.group_id = s.group_id AND h.share_id = s.share_id
@@ -118,6 +126,7 @@ export async function loadShareHoldings(db: Db, groupId: string): Promise<ShareH
     fromSeq: Number(row.from_seq),
     untilSeq: row.until_seq === null || row.until_seq === undefined ? null : Number(row.until_seq),
   }));
+  });
 }
 
 /**
@@ -167,6 +176,7 @@ export async function loadMembers(db: Db, actor: Actor, opts: { readonly include
       ORDER BY joined_at NULLS LAST, membership_id`,
     [actor.groupId],
   );
+  const photoOf = await memberPhotoVersions(db, actor.groupId);
   const seeFull = may(actor, "member.admit") || may(actor, "group.manage") || may(actor, "movement.confirm");
   return r.rows.map((row) => {
     const id = String(row.membership_id);
@@ -177,6 +187,7 @@ export async function loadMembers(db: Db, actor: Actor, opts: { readonly include
     return {
       membershipId: id,
       displayName: row.display_name ? String(row.display_name) : maskLogin(login),
+      photoVersion: photoOf.get(id) ?? null,
       state: row.state,
       roles: memberRoles.length > 0 ? memberRoles : row.state === "active" ? (["member"] as GroupRole[]) : [],
       pendingRoles: pending.get(id) ?? [],
@@ -200,9 +211,12 @@ export interface FundRow {
   readonly name: string;
   readonly state: "active" | "closed";
   readonly perMeeting: bigint;
+  /** Règles propres d'une caisse personnalisée (null pour les caisses du règlement). */
+  readonly custom: CustomFundRules | null;
 }
 
 export async function loadFundRows(db: Db, groupId: string): Promise<FundRow[]> {
+  return cachedRead(`caisses:${groupId}`, async () => {
   const r = await db.query(`SELECT fund_id, kind, name, state, rules FROM fund WHERE group_id = $1 ORDER BY created_at, fund_id`, [groupId]);
   return r.rows.map((row) => ({
     fundId: String(row.fund_id),
@@ -210,7 +224,9 @@ export async function loadFundRows(db: Db, groupId: string): Promise<FundRow[]> 
     name: String(row.name),
     state: row.state as "active" | "closed",
     perMeeting: BigInt(String(row.rules?.perMeeting ?? "0")),
+    custom: row.kind === "custom" ? parseCustomFundRules(row.rules) : null,
   }));
+  });
 }
 
 export async function fundOfKind(db: Db, groupId: string, kind: FundKind): Promise<FundRow | null> {
@@ -230,7 +246,15 @@ export async function fundConfirmedBalance(db: Db, groupId: string, fundId: stri
   return BigInt(String(r.rows[0]?.bal ?? "0"));
 }
 
-export async function loadFunds(db: Db, groupId: string): Promise<FundView[]> {
+/** Montant dû aujourd'hui sur une caisse personnalisée (dernier palier en vigueur). */
+export function customCurrentAmount(rules: CustomFundRules, today: string): bigint {
+  if (rules.mode === "free" || (rules.closedOn && today > rules.closedOn)) return 0n;
+  let cur = 0n;
+  for (const st of rules.schedule) if (st.from <= today) cur = BigInt(st.amount);
+  return cur === 0n && rules.schedule[0] ? BigInt(rules.schedule[0].amount) : cur;
+}
+
+export async function loadFunds(db: Db, groupId: string, today: string = new Date().toISOString().slice(0, 10)): Promise<FundView[]> {
   const funds = await loadFundRows(db, groupId);
   const r = await db.query(
     `SELECT fund_id,
@@ -247,11 +271,52 @@ export async function loadFunds(db: Db, groupId: string): Promise<FundView[]> {
     state: f.state,
     confirmedBalance: sums.get(f.fundId)?.c ?? "0",
     pendingIn: sums.get(f.fundId)?.p ?? "0",
-    perMeeting: m(f.perMeeting),
+    perMeeting: m(f.custom ? (f.custom.mode === "each_meeting" ? customCurrentAmount(f.custom, today) : 0n) : f.perMeeting),
+    ...(f.custom
+      ? {
+          custom: {
+            mode: f.custom.mode,
+            purpose: f.custom.purpose,
+            target: f.custom.target,
+            currentAmount: m(customCurrentAmount(f.custom, today)),
+            schedule: f.custom.schedule.map((st) => ({ from: st.from, amount: st.amount })),
+            closedOn: f.custom.closedOn,
+          },
+        }
+      : {}),
   }));
 }
 
 /* ── Tours ───────────────────────────────────────────────────────────── */
+
+/**
+ * Règlement en vigueur à chaque tour : l'instantané publié au moment où le
+ * tour a été planté (round.rules_version). Changer le montant ou les caisses
+ * entre deux saisons ne réécrit donc jamais ce qui était dû aux tours passés.
+ */
+export async function roundSettingsOf(db: Db, group: GroupRow): Promise<(seq: number) => TontineSettings> {
+  return cachedRead(`reglements:${group.groupId}`, async () => {
+  const r = await db.query(
+    `SELECT r.seq, v.snapshot FROM round r LEFT JOIN rule_version v ON v.group_id = r.group_id AND v.rules_version = r.rules_version
+      WHERE r.group_id = $1`,
+    [group.groupId],
+  );
+  const bySeq = new Map<number, TontineSettings>();
+  for (const row of r.rows) {
+    const snap = row.snapshot as { kind?: string; settings?: TontineSettings } | null;
+    if (snap?.kind === "tontine_settings" && snap.settings) bySeq.set(Number(row.seq), snap.settings);
+  }
+  return (seq: number) => bySeq.get(seq) ?? group.settings;
+  });
+}
+
+/** Cotisation par séance d'une caisse du règlement d'après un règlement donné. */
+function settingsFundPerMeeting(kind: FundKind, s: TontineSettings): bigint | null {
+  if (kind === "solidarity") return s.solidarity.enabled ? BigInt(s.solidarity.perMeeting) : 0n;
+  if (kind === "operating") return s.operating.enabled ? BigInt(s.operating.perMeeting) : 0n;
+  if (kind === "year_end_reserve") return s.yearEndReserve.enabled ? BigInt(s.yearEndReserve.perMeeting) : 0n;
+  return null;
+}
 
 export interface RoundRow {
   readonly seq: number;
@@ -262,6 +327,7 @@ export interface RoundRow {
 }
 
 export async function loadRoundRows(db: Db, groupId: string): Promise<RoundRow[]> {
+  return cachedRead(`tours:${groupId}`, async () => {
   const r = await db.query(
     `SELECT seq, due_date_business::text AS d, state, beneficiary_membership_id, share_id FROM round WHERE group_id = $1 ORDER BY seq`,
     [groupId],
@@ -273,6 +339,15 @@ export async function loadRoundRows(db: Db, groupId: string): Promise<RoundRow[]
     beneficiaryMembershipId: row.beneficiary_membership_id ? String(row.beneficiary_membership_id) : null,
     shareId: row.share_id ? String(row.share_id) : null,
   }));
+  });
+}
+
+/** Libellés des noms (parts) du groupe : share_id → libellé. */
+export async function loadShareLabels(db: Db, groupId: string): Promise<Map<string, string>> {
+  return cachedRead(`libelles:${groupId}`, async () => {
+    const r = await db.query(`SELECT share_id, label FROM share WHERE group_id = $1`, [groupId]);
+    return new Map(r.rows.map((x) => [String(x.share_id), String(x.label)]));
+  });
 }
 
 export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> {
@@ -281,8 +356,9 @@ export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> 
   const names = await loadNames(db, group.groupId);
   const rotation = await fundOfKind(db, group.groupId, "rotation");
   const holdings = await loadShareHoldings(db, group.groupId);
-  const perShare = BigInt(group.settings.contributionPerShare);
-  const potAt = (seq: number): bigint => (holdings.length > 0 ? BigInt(sharesAt(holdings, seq).length) : BigInt(rows.length)) * perShare;
+  const rulesAt = await roundSettingsOf(db, group);
+  const potAt = (seq: number): bigint =>
+    (holdings.length > 0 ? BigInt(sharesAt(holdings, seq).length) : BigInt(rows.length)) * BigInt(rulesAt(seq).contributionPerShare);
   const coll = await db.query(
     `SELECT round_seq, COALESCE(SUM(amount),0)::text AS s FROM fund_movement
       WHERE group_id = $1 AND fund_id = $2 AND kind = 'contribution' AND state IN ('confirmed','validated')
@@ -301,12 +377,17 @@ export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> 
   }
   const meetings = await db.query(`SELECT meeting_id, round_seq FROM meeting WHERE group_id = $1 AND round_seq IS NOT NULL`, [group.groupId]);
   const meetingOf = new Map(meetings.rows.map((x) => [Number(x.round_seq), String(x.meeting_id)]));
+  const photoOf = await memberPhotoVersions(db, group.groupId);
+  const labels = await loadShareLabels(db, group.groupId);
   return rows.map((r) => ({
     seq: r.seq,
+    shareId: r.shareId,
+    shareLabel: r.shareId ? (labels.get(r.shareId) ?? null) : null,
     date: r.date,
     state: r.state,
     beneficiaryMembershipId: r.beneficiaryMembershipId,
     beneficiaryName: r.beneficiaryMembershipId ? (names.byMembership.get(r.beneficiaryMembershipId) ?? null) : null,
+    beneficiaryPhotoVersion: r.beneficiaryMembershipId ? (photoOf.get(r.beneficiaryMembershipId) ?? null) : null,
     meetingId: meetingOf.get(r.seq) ?? null,
     expectedPot: m(potAt(r.seq)),
     collected: collected.get(r.seq) ?? "0",
@@ -343,12 +424,28 @@ export async function computeDues(
 ): Promise<DueView[]> {
   const rounds = await loadRoundRows(db, group.groupId);
   if (rounds.length === 0) return [];
-  const funds = (await loadFundRows(db, group.groupId)).filter((f) => f.state === "active");
+  // Caisses du règlement : même fermées aujourd'hui, elles restent dues aux
+  // tours où leur règlement les prévoyait (instantané par tour).
+  const funds = (await loadFundRows(db, group.groupId)).filter(
+    (f) => f.state === "active" || f.custom !== null || settingsFundPerMeeting(f.kind, group.settings) !== null,
+  );
   const holdings = await loadShareHoldings(db, group.groupId);
-  const perShare = BigInt(group.settings.contributionPerShare);
+  const rulesAt = await roundSettingsOf(db, group);
+  const labels = await loadShareLabels(db, group.groupId);
+  /** Noms tenus par le membre à ce tour, avec la part de chacun. */
+  const namesAt = (seq: number): { shareId: string; due: bigint }[] => {
+    const per = BigInt(rulesAt(seq).contributionPerShare);
+    const out: { shareId: string; due: bigint }[] = [];
+    for (const s of sharesAt(holdings, seq)) {
+      for (const part of splitByWeight(per, s.holders)) if (part.membershipId === membershipId) out.push({ shareId: s.shareId, due: part.amount });
+    }
+    // Dans l'ordre des tours : le nom servi le plus tôt d'abord.
+    const tourDe = (id: string) => rounds.find((r) => r.shareId === id)?.seq ?? Number.MAX_SAFE_INTEGER;
+    return out.sort((a, b) => tourDe(a.shareId) - tourDe(b.shareId));
+  };
   const rotationDueAt = (seq: number): bigint => {
     const at = sharesAt(holdings, seq);
-    return at.length > 0 ? (memberDueForRound(at, perShare).get(membershipId) ?? 0n) : 0n;
+    return at.length > 0 ? (memberDueForRound(at, BigInt(rulesAt(seq).contributionPerShare)).get(membershipId) ?? 0n) : 0n;
   };
   const mem = await db.query(`SELECT joined_at FROM membership WHERE group_id = $1 AND membership_id = $2`, [group.groupId, membershipId]);
   const joined = mem.rows[0]?.joined_at ? (isoInstant(mem.rows[0].joined_at) as string).slice(0, 10) : "0000-00-00";
@@ -389,14 +486,40 @@ export async function computeDues(
     for (const f of funds) {
       let due = 0n;
       if (f.kind === "rotation") due = rotationDueAt(r.seq);
-      else if (f.perMeeting > 0n && r.date >= joined) due = f.perMeeting;
+      else if (f.custom) {
+        if (r.date >= joined) {
+          const start = f.custom.schedule[0]?.from;
+          const first = start ? (rounds.find((x) => x.date >= start)?.date ?? null) : null;
+          due = customFundDue(f.custom, r.date, first);
+        }
+      } else if (r.date >= joined) {
+        const fromRules = settingsFundPerMeeting(f.kind, rulesAt(r.seq));
+        due = fromRules ?? (f.state === "active" ? f.perMeeting : 0n);
+      }
       if (due === 0n) continue;
       const p = paid.get(`${f.fundId}|${r.seq}`) ?? { confirmed: 0n, declared: 0n };
       const moved = f.kind === "rotation" ? (transferred.get(r.seq) ?? 0n) : 0n;
       const remaining = due - p.confirmed - p.declared - moved;
       const rem = remaining > 0n ? remaining : 0n;
       if (opts.onlyOpen && rem === 0n) continue;
+      const tenus = f.kind === "rotation" ? namesAt(r.seq) : [];
+      let couvert = p.confirmed + moved;
+      let annonce = p.declared;
+      const names =
+        tenus.length > 1
+          ? tenus.map((n) => {
+              const c = couvert >= n.due ? n.due : couvert;
+              couvert -= c;
+              const resteNom = n.due - c;
+              const d = annonce >= resteNom ? resteNom : annonce;
+              annonce -= d;
+              const status: "paid" | "declared" | "partial" | "unpaid" =
+                c >= n.due ? "paid" : c + d >= n.due ? "declared" : c + d > 0n ? "partial" : "unpaid";
+              return { shareId: n.shareId, label: labels.get(n.shareId) ?? "Nom", due: m(n.due), status };
+            })
+          : null;
       out.push({
+        ...(names ? { names } : {}),
         groupId: group.groupId,
         fundId: f.fundId,
         fundKind: f.kind,
@@ -421,6 +544,7 @@ export async function movementViews(
   actor: Actor,
   filter: { readonly fundId?: string | undefined; readonly roundSeq?: number | undefined; readonly state?: string | undefined; readonly meetingId?: string | undefined; readonly movementIds?: readonly string[] | undefined; readonly membershipId?: string | undefined } = {},
 ): Promise<MovementView[]> {
+  const photoOf = await memberPhotoVersions(db, actor.groupId);
   const where = ["mv.group_id = $1"];
   const args: unknown[] = [actor.groupId];
   if (filter.fundId) {
@@ -448,7 +572,7 @@ export async function movementViews(
     where.push(`mv.membership_id = $${args.length}`);
   }
   const r = await db.query(
-    `SELECT mv.*, f.kind AS fund_kind FROM fund_movement mv
+    `SELECT mv.*, f.kind AS fund_kind, f.name AS fund_name FROM fund_movement mv
        JOIN fund f ON f.group_id = mv.group_id AND f.fund_id = mv.fund_id
       WHERE ${where.join(" AND ")}
       ORDER BY mv.declared_at DESC, mv.movement_id LIMIT 500`,
@@ -483,10 +607,12 @@ export async function movementViews(
       movementId: String(row.movement_id),
       fundId: String(row.fund_id),
       fundKind: row.fund_kind as FundKind,
+      fundName: String(row.fund_name),
       kind,
       amount: String(row.amount),
       membershipId: memberId,
       memberName: memberId ? (names.byMembership.get(memberId) ?? null) : null,
+      memberPhotoVersion: memberId ? (photoOf.get(memberId) ?? null) : null,
       roundSeq: row.round_seq === null ? null : Number(row.round_seq),
       meetingId: row.meeting_id ? String(row.meeting_id) : null,
       state,
@@ -527,7 +653,7 @@ export function signedAmount(kind: MovementKind, amount: bigint): bigint {
 export async function meetingSummaries(db: Db, groupId: string, meetingId?: string): Promise<MeetingSummary[]> {
   const names = await loadNames(db, groupId);
   const r = await db.query(
-    `SELECT meeting_id, seq, scheduled_date::text AS d, state, location, host_membership_id, round_seq, minutes_approved_at
+    `SELECT meeting_id, seq, scheduled_date::text AS d, state, location, host_membership_id, round_seq, minutes_approved_at, format, online_url
        FROM meeting WHERE group_id = $1 ${meetingId ? "AND meeting_id = $2" : ""} ORDER BY seq`,
     meetingId ? [groupId, meetingId] : [groupId],
   );
@@ -540,6 +666,8 @@ export async function meetingSummaries(db: Db, groupId: string, meetingId?: stri
     hostName: row.host_membership_id ? (names.byMembership.get(String(row.host_membership_id)) ?? null) : null,
     roundSeq: row.round_seq === null ? null : Number(row.round_seq),
     minutesApproved: row.minutes_approved_at !== null,
+    format: (row.format ?? "in_person") as MeetingSummary["format"],
+    onlineUrl: row.online_url ?? null,
   }));
 }
 

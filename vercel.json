@@ -4,6 +4,9 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "node scripts/vercel-build.mjs",
   "outputDirectory": "dist-web",
+  "regions": [
+    "fra1"
+  ],
   "rewrites": [
     {
       "source": "/v1/:path*",
@@ -32,7 +35,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
         }
       ]
     },
@@ -75,6 +78,34 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/telecharger/kombe-arm64.apk",
+      "destination": "https://github.com/CORNEIL333/kombe-project/releases/download/mobile-latest/kombe-arm64.apk",
+      "permanent": false
+    },
+    {
+      "source": "/telecharger/kombe-armv7.apk",
+      "destination": "https://github.com/CORNEIL333/kombe-project/releases/download/mobile-latest/kombe-armv7.apk",
+      "permanent": false
+    },
+    {
+      "source": "/telecharger/kombe-x86_64.apk",
+      "destination": "https://github.com/CORNEIL333/kombe-project/releases/download/mobile-latest/kombe-x86_64.apk",
+      "permanent": false
+    },
+    {
+      "source": "/telecharger/kombe-update.json",
+      "destination": "https://github.com/CORNEIL333/kombe-project/releases/download/mobile-latest/kombe-update.json",
+      "permanent": false
+    }
+  ],
+  "crons": [
+    {
+      "path": "/v1/internal/cron/echeances",
+      "schedule": "0 6 * * *"
     }
   ]
 }

@@ -267,7 +267,8 @@ describe("C16 — purge / restauration (C16-RESTORE, 18.10)", () => {
     // Point pris quand A,B,C sont visibles (avant effacement).
     const snap = await app.inject({ method: "POST", url: "/v1/privacy/restore-points", headers: h("membre_a"), payload: {} });
     expect(snap.statusCode).toBe(201);
-    expect(snap.json().identities).toEqual(expect.arrayContaining(["membre_a", "membre_b", "membre_c"]));
+    // Des comptes seulement : jamais la liste des identifiants de connexion.
+    expect(snap.json()).toEqual({ takenAt: expect.any(Number), identityCount: 3 });
 
     // B exerce son droit à l'effacement APRÈS le point.
     await openAndVerify(app, "membre_b", "rr-del", "erasure", 3);
@@ -284,8 +285,8 @@ describe("C16 — purge / restauration (C16-RESTORE, 18.10)", () => {
     const body = restore.json();
     expect(body.deletedIdentityVisible).toBe(false); // C16-RESTORE
     expect(body.reAppliedErasures).toBe(1);
-    expect(body.visible).not.toContain("membre_b");
-    expect(body.visible).toEqual(expect.arrayContaining(["membre_a", "membre_c"]));
+    expect(body.visibleCount).toBe(2); // A et C ; B reste effacé
+    expect(JSON.stringify(body)).not.toContain("membre_");
   });
 
   it("réapplique aussi les révocations (révocation ≠ effacement)", async () => {
@@ -301,8 +302,8 @@ describe("C16 — purge / restauration (C16-RESTORE, 18.10)", () => {
       payload: { probeIdentityId: "membre_c" },
     });
     const body = restore.json();
-    expect(body.reAppliedRevocations).toContain("membre_c");
-    expect(body.visible).toContain("membre_c"); // révocation, pas effacement
+    expect(body.reAppliedRevocationsCount).toBe(1);
+    expect(body.visibleCount).toBe(2); // révocation, pas effacement : C reste compté
     expect(body.reAppliedErasures).toBe(0); // rien n'a été effacé
   });
 

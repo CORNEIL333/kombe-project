@@ -16,7 +16,7 @@ import type { FineKind, FineState } from "./discipline.js";
 import type { AidEvent, AidState } from "./solidarity.js";
 import type { GroupRole } from "./roles.js";
 import type { Transparency } from "./statutes.js";
-import type { MeetingState, AttendanceStatus } from "./meeting.js";
+import type { MeetingState, AttendanceStatus, MeetingFormat } from "./meeting.js";
 import type { PayoutPolicy } from "./debt.js";
 
 export type Money = string;
@@ -52,6 +52,8 @@ export interface MeView {
   readonly login: string;
   readonly displayName: string | null;
   readonly language: Language;
+  /** Version de ma photo de profil (clé de cache) ; null = pas de photo. */
+  readonly photoVersion?: number | null;
 }
 export interface MeUpdate {
   readonly displayName?: string;
@@ -123,6 +125,10 @@ export interface TontineSummary {
   readonly memberCount: number;
   readonly contributionPerShare: Money;
   readonly nextMeetingDate: IsoDate | null;
+  /** Version de la photo du groupe (clé de cache) ; null = pas de photo (initiales). */
+  readonly photoVersion?: number | null;
+  /** Position dans le cycle en cours (tour courant / nombre de tours) ; null hors cycle. */
+  readonly cyclePosition?: { readonly current: number; readonly total: number } | null;
   /** Ce que je dois encore pour la prochaine échéance (toutes caisses). */
   readonly myOpenDue: Money;
   /** Tour où je reçois la cagnotte, s'il est fixé. */
@@ -139,11 +145,41 @@ export interface FundView {
   /** Déclaré en attente de confirmation (entrées). */
   readonly pendingIn: Money;
   readonly perMeeting: Money;
+  /** Caisse créée par la tontine elle-même : ses règles propres. */
+  readonly custom?: {
+    readonly mode: "each_meeting" | "one_time" | "free";
+    readonly purpose: string | null;
+    readonly target: string | null;
+    /** Montant dû aujourd'hui (0 pour une caisse libre). */
+    readonly currentAmount: Money;
+    readonly schedule: readonly { readonly from: IsoDate; readonly amount: Money }[];
+    readonly closedOn: IsoDate | null;
+  };
+}
+
+export interface CreateFundInput {
+  readonly name: string;
+  readonly mode: "each_meeting" | "one_time" | "free";
+  readonly amount?: Money | undefined;
+  readonly from?: IsoDate | undefined;
+  readonly purpose?: string | null | undefined;
+  readonly target?: Money | null | undefined;
+}
+
+export interface UpdateFundInput {
+  readonly name?: string | undefined;
+  readonly purpose?: string | null | undefined;
+  readonly target?: Money | null | undefined;
+  readonly amount?: Money | undefined;
+  readonly from?: IsoDate | undefined;
+  readonly close?: boolean | undefined;
 }
 
 export interface MemberView {
   readonly membershipId: string;
   readonly displayName: string;
+  /** Version de la photo de profil ; null = pas de photo. */
+  readonly photoVersion?: number | null;
   readonly state: TontineMembershipState;
   readonly roles: readonly GroupRole[];
   /** Fonctions proposées, en attente d'acceptation par la personne nommée. */
@@ -167,6 +203,10 @@ export interface RoundView {
   readonly state: "open" | "closed";
   readonly beneficiaryMembershipId: string | null;
   readonly beneficiaryName: string | null;
+  readonly beneficiaryPhotoVersion?: number | null;
+  /** Nom (part) servi à ce tour, et son libellé (0041). */
+  readonly shareId?: string | null;
+  readonly shareLabel?: string | null;
   readonly meetingId: string | null;
   /** Cagnotte attendue (parts × cotisation). */
   readonly expectedPot: Money;
@@ -178,9 +218,16 @@ export interface RoundView {
 export interface TontineDetail {
   readonly groupId: string;
   readonly name: string;
+  readonly photoVersion?: number | null;
   readonly state: TontineState;
   readonly settings: TontineSettings;
-  readonly me: { readonly membershipId: string; readonly state: TontineMembershipState; readonly roles: readonly GroupRole[] };
+  readonly me: {
+    readonly membershipId: string;
+    readonly state: TontineMembershipState;
+    readonly roles: readonly GroupRole[];
+    /** Fonctions qu'on me propose et que je n'ai pas encore acceptées. */
+    readonly pendingRoles: readonly GroupRole[];
+  };
   readonly memberCount: number;
   readonly pendingCount: number;
   readonly funds: readonly FundView[];
@@ -207,6 +254,11 @@ export interface DueView {
   readonly declared: Money;
   readonly remaining: Money;
   readonly lateness: "upcoming" | "on_time" | "grace" | "late";
+  /**
+   * Cagnotte d'un membre qui tient plusieurs noms (0041) : le détail nom par
+   * nom ; les versements couvrent les noms dans l'ordre.
+   */
+  readonly names?: readonly { readonly shareId: string; readonly label: string; readonly due: Money; readonly status: "paid" | "declared" | "partial" | "unpaid" }[];
 }
 
 export interface InvitationView {
@@ -235,7 +287,12 @@ export interface MeetingSummary {
   readonly hostName: string | null;
   readonly roundSeq: number | null;
   readonly minutesApproved: boolean;
+  /** Présentiel, en ligne ou les deux (0041). */
+  readonly format: MeetingFormat;
+  /** Lien de la visioconférence (séance en ligne ou mixte), sinon null. */
+  readonly onlineUrl: string | null;
 }
+
 export interface AttendanceView {
   readonly membershipId: string;
   readonly displayName: string;
@@ -254,10 +311,13 @@ export interface MovementView {
   readonly movementId: string;
   readonly fundId: string;
   readonly fundKind: FundKind;
+  /** Nom de la caisse (celui choisi par la tontine pour une caisse personnalisée). */
+  readonly fundName: string;
   readonly kind: MovementKind;
   readonly amount: Money;
   readonly membershipId: string | null;
   readonly memberName: string | null;
+  readonly memberPhotoVersion?: number | null;
   readonly roundSeq: number | null;
   readonly meetingId: string | null;
   readonly state: MovementState;
@@ -317,6 +377,50 @@ export interface FineView {
   readonly issuedAt: IsoInstant;
   readonly issuedByName: string | null;
   readonly meetingId: string | null;
+  /** Amende payée puis annulée : le membre doit être remboursé (0041). */
+  readonly refundDue: boolean;
+  /** Remboursement réglé (mouvement confirmé), sinon null. */
+  readonly refundedAt: IsoInstant | null;
+}
+
+/** Vote libre (0041) : ouvert par tout membre actif, sans effet automatique. */
+export interface PollView {
+  readonly pollId: string;
+  readonly question: string;
+  readonly details: string | null;
+  readonly options: readonly string[];
+  readonly allowFreeAnswer: boolean;
+  readonly multiple: boolean;
+  readonly anonymous: boolean;
+  readonly state: "open" | "closed" | "cancelled";
+  readonly createdByMembershipId: string;
+  readonly createdByName: string;
+  readonly createdAt: IsoInstant;
+  readonly closesAt: IsoInstant | null;
+  readonly closedAt: IsoInstant | null;
+  /** Membres actifs (pour lire la participation). */
+  readonly electorate: number;
+  readonly ballotCount: number;
+  /** Décompte par réponse, dans l'ordre de `options`. */
+  readonly counts: readonly number[];
+  /** Réponses libres (texte seul si le vote est anonyme). */
+  readonly freeAnswers: readonly { readonly text: string; readonly name: string | null }[];
+  /** Qui a répondu quoi — absent si le vote est anonyme. */
+  readonly voters: readonly { readonly membershipId: string; readonly name: string; readonly choices: readonly number[] }[] | null;
+  readonly myBallot: { readonly choices: readonly number[]; readonly freeAnswer: string | null } | null;
+  /** Vrai pour l'auteur et la présidence : peut clore ou annuler. */
+  readonly canManage: boolean;
+}
+
+/** Un « nom » : une part à part entière (libellé, cotisation, tour propres). */
+export interface ShareNameView {
+  readonly shareId: string;
+  readonly label: string;
+  readonly holders: readonly { readonly membershipId: string; readonly name: string }[];
+  readonly roundSeq: number | null;
+  readonly roundDate: IsoDate | null;
+  readonly contributionPerShare: Money;
+  readonly canRename: boolean;
 }
 
 export interface AidView {
@@ -364,7 +468,21 @@ export interface StatutesView {
   readonly hash: string;
   readonly publishedAt: IsoInstant;
   readonly acceptedByMe: boolean;
+  /** Acceptations des membres actuels (admis ou en attente d'admission). */
   readonly acceptedCount: number;
+  /** Personnes qui doivent accepter (membres avec téléphone, admis ou en attente). */
+  readonly expectedCount: number;
+  /** Échéance d'acceptation fixée par le bureau (ADR-0042) ; null si aucune. */
+  readonly deadline: {
+    readonly deadlineAt: IsoInstant;
+    readonly acceptanceDays: number;
+    /** « exclude » : retardataires exclus à l'échéance (avant démarrage du cycle) ; « keep » : signalés au bureau. */
+    readonly onExpiry: "exclude" | "keep";
+  } | null;
+  /** Mon échéance si je n'ai pas encore accepté. */
+  readonly myDeadlineAt: IsoInstant | null;
+  /** Qui n'a pas encore accepté, avec son échéance. */
+  readonly pending: readonly { readonly membershipId: string; readonly name: string; readonly state: "active" | "pending"; readonly deadlineAt: IsoInstant | null }[];
 }
 
 export interface NotificationView {
@@ -373,6 +491,13 @@ export interface NotificationView {
   readonly groupName: string | null;
   readonly kind: string;
   readonly target: string | null;
+  /** Détail lisible après authentification (échéance, n° de tour, nom…). */
+  readonly params: Readonly<Record<string, string | number | boolean | null>> | null;
+  /** Nature précise (préfixe de la clé de dédoublonnage : `declared`,
+   *  `rejected`, `decision`, `contest`…) — pour un libellé exact. */
+  readonly topic: string;
+  /** Objet visé (mouvement, décision, amende…) quand la clé le porte. */
+  readonly subjectId: string | null;
   readonly createdAt: IsoInstant;
   readonly read: boolean;
 }
@@ -388,6 +513,8 @@ export interface RoundGridView {
     readonly confirmed: Money;
     readonly declared: Money;
     readonly status: "paid" | "partial" | "declared" | "unpaid";
+    /** Détail nom par nom (0041) : les versements du membre couvrent ses noms dans l'ordre. */
+    readonly names?: readonly { readonly shareId: string; readonly label: string; readonly due: Money; readonly status: "paid" | "partial" | "unpaid" }[];
   }[];
   readonly summary: { readonly paid: number; readonly partial: number; readonly unpaid: number; readonly total: number };
 }

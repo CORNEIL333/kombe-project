@@ -12,6 +12,7 @@ import {
   drawOrder,
   meetingDates,
   memberDueForRound,
+  splitByWeight,
   newcomersLast,
   planPayoutWithArrears,
   assertChannelReference,
@@ -24,6 +25,7 @@ import {
   type PayoutPolicy,
   type RoundGridView,
   type RoundView,
+  type ShareNameView,
   type TontineDetail,
 } from "@kombe/domain";
 import {
@@ -54,7 +56,9 @@ import {
   loadRoundRows,
   loadRounds,
   loadShareHoldings,
+  loadShareLabels,
   loadShares,
+  roundSettingsOf,
   movementViews,
   type GroupRow,
 } from "./views.js";
@@ -63,21 +67,69 @@ import { assertMayDeclarePayout } from "./money.js";
 
 /** Statuts acceptés par chaque membre qui a un téléphone (L-12), sur la dernière version. */
 async function assertStatutesAccepted(db: Db, groupId: string): Promise<void> {
-  const st = await db.query(`SELECT version FROM statutes_version WHERE group_id = $1 ORDER BY version DESC LIMIT 1`, [groupId]);
-  if (!st.rows[0]) throw new DomainError("CYCLE_START_NOT_READY", "Générez les statuts et faites-les accepter");
+  const st = await db.query(
+    `SELECT v.version, d.deadline_at FROM statutes_version v LEFT JOIN statutes_deadline d ON d.group_id = v.group_id AND d.version = v.version
+      WHERE v.group_id = $1 ORDER BY v.version DESC LIMIT 1`,
+    [groupId],
+  );
+  if (!st.rows[0]) throw new DomainError("CYCLE_START_NOT_READY", "Publiez les statuts et faites-les accepter avant de démarrer");
   const missing = await db.query(
-    `SELECT count(*) AS c FROM membership m
+    `SELECT COALESCE(m.display_name, '') AS name FROM membership m
       WHERE m.group_id = $1 AND m.state = 'active' AND m.identity_id NOT LIKE 'offline\\_%'
-        AND NOT EXISTS (SELECT 1 FROM statutes_acceptance a WHERE a.group_id = m.group_id AND a.version = $2 AND a.identity_id = m.identity_id)`,
+        AND NOT EXISTS (SELECT 1 FROM statutes_acceptance a WHERE a.group_id = m.group_id AND a.version = $2 AND a.identity_id = m.identity_id)
+      ORDER BY m.joined_at NULLS LAST`,
     [groupId, st.rows[0].version],
   );
-  if (Number(missing.rows[0]?.c ?? 0) > 0) {
-    throw new DomainError("RULES_NOT_ACCEPTED", "Tous les membres doivent accepter la dernière version des statuts");
+  if (missing.rows.length > 0) {
+    const names = missing.rows.map((x) => String(x.name)).filter(Boolean);
+    const deadline = st.rows[0].deadline_at ? new Date(st.rows[0].deadline_at as string) : null;
+    const quand = deadline
+      ? ` Échéance : ${deadline.toLocaleDateString("fr-FR", { timeZone: "Africa/Douala", day: "numeric", month: "long" })} — passé ce délai, les retardataires sont traités selon votre choix (exclusion ou signalement).`
+      : " Fixez une échéance dans l'onglet Statuts pour ne pas attendre indéfiniment.";
+    throw new DomainError(
+      "RULES_NOT_ACCEPTED",
+      `Statuts pas encore acceptés par : ${names.length ? names.join(", ") : `${missing.rows.length} membre(s)`}. Relancez-les depuis l'onglet Statuts.${quand}`,
+    );
   }
 }
 
 function dayAfter(iso: string): string {
   return new Date(Date.parse(`${iso}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+}
+
+async function shareNameViews(db: Db, actor: Actor, group: GroupRow): Promise<ShareNameView[]> {
+  const holdings = await loadShareHoldings(db, group.groupId);
+  if (holdings.length === 0) return [];
+  const labels = await loadShareLabels(db, group.groupId);
+  const names = await loadNames(db, group.groupId);
+  const rounds = await loadRoundRows(db, group.groupId);
+  const roundOf = new Map(rounds.filter((r) => r.shareId).map((r) => [r.shareId as string, r]));
+  const current = rounds.find((r) => r.state === "open")?.seq;
+  const perShare = (await roundSettingsOf(db, group))(current ?? rounds[rounds.length - 1]?.seq ?? 1).contributionPerShare;
+  const bureau = may(actor, "group.manage") || may(actor, "movement.confirm");
+  const out: ShareNameView[] = [];
+  for (const [shareId, label] of labels) {
+    const holders = holdings.filter((h) => h.shareId === shareId && h.untilSeq === null);
+    if (holders.length === 0) continue;
+    const round = roundOf.get(shareId) ?? null;
+    out.push({
+      shareId,
+      label,
+      holders: holders.map((h) => ({ membershipId: h.membershipId, name: names.byMembership.get(h.membershipId) ?? "" })),
+      roundSeq: round?.seq ?? null,
+      roundDate: round?.date ?? null,
+      contributionPerShare: String(perShare),
+      canRename: bureau || holders.some((h) => h.membershipId === actor.membershipId),
+    });
+  }
+  return out.sort((a, b) => (a.roundSeq ?? 1e9) - (b.roundSeq ?? 1e9) || a.label.localeCompare(b.label, "fr"));
+}
+
+/** Libellé d'un nom : 1 à 40 caractères, espaces resserrés (CHECK de share.label). */
+export function shareLabel(raw: string): string {
+  const s = raw.trim().replace(/\s+/g, " ");
+  if (s.length <= 40) return s || "Nom";
+  return `${s.slice(0, 39).trimEnd()}…`;
 }
 
 export class CycleService {
@@ -104,7 +156,7 @@ export class CycleService {
         [drawId, groupId, commitment, seed, actor.identityId],
       );
       await appendEvent(db, actor, "draw.committed", { drawId, commitment }, nowMs);
-      await notify(db, groupId, await activeMemberIdentities(db, groupId), "order_change", `/tontines/${groupId}/calendrier`, `draw:${drawId}`);
+      await notify(db, groupId, await activeMemberIdentities(db, groupId), "draw_committed", `/tontines/${groupId}/calendrier`, `draw:${drawId}`, { commitment: commitment.slice(0, 16) });
       return { drawId, commitment };
     });
   }
@@ -170,7 +222,11 @@ export class CycleService {
         { order: input.order, rounds: planted.rounds, firstDate: planted.firstDate, lastDate: planted.lastDate, ...planted.drawBody },
         nowMs,
       );
-      await notify(db, groupId, await activeMemberIdentities(db, groupId), "general", `/tontines/${groupId}/calendrier`, `cycle:${groupId}`);
+      await notify(db, groupId, await activeMemberIdentities(db, groupId), "cycle_started", `/tontines/${groupId}/calendrier`, `cycle:${groupId}`, {
+        cycleNo: 1,
+        firstDate: planted.firstDate,
+        rounds: planted.rounds,
+      });
       return tontineDetail(db, actor, nowMs);
     });
   }
@@ -180,6 +236,39 @@ export class CycleService {
     return inTx(this.pool, async (db) => {
       await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
       return loadRounds(db, await loadGroup(db, groupId));
+    });
+  }
+
+  /**
+   * Les « noms » du cycle (0041) : chaque part est un nom à part entière, avec
+   * son libellé, sa cotisation et son tour. Libellés et titulaires sont visibles
+   * de tous ; seul le titulaire ou le bureau renomme.
+   */
+  async names(headers: Record<string, unknown>, groupId: string): Promise<ShareNameView[]> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
+      return shareNameViews(db, actor, await loadGroup(db, groupId));
+    });
+  }
+
+  async renameShare(headers: Record<string, unknown>, groupId: string, shareId: string, label: string): Promise<ShareNameView> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
+      requireAct(actor, "group.read");
+      const clean = label.trim().replace(/\s+/g, " ");
+      if (clean.length < 1 || clean.length > 40) throw new DomainError("SHARES_INVALID", "Nom : de 1 à 40 caractères");
+      const r = await db.query(`SELECT label FROM share WHERE group_id = $1 AND share_id = $2 FOR UPDATE`, [groupId, shareId]);
+      if (!r.rows[0]) throw new DomainError("OBJET_INTROUVABLE", "Nom introuvable");
+      const views = await shareNameViews(db, actor, await loadGroup(db, groupId));
+      const view = views.find((x) => x.shareId === shareId);
+      if (!view?.canRename) throw new DomainError("TONTINE_FORBIDDEN", "Seul le titulaire de ce nom ou le bureau le renomme");
+      if (String(r.rows[0].label) !== clean) {
+        await db.query(`UPDATE share SET label = $3 WHERE group_id = $1 AND share_id = $2`, [groupId, shareId, clean]);
+        await appendEvent(db, actor, "share.renamed", { shareId, label: clean }, nowMs);
+      }
+      return { ...view, label: clean };
     });
   }
 
@@ -193,7 +282,8 @@ export class CycleService {
       if (!rounds.some((r) => r.seq === seq)) throw new DomainError("OBJET_INTROUVABLE", "Tour introuvable");
       const rotation = await fundOfKind(db, groupId, "rotation");
       const shares = await loadShares(db, groupId, seq);
-      const dueMap = memberDueForRound(shares, BigInt(group.settings.contributionPerShare));
+      // Règles du tour (instantané) : un changement entre saisons ne réécrit pas le passé.
+      const dueMap = memberDueForRound(shares, BigInt((await roundSettingsOf(db, group))(seq).contributionPerShare));
       const names = await loadNames(db, groupId);
       const sums = await db.query(
         `SELECT membership_id, state, COALESCE(SUM(amount),0)::text AS s FROM fund_movement
@@ -210,8 +300,26 @@ export class CycleService {
       }
       const bureau = may(actor, "movement.confirm") || may(actor, "group.manage") || may(actor, "movement.control");
       const t = group.settings.transparency;
+      // Nom par nom : la part de chaque nom tenue par le membre, dans l'ordre des noms.
+      const perShare = BigInt((await roundSettingsOf(db, group))(seq).contributionPerShare);
+      const labels = await loadShareLabels(db, groupId);
+      const namesOf = new Map<string, { shareId: string; due: bigint }[]>();
+      for (const s of shares) {
+        for (const part of splitByWeight(perShare, s.holders)) {
+          namesOf.set(part.membershipId, [...(namesOf.get(part.membershipId) ?? []), { shareId: s.shareId, due: part.amount }]);
+        }
+      }
+      const tourDe = (id: string) => rounds.find((r) => r.shareId === id)?.seq ?? Number.MAX_SAFE_INTEGER;
+      for (const liste of namesOf.values()) liste.sort((a, b) => tourDe(a.shareId) - tourDe(b.shareId));
       const rows = [...dueMap.entries()].map(([mid, due]) => {
         const p = per.get(mid) ?? { c: 0n, d: 0n };
+        let left = p.c;
+        const byName = (namesOf.get(mid) ?? []).map((n) => {
+          const covered = left >= n.due ? n.due : left;
+          left -= covered;
+          const st: "paid" | "partial" | "unpaid" = covered >= n.due ? "paid" : covered > 0n ? "partial" : "unpaid";
+          return { shareId: n.shareId, label: labels.get(n.shareId) ?? "Nom", due: m(n.due), status: st };
+        });
         const status: "paid" | "partial" | "declared" | "unpaid" =
           p.c >= due ? "paid" : p.c > 0n ? "partial" : p.d > 0n ? "declared" : "unpaid";
         const visible = t === "all_members" || bureau || mid === actor.membershipId;
@@ -223,6 +331,7 @@ export class CycleService {
           confirmed: visible ? m(p.c) : "0",
           declared: visible ? m(p.d) : "0",
           status,
+          ...(visible && named && byName.length > 1 ? { names: byName } : {}),
           _visible: visible,
         };
       });
@@ -291,7 +400,11 @@ export class CycleService {
         { cycle: cycleNo, order: input.order, rounds: planted.rounds, firstSeq: last.seq + 1, firstDate: planted.firstDate, lastDate: planted.lastDate, ...planted.drawBody },
         nowMs,
       );
-      await notify(db, groupId, await activeMemberIdentities(db, groupId), "general", `/tontines/${groupId}/calendrier`, `cycle:${groupId}:${cycleNo}`);
+      await notify(db, groupId, await activeMemberIdentities(db, groupId), "cycle_started", `/tontines/${groupId}/calendrier`, `cycle:${groupId}:${cycleNo}`, {
+        cycleNo,
+        firstDate: planted.firstDate,
+        rounds: planted.rounds,
+      });
       return tontineDetail(db, actor, nowMs);
     });
   }
@@ -313,7 +426,7 @@ export class CycleService {
     // Parts : une ligne par « main » voulue par chaque membre (L-14) ; deux
     // membres qui partagent une part (« demi-main ») la tiennent ensemble,
     // chacun pour moitié.
-    const holders: { shareId: string; membershipId: string; joinedAt: string; partnerId: string | null }[] = [];
+    const holders: { shareId: string; membershipId: string; joinedAt: string; partnerId: string | null; label: string }[] = [];
     const activeIds = new Set(memberRows.map((x) => String(x.membership_id)));
     const paired = new Set<string>();
     for (const row of memberRows) {
@@ -324,16 +437,33 @@ export class CycleService {
         if (!activeIds.has(partner)) throw new DomainError("SHARES_INVALID", "Part partagée avec un membre inactif");
         if (paired.has(id)) continue;
         paired.add(id).add(partner);
-        holders.push({ shareId: newId("shr"), membershipId: id, joinedAt, partnerId: partner });
+        holders.push({ shareId: newId("shr"), membershipId: id, joinedAt, partnerId: partner, label: "" });
         continue;
       }
       const n = Number(row.share_count ?? 1);
-      for (let i = 1; i <= n; i++) holders.push({ shareId: newId("shr"), membershipId: id, joinedAt, partnerId: null });
+      for (let i = 1; i <= n; i++) holders.push({ shareId: newId("shr"), membershipId: id, joinedAt, partnerId: null, label: "" });
     }
     if (holders.length < 2) throw new DomainError("CYCLE_START_NOT_READY", "Au moins deux parts");
     if (holders.length > 60) throw new DomainError("SHARES_INVALID", "Au plus 60 parts par cycle");
-    for (const [i, h] of holders.entries()) {
-      await db.query(`INSERT INTO share (share_id, group_id, label) VALUES ($1,$2,$3)`, [h.shareId, groupId, h.partnerId ? `Part ${i + 1} (partagée)` : `Part ${i + 1}`]);
+    // Chaque part est un « nom » à part entière : libellé lisible par défaut
+    // (le prénom du titulaire, numéroté s'il en tient plusieurs), renommable.
+    const names = await loadNames(db, groupId);
+    const perMember = new Map<string, number>();
+    for (const h of holders) if (!h.partnerId) perMember.set(h.membershipId, (perMember.get(h.membershipId) ?? 0) + 1);
+    const rank = new Map<string, number>();
+    for (const h of holders) {
+      const who = names.byMembership.get(h.membershipId) ?? "Membre";
+      let label: string;
+      if (h.partnerId) label = `${who} & ${names.byMembership.get(h.partnerId) ?? "Membre"}`;
+      else {
+        const k = (rank.get(h.membershipId) ?? 0) + 1;
+        rank.set(h.membershipId, k);
+        label = (perMember.get(h.membershipId) ?? 1) > 1 ? `${who} · nom ${k}` : who;
+      }
+      h.label = shareLabel(label);
+    }
+    for (const h of holders) {
+      await db.query(`INSERT INTO share (share_id, group_id, label) VALUES ($1,$2,$3)`, [h.shareId, groupId, h.label]);
       await db.query(`INSERT INTO share_holder (group_id, share_id, membership_id, weight, from_seq) VALUES ($1,$2,$3,1,$4)`, [groupId, h.shareId, h.membershipId, firstSeq]);
       if (h.partnerId) {
         await db.query(`INSERT INTO share_holder (group_id, share_id, membership_id, weight, from_seq) VALUES ($1,$2,$3,1,$4)`, [groupId, h.shareId, h.partnerId, firstSeq]);
@@ -348,9 +478,14 @@ export class CycleService {
       const wanted = input.membershipOrder ?? [];
       if (wanted.length !== holders.length) throw new DomainError("SCHEDULE_ROUNDS_MISMATCH", "Un tour par part : liste incomplète");
       const pool = new Map<string, string[]>();
-      for (const h of holders) pool.set(h.membershipId, [...(pool.get(h.membershipId) ?? []), h.shareId]);
+      // Une part partagée se désigne par l'un OU l'autre de ses deux titulaires.
+      const alias = new Map<string, string>();
+      for (const h of holders) {
+        pool.set(h.membershipId, [...(pool.get(h.membershipId) ?? []), h.shareId]);
+        if (h.partnerId) alias.set(h.partnerId, h.membershipId);
+      }
       order = wanted.map((mid) => {
-        const list = pool.get(mid);
+        const list = pool.get(mid) ?? pool.get(alias.get(mid) ?? "");
         const s = list?.shift();
         if (!s) throw new DomainError("SCHEDULE_MEMBER_UNKNOWN", "Membre ou nombre de parts incohérent");
         return s;
@@ -460,7 +595,7 @@ export class CycleService {
 
       // Impayés du tour : avance du fonds de caisse, remise réduite ou attente.
       const shares = await loadShares(db, groupId, seq);
-      const perShare = BigInt(group.settings.contributionPerShare);
+      const perShare = BigInt((await roundSettingsOf(db, group))(seq).contributionPerShare);
       const expectedPot = BigInt(shares.length) * perShare;
       const dueMap = memberDueForRound(shares, perShare);
       const conf = await db.query(
@@ -545,7 +680,10 @@ export class CycleService {
       const benIdentity = names.identityOf.get(beneficiary);
       const proxy = await db.query(`SELECT proxy_membership_id FROM membership WHERE group_id = $1 AND membership_id = $2`, [groupId, beneficiary]);
       const proxyIdentity = proxy.rows[0]?.proxy_membership_id ? names.identityOf.get(String(proxy.rows[0].proxy_membership_id)) : undefined;
-      await notify(db, groupId, [benIdentity, proxyIdentity].filter((x): x is string => !!x), "payout_recorded", `/tontines/${groupId}`, `payout:${movementId}`);
+      await notify(db, groupId, [benIdentity, proxyIdentity].filter((x): x is string => !!x), "payout_to_confirm", `/tontines/${groupId}/argent`, `payout:${movementId}`, {
+        roundSeq: seq,
+        amount: m(amount),
+      });
       const view = await movementViews(db, actor, { movementIds: [movementId] });
       return view[0] as MovementView;
     });

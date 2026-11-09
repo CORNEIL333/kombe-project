@@ -18,7 +18,7 @@
  *  - les réponses d'inscription/récupération sont **anti-énumération** : même
  *    gabarit que le compte existe ou non, sans divulgation (1.1, 1.4).
  */
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { DomainError } from "./errors.js";
 
 /** Canaux d'inscription/vérification (1.1). Aucun autre canal n'est accepté. */
@@ -48,6 +48,25 @@ export const MAX_TOKEN_ATTEMPTS = 5;
  *  0003_access.sql`, colonne `token_hash` — resté inexploité jusqu'ici). */
 export function hashVerificationCode(code: string): string {
   return createHash("sha256").update(code, "utf8").digest("hex");
+}
+
+/**
+ * Poivre serveur des codes (ADR-0043) : avec lui, l'empreinte devient
+ * HMAC-SHA256(poivre, idJeton ":" code), préfixée « h2: ». Une fuite de la
+ * table seule ne permet plus de retrouver les codes actifs par force brute
+ * hors ligne (10^6 essais), et deux jetons de même code ont des empreintes
+ * différentes. Sans poivre (développement), l'ancienne empreinte reste lue.
+ */
+let codePepper: Buffer | null = null;
+export function configureCodePepper(pepper: string | null | undefined): void {
+  codePepper = pepper && pepper.length >= 16 ? Buffer.from(pepper, "utf8") : null;
+}
+export function codePepperConfigured(): boolean {
+  return codePepper !== null;
+}
+function tokenCodeHash(tokenId: string, code: string): string {
+  if (!codePepper) return hashVerificationCode(code);
+  return `h2:${createHmac("sha256", codePepper).update(`${tokenId}:${code}`, "utf8").digest("hex")}`;
 }
 
 /**
@@ -114,7 +133,7 @@ export function issueVerificationToken(input: {
     identityId: input.identityId,
     purpose: input.purpose,
     channel: input.channel,
-    codeHash: hashVerificationCode(input.code),
+    codeHash: tokenCodeHash(input.tokenId, input.code),
     issuedAt: input.now,
     expiresAt: input.now + input.ttlSeconds,
     consumedAt: null,
@@ -169,9 +188,14 @@ export function verifyTokenCode(
   if (now >= token.expiresAt) return { kind: "expired" };
   if (token.failedAttempts >= MAX_TOKEN_ATTEMPTS) return { kind: "locked", token };
 
-  const submittedHash = hashVerificationCode(submittedCode ?? "");
+  const peppered = token.codeHash.startsWith("h2:");
+  const submittedHash = peppered
+    ? codePepper
+      ? tokenCodeHash(token.tokenId, submittedCode ?? "").slice(3)
+      : "" // empreinte poivrée mais poivre absent : jamais vérifiable
+    : hashVerificationCode(submittedCode ?? "");
   const submittedBuf = Buffer.from(submittedHash, "hex");
-  const storedBuf = Buffer.from(token.codeHash, "hex");
+  const storedBuf = Buffer.from(peppered ? token.codeHash.slice(3) : token.codeHash, "hex");
   const matches =
     submittedBuf.length === storedBuf.length && timingSafeEqual(submittedBuf, storedBuf);
 

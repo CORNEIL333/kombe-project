@@ -126,7 +126,8 @@ export type FineState = (typeof FINE_STATES)[number];
 const FINE_TRANSITIONS: Readonly<Record<FineState, readonly FineState[]>> = {
   issued: ["contested", "paid", "cancelled"],
   contested: ["issued", "cancelled"],
-  paid: [],
+  // Annulée après paiement : un remboursement est dû au membre (0041).
+  paid: ["cancelled"],
   cancelled: [],
 };
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/kombe_logo.dart';
 
 class ServerRequiredScreen extends StatelessWidget {
@@ -19,21 +20,17 @@ class ServerRequiredScreen extends StatelessWidget {
                   children: <Widget>[
                     const KombeLogo(size: 54),
                     const SizedBox(height: 28),
-                    Icon(
-                      Icons.cloud_off_outlined,
-                      size: 54,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                    const KombeEmptyArt(icon: Icons.cloud_off_outlined, tone: KombeTone.warning),
                     const SizedBox(height: 18),
                     Text(
-                      'Serveur KÓMBE requis',
+                      'Version non reliée à KÓMBE',
                       style: Theme.of(context).textTheme.headlineMedium,
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'Ce client mobile ne simule aucune donnée métier. '
-                      'Connectez le backend KÓMBE pour authentifier un compte et charger les données réelles autorisées.',
+                      'Cette version de l’application n’est reliée à aucun serveur KÓMBE : rien ne peut s’afficher. '
+                      'Installez la version officielle depuis kombe.vercel.app/telecharger.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),

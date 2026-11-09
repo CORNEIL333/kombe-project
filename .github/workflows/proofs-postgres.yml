@@ -1,0 +1,128 @@
+# KÓMBE — TOUTES les preuves base réelle (PostgreSQL 16) à chaque poussée.
+#
+# Exécute scripts/proofs-local.sh : pour chaque preuve, base recréée, rôles
+# provisionnés, schéma appliqué par le vrai runner (migrate.mjs), puis la
+# preuve (RLS, idempotence atomique, second facteur opérateur, livraison des
+# notifications, échéances…). Aucun succès simulé : une seule preuve en échec
+# rend le job rouge. Les journaux de chaque preuve sont joints en artefact.
+name: Preuves PostgreSQL (suite complète)
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proofs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proofs:
+    name: Preuves base réelle (PostgreSQL 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      KOMBE_PG_SUPERUSER_URL: postgresql://postgres:postgres@localhost:5432
+      KOMBE_PROOF_LOGS: ${{ github.workspace }}/proof-logs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm -r --if-present run build
+      - name: Toutes les preuves
+        run: bash scripts/proofs-local.sh
+      - name: Journaux des preuves
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preuves-postgres
+          path: proof-logs
+          if-no-files-found: warn
+
+  proofs-pooler:
+    # ADR-0045 : mêmes preuves, l'API connectée en `kombe_api` via PgBouncer en
+    # mode transaction (comme le point d'accès poolé de Neon). Migrations et
+    # contrôles d'administration restent en connexion directe.
+    name: Preuves via pooler (PgBouncer, mode transaction, kombe_api)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      KOMBE_PG_SUPERUSER_URL: postgresql://postgres:postgres@localhost:5432
+      KOMBE_PROOF_LOGS: ${{ github.workspace }}/proof-logs-pooler
+      KOMBE_PROOF_API_POOLER: 127.0.0.1:6433
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: PgBouncer (mode transaction, sans requêtes préparées)
+        run: |
+          sudo apt-get install -y -q pgbouncer
+          D="$RUNNER_TEMP/pgb"; mkdir -p "$D"
+          printf '%s\n' '"kombe_api" "kombe"' > "$D/userlist.txt"
+          cat > "$D/pgbouncer.ini" <<INI
+          [databases]
+          * = host=127.0.0.1 port=5432
+          [pgbouncer]
+          listen_addr = 127.0.0.1
+          listen_port = 6433
+          auth_type = scram-sha-256
+          auth_file = $D/userlist.txt
+          pool_mode = transaction
+          max_prepared_statements = 0
+          default_pool_size = 10
+          max_client_conn = 500
+          server_reset_query =
+          logfile = $D/pgbouncer.log
+          pidfile = $D/pgbouncer.pid
+          unix_socket_dir =
+          INI
+          pgbouncer -d "$D/pgbouncer.ini"
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm -r --if-present run build
+      - name: Toutes les preuves (API via le pooler)
+        run: bash scripts/proofs-local.sh
+      - name: Le trafic applicatif est bien passé par le pooler
+        run: |
+          grep -q 'login attempt: db=kombe_proof user=kombe_api' "$RUNNER_TEMP/pgb/pgbouncer.log"
+      - name: Journaux
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preuves-pooler
+          path: |
+            proof-logs-pooler
+            ${{ runner.temp }}/pgb/pgbouncer.log
+          if-no-files-found: warn

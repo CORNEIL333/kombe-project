@@ -3,10 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
-import '../../core/design/kombe_tokens.g.dart';
 import '../../core/formatters/labels.dart';
 import '../../core/state/resource.dart';
-import '../../core/widgets/kombe_visuals.dart';
+import '../../core/widgets/kombe_sign_out.dart';
+import '../../core/widgets/group_avatar.dart';
+import '../groups/group_photo_sheet.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
@@ -14,6 +15,7 @@ import '../../domain/entities/profile.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
+import '../notifications/notification_actions.dart';
 import 'profile_view_model.dart';
 
 /// Profil & notifications (maquette « Compte, sécurité et paramètres »).
@@ -47,7 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(centerTitle: true, title: const Text('Mon profil')),
+        appBar: AppBar(title: const Text('Mon profil')),
         body: ListenableBuilder(
           listenable: _vm!,
           builder: (BuildContext context, Widget? child) => ResourceView<UserProfile>(
@@ -55,7 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             builder: (BuildContext context, UserProfile profile) => ListView(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
               children: <Widget>[
-                _Header(profile: profile),
+                _Header(profile: profile, onPhotoChanged: () async => _vm!.load()),
                 const SizedBox(height: 16),
                 FutureBuilder<Resource<List<GroupSummary>>>(
                   future: _groups,
@@ -71,7 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             icon: Icons.groups_rounded,
                             iconColor: KombeColors.emerald,
                             label: 'Mon rôle',
-                            value: groups == null || groups.isEmpty ? '—' : KombeLabels.role(groups.first.role),
+                            value: groups == null || groups.isEmpty ? '—' : _roleOf(groups.first),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -89,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const _SectionTitle('Sécurité du compte'),
                 _Card(children: <Widget>[
-                  _Row(icon: Icons.fingerprint_rounded, title: 'Authentification biométrique', subtitle: 'Connectez-vous avec votre empreinte',
+                  _Row(icon: Icons.password_rounded, title: 'Connexion et session', subtitle: 'Code à usage unique, session sur ce téléphone',
                       onTap: () => context.push('/app/settings/security')),
                   _Row(icon: Icons.shield_rounded, iconColor: KombeColors.goldDark, title: 'Sécurité et confidentialité', subtitle: 'Gérer mes informations',
                       onTap: () => context.push('/app/settings/privacy'), last: true),
@@ -98,14 +100,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _Card(children: <Widget>[
                   _Row(icon: Icons.language_rounded, title: 'Langue', trailing: profile.localeCode == 'en' ? 'English' : 'Français',
                       onTap: () => context.push('/app/settings/language')),
-                  _Row(icon: Icons.notifications_none_rounded, title: 'Notifications', subtitle: 'Gérer mes alertes',
+                  _Row(icon: Icons.notifications_none_rounded, title: 'Notifications', subtitle: 'Ce que KÓMBE vous rappelle',
                       onTap: () => context.push('/app/settings/notifications'), last: true),
                 ]),
                 const _SectionTitle('Aide & support'),
                 _Card(children: <Widget>[
                   _Row(icon: Icons.help_outline_rounded, title: 'Centre d’aide', subtitle: 'FAQ et guides d’utilisation', onTap: () => context.push('/app/help')),
-                  _Row(icon: Icons.headset_mic_outlined, title: 'Nous contacter', subtitle: 'Assistance', onTap: () => context.push('/app/support'), last: true),
+                  _Row(icon: Icons.headset_mic_outlined, title: 'Nous contacter', subtitle: 'Assistance', onTap: () => context.push('/app/support')),
+                  _Row(icon: Icons.cloud_off_outlined, title: 'Hors connexion', subtitle: 'Ce qui reste possible sans réseau', onTap: () => context.push('/app/offline')),
+                  _Row(icon: Icons.info_outline_rounded, title: 'À propos et mise à jour', subtitle: 'Version installée, rechercher une mise à jour',
+                      onTap: () => context.push('/app/about'), last: true),
                 ]),
+                const SizedBox(height: 22),
+                const KombeBoutonDeconnexion(),
                 FutureBuilder<Resource<List<KombeNotification>>>(
                   future: _notifications,
                   builder: (BuildContext context, AsyncSnapshot<Resource<List<KombeNotification>>> snap) {
@@ -119,14 +126,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: <Widget>[
                         Row(children: <Widget>[
                           const Expanded(child: _SectionTitle('Notifications récentes')),
-                          TextButton(
+                          IconButton(
+                            tooltip: 'Voir tout',
                             onPressed: () => context.go('/app/notifications'),
-                            style: TextButton.styleFrom(foregroundColor: KombeColors.goldDark),
-                            child: const Text('Voir tout'),
+                            icon: const Icon(Icons.arrow_forward_rounded, color: KombeColors.goldDark),
                           ),
                         ]),
                         for (final KombeNotification n in items)
-                          Padding(
+                          InkWell(
+                            onTap: () => openNotification(context, n),
+                            child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Row(
                               children: <Widget>[
@@ -146,6 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ],
                             ),
                           ),
+                          ),
                       ],
                     );
                   },
@@ -158,8 +168,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.profile});
+  const _Header({required this.profile, required this.onPhotoChanged});
   final UserProfile profile;
+  final Future<void> Function() onPhotoChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -167,13 +178,32 @@ class _Header extends StatelessWidget {
     final String first = profile.displayName.trim().split(RegExp(r'\s+')).first;
     return Row(
       children: <Widget>[
-        KombeAvatar(name: profile.displayName, url: profile.avatarUrl, size: 84),
+        Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            MyAvatar(name: profile.displayName, photoVersion: profile.photoVersion, size: 84),
+            Positioned(
+              right: -6,
+              bottom: -6,
+              child: Material(
+                color: KombeColors.goldWarm,
+                shape: const CircleBorder(side: BorderSide(color: KombeColors.cream, width: 2)),
+                child: IconButton(
+                  tooltip: profile.photoVersion == null ? 'Ajouter ma photo' : 'Changer ma photo',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => showMyPhotoSheet(context, name: profile.displayName, photoVersion: profile.photoVersion, afterChange: onPhotoChanged),
+                  icon: const Icon(Icons.photo_camera_outlined, size: 18, color: KombeColors.ink),
+                ),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text('Bonjour $first 👋', style: t.titleLarge?.copyWith(fontSize: 21)),
+              Text('Bonjour $first', style: t.headlineSmall),
               const SizedBox(height: 4),
               Text(profile.displayName, style: t.bodyMedium),
               Text(profile.phoneE164, style: t.bodyMedium),
@@ -206,7 +236,7 @@ class _StatTile extends StatelessWidget {
     final TextTheme t = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: KombeTokens.sand100, borderRadius: BorderRadius.circular(18)),
+      decoration: BoxDecoration(color: KombeColors.sand, borderRadius: BorderRadius.circular(18)),
       child: Row(
         children: <Widget>[
           Icon(icon, color: iconColor, size: 30),
@@ -270,7 +300,12 @@ class _Row extends StatelessWidget {
         decoration: BoxDecoration(border: last ? null : const Border(bottom: BorderSide(color: KombeColors.line))),
         child: Row(
           children: <Widget>[
-            Icon(icon, color: iconColor ?? KombeColors.ink),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(color: (iconColor ?? KombeColors.forest).withValues(alpha: .1), borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, size: 20, color: iconColor ?? KombeColors.forest),
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -289,3 +324,6 @@ class _Row extends StatelessWidget {
     );
   }
 }
+
+String _roleOf(GroupSummary g) =>
+    g.apiRoles.isEmpty ? KombeLabels.role(g.role) : g.apiRoles.map(apiRoleLabel).join(', ');

@@ -9,6 +9,7 @@ import { argent, discipline, tontines, type DebtView, type FineView } from "./ap
 import { peut } from "./droits.js";
 import { CANAUX } from "./Argent.js";
 import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, aujourdhui, useAction, useDonnees } from "./ui.js";
+import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 
@@ -25,6 +26,15 @@ export function Discipline({ ctx }: { readonly ctx: ContexteGroupe }) {
   );
 }
 
+/** Historique allégé : ce qui attend une action, puis les 5 plus récents ; le reste sur demande. */
+function allege(liste: readonly FineView[], tout: boolean): readonly FineView[] {
+  if (tout) return liste;
+  const enCours = liste.filter((f) => f.state === "issued" || f.state === "contested" || f.refundDue);
+  const autres = liste.filter((f) => !enCours.includes(f)).slice(0, 5);
+  return [...enCours, ...autres];
+}
+const donneesDe = <T,>(e: { statut: string; donnees?: T }): T | undefined => (e.statut === "ok" ? e.donnees : undefined);
+
 function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
   const { tx, dyn, xaf, date } = useTextes();
   const gid = ctx.groupe.groupId;
@@ -33,6 +43,8 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
   const action = useAction();
   const [motif, setMotif] = useState<{ id: string; quoi: "contester" | "annuler" | "maintenir"; texte: string } | null>(null);
   const [paiement, setPaiement] = useState<FineView | null>(null);
+  const [remboursement, setRemboursement] = useState<FineView | null>(null);
+  const [toutVoir, setToutVoir] = useState(false);
   const [nouvelle, setNouvelle] = useState<{ membershipId: string; kind: FineKind; amount: string; reason: string } | null>(null);
   const caisseAmendes = ctx.groupe.funds.find((f) => f.kind === "fines");
   const moi = membres.etat.statut === "ok" ? membres.etat.donnees.find((m) => m.isMe) : undefined;
@@ -47,8 +59,9 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
       titre={tx("di.amendes")}
       actions={
         peut(ctx.roles, "fine.issue") && !nouvelle ? (
-          <button type="button" className="bouton bouton-compact" onClick={() => setNouvelle({ membershipId: "", kind: "meeting_absence", amount: "", reason: "" })}>
-            {tx("di.infliger")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setNouvelle({ membershipId: "", kind: "meeting_absence", amount: "", reason: "" })} title={tx("di.infliger")}>
+            <Icone nom="alerte" taille={18} />
+            <span className="bouton-libelle">{tx("di.infliger")}</span>
           </button>
         ) : null
       }
@@ -115,43 +128,63 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
+            <>
             <ul className="liste">
-              {liste.map((f) => {
+              {allege(liste, toutVoir).map((f) => {
                 const concerne = moi?.membershipId === f.membershipId;
                 return (
-                  <li key={f.fineId} className="liste__ligne liste__ligne--haute">
+                  <li key={f.fineId} className="liste__ligne liste__ligne--haute ligne-riche">
+                    <span className={`ligne-riche__ico ligne-riche__ico--${f.state === "paid" ? "ok" : f.state === "contested" ? "alerte" : f.state === "cancelled" ? "neutre" : "attente"}`} aria-hidden="true">
+                      <Icone nom="balance" taille={20} />
+                    </span>
                     <div>
                       <strong>
-                        {f.memberName} · {xaf(f.amount)}
+                        {f.memberName}
+                        <span className="visuellement-cache"> · {xaf(f.amount)}</span>
                       </strong>
                       <span className="aide-champ">
                         {dyn(`di.k.${f.kind}`)} · {f.reason} · {date(f.issuedAt)}
                         {f.issuedByName ? ` · ${f.issuedByName}` : ""}
                       </span>
                       <Pastille ton={f.state === "paid" ? "ok" : f.state === "contested" ? "alerte" : f.state === "cancelled" ? "neutre" : "attente"}>{dyn(`di.e.${f.state}`)}</Pastille>
+                      {f.refundDue ? <Pastille ton="attente">{tx("di.aRembourser")}</Pastille> : null}
+                      {f.refundedAt ? <span className="aide-champ">{tx("di.remboursee", { date: date(f.refundedAt) })}</span> : null}
                     </div>
+                    <span className="montant ligne-riche__montant" aria-hidden="true">
+                      {xaf(f.amount)}
+                    </span>
                     <div className="liste__actions">
                       {f.state === "issued" && concerne ? (
-                        <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setMotif({ id: f.fineId, quoi: "contester", texte: "" })}>
-                          {tx("di.contester")}
+                        <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => setMotif({ id: f.fineId, quoi: "contester", texte: "" })} title={tx("di.contester")}>
+                          <Icone nom="balance" taille={18} />
+                          <span className="bouton-libelle">{tx("di.contester")}</span>
                         </button>
                       ) : null}
                       {f.state === "issued" && caisseAmendes && (concerne || peut(ctx.roles, "movement.confirm")) ? (
-                        <button type="button" className="bouton bouton-compact" onClick={() => setPaiement(f)}>
-                          {tx("di.payer")}
+                        <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setPaiement(f)} title={tx("di.payer")}>
+                          <Icone nom="especes" taille={18} />
+                          <span className="bouton-libelle">{tx("di.payer")}</span>
                         </button>
                       ) : null}
-                      {(f.state === "contested" || f.state === "issued") && peut(ctx.roles, "member.admit") && !concerne ? (
+                      {f.refundDue && peut(ctx.roles, "movement.confirm") && !concerne ? (
+                        <button type="button" className="bouton bouton-compact bouton-avec-icone" onClick={() => setRemboursement(f)} title={tx("di.rembourser")}>
+                          <Icone nom="especes" taille={18} />
+                          <span className="bouton-libelle">{tx("di.rembourser")}</span>
+                        </button>
+                      ) : null}
+                      {(f.state === "contested" || f.state === "issued" || f.state === "paid") && peut(ctx.roles, "member.admit") && !concerne ? (
                         <>
                           {f.state === "contested" ? (
-                            <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setMotif({ id: f.fineId, quoi: "maintenir", texte: "" })}>
-                              {tx("di.maintenir")}
+                            <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => setMotif({ id: f.fineId, quoi: "maintenir", texte: "" })} title={tx("di.maintenir")}>
+                              <Icone nom="balance" taille={18} />
+                              <span className="bouton-libelle">{tx("di.maintenir")}</span>
                             </button>
                           ) : null}
-                          <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setMotif({ id: f.fineId, quoi: "annuler", texte: "" })}>
-                            {tx("di.annuler")}
+                          <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => setMotif({ id: f.fineId, quoi: "annuler", texte: "" })} title={tx("di.annuler")}>
+                            <Icone nom="fermer" taille={18} />
+                            <span className="bouton-libelle">{tx("di.annuler")}</span>
                           </button>
                         </>
                       ) : null}
@@ -160,11 +193,20 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
                 );
               })}
             </ul>
+            {liste.length > allege(liste, false).length ? (
+              <button type="button" className="bouton-lien" aria-expanded={toutVoir} onClick={() => setToutVoir((v) => !v)}>
+                {toutVoir ? tx("app.voirMoins") : tx("app.voirTout", { n: liste.length })}
+              </button>
+            ) : null}
+            </>
           )
         }
       </Charge>
       {motif ? (
         <div className="formulaire-encart pile">
+          {motif.quoi === "annuler" && donneesDe(etat)?.find((f) => f.fineId === motif.id)?.state === "paid" ? (
+            <p className="msg msg--attente">{tx("di.annulerPayee")}</p>
+          ) : null}
           <Champ id="am-motif" libelle={tx("di.motif")}>
             <input id="am-motif" value={motif.texte} maxLength={500} onChange={(e) => setMotif({ ...motif, texte: e.target.value })} />
           </Champ>
@@ -190,6 +232,17 @@ function Amendes({ ctx }: { readonly ctx: ContexteGroupe }) {
             </button>
           </div>
         </div>
+      ) : null}
+      {remboursement ? (
+        <PaiementLie
+          titre={`${tx("di.rembourser")} — ${remboursement.memberName} · ${xaf(remboursement.amount)}`}
+          montantFixe={remboursement.amount}
+          onEnvoyer={(channel, reference) => discipline.rembourser(ctx.session, gid, remboursement.fineId, channel, reference || undefined)}
+          onFini={() => {
+            setRemboursement(null);
+            apres();
+          }}
+        />
       ) : null}
       {paiement && caisseAmendes ? (
         <PaiementLie
@@ -236,8 +289,9 @@ function Secours({ ctx }: { readonly ctx: ContexteGroupe }) {
       titre={tx("di.secours")}
       actions={
         demande ? null : (
-          <button type="button" className="bouton bouton-compact" onClick={() => setDemande({ pour: "", event: "illness", eventDate: aujourdhui(), note: "" })}>
-            {tx("di.demander")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setDemande({ pour: "", event: "illness", eventDate: aujourdhui(), note: "" })} title={tx("di.demander")}>
+            <Icone nom="plus" taille={18} />
+            <span className="bouton-libelle">{tx("di.demander")}</span>
           </button>
         )
       }
@@ -308,17 +362,21 @@ function Secours({ ctx }: { readonly ctx: ContexteGroupe }) {
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
             <ul className="liste">
               {liste.map((a) => {
                 const moi = membres.etat.statut === "ok" ? membres.etat.donnees.find((m) => m.isMe) : undefined;
                 const beneficiaire = moi?.membershipId === a.beneficiaryMembershipId;
                 return (
-                  <li key={a.aidId} className="liste__ligne liste__ligne--haute">
+                  <li key={a.aidId} className="liste__ligne liste__ligne--haute ligne-riche">
+                    <span className={`ligne-riche__ico ligne-riche__ico--${a.state === "paid" ? "ok" : a.state === "rejected" ? "alerte" : "attente"}`} aria-hidden="true">
+                      <Icone nom="secours" taille={20} />
+                    </span>
                     <div>
                       <strong>
-                        {a.beneficiaryName} · {dyn(`di.ev.${a.event}`)} · {xaf(a.amount)}
+                        {a.beneficiaryName} · {dyn(`di.ev.${a.event}`)}
+                        <span className="visuellement-cache"> · {xaf(a.amount)}</span>
                       </strong>
                       <span className="aide-champ">
                         {date(a.eventDate)}
@@ -327,11 +385,15 @@ function Secours({ ctx }: { readonly ctx: ContexteGroupe }) {
                       </span>
                       <Pastille ton={a.state === "paid" ? "ok" : a.state === "rejected" ? "alerte" : "attente"}>{dyn(`di.se.${a.state}`)}</Pastille>
                     </div>
+                    <span className="montant ligne-riche__montant" aria-hidden="true">
+                      {xaf(a.amount)}
+                    </span>
                     <div className="liste__actions">
                       {a.state === "requested" && peut(ctx.roles, "aid.decide") && !beneficiaire ? (
                         <>
-                          <button type="button" className="bouton bouton-compact" onClick={() => void action.lancer(() => discipline.deciderSecours(ctx.session, gid, a.aidId, "approve")).then(apres)}>
-                            {tx("di.accorder")}
+                          <button type="button" className="bouton bouton-compact bouton-avec-icone" onClick={() => void action.lancer(() => discipline.deciderSecours(ctx.session, gid, a.aidId, "approve")).then(apres)} title={tx("di.accorder")}>
+                            <Icone nom="coche" taille={18} />
+                            <span className="bouton-libelle">{tx("di.accorder")}</span>
                           </button>
                           <button
                             type="button"
@@ -343,8 +405,9 @@ function Secours({ ctx }: { readonly ctx: ContexteGroupe }) {
                         </>
                       ) : null}
                       {a.state === "approved" && peut(ctx.roles, "movement.confirm") ? (
-                        <button type="button" className="bouton bouton-compact" onClick={() => setRemise(a.aidId)}>
-                          {tx("di.remettre")}
+                        <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setRemise(a.aidId)} title={tx("di.remettre")}>
+                          <Icone nom="cagnotte" taille={18} />
+                          <span className="bouton-libelle">{tx("di.remettre")}</span>
                         </button>
                       ) : null}
                     </div>
@@ -392,14 +455,21 @@ function Dettes({ ctx }: { readonly ctx: ContexteGroupe }) {
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
             <ul className="liste">
               {liste.map((d) => (
-                <li key={d.debtId} className="liste__ligne liste__ligne--haute">
+                <li key={d.debtId} className="liste__ligne liste__ligne--haute ligne-riche">
+                  <span className={`ligne-riche__ico ligne-riche__ico--${d.state === "settled" ? "ok" : d.state === "open" ? "attente" : "neutre"}`} aria-hidden="true">
+                    <Icone nom="historique" taille={20} />
+                  </span>
                   <div>
                     <strong>
-                      {d.debtorName} · {xaf(d.remaining)} / {xaf(d.amount)}
+                      {d.debtorName}
+                      <span className="visuellement-cache">
+                        {" "}
+                        · {xaf(d.remaining)} / {xaf(d.amount)}
+                      </span>
                     </strong>
                     <span className="aide-champ">
                       {dyn(`di.o.${d.origin}`)} · {date(d.createdAt)}
@@ -407,16 +477,22 @@ function Dettes({ ctx }: { readonly ctx: ContexteGroupe }) {
                     </span>
                     <Pastille ton={d.state === "settled" ? "ok" : d.state === "open" ? "attente" : "neutre"}>{dyn(`di.d.${d.state}`)}</Pastille>
                   </div>
+                  <span className="montant ligne-riche__montant" aria-hidden="true">
+                    {xaf(d.remaining)}
+                    <small> / {xaf(d.amount)}</small>
+                  </span>
                   {d.state === "open" ? (
                     <div className="liste__actions">
                       {moi?.membershipId === d.debtorMembershipId || peut(ctx.roles, "movement.confirm") ? (
-                        <button type="button" className="bouton bouton-compact" onClick={() => (setRegler(d), setMontant(d.remaining))}>
-                          {tx("di.regler")}
+                        <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => (setRegler(d), setMontant(d.remaining))} title={tx("di.regler")}>
+                          <Icone nom="especes" taille={18} />
+                          <span className="bouton-libelle">{tx("di.regler")}</span>
                         </button>
                       ) : null}
                       {peut(ctx.roles, "member.admit") && moi?.membershipId !== d.debtorMembershipId ? (
-                        <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setAbandon({ id: d.debtId, motif: "" })}>
-                          {tx("di.abandonner")}
+                        <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setAbandon({ id: d.debtId, motif: "" })} title={tx("di.abandonner")}>
+                          <Icone nom="fermer" taille={18} />
+                          <span className="bouton-libelle">{tx("di.abandonner")}</span>
                         </button>
                       ) : null}
                     </div>

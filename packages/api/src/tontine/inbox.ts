@@ -5,41 +5,62 @@
 import type pg from "pg";
 import { DomainError, verifyJournal, type JournalEntryView, type JournalEvent, type NotificationView } from "@kombe/domain";
 import { canonicalHash } from "@kombe/domain";
-import { type Db, groupActor, inTx, isoInstant, notify, scopeGroup, sessionIdentity, todayDouala } from "./infra.js";
-import { type GroupRow, computeDues, loadGroup, loadNames } from "./views.js";
-
-function addDays(iso: string, days: number): string {
-  return new Date(Date.parse(`${iso}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-}
+import { type Db, groupActor, inTx, isoInstant, scopeGroup, sessionIdentity } from "./infra.js";
+import { loadNames } from "./views.js";
+import { processGroupDeadlines } from "./echeances.js";
 
 /**
- * Rappels de l'application, produits à la lecture de la boîte (dédupliqués) :
- * séance dans les deux jours, cotisation en retard ou en délai de grâce.
- * Le libellé ne porte ni montant ni nom (écran verrouillé).
+ * Relances de l'application, produites à la lecture de la boîte (dédupliquées)
+ * pour la personne qui lit ; l'échéance des statuts est appliquée au groupe.
+ * La tâche planifiée quotidienne fait le même travail pour tout le monde.
  */
 async function produceReminders(db: Db, identityId: string, nowMs: number): Promise<void> {
-  const today = todayDouala(nowMs);
-  const mine = await db.query(`SELECT group_id, membership_id FROM kombe_my_memberships() WHERE membership_state = 'active' AND group_state = 'active'`);
+  const mine = await db.query(`SELECT DISTINCT group_id FROM kombe_my_memberships() WHERE membership_state IN ('active','pending')`);
   for (const row of mine.rows) {
     const gid = String(row.group_id);
-    await scopeGroup(db, gid);
-    let group: GroupRow;
+    await db.query("SAVEPOINT rappel");
     try {
-      group = await loadGroup(db, gid);
+      await scopeGroup(db, gid);
+      await processGroupDeadlines(db, gid, nowMs, { onlyIdentity: identityId });
+      await db.query("RELEASE SAVEPOINT rappel");
     } catch {
-      continue;
+      // Une relance ratée ne doit jamais empêcher de lire ses notifications.
+      await db.query("ROLLBACK TO SAVEPOINT rappel");
     }
-    const mt = await db.query(
-      `SELECT meeting_id FROM meeting WHERE group_id = $1 AND state = 'planned' AND scheduled_date BETWEEN $2::date AND $3::date ORDER BY seq LIMIT 1`,
-      [gid, today, addDays(today, 2)],
-    );
-    if (mt.rows[0]) {
-      await notify(db, gid, [identityId], "meeting_reminder", `/tontines/${gid}/seances/${mt.rows[0].meeting_id}`, `meetingSoon:${mt.rows[0].meeting_id}`);
-    }
-    const dues = await computeDues(db, group, String(row.membership_id), today, { onlyOpen: true });
-    for (const d of dues.filter((x) => x.lateness === "late" || x.lateness === "grace")) {
-      await notify(db, gid, [identityId], "due_reminder", `/tontines/${gid}`, `due:${d.roundSeq}:${d.lateness}`);
-      break;
+  }
+}
+
+/* Pastille (sondée chaque minute par la PWA) : les relances sont produites au
+   plus une fois par fenêtre et par personne SUR CETTE INSTANCE. Les paliers
+   de relance sont au jour ou à l'heure près (j7…h6) : 10 minutes suffisent,
+   et l'ouverture de la liste, elle, produit toujours. */
+const REMINDER_WINDOW_MS = 10 * 60_000;
+const lastReminderRun = new Map<string, number>();
+/* Production PAR GROUPE (pour tous ses membres) au plus toutes les 2 min et
+   par instance : à 5 000 personnes, la production par personne refaisait le
+   même calcul pour chacun des membres d'un groupe (mesuré, banc 5 000). Le
+   traitement de groupe est un sur-ensemble du traitement par personne. */
+const GROUP_WINDOW_MS = 2 * 60_000;
+const lastGroupRun = new Map<string, number>();
+async function produceRemindersThrottled(db: Db, identityId: string, nowMs: number): Promise<void> {
+  const last = lastReminderRun.get(identityId);
+  if (last !== undefined && nowMs - last >= 0 && nowMs - last < REMINDER_WINDOW_MS) return;
+  if (lastReminderRun.size > 50_000) lastReminderRun.clear();
+  lastReminderRun.set(identityId, nowMs);
+  const mine = await db.query(`SELECT DISTINCT group_id FROM kombe_my_memberships() WHERE membership_state IN ('active','pending')`);
+  for (const row of mine.rows) {
+    const gid = String(row.group_id);
+    const g = lastGroupRun.get(gid);
+    if (g !== undefined && nowMs - g >= 0 && nowMs - g < GROUP_WINDOW_MS) continue;
+    if (lastGroupRun.size > 50_000) lastGroupRun.clear();
+    lastGroupRun.set(gid, nowMs);
+    await db.query("SAVEPOINT rappel");
+    try {
+      await scopeGroup(db, gid);
+      await processGroupDeadlines(db, gid, nowMs);
+      await db.query("RELEASE SAVEPOINT rappel");
+    } catch {
+      await db.query("ROLLBACK TO SAVEPOINT rappel");
     }
   }
 }
@@ -47,6 +68,8 @@ async function produceReminders(db: Db, identityId: string, nowMs: number): Prom
 const EVENT_LABELS: Readonly<Record<string, string>> = {
   "tontine.created": "Association créée",
   "tontine.settings_changed": "Règlement modifié",
+  "tontine.photo_changed": "Photo du groupe changée",
+  "tontine.photo_removed": "Photo du groupe retirée",
   "member.requested": "Demande d'adhésion",
   "member.admitted": "Membre admis",
   "member.rejected": "Adhésion refusée",
@@ -58,6 +81,9 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   "invitation.revoked": "Invitation retirée",
   "statutes.published": "Statuts publiés",
   "statutes.accepted": "Statuts acceptés",
+  "statutes.deadline_set": "Échéance d'acceptation des statuts fixée",
+  "statutes.reminded": "Relance envoyée aux retardataires",
+  "statutes.deadline_exclusion": "Retardataire exclu à l'échéance des statuts",
   "draw.committed": "Tirage scellé",
   "cycle.started": "Cycle démarré",
   "cycle.renewed": "Nouveau cycle démarré",
@@ -74,6 +100,9 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   "meeting.attendance": "Appel noté",
   "meeting.closed": "Séance close, PV généré",
   "meeting.minutes_approved": "PV approuvé",
+  "fund.created": "Nouvelle caisse créée",
+  "fund.updated": "Règles d’une caisse modifiées",
+  "fund.closed": "Caisse clôturée",
   "movement.declared": "Versement déclaré",
   "movement.confirmed": "Versements confirmés par la trésorerie",
   "movement.validated": "Mouvement validé par le commissaire",
@@ -82,6 +111,12 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   "fine.contested": "Amende contestée",
   "fine.cancelled": "Amende annulée",
   "fine.maintained": "Amende maintenue",
+  "fine.refunded": "Amende remboursée",
+  "poll.opened": "Vote libre ouvert",
+  "poll.closed": "Vote libre clos",
+  "poll.cancelled": "Vote libre annulé",
+  "meeting.updated": "Séance modifiée",
+  "share.renamed": "Nom renommé",
   "aid.requested": "Secours demandé",
   "aid.approved": "Secours accordé",
   "aid.rejected": "Secours refusé",
@@ -99,11 +134,30 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   "history.imported": "Historique repris (cahier ou ancienne application)",
 };
 
+/** `rejected:mv_1:+2376…` → topic `rejected`, objet `mv_1` (le suffixe
+ *  d'identité ajouté par `notify` n'est jamais exposé). */
+export function topicOf(dedupKey: string): { topic: string; subjectId: string | null } {
+  const parts = dedupKey.split(":");
+  const subject = parts.length > 2 ? (parts[1] ?? "") : "";
+  return { topic: parts[0] ?? "", subjectId: subject && /^[A-Za-z0-9_-]{1,80}$/.test(subject) ? subject : null };
+}
+
 export class InboxService {
   constructor(
     private readonly pool: pg.Pool,
     private readonly now: () => number,
   ) {}
+
+  /** Pastille : nombre de non-lues (relances produites au plus toutes les 10 min). */
+  async unreadCount(headers: Record<string, unknown>): Promise<{ unread: number }> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const id = await sessionIdentity(db, headers, nowMs);
+      await produceRemindersThrottled(db, id, nowMs);
+      const r = await db.query(`SELECT count(*) AS n FROM inbox_notification WHERE identity_id = $1 AND read_at IS NULL`, [id]);
+      return { unread: Number(r.rows[0]?.n ?? 0) };
+    });
+  }
 
   async notifications(headers: Record<string, unknown>, opts: { unreadOnly?: boolean | undefined } = {}): Promise<NotificationView[]> {
     const nowMs = this.now();
@@ -113,16 +167,18 @@ export class InboxService {
       const groups = await db.query(`SELECT group_id, group_name FROM kombe_my_memberships()`);
       const nameOf = new Map(groups.rows.map((x) => [String(x.group_id), String(x.group_name ?? "")]));
       const r = await db.query(
-        `SELECT notification_id, group_id, kind, target, created_at, read_at FROM inbox_notification
+        `SELECT notification_id, group_id, kind, target, params, dedup_key, created_at, read_at FROM inbox_notification
           WHERE identity_id = $1 ${opts.unreadOnly ? "AND read_at IS NULL" : ""} ORDER BY created_at DESC, notification_id DESC LIMIT 100`,
         [id],
       );
       return r.rows.map((row) => ({
         notificationId: String(row.notification_id),
         groupId: row.group_id ? String(row.group_id) : null,
-        groupName: row.group_id ? (nameOf.get(String(row.group_id)) ?? null) : null,
+        groupName: row.group_id ? (nameOf.get(String(row.group_id)) ?? (typeof row.params?.groupName === "string" ? row.params.groupName : null)) : null,
         kind: String(row.kind),
         target: row.target ?? null,
+        params: (row.params as NotificationView["params"]) ?? null,
+        ...topicOf(String(row.dedup_key ?? "")),
         createdAt: isoInstant(row.created_at) as string,
         read: row.read_at !== null,
       }));

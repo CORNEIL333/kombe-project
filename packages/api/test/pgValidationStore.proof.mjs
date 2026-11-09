@@ -54,7 +54,7 @@ async function runSql(client, relPath) {
   await client.query(sql);
 }
 
-const migrator = new pg.Client({ connectionString: url });
+const migrator = new pg.Client({ connectionString: process.env.KOMBE_DATABASE_URL ?? url });
 await migrator.connect();
 await (await import("../../db/scripts/guard.mjs")).assertNonProdTeardown(migrator, "kombe.api.pgValidationStore");
 const observations = {};
@@ -69,7 +69,13 @@ function check(name, cond, detail) {
 }
 
 const DOWN = [
-  "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql",
+  "migrations/0043_retours_membres.down.sql", "migrations/0042_securite_residuelle.down.sql", "migrations/0041_crm.down.sql",
+  "migrations/0040_performance_charge.down.sql",
+  "migrations/0039_role_api.down.sql",
+  "migrations/0038_notifications_livraison.down.sql",
+  "migrations/0037_rls_identite.down.sql",
+  "migrations/0036_securite_operateurs.down.sql",
+  "migrations/0035_member_photo.down.sql", "migrations/0034_group_photo.down.sql", "migrations/0034_echeances_notifications.down.sql", "migrations/0033_custom_funds.down.sql", "migrations/0032_audit_indexes.down.sql", "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql",
   "migrations/0017_pilot_metrics.down.sql", "migrations/0016_privacy_law.down.sql",
   "migrations/0015_export_manifest.down.sql", "migrations/0014_support_security.down.sql",
   "migrations/0013_outbox.down.sql", "migrations/0012_proposal.down.sql",
@@ -88,7 +94,7 @@ const UP = [
   "migrations/0010_dispute_cases.sql", "migrations/0011_disbursement.sql", "migrations/0012_proposal.sql",
   "migrations/0013_outbox.sql", "migrations/0014_support_security.sql", "migrations/0015_export_manifest.sql",
   "migrations/0016_privacy_law.sql", "migrations/0017_pilot_metrics.sql",
-  "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "provision/roles.sql",
+  "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "migrations/0032_audit_indexes.sql", "migrations/0033_custom_funds.sql", "migrations/0034_echeances_notifications.sql", "migrations/0034_group_photo.sql", "migrations/0035_member_photo.sql", "migrations/0036_securite_operateurs.sql", "migrations/0037_rls_identite.sql", "migrations/0038_notifications_livraison.sql", "migrations/0039_role_api.sql", "migrations/0040_performance_charge.sql", "migrations/0041_crm.sql", "migrations/0042_securite_residuelle.sql", "migrations/0043_retours_membres.sql", "provision/roles.sql",
 ];
 
 try {
@@ -120,7 +126,7 @@ try {
     INSERT INTO round (round_id, group_id, seq) VALUES ('rnd_v1','grpV',1), ('rnd_v2','grpV',2), ('rnd_v3','grpV',3) ON CONFLICT DO NOTHING;
   `);
 
-  const pool = new pg.Pool({ connectionString: url, options: "-c role=kombe_app", max: 5 });
+  const pool = new pg.Pool({ connectionString: url, ...(new URL(url).username === "kombe_api" ? {} : { options: "-c role=kombe_app" }), max: 5 });
   const contrib = new PgContributionStore(pool);
   const val = new PgValidationStore(pool);
 

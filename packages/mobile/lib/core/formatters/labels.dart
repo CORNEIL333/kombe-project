@@ -1,6 +1,5 @@
 import '../../domain/entities/contribution.dart';
 import '../../domain/entities/cycle.dart';
-import '../../domain/entities/dispute.dart';
 import '../../domain/entities/document.dart';
 import '../../domain/entities/group.dart';
 
@@ -10,9 +9,9 @@ abstract final class KombeLabels {
   static String role(GroupRole r) => switch (r) {
         GroupRole.member => 'Membre',
         GroupRole.treasurer => 'Trésorier',
-        GroupRole.controller => 'Contrôleur',
-        GroupRole.secretary => 'Secrétaire',
-        GroupRole.administrator => 'Administrateur',
+        GroupRole.controller => 'Commissaire aux comptes',
+        GroupRole.secretary => 'Secrétaire général',
+        GroupRole.administrator => 'Présidence',
       };
 
   static String contributionStatus(ContributionStatus s) => switch (s) {
@@ -33,14 +32,6 @@ abstract final class KombeLabels {
         PaymentChannel.internationalTransfer => 'Transfert depuis l’étranger',
         PaymentChannel.cash => 'Espèces',
         null => '—',
-      };
-
-  static String disputeStatus(DisputeStatus s) => switch (s) {
-        DisputeStatus.open => 'Ouvert',
-        DisputeStatus.underReview => 'En cours d’examen',
-        DisputeStatus.awaitingInformation => 'Informations demandées',
-        DisputeStatus.resolved => 'Résolu',
-        DisputeStatus.rejected => 'Rejeté',
       };
 
   static String documentKind(DocumentKind k) => switch (k) {

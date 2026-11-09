@@ -11,6 +11,10 @@
 import type pg from "pg";
 import {
   DomainError,
+  newCustomFundRules,
+  updateCustomFundRules,
+  type CreateFundInput,
+  type UpdateFundInput,
   planReserveDistribution,
   type PaymentChannel,
   assertChannelReference,
@@ -26,6 +30,7 @@ import {
 import {
   type Actor,
   type Db,
+  activeMemberIdentities,
   appendEvent,
   groupActor,
   identitiesWithRoles,
@@ -41,6 +46,7 @@ import {
   scopeGroup,
   sessionIdentity,
   todayDouala,
+  inReadTx,
 } from "./infra.js";
 import {
   PAYOUT_REJECTED_REASON,
@@ -66,7 +72,9 @@ export interface ReserveDistributionView {
   readonly waiting: readonly { readonly membershipId: string; readonly name: string | null; readonly amount: string; readonly reason: string }[];
 }
 
-const SIDE_FUND_KINDS = ["rotation", "solidarity", "operating", "year_end_reserve"];
+const SIDE_FUND_KINDS = ["rotation", "solidarity", "operating", "year_end_reserve", "custom"];
+/** Au plus 20 caisses personnalisées actives par tontine : lisible en séance. */
+const MAX_CUSTOM_FUNDS = 20;
 
 /** Le contrôle par un commissaire est exigé dès qu'un commissaire est en fonction. */
 export async function controlRequired(db: Db, groupId: string): Promise<boolean> {
@@ -110,7 +118,9 @@ async function lockMovement(db: Db, groupId: string, movementId: string): Promis
 
 /** Effets liés à la confirmation : amende payée, dette réglée (même transaction). */
 async function applyLinkedEffects(db: Db, groupId: string, mv: MovementRow): Promise<void> {
-  if (mv.relatedKind === "fine" && mv.relatedId) {
+  // Le remboursement d'une amende annulée (sortie de la caisse des amendes)
+  // ne touche pas l'état de l'amende : il est consigné à sa déclaration.
+  if (mv.relatedKind === "fine" && mv.relatedId && mv.kind === "fine_payment") {
     const f = await db.query(`SELECT state, amount FROM fine WHERE group_id = $1 AND fine_id = $2 FOR UPDATE`, [groupId, mv.relatedId]);
     if (!f.rows[0] || f.rows[0].state !== "issued") throw new DomainError("STATE_CONFLICT", "Amende déjà réglée, contestée ou annulée");
     await db.query(`UPDATE fine SET state = 'paid', movement_id = $3, version = version + 1 WHERE group_id = $1 AND fine_id = $2`, [
@@ -136,7 +146,7 @@ async function applyLinkedEffects(db: Db, groupId: string, mv: MovementRow): Pro
 
 /** Rejet après confirmation : on défait les effets liés. */
 async function undoLinkedEffects(db: Db, groupId: string, mv: MovementRow): Promise<void> {
-  if (mv.relatedKind === "fine" && mv.relatedId) {
+  if (mv.relatedKind === "fine" && mv.relatedId && mv.kind === "fine_payment") {
     await db.query(
       `UPDATE fine SET state = 'issued', movement_id = NULL, version = version + 1 WHERE group_id = $1 AND fine_id = $2 AND movement_id = $3`,
       [groupId, mv.relatedId, mv.movementId],
@@ -221,7 +231,62 @@ export class MoneyService {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => {
       await this.actor(db, headers, groupId, nowMs);
-      return loadFunds(db, groupId);
+      return loadFunds(db, groupId, todayDouala(nowMs));
+    });
+  }
+
+  /**
+   * Nouvelle caisse ou cotisation propre à la tontine (projet, fête, achat
+   * groupé, urgences…). Bureau seulement (`fund.manage`) ; prend effet au plus
+   * tôt aujourd'hui : rien n'est réclamé pour les séances passées.
+   */
+  async createFund(headers: Record<string, unknown>, groupId: string, input: CreateFundInput): Promise<FundView[]> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await this.actor(db, headers, groupId, nowMs);
+      requireAct(actor, "fund.manage");
+      const today = todayDouala(nowMs);
+      const rules = newCustomFundRules(input, today);
+      const name = input.name.trim().replace(/\s+/g, " ");
+      const funds = await loadFundRows(db, groupId);
+      if (funds.filter((f) => f.custom && f.state === "active").length >= MAX_CUSTOM_FUNDS) {
+        throw new DomainError("FUND_INVALID", `Au plus ${MAX_CUSTOM_FUNDS} caisses personnalisées actives`);
+      }
+      if (funds.some((f) => f.state === "active" && f.name.toLocaleLowerCase("fr") === name.toLocaleLowerCase("fr"))) {
+        throw new DomainError("FUND_INVALID", "Une caisse active porte déjà ce nom");
+      }
+      const fundId = newId("fnd");
+      await db.query(
+        `INSERT INTO fund (fund_id, group_id, kind, name, rules, created_by_identity_id) VALUES ($1,$2,'custom',$3,$4::jsonb,$5)`,
+        [fundId, groupId, name, JSON.stringify(rules), actor.identityId],
+      );
+      await appendEvent(db, actor, "fund.created", { fundId, name, rules }, nowMs);
+      const members = await activeMemberIdentities(db, groupId);
+      await notify(db, groupId, members.filter((i) => i !== actor.identityId), "fund_created", `/tontines/${groupId}/argent`, `fund:${fundId}:created`);
+      return loadFunds(db, groupId, today);
+    });
+  }
+
+  /** Modifie une caisse personnalisée : nom, objet, objectif, montant futur, clôture. */
+  async updateFund(headers: Record<string, unknown>, groupId: string, fundId: string, input: UpdateFundInput): Promise<FundView[]> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await this.actor(db, headers, groupId, nowMs);
+      requireAct(actor, "fund.manage");
+      const today = todayDouala(nowMs);
+      const lock = await db.query(`SELECT 1 FROM fund WHERE group_id = $1 AND fund_id = $2 FOR UPDATE`, [groupId, fundId]);
+      if (lock.rows.length === 0) throw new DomainError("OBJET_INTROUVABLE", "Caisse introuvable");
+      const fund = (await loadFundRows(db, groupId)).find((f) => f.fundId === fundId);
+      if (!fund?.custom) throw new DomainError("FUND_INVALID", "Seules les caisses créées par la tontine se modifient ici ; les autres suivent le règlement");
+      const rules = updateCustomFundRules(fund.custom, input, today);
+      const name = input.name === undefined ? fund.name : input.name.trim().replace(/\s+/g, " ");
+      if (name.length < 2 || name.length > 80) throw new DomainError("FUND_INVALID", "Nom de caisse de 2 à 80 caractères");
+      await db.query(
+        `UPDATE fund SET name = $3, rules = $4::jsonb, state = $5, version = version + 1 WHERE group_id = $1 AND fund_id = $2`,
+        [groupId, fundId, name, JSON.stringify(rules), rules.closedOn ? "closed" : "active"],
+      );
+      await appendEvent(db, actor, input.close ? "fund.closed" : "fund.updated", { fundId, name, rules, previous: { name: fund.name, rules: fund.custom } }, nowMs);
+      return loadFunds(db, groupId, today);
     });
   }
 
@@ -240,7 +305,7 @@ export class MoneyService {
   /** Échéances ouvertes de la personne connectée (toutes ses associations, ou une seule). */
   async myDues(headers: Record<string, unknown>, groupId?: string): Promise<DueView[]> {
     const nowMs = this.now();
-    return inTx(this.pool, async (db) => {
+    return inReadTx(this.pool, async (db) => {
       await sessionIdentity(db, headers, nowMs);
       const r = await db.query(`SELECT group_id, membership_id FROM kombe_my_memberships() WHERE membership_state = 'active'`);
       const out: DueView[] = [];
@@ -263,6 +328,15 @@ export class MoneyService {
   async declare(headers: Record<string, unknown>, groupId: string, input: DeclareMovementInput): Promise<MovementView> {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => {
+      // Sérialise TOUTES les déclarations du groupe : le « reste à verser »
+      // (computeDues), le solde pendent d'une dette et l'unicité du paiement
+      // d'une amende sont lus puis écrits dans la même transaction — sans
+      // verrou, deux déclarations simultanées lisaient la même borne et
+      // passaient toutes deux. Verrou de transaction (libéré au
+      // COMMIT/ROLLBACK) ; volume = quelques opérations par séance, aucune
+      // contention réaliste. La constante fixe sépare l'espace des clés du
+      // verrou d'idempotence de routes.ts.
+      await db.query("SELECT pg_advisory_xact_lock(hashtext($1), 1701)", [groupId]);
       const actor = await this.actor(db, headers, groupId, nowMs);
       requireAct(actor, "movement.declare");
       const group = await loadGroup(db, groupId);
@@ -311,7 +385,9 @@ export class MoneyService {
 
       const funds = await loadFundRows(db, groupId);
       const fund = funds.find((f) => f.fundId === fundId);
-      if (!fund || fund.state !== "active") throw new DomainError("FUND_INVALID", "Caisse introuvable ou fermée");
+      // Une caisse personnalisée close reçoit encore ce qui était dû avant sa clôture.
+      const lateOnClosed = fund?.custom !== null && fund?.custom !== undefined && kind === "contribution" && relatedKind !== "debt";
+      if (!fund || (fund.state !== "active" && !lateOnClosed)) throw new DomainError("FUND_INVALID", "Caisse introuvable ou fermée");
       if (fund.kind === "loan" || fund.kind === "collector") throw new DomainError("FUND_INVALID", "Cette caisse n'est pas ouverte");
 
       if (kind === "fine_payment") {
@@ -333,7 +409,11 @@ export class MoneyService {
         amount = BigInt(String(fine.amount));
       } else if (kind === "contribution") {
         if (!SIDE_FUND_KINDS.includes(fund.kind)) throw new DomainError("FUND_INVALID", "Cette caisse ne reçoit pas de cotisation");
-        if (relatedKind !== "debt") {
+        if (fund.custom?.mode === "free" && relatedKind !== "debt") {
+          // Contribution volontaire : montant libre, rattachée au tour indiqué s'il y en a un.
+          if (fund.state !== "active") throw new DomainError("FUND_INVALID", "Caisse clôturée");
+          relatedKind = null;
+        } else if (relatedKind !== "debt") {
           relatedKind = null;
           const open = await computeDues(db, group, memberId, todayDouala(nowMs), { onlyOpen: true });
           const mine = open.filter((d) => d.fundId === fund.fundId && (roundSeq === null || d.roundSeq === roundSeq));
@@ -463,6 +543,14 @@ export class MoneyService {
         `UPDATE fund_movement SET state = $3, rejected_reason = $4, version = version + 1 WHERE group_id = $1 AND movement_id = $2`,
         [groupId, movementId, next.state, reason.trim().slice(0, 500)],
       );
+      if (mv.kind === "payout" && mv.relatedKind === "fine" && mv.relatedId) {
+        // Remboursement rejeté : il redevient dû.
+        await db.query(
+          `UPDATE fine SET refund_due = true, refund_movement_id = NULL, refunded_at = NULL, version = version + 1
+            WHERE group_id = $1 AND fine_id = $2 AND refund_movement_id = $3`,
+          [groupId, mv.relatedId, movementId],
+        );
+      }
       if (mv.kind === "payout" && mv.relatedKind === "aid" && mv.relatedId) {
         await db.query(
           `UPDATE aid_request SET state = 'approved', movement_id = NULL, version = version + 1 WHERE group_id = $1 AND aid_id = $2 AND movement_id = $3`,
@@ -491,7 +579,7 @@ export class MoneyService {
       const names = await loadNames(db, groupId);
       const declarant = mv.declaredBy;
       const member = mv.membershipId ? names.identityOf.get(mv.membershipId) : undefined;
-      await notify(db, groupId, [declarant, member].filter((x): x is string => !!x && x !== actor.identityId), "general", `/tontines/${groupId}/argent`, `rejected:${movementId}`);
+      await notify(db, groupId, [declarant, member].filter((x): x is string => !!x && x !== actor.identityId), "movement_rejected", `/tontines/${groupId}/argent`, `rejected:${movementId}`);
       return (await movementViews(db, actor, { movementIds: [movementId] }))[0] as MovementView;
     });
   }

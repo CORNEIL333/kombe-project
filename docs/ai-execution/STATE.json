@@ -1,0 +1,33 @@
+{
+  "branch": "refonte/premium-photos",
+  "base": "refonte/ux-integrale",
+  "step": "H-apres-0.8.0",
+  "done": [
+    "A-photo-serveur",
+    "B1-pwa-4-onglets-groupes-photo",
+    "B1b-pwa-planches-reference",
+    "B2-flutter-4-onglets-groupes-photo-planche",
+    "E-rapport-final",
+    "F1-socle-cercle-ndop-flutter+pwa"
+  ],
+  "remaining": [
+    "déployer le site et publier une 0.8.1 pour les modifications de la branche",
+    "fusion master (voir docs/refonte/TRI_AUTRE_SESSION.md)",
+    "tableaux de bord",
+    "écrans natifs séances/amendes"
+  ],
+  "blocked": [
+    "recette appareil Android/iOS"
+  ],
+  "evidence": {
+    "domain_tests": 444,
+    "api_tests": 249,
+    "pwa_tests": 30,
+    "mobile_tests": 50,
+    "pwa_playwright": "360/390/430/768/1024/1440 sans erreur ni défilement horizontal",
+    "login_pwa": "0 pixel de différence avec la production",
+    "apk_0_8_0": "construit en local le 2026-11-05, non publié",
+    "production": "0.8.0 en ligne le 2026-11-05"
+  },
+  "next": "Test sur téléphone, puis décisions listées dans FINAL_REPORT.md."
+}

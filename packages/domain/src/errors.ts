@@ -36,6 +36,7 @@ export type DomainErrorCode =
   | "SESSION_INVALID"
   | "CHANNEL_NOT_VERIFIED"
   | "PRIVILEGE_NOT_GRANTED"
+  | "OPERATOR_MFA_REQUIRED"
   | "GROUP_STATE_INVALID"
   | "GROUP_READ_ONLY"
   | "CYCLE_START_NOT_READY"
@@ -122,10 +123,17 @@ export type DomainErrorCode =
   | "IMPORT_INVALID"
   | "DECISION_INVALID"
   | "DECISION_STATE_INVALID"
+  | "POLL_INVALID"
+  | "POLL_STATE_INVALID"
+  | "MEETING_INVALID"
+  | "PREFERENCE_INVALID"
+  | "CRM_INVALID"
   | "PAYOUT_SUSPENDED"
   /* API produit (0026). */
   | "STATE_CONFLICT"
   | "AUTH_THROTTLED"
+  /* Traduction d'une erreur PG (22P02 : texte non convertible — id mal formé). */
+  | "REQUEST_INVALID"
   /* Amorçage tontine (C03 §2.1-2.3, C05 §5.3, C21, parrainage). */
   | "TONTINE_MODEL_UNKNOWN"
   | "ROTATION_TYPE_UNKNOWN"
@@ -141,7 +149,10 @@ export type DomainErrorCode =
   | "SPONSOR_NOT_ACTIVE_MEMBER"
   | "SPONSOR_SELF_FORBIDDEN"
   | "SPONSORSHIP_ALREADY_OPEN"
-  | "SPONSORSHIP_STATE_INVALID";
+  | "SPONSORSHIP_STATE_INVALID"
+  /* Photo de profil d'une tontine (0034). */
+  | "PHOTO_INVALID"
+  | "PHOTO_THROTTLED";
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;

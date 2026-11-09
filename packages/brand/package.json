@@ -7,7 +7,11 @@
   "exports": {
     "./kombe.css": "./css/kombe.css",
     "./marks/*": "./marks/*",
-    "./tokens.json": "./tokens/kombe.tokens.json"
+    "./tokens.json": "./tokens/kombe.tokens.json",
+    "./icons": "./icons/icons.ts",
+    "./logo.json": "./marks/kombe-logo.json",
+    "./v3.css": "./css/kombe-v3.css",
+    "./logo": "./icons/logo-svg.ts"
   },
   "scripts": {
     "tokens": "node scripts/build-tokens.mjs",

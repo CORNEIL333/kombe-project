@@ -35,7 +35,7 @@ class KombeStatusRing extends StatelessWidget {
         // ligne au lieu de déborder ; largeur libre : il garde sa taille.
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints c) {
-            final Widget text = Text(label, softWrap: true, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13));
+            final Widget text = Text(label, softWrap: true, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 14));
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[

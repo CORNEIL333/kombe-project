@@ -21,13 +21,19 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 |---|---|---|
 | POST | `/v1/auth/code-requests` | `AuthCodeRequest` → `AuthCodeRequestResult` (202, anti-énumération) |
 | POST | `/v1/auth/code-verifications` | `AuthCodeVerification` → `AuthSessionResult` (crée le compte au premier code) |
+| POST | `/v1/auth/neon-exchange` | `{ token }` (jeton Neon Auth signé, e-mail prouvé par Neon) → `AuthSessionResult` (201 ; actif seulement si `NEON_AUTH_JWKS_URL` et `NEON_AUTH_BASE_URL` sont posés ; jeton expiré, d'une autre clé, d'un autre émetteur ou adresse non vérifiée ⇒ 401) — ADR-0040. Avec Neon Auth configuré, `code-requests` / `code-verifications` pour un e-mail sont **relayés par l'API** vers Neon (aucun cookie tiers) ; `channels.neonAuthUrl` vaut `null` |
 | POST | `/v1/auth/logout` | → 204 (révoque la session) |
 | GET | `/v1/me` | → `MeView` |
 | PATCH | `/v1/me` | `MeUpdate` → `MeView` |
 | GET | `/v1/me/tontines` | → `TontineSummary[]` |
 | GET | `/v1/me/dues` | `?groupId=` → `DueView[]` (mes échéances ouvertes) |
-| GET | `/v1/me/notifications` | → `NotificationView[]` |
-| POST | `/v1/me/notifications/read` | `{ ids?: string[] }` → 204 (toutes si vide) |
+| GET | `/v1/me/notifications` | `?unread=1` (non lues seulement) → `NotificationView[]` (100 au plus ; `topic` = nature précise, `subjectId` = objet visé, `target` = écran du groupe) |
+| POST | `/v1/me/notifications/read` | `{ ids: string[] \| "all" }` → `{ updated }` |
+| GET | `/v1/me/support-tickets` | Mes demandes au support (CRM, ADR-0046) → `{ ticketId, ref, subject, category, status, groupName, createdAt, updatedAt, satisfaction }[]` |
+| POST | `/v1/me/support-tickets` | `{ subject, category, body, groupId? }` → `{ ticketId, ref }` (référence KMB-000001 ; cinq demandes ouvertes au plus) |
+| GET | `/v1/me/support-tickets/:ticketId` | Demande et messages publics (`from` = `moi` \| `support` ; notes internes jamais renvoyées) |
+| POST | `/v1/me/support-tickets/:ticketId/messages` | `{ body }` → `{ messageId }` (refusé si la demande est close) |
+| POST | `/v1/me/support-tickets/:ticketId/satisfaction` | `{ score: 1..5, comment? }` → `{ rated: true }` (une fois, après résolution) |
 
 ## Association
 
@@ -81,6 +87,8 @@ Vocabulaire : *déclaré* (saisi par une personne) → *confirmé* (reconnu par 
 ## Caisses et mouvements
 
 | GET | `/v1/tontines/:id/funds` | membre | → `FundView[]` |
+| POST | `/v1/tontines/:id/funds` | Président / VP / Trésorier | `CreateFundInput` `{ name, mode: each_meeting\|one_time\|free, amount?, from?, purpose?, target? }` → `FundView[]` (201 ; caisse ou cotisation propre à la tontine ; date d'effet ≥ aujourd'hui, jamais rétroactive) |
+| PATCH | `/v1/tontines/:id/funds/:fid` | Président / VP / Trésorier | `UpdateFundInput` `{ name?, purpose?, target?, amount?, from?, close? }` → `FundView[]` (caisses personnalisées seulement ; un nouveau montant ne vaut que pour l'avenir ; la clôture garde les échéances antérieures) |
 | GET | `/v1/tontines/:id/movements` | membre | `?fundId=&roundSeq=&state=&meetingId=&mine=1` → `MovementView[]` |
 | POST | `/v1/tontines/:id/movements` | membre | `DeclareMovementInput` → `MovementView` (déclaré) |
 | POST | `/v1/tontines/:id/movements/confirmations` | Trésorier / adjoint | `{ movementIds: string[] }` → `MovementView[]` (collecte en lot ; jamais sa propre déclaration) |

@@ -1,0 +1,68 @@
+# KÓMBE — mobile Flutter : tests + builds reproductibles sur runner GitHub
+# (machine locale éteinte). Aucun secret requis.
+#
+#   - flutter test                    → preuve §9 (verdict réel, jamais inventé)
+#   - flutter build web --release     → preuve de compilabilité web (l'archi v3
+#     sert la PWA Vite packages/client ; le build web Flutter est une preuve,
+#     pas un livrable de production)
+#   - flutter build apk --release     → livrable Android servi par /telecharger/
+#     (signé clés debug par défaut : installable, non publiable en store)
+#
+# KOMBE_API_BASE_URL est posée par dart-define (mode RÉEL exigé par
+# packages/mobile/lib/main.dart) ; la valeur placeholder n'est utilisée par
+# aucun appel au moment du build.
+name: Mobile Flutter — tests + builds
+
+on:
+  push:
+    branches: [master]
+    paths: ["packages/mobile/**", ".github/workflows/mobile-ci.yml"]
+  pull_request:
+    paths: ["packages/mobile/**", ".github/workflows/mobile-ci.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-build:
+    name: Test + build web + APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Dépendances
+        working-directory: packages/mobile
+        run: flutter pub get
+
+      - name: Tests
+        working-directory: packages/mobile
+        run: flutter test
+
+      - name: Build web (preuve de compilabilité)
+        working-directory: packages/mobile
+        run: flutter build web --release --dart-define=KOMBE_API_BASE_URL=https://kombe-build-proof.invalid
+
+      - name: Build APK Android (livrable /telecharger/)
+        working-directory: packages/mobile
+        run: flutter build apk --release --dart-define=KOMBE_API_BASE_URL=https://kombe-build-proof.invalid
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kombe-apk-release
+          path: packages/mobile/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14

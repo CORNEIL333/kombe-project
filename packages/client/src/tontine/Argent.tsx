@@ -8,11 +8,24 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { PaymentChannel } from "@kombe/domain";
 import { argent, tontines, type DueView, type MemberView, type MovementView } from "./api.js";
 import { peut } from "./droits.js";
-import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { Carte, Champ, ChampMontant, Charge, Pastille, Retour, useAction, useDonnees, ListeAllegee } from "./ui.js";
+import { Icone, type NomIcone } from "../composants/Icones.js";
+import { AvatarPersonne } from "./PhotoGroupe.js";
+import type { Session } from "./api.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
+import { useNomCaisse } from "./Caisses.js";
 
 export const CANAUX: readonly PaymentChannel[] = ["cash", "orange_money", "mtn_momo", "bank", "international_transfer", "other"];
+
+/** Pictogramme du moyen de paiement (pastille de ligne, purement décoratif). */
+const ICONE_CANAL: Partial<Record<PaymentChannel, NomIcone>> = {
+  cash: "especes",
+  orange_money: "mobile-money",
+  mtn_momo: "mobile-money",
+  bank: "banque",
+  international_transfer: "monde",
+};
 
 export function tonMouvement(state: MovementView["state"]): "neutre" | "attente" | "ok" | "alerte" {
   return state === "validated" ? "ok" : state === "rejected" ? "alerte" : state === "confirmed" ? "ok" : "attente";
@@ -32,6 +45,7 @@ export function FormulaireDeclaration({
   readonly onFini: () => void;
 }) {
   const { tx, dyn } = useTextes();
+  const nomCaisse = useNomCaisse();
   const g = ctx.groupe;
   const caissesCotisation = g.funds.filter((f) => f.state === "active" && f.kind !== "loan" && f.kind !== "collector");
   const [fundId, setFundId] = useState(echeance?.fundId ?? caissesCotisation.find((f) => f.kind === "rotation")?.fundId ?? caissesCotisation[0]?.fundId ?? "");
@@ -79,7 +93,7 @@ export function FormulaireDeclaration({
           <select id="dec-caisse" value={fundId} onChange={(e) => setFundId(e.target.value)}>
             {caissesCotisation.map((f) => (
               <option key={f.fundId} value={f.fundId}>
-                {dyn(`caisse.${f.kind}`)}
+                {nomCaisse(f)}
               </option>
             ))}
           </select>
@@ -118,17 +132,26 @@ export function FormulaireDeclaration({
   );
 }
 
-export function LigneMouvement({ m, actions }: { readonly m: MovementView; readonly actions?: ReactNode }) {
+export function LigneMouvement({ m, actions, photo }: { readonly m: MovementView; readonly actions?: ReactNode; readonly photo?: { readonly session: Session; readonly groupId: string } }) {
   const { tx, dyn, xaf, date } = useTextes();
+  const nomCaisse = useNomCaisse();
   const pourCompte = m.declaredByName && m.memberName && m.declaredByName !== m.memberName;
   return (
-    <li className="liste__ligne liste__ligne--haute">
+    <li className="liste__ligne liste__ligne--haute ligne-riche">
+      {photo && m.membershipId && m.memberPhotoVersion ? (
+        <AvatarPersonne session={photo.session} groupId={photo.groupId} membreId={m.membershipId} nom={m.memberName ?? ""} version={m.memberPhotoVersion} taille={40} />
+      ) : (
+        <span className={`ligne-riche__ico ligne-riche__ico--${tonMouvement(m.state)}`} aria-hidden="true">
+          <Icone nom={ICONE_CANAL[m.channel] ?? "especes"} taille={20} />
+        </span>
+      )}
       <div>
         <strong>
-          {dyn(`ar.type.${m.kind}`)} · {xaf(m.amount)}
+          {dyn(`ar.type.${m.kind}`)}
+          <span className="visuellement-cache"> · {xaf(m.amount)}</span>
         </strong>
         <span className="aide-champ">
-          {m.memberName ?? ""}
+          {nomCaisse({ kind: m.fundKind, name: m.fundName ?? "" })} · {m.memberName ?? ""}
           {m.roundSeq ? ` · ${tx("ar.tour")} ${m.roundSeq}` : ""} · {dyn(`ar.canal.${m.channel}`)}
           {m.reference ? ` · ${m.reference}` : ""} · {date(m.declaredAt)}
         </span>
@@ -139,6 +162,9 @@ export function LigneMouvement({ m, actions }: { readonly m: MovementView; reado
         </span>
         <Pastille ton={tonMouvement(m.state)}>{dyn(`ar.etat.${m.state}`)}</Pastille>
       </div>
+      <span className="montant ligne-riche__montant" aria-hidden="true">
+        {xaf(m.amount)}
+      </span>
       {actions ? <div className="liste__actions">{actions}</div> : null}
     </li>
   );
@@ -168,8 +194,9 @@ export function Argent({ ctx }: { readonly ctx: ContexteGroupe }) {
         titre={tx("ar.declarer")}
         actions={
           declarer || pour ? null : (
-            <button type="button" className="bouton bouton-compact" onClick={() => setDeclarer(true)}>
-              {tx("ar.declarer")}
+            <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => setDeclarer(true)} title={tx("ar.declarer")}>
+              <Icone nom="declarer" taille={18} />
+              <span className="bouton-libelle">{tx("ar.declarer")}</span>
             </button>
           )
         }
@@ -210,13 +237,15 @@ export function Argent({ ctx }: { readonly ctx: ContexteGroupe }) {
         <Charge etat={mouvements.etat} recharger={mouvements.recharger}>
           {(liste) =>
             liste.length === 0 ? (
-              <p>{tx("app.vide")}</p>
+              <p className="etat-vide-ligne">{tx("app.vide")}</p>
             ) : (
-              <ul className="liste">
-                {liste.map((m) => (
-                  <LigneMouvement key={m.movementId} m={m} actions={m.can.acknowledge ? <Accuse ctx={ctx} m={m} onFini={apres} /> : undefined} />
-                ))}
-              </ul>
+              <ListeAllegee
+                items={liste}
+                garder={(m) => m.can.acknowledge || m.state === "declared"}
+                rendre={(m) => (
+                  <LigneMouvement photo={{ session: ctx.session, groupId: ctx.groupe.groupId }} key={m.movementId} m={m} actions={m.can.acknowledge ? <Accuse ctx={ctx} m={m} onFini={apres} /> : undefined} />
+                )}
+              />
             )
           }
         </Charge>
@@ -268,12 +297,12 @@ export function AConfirmer({ ctx, onFini, meetingId }: { readonly ctx: ContexteG
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
             <>
               <ul className="liste">
                 {liste.map((m) => (
-                  <LigneMouvement
+                  <LigneMouvement photo={{ session: ctx.session, groupId: ctx.groupe.groupId }}
                     key={m.movementId}
                     m={m}
                     actions={
@@ -296,8 +325,9 @@ export function AConfirmer({ ctx, onFini, meetingId }: { readonly ctx: ContexteG
                             ✓
                           </label>
                           {m.can.reject ? (
-                            <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => setRejet({ id: m.movementId, motif: "" })}>
-                              {tx("ar.rejeter")}
+                            <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => setRejet({ id: m.movementId, motif: "" })} title={tx("ar.rejeter")}>
+                              <Icone nom="fermer" taille={18} />
+                              <span className="bouton-libelle">{tx("ar.rejeter")}</span>
                             </button>
                           ) : null}
                         </>
@@ -356,7 +386,7 @@ export function AConfirmer({ ctx, onFini, meetingId }: { readonly ctx: ContexteG
   );
 }
 
-function AControler({ ctx, onFini }: { readonly ctx: ContexteGroupe; readonly onFini: () => void }) {
+export function AControler({ ctx, onFini }: { readonly ctx: ContexteGroupe; readonly onFini: () => void }) {
   const { tx } = useTextes();
   const gid = ctx.groupe.groupId;
   const { etat, recharger } = useDonnees(() => argent.mouvements(ctx.session, gid, { state: "confirmed" }), [gid]);
@@ -368,17 +398,17 @@ function AControler({ ctx, onFini }: { readonly ctx: ContexteGroupe; readonly on
         {(liste) => {
           const aControler = liste.filter((m) => m.can.control);
           return aControler.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
             <ul className="liste">
               {aControler.map((m) => (
-                <LigneMouvement
+                <LigneMouvement photo={{ session: ctx.session, groupId: ctx.groupe.groupId }}
                   key={m.movementId}
                   m={m}
                   actions={
                     <button
                       type="button"
-                      className="bouton bouton-compact"
+                      className="bouton bouton-compact bouton-avec-icone bouton-icone-seule"
                       disabled={action.enCours}
                       onClick={() =>
                         void action.lancer(() => argent.controler(ctx.session, gid, m.movementId)).then(() => {
@@ -386,8 +416,9 @@ function AControler({ ctx, onFini }: { readonly ctx: ContexteGroupe; readonly on
                           onFini();
                         })
                       }
-                    >
-                      {tx("ar.controler")}
+                     title={tx("ar.controler")}>
+                      <Icone nom="confirmer" taille={18} />
+                      <span className="bouton-libelle">{tx("ar.controler")}</span>
                     </button>
                   }
                 />

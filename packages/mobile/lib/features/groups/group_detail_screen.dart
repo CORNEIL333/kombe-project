@@ -1,17 +1,27 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../app/active_group_controller.dart';
 import '../../core/design/kombe_colors.dart';
-import '../../core/formatters/xaf.dart';
-import '../../core/widgets/kombe_visuals.dart';
+import '../../core/design/kombe_spacing.dart';
+import '../../core/design/kombe_theme.dart';
+import '../../core/formatters/labels.dart';
+import '../../core/state/resource.dart';
+import '../../core/web/kombe_web.dart';
+import '../../core/widgets/group_avatar.dart';
+import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
-import 'groups_view_models.dart';
+import 'group_photo_sheet.dart';
+import 'invite_member_screen.dart';
 
-/// Détail du groupe (maquette « Aperçu, membres, cycle et règles »).
+/// Fiche d'un groupe : l'essentiel en trois lignes, puis UNE entrée par
+/// tâche. Les outils du bureau n'apparaissent qu'avec une fonction ; le
+/// serveur reste juge de chaque action.
 class GroupDetailScreen extends StatefulWidget {
   const GroupDetailScreen({required this.groupId, super.key});
   final String groupId;
@@ -21,365 +31,247 @@ class GroupDetailScreen extends StatefulWidget {
 }
 
 class _GroupDetailScreenState extends State<GroupDetailScreen> {
-  GroupDetailViewModel? _vm;
+  Resource<GroupDetails> _state = const ResourceLoading<GroupDetails>();
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _vm ??= GroupDetailViewModel(context.read<GroupRepository>(), widget.groupId)..load();
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  @override
-  void dispose() {
-    _vm?.dispose();
-    super.dispose();
+  Future<void> _load() async {
+    final Resource<GroupDetails> next = await context.read<GroupRepository>().getGroup(widget.groupId);
+    if (mounted) setState(() => _state = next);
   }
 
   @override
   Widget build(BuildContext context) {
-    final GroupDetailViewModel vm = _vm!;
-    final String id = widget.groupId;
+    final GroupSummary? g = _state is ResourceReady<GroupDetails> ? (_state as ResourceReady<GroupDetails>).data.summary : null;
     return Scaffold(
-      body: ListenableBuilder(
-        listenable: vm,
-        builder: (BuildContext context, Widget? child) => ResourceView<GroupDetails>(
-          resource: vm.group,
-          builder: (BuildContext context, GroupDetails details) => RefreshIndicator(
-            onRefresh: vm.load,
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: <Widget>[
-                _Header(details: details, groupId: id),
-                Transform.translate(
-                  offset: const Offset(0, -34),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            _Action(icon: Icons.person_add_alt_1_outlined, label: 'Inviter', onTap: () => context.push('/app/groups/$id/invite')),
-                            _Action(icon: Icons.calendar_month_outlined, label: 'Cycle', onTap: () => context.push('/app/groups/$id/cycle')),
-                            _Action(icon: Icons.settings_outlined, label: 'Paramètres', onTap: () => context.push('/app/groups/$id/settings')),
-                            _Action(icon: Icons.rule_rounded, label: 'Règles', onTap: () => context.push('/app/groups/$id/rules')),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        _StatsCard(group: details.summary),
-                        const SizedBox(height: 18),
-                        _Tabs(groupId: id),
-                        const SizedBox(height: 14),
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(
-                                'Membres du groupe (${details.summary.memberCount})',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => context.push('/app/groups/$id/members'),
-                              style: TextButton.styleFrom(foregroundColor: KombeColors.goldDark),
-                              child: const Text('Voir tout'),
-                            ),
-                          ],
-                        ),
-                        ResourceView<List<GroupMember>>(
-                          resource: vm.members,
-                          emptyWhen: (List<GroupMember> members) => members.isEmpty,
-                          builder: (BuildContext context, List<GroupMember> members) => Column(
-                            children: <Widget>[
-                              for (final GroupMember m in members.take(5)) MemberRow(member: m, groupId: id),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+      appBar: AppBar(
+        title: Text(g?.name ?? 'Groupe'),
+        actions: <Widget>[
+          if (g != null && g.can(TontineAct.invite))
+            IconButton(
+              tooltip: 'Inviter un membre',
+              onPressed: () => showInviteSheet(context, widget.groupId),
+              icon: const Icon(Icons.person_add_alt_1_outlined),
             ),
-          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: ResourceView<GroupDetails>(
+          resource: _state,
+          onRetry: _load,
+          builder: (BuildContext context, GroupDetails d) => _Body(details: d),
         ),
       ),
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.details, required this.groupId});
+class _Body extends StatelessWidget {
+  const _Body({required this.details});
   final GroupDetails details;
-  final String groupId;
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme t = Theme.of(context).textTheme;
     final GroupSummary g = details.summary;
-    final double top = MediaQuery.paddingOf(context).top;
-    return PhotoBackdrop(
-      asset: KombePhotos.coverFor(g.id),
-      alignment: const Alignment(0, -.2),
-      strength: .82,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(8, top + 4, 8, 58),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                IconButton(
-                  tooltip: 'Retour',
-                  color: Colors.white,
-                  onPressed: () => context.canPop() ? context.pop() : context.go('/app/groups'),
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                ),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Paramètres du groupe',
-                  color: Colors.white,
-                  onPressed: () => context.push('/app/groups/$groupId/settings'),
-                  icon: const Icon(Icons.more_horiz_rounded),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    final String gid = Uri.encodeComponent(g.id);
+    final TextTheme t = Theme.of(context).textTheme;
+    final ActiveGroupController? active = _maybeActive(context);
+    final bool isActive = active?.active?.id == g.id;
+    final bool bureau = g.role != GroupRole.member;
+    final int? photo = active?.list.where((GroupSummary x) => x.id == g.id).firstOrNull?.photoVersion ?? g.photoVersion;
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 32),
+      children: <Widget>[
+        // Identité : photo (ou motif Ndop), nom, fonction ; modifiable selon la fonction.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+          child: Row(
+            children: <Widget>[
+              Stack(
+                clipBehavior: Clip.none,
                 children: <Widget>[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: <Widget>[
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white, width: 3),
+                  GroupAvatar(groupId: g.id, name: g.name, photoVersion: photo, size: 88),
+                  if (canEditGroupPhoto(g.role))
+                    Positioned(
+                      right: -8,
+                      bottom: -8,
+                      child: Material(
+                        color: KombeColors.goldWarm,
+                        shape: const CircleBorder(side: BorderSide(color: KombeColors.cream, width: 2)),
+                        child: IconButton(
+                          tooltip: 'Modifier la photo',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => showGroupPhotoSheet(context, g),
+                          icon: const Icon(Icons.photo_camera_outlined, size: 18, color: KombeColors.ink),
                         ),
-                        child: CoverImage(groupId: g.id, url: g.coverUrl, width: 84, height: 84, radius: 17),
                       ),
-                      const Spacer(),
-                      CycleBadge(index: g.cycleIndex, total: g.cycleTotal),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    g.name,
-                    style: t.headlineMedium?.copyWith(color: Colors.white, fontFamily: 'Fraunces', fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
-                  Text('${g.memberCount} membres', style: t.bodyLarge?.copyWith(color: Colors.white.withValues(alpha: .9))),
-                  if (details.description.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 10),
-                    Text(
-                      details.description,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: t.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: .9)),
                     ),
-                  ],
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatsCard extends StatelessWidget {
-  const _StatsCard({required this.group});
-  final GroupSummary group;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme t = Theme.of(context).textTheme;
-    final String locale = Localizations.localeOf(context).toLanguageTag();
-    final double progress = group.cycleTotal == 0 ? 0 : (group.cycleIndex / group.cycleTotal).clamp(0, 1);
-    Widget cell(IconData icon, String value, String label, {Widget? extra}) => Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(children: <Widget>[
-                  Icon(icon, size: 18, color: KombeColors.emerald),
-                  const SizedBox(width: 6),
-                  Flexible(child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleSmall?.copyWith(fontSize: 15))),
-                ]),
-                const SizedBox(height: 4),
-                Text(label, style: t.bodySmall),
-                if (extra != null) ...<Widget>[const SizedBox(height: 6), extra],
-              ],
-            ),
-          ),
-        );
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: KombeColors.line),
-        boxShadow: const <BoxShadow>[BoxShadow(color: Color(0x14082C26), blurRadius: 18, offset: Offset(0, 8))],
-      ),
-      child: Column(
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Container(
-                width: 46,
-                height: 46,
-                decoration: const BoxDecoration(color: KombeColors.sand, shape: BoxShape.circle),
-                child: const Icon(Icons.savings_rounded, color: KombeColors.goldDark),
-              ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 18),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('Montant de la cotisation', style: t.bodySmall),
-                    Text(Xaf.format(group.contributionAmountXaf), style: t.headlineSmall?.copyWith(fontSize: 22)),
+                    Text(g.name, style: t.headlineSmall),
+                    const SizedBox(height: 6),
+                    StatusPill(
+                      bureau ? KombeLabels.role(g.role) : 'Membre',
+                      tone: bureau ? KombeTone.money : KombeTone.brand,
+                      icon: bureau ? Icons.star_rounded : Icons.person_outline_rounded,
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-          const Divider(height: 26),
-          IntrinsicHeight(
-            child: Row(
-              children: <Widget>[
-                cell(Icons.groups_outlined, '${group.memberCount}', 'Membres'),
-                const VerticalDivider(width: 1),
-                cell(
-                  Icons.donut_large_rounded,
-                  '${group.cycleIndex}/${group.cycleTotal}',
-                  'Cycle en cours',
-                  extra: ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: progress, minHeight: 5)),
-                ),
-                const VerticalDivider(width: 1),
-                cell(Icons.calendar_month_outlined, DateFormat.MMMd(locale).format(group.nextDueAtUtc.toLocal()), 'Prochaine cotisation'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Tabs extends StatelessWidget {
-  const _Tabs({required this.groupId});
-  final String groupId;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme t = Theme.of(context).textTheme;
-    Widget tab(String label, {bool active = false, VoidCallback? onTap}) => Expanded(
-          child: Semantics(
-            selected: active,
-            button: true,
-            child: InkWell(
-              onTap: onTap,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: active ? KombeColors.forest : KombeColors.line, width: active ? 3 : 1)),
-                ),
-                alignment: Alignment.center,
-                child: Text(label, style: t.titleSmall?.copyWith(color: active ? KombeColors.forest : KombeColors.slate)),
-              ),
-            ),
-          ),
-        );
-    return Row(
-      children: <Widget>[
-        tab('Membres', active: true),
-        tab('Cycle', onTap: () => context.push('/app/groups/$groupId/cycle')),
-        tab('Règles', onTap: () => context.push('/app/groups/$groupId/rules')),
-      ],
-    );
-  }
-}
-
-/// Ligne membre (maquette « Détail du groupe ») : avatar, nom, rôle, ancienneté.
-class MemberRow extends StatelessWidget {
-  const MemberRow({required this.member, required this.groupId, super.key});
-  final GroupMember member;
-  final String groupId;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme t = Theme.of(context).textTheme;
-    final String locale = Localizations.localeOf(context).toLanguageTag();
-    return InkWell(
-      onTap: () => context.push('/app/groups/$groupId/members/${member.identityId}'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: KombeColors.line))),
-        child: Row(
-          children: <Widget>[
-            KombeAvatar(name: member.displayName, url: member.avatarUrl, size: 52),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        // L'essentiel en trois chiffres réels.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: KombeCard(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: IntrinsicHeight(
+              child: Row(
                 children: <Widget>[
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: <Widget>[
-                      Text(member.displayName, style: t.titleMedium),
-                      RoleChip(role: member.role),
-                    ],
+                  _Stat(label: 'Par part', child: KombeAmount(g.contributionAmountXaf, size: 19)),
+                  const VerticalDivider(width: 1),
+                  _Stat(label: 'Membres', child: Text('${g.memberCount}', style: KombeType.amount(size: 22))),
+                  const VerticalDivider(width: 1),
+                  _Stat(
+                    label: 'Tour',
+                    child: Text(g.cycleTotal > 0 && g.cycleIndex > 0 ? '${g.cycleIndex}/${g.cycleTotal}' : '—', style: KombeType.amount(size: 22)),
                   ),
-                  const SizedBox(height: 3),
-                  Text('Membre depuis ${DateFormat.yMMM(locale).format(member.joinedAtUtc.toLocal())}', style: t.bodySmall),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: KombeColors.slate),
+          ),
+        ),
+        if (details.description.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+            child: Text(details.description, style: t.bodyMedium),
+          ),
+        if (active != null && !isActive)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: OutlinedButton.icon(
+              onPressed: () {
+                unawaited(active.select(g.id));
+                context.go('/app');
+              },
+              icon: const Icon(Icons.home_outlined),
+              label: const Text('Afficher ce groupe à l’accueil'),
+            ),
+          ),
+        if (details.pendingCount > 0 && g.can(TontineAct.admit))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: _Banner(
+              icon: Icons.how_to_reg_outlined,
+              text: details.pendingCount == 1
+                  ? '1 demande d’adhésion à examiner'
+                  : '${details.pendingCount} demandes d’adhésion à examiner',
+              onTap: () => context.push('/app/groups/$gid/members'),
+            ),
+          ),
+        const KombeSection('Le groupe'),
+        KombeGroupedList(
+          children: <Widget>[
+            KombeMenuRow(icon: Icons.groups_2_outlined, title: 'Membres', value: '${g.memberCount}', onTap: () => context.push('/app/groups/$gid/members')),
+            KombeMenuRow(icon: Icons.donut_large_rounded, tone: KombeTone.success, title: 'Cycle et ordre des tours', onTap: () => context.push('/app/groups/$gid/cycle')),
+            if (details.cycleStarted)
+              KombeMenuRow(icon: Icons.badge_outlined, tone: KombeTone.success, title: 'Les noms du cycle', onTap: () => context.push('/app/groups/$gid/names')),
+            KombeMenuRow(icon: Icons.account_balance_wallet_outlined, tone: KombeTone.money, title: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
+            KombeMenuRow(icon: Icons.menu_book_outlined, tone: KombeTone.neutral, title: 'Règles', onTap: () => context.push('/app/groups/$gid/rules')),
+            KombeMenuRow(
+              icon: Icons.event_outlined,
+              tone: KombeTone.info,
+              title: 'Séances et procès-verbaux',
+              onTap: () => context.push('/app/groups/$gid/meetings'),
+            ),
+            KombeMenuRow(icon: Icons.how_to_vote_outlined, tone: KombeTone.info, title: 'Votes libres', onTap: () => context.push('/app/groups/$gid/polls')),
+            KombeMenuRow(icon: Icons.receipt_long_outlined, tone: KombeTone.warning, title: 'Mes amendes', onTap: () => context.push('/app/fines')),
+            KombeMenuRow(
+              icon: Icons.gavel_outlined,
+              tone: KombeTone.warning,
+              title: 'Amendes, contestations et secours',
+              external: true,
+              onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/discipline', title: 'Amendes et secours'),
+            ),
           ],
         ),
-      ),
+        if (bureau) ...<Widget>[
+          const KombeSection('Bureau'),
+          KombeGroupedList(
+            children: <Widget>[
+              KombeMenuRow(icon: Icons.work_outline_rounded, tone: KombeTone.money, title: 'Outils du bureau', onTap: () => context.push('/app/groups/$gid/bureau')),
+              KombeMenuRow(icon: Icons.gavel_rounded, tone: KombeTone.warning, title: 'Amendes du groupe', onTap: () => context.push('/app/groups/$gid/fines')),
+              KombeMenuRow(icon: Icons.tune_rounded, tone: KombeTone.neutral, title: 'Paramètres du groupe', onTap: () => context.push('/app/groups/$gid/settings')),
+            ],
+          ),
+        ],
+      ],
     );
+  }
+
+  static ActiveGroupController? _maybeActive(BuildContext context) {
+    try {
+      return context.watch<ActiveGroupController>();
+    } on ProviderNotFoundException {
+      return null;
+    }
   }
 }
 
-class _Action extends StatelessWidget {
-  const _Action({required this.icon, required this.label, required this.onTap});
-  final IconData icon;
+/// Chiffre clé : valeur au-dessus, libellé discret dessous.
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.child});
   final String label;
-  final VoidCallback onTap;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) => Expanded(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Material(
-            color: Colors.white,
-            elevation: 3,
-            shadowColor: const Color(0x33082C26),
-            borderRadius: BorderRadius.circular(22),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(22),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                child: Column(
-                  children: <Widget>[
-                    Icon(icon, color: KombeColors.forest),
-                    const SizedBox(height: 6),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(color: KombeColors.ink, letterSpacing: 0),
-                    ),
-                  ],
-                ),
-              ),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Column(
+            children: <Widget>[
+              FittedBox(fit: BoxFit.scaleDown, child: child),
+              const SizedBox(height: 4),
+              Text(label, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+      );
+}
+
+class _Banner extends StatelessWidget {
+  const _Banner({required this.icon, required this.text, required this.onTap});
+  final IconData icon;
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: KombeColors.mint,
+        borderRadius: BorderRadius.circular(KombeSpacing.tileRadius),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(KombeSpacing.tileRadius),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: <Widget>[
+                Icon(icon, color: KombeColors.forest),
+                const SizedBox(width: 12),
+                Expanded(child: Text(text, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: KombeColors.forest))),
+                const Icon(Icons.chevron_right_rounded, color: KombeColors.forest),
+              ],
             ),
           ),
         ),

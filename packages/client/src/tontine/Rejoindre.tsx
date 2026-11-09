@@ -1,8 +1,8 @@
 /* KÓMBE — rejoindre une tontine par code ou lien WhatsApp (I-14, L-15).
    L'adhésion reste « en attente » jusqu'à son admission par le bureau. */
 
-import { useState, type FormEvent } from "react";
-import { tontines, type InvitationPreview, type Session } from "./api.js";
+import { useEffect, useState, type FormEvent } from "react";
+import { acces, tontines, type InvitationPreview, type Session } from "./api.js";
 import { Carte, Champ, Retour, useAction } from "./ui.js";
 import { useTextes } from "./textes.js";
 
@@ -20,6 +20,16 @@ export function Rejoindre({ session, codeInitial, onFini }: { readonly session: 
     if (r) setApercu(r);
   };
 
+  // Lien d'invitation : le code est vérifié d'office et le nom déjà connu est proposé.
+  useEffect(() => {
+    if (codeInitial && codeInitial.length >= 4) void verifier();
+    void acces.moi(session).then(
+      (m) => setNom((n) => n || (m.displayName ?? "")),
+      () => undefined,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const rejoindre = async (e: FormEvent) => {
     e.preventDefault();
     if (!apercu) return;
@@ -34,6 +44,7 @@ export function Rejoindre({ session, codeInitial, onFini }: { readonly session: 
           <p className="msg msg--succes" role="status">
             {tx("rej.envoye")}
           </p>
+          <p className="aide-champ">{tx("rej.ensuite")}</p>
           <button type="button" className="bouton" onClick={onFini}>
             {tx("app.accueil")}
           </button>
@@ -62,7 +73,12 @@ export function Rejoindre({ session, codeInitial, onFini }: { readonly session: 
             <strong>{tx("rej.groupe", { nom: apercu.groupName })}</strong>
           </p>
           {apercu.alreadyMember ? (
-            <p className="msg msg--info">{tx("rej.dejaMembre")}</p>
+            <>
+              <p className="msg msg--info">{tx("rej.dejaMembre")}</p>
+              <button type="button" className="bouton" onClick={onFini}>
+                {tx("rej.voirMesTontines")}
+              </button>
+            </>
           ) : !apercu.usable ? (
             <p className="msg msg--erreur">{tx("rej.inutilisable")}</p>
           ) : (

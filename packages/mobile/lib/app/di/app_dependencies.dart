@@ -8,15 +8,20 @@ import '../../data/local/contribution_draft_database.dart';
 import '../../data/local/preferences_repository_impl.dart';
 import '../../data/remote/kombe_api_client.dart';
 import '../../data/remote/stored_session_codec.dart';
+import '../../data/remote/tontine_fund_repository.dart';
 import '../../data/remote/tontine_repositories.dart';
 import '../../data/repositories/unavailable_repositories.dart';
+import '../../domain/repositories/poll_repository.dart';
+import '../../domain/repositories/share_name_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
-import '../../domain/repositories/dispute_repository.dart';
 import '../../domain/repositories/document_repository.dart';
+import '../../domain/repositories/fine_repository.dart';
+import '../../domain/repositories/meeting_repository.dart';
 import '../../domain/repositories/draft_repository.dart';
 import '../../domain/repositories/governance_repository.dart';
+import '../../domain/repositories/fund_repository.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/repositories/preferences_repository.dart';
@@ -29,7 +34,8 @@ final class AppDependencies {
     required this.groupRepository,
     required this.contributionRepository,
     required this.governanceRepository,
-    required this.disputeRepository,
+    required this.fineRepository,
+    required this.meetingRepository,
     required this.notificationRepository,
     required this.documentRepository,
     required this.dashboardRepository,
@@ -37,6 +43,9 @@ final class AppDependencies {
     required this.preferencesRepository,
     required this.biometricService,
     required this.secureSessionStore,
+    this.fundRepository = const UnavailableFundRepository(),
+    this.pollRepository = const UnavailablePollRepository(),
+    this.shareNameRepository = const UnavailableShareNameRepository(),
   });
 
   factory AppDependencies.unconfigured() {
@@ -47,7 +56,8 @@ final class AppDependencies {
       groupRepository: const UnavailableGroupRepository(),
       contributionRepository: const UnavailableContributionRepository(),
       governanceRepository: const UnavailableGovernanceRepository(),
-      disputeRepository: const UnavailableDisputeRepository(),
+      fineRepository: const UnavailableFineRepository(),
+      meetingRepository: const UnavailableMeetingRepository(),
       notificationRepository: const UnavailableNotificationRepository(),
       documentRepository: const UnavailableDocumentRepository(),
       dashboardRepository: const UnavailableDashboardRepository(),
@@ -56,7 +66,7 @@ final class AppDependencies {
         SharedPreferencesAsync(),
       ),
       biometricService: BiometricService(LocalAuthentication()),
-      secureSessionStore: const SecureSessionStore(secureStorage),
+      secureSessionStore: SecureSessionStore(secureStorage),
     );
   }
 
@@ -69,9 +79,12 @@ final class AppDependencies {
   /// `AppDependencies.unconfigured`), jamais devinée.
   factory AppDependencies.configured({required Uri apiBaseUrl}) {
     const FlutterSecureStorage secureStorage = FlutterSecureStorage();
-    const SecureSessionStore secureSessionStore = SecureSessionStore(
+    final SecureSessionStore secureSessionStore = SecureSessionStore(
       secureStorage,
     );
+    // Le 401 purge la session et renvoie à la connexion (câblage tardif :
+    // le dépôt d'auth n'existe pas encore quand le client est construit).
+    late final TontineAuthRepository authRepository;
     final KombeApiClient api = KombeApiClient(
       baseUrl: apiBaseUrl,
       sessionHeaders: () async {
@@ -81,21 +94,24 @@ final class AppDependencies {
         if (stored == null || stored.isExpired) return const <String, String>{};
         return <String, String>{'authorization': 'Bearer ${stored.sessionId}'};
       },
+      onUnauthorized: () => authRepository.purgeRejectedSession(),
     );
+    authRepository = TontineAuthRepository(api: api, sessionStore: secureSessionStore);
     // Adresse du site web (PWA) : même hôte que l'API, sans le préfixe /v1.
     final Uri webBase = apiBaseUrl.replace(
       path: apiBaseUrl.path.replaceFirst(RegExp(r'/v1/?$'), '/'),
     );
     return AppDependencies(
-      authRepository: TontineAuthRepository(
-        api: api,
-        sessionStore: secureSessionStore,
-      ),
+      authRepository: authRepository,
       profileRepository: TontineProfileRepository(api: api),
       groupRepository: TontineGroupRepository(api: api),
+      fundRepository: TontineFundRepository(api: api),
+      pollRepository: TontinePollRepository(api: api),
+      shareNameRepository: TontineShareNameRepository(api: api),
       contributionRepository: TontineContributionRepository(api: api),
       governanceRepository: TontineGovernanceRepository(api: api),
-      disputeRepository: const TontineDisputeRepository(),
+      fineRepository: TontineFineRepository(api: api),
+      meetingRepository: TontineMeetingRepository(api: api),
       notificationRepository: TontineNotificationRepository(api: api),
       documentRepository: TontineDocumentRepository(api: api, webBase: webBase),
       dashboardRepository: TontineDashboardRepository(api: api),
@@ -111,9 +127,13 @@ final class AppDependencies {
   final AuthRepository authRepository;
   final ProfileRepository profileRepository;
   final GroupRepository groupRepository;
+  final FundRepository fundRepository;
   final ContributionRepository contributionRepository;
   final GovernanceRepository governanceRepository;
-  final DisputeRepository disputeRepository;
+  final FineRepository fineRepository;
+  final PollRepository pollRepository;
+  final ShareNameRepository shareNameRepository;
+  final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
   final DocumentRepository documentRepository;
   final DashboardRepository dashboardRepository;

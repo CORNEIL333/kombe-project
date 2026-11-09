@@ -1,0 +1,24 @@
+/* KÓMBE CRM — compléments de mise en page (jetons de @kombe/dashboard-core). */
+.crm-filtres{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:16px}
+.crm-filtres label{display:grid;gap:4px;font-size:.85rem;font-weight:700;color:var(--k-muted)}
+.crm-filtres input,.crm-filtres select{min-height:44px}
+.crm-lien{display:inline-flex;align-items:center;min-height:24px;min-width:24px;border:0;background:transparent;padding:0;color:var(--k-green-800);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer;text-align:left}
+.crm-lien:focus-visible{outline:3px solid rgba(21,116,85,.3);outline-offset:2px;border-radius:4px}
+.crm-fil{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:10px}
+.crm-fil__item{border:1px solid var(--k-border);border-radius:12px;padding:10px 14px;background:var(--k-surface)}
+.crm-fil__item p{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5}
+.crm-fil__item--membre{border-left:4px solid var(--k-gold-500)}
+.crm-fil__item--operateur{border-left:4px solid var(--k-green-700)}
+.crm-fil__item--interne{background:var(--k-warn-bg)}
+.crm-choix{border:0;margin:0 0 12px;padding:0;display:grid;gap:6px}
+.crm-choix legend{font-weight:700;margin-bottom:6px}
+.crm-choix label{display:flex;gap:8px;align-items:center;min-height:32px}
+.crm-liste{margin:0;padding-left:18px;display:grid;gap:8px}
+.crm-actions{display:inline-flex;gap:6px;flex-wrap:wrap}
+.crm-segments{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.crm-segment{display:grid;gap:4px;text-align:left;padding:14px;border:1px solid var(--k-border);border-radius:var(--k-radius);background:var(--k-surface);color:inherit;font:inherit;cursor:pointer;min-height:44px}
+.crm-segment strong{font-size:1.6rem;letter-spacing:-.03em}
+.crm-segment span{color:var(--k-muted)}
+.crm-segment:hover,.crm-segment:focus-visible{border-color:var(--k-green-700);outline:none}
+.crm-confirmer{display:flex;gap:8px;align-items:center;margin:0 0 12px}
+.k-panel+.k-panel{margin-top:18px}

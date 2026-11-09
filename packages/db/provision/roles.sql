@@ -98,6 +98,19 @@ REVOKE INSERT, DELETE ON inbox_notification FROM kombe_app;
 REVOKE UPDATE, DELETE ON api_idempotency FROM kombe_app;
 -- Cycles successifs (0031) : un cycle démarré ne se réécrit pas.
 REVOKE UPDATE, DELETE ON tontine_cycle FROM kombe_app;
+-- 0036/0037 (ADR-0043) : miroir des REVOKE des migrations — ce script, appliqué
+-- en dernier sur une installation neuve, ne doit jamais rouvrir ces droits.
+REVOKE INSERT, UPDATE, DELETE ON operator_role FROM kombe_app;
+REVOKE DELETE ON operator_mfa FROM kombe_app;
+REVOKE UPDATE, DELETE ON operator_audit_log FROM kombe_app;
+REVOKE ALL ON auth_rate_limit FROM kombe_app;
+REVOKE UPDATE, DELETE ON identity FROM kombe_app;
+REVOKE ALL ON kombe_migration FROM kombe_app;
+REVOKE DELETE, TRUNCATE ON member_notification_preference, push_device FROM kombe_app;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON notification_outbox FROM kombe_app;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON crm_contact FROM kombe_app;
+REVOKE DELETE, TRUNCATE ON crm_ticket, crm_task FROM kombe_app;
+REVOKE UPDATE, DELETE, TRUNCATE ON crm_ticket_message, crm_note, crm_audit_log FROM kombe_app;
 
 -- kombe_worker : lecture/maJ de l'outbox et du registre de commandes seulement.
 GRANT USAGE ON SCHEMA public TO kombe_worker;

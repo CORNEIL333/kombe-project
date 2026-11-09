@@ -6,6 +6,7 @@
  * code vérifié). Le code n'est jamais journalisé ni renvoyé, sauf par le
  * simulateur de développement.
  */
+import { myPhotoVersion } from "./photos.js";
 import { randomInt, randomUUID } from "node:crypto";
 import type pg from "pg";
 import {
@@ -21,8 +22,10 @@ import {
   type MeView,
   type VerificationToken,
 } from "@kombe/domain";
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { inTx, sessionIdentity, bearerOf, type Db } from "./infra.js";
 import type { CodeSender } from "./sms.js";
+import { appUrl } from "./groups.js";
 
 const CODE_TTL_MS = 10 * 60_000;
 /** Délai minimal entre deux envois pour un même numéro (anti-spam SMS). */
@@ -64,25 +67,168 @@ function rowToToken(row: Record<string, unknown>): VerificationToken {
   };
 }
 
+/**
+ * Neon Auth (Managed Better Auth) pour le MVP sans domaine e-mail (ADR-0040) :
+ * Neon envoie et vérifie le code e-mail, puis l'API échange le jeton Neon
+ * (JWT signé, vérifié contre le JWKS du projet) contre une session KÓMBE.
+ * Actif seulement si `NEON_AUTH_JWKS_URL` est posé ; `NEON_AUTH_BASE_URL`
+ * est l'adresse publique du service (renvoyée au client, et émetteur attendu).
+ */
+export interface NeonAuthConfig {
+  readonly baseUrl: string;
+  readonly jwks: JWTVerifyGetKey;
+  /** Origine déclarée « de confiance » chez Neon (Neon refuse un appel sans Origin). */
+  readonly origin?: string;
+  /** Pour les preuves : remplace l'appel réseau vers Neon. */
+  readonly fetch?: typeof fetch;
+}
+
+export function neonAuthFromEnv(env: NodeJS.ProcessEnv = process.env): NeonAuthConfig | null {
+  const jwksUrl = env.NEON_AUTH_JWKS_URL?.trim();
+  const baseUrl = env.NEON_AUTH_BASE_URL?.trim();
+  if (!jwksUrl || !baseUrl) return null;
+  return { baseUrl: baseUrl.replace(/\/+$/, ""), jwks: createRemoteJWKSet(new URL(jwksUrl)), origin: appUrl(env) };
+}
+
+/** Délai maximal d'un appel à Neon Auth : au-delà, on répond plutôt qu'attendre. */
+const NEON_TIMEOUT_MS = 10_000;
+
+/** Borne horaire par adresse IP des demandes de code (réglable : NAT des opérateurs, recettes locales). */
+function ipLimit(env: NodeJS.ProcessEnv = process.env): number {
+  const n = Number(env.KOMBE_OTP_IP_LIMIT);
+  return Number.isInteger(n) && n > 0 ? n : 120;
+}
+
 export class TontineAuth {
   constructor(
     private readonly pool: pg.Pool,
     private readonly sender: CodeSender,
     private readonly emailSender: CodeSender,
     private readonly now: () => number,
+    private readonly neonAuth: NeonAuthConfig | null = null,
   ) {}
 
   /** Canaux de connexion réellement ouverts sur ce déploiement. */
-  channels(): { sms: boolean; whatsapp: boolean; email: boolean } {
+  channels(): { sms: boolean; whatsapp: boolean; email: boolean; neonAuthUrl: string | null } {
     return {
       sms: this.sender.channels.includes("sms"),
       whatsapp: this.sender.channels.includes("whatsapp"),
-      email: this.emailSender.channels.includes("email"),
+      email: this.emailSender.channels.includes("email") || this.neonAuth !== null,
+      // Le navigateur ne parle plus à Neon : l'API relaie (aucun cookie tiers,
+      // donc Safari / iPhone et la navigation privée fonctionnent).
+      neonAuthUrl: null,
     };
   }
 
-  async requestCode(input: { login: string; channel?: "sms" | "whatsapp" | "email" | undefined }): Promise<AuthCodeRequestResult> {
+  /** E-mail confié à Neon Auth dès qu'il est configuré : sans domaine vérifié,
+   *  Resend ne livre qu'au titulaire du compte (ADR-0040). */
+  private viaNeon(kind: "phone" | "email"): boolean {
+    return kind === "email" && this.neonAuth !== null;
+  }
+
+  private async neonCall(path: string, init: { method: "GET" | "POST"; body?: unknown; cookie?: string }): Promise<Response> {
+    const neon = this.neonAuth as NeonAuthConfig;
+    const headers: Record<string, string> = { origin: neon.origin ?? "http://localhost:5173" };
+    if (init.body !== undefined) headers["content-type"] = "application/json";
+    if (init.cookie) headers.cookie = init.cookie;
+    return (neon.fetch ?? fetch)(`${neon.baseUrl}${path}`, {
+      method: init.method,
+      headers,
+      ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+      signal: AbortSignal.timeout(NEON_TIMEOUT_MS),
+    });
+  }
+
+  private async neonRequestCode(email: string): Promise<void> {
+    let res: Response;
+    try {
+      res = await this.neonCall("/email-otp/send-verification-otp", { method: "POST", body: { email, type: "sign-in" } });
+    } catch {
+      throw new DomainError("EMAIL_DELIVERY_FAILED", "Envoi du code impossible pour le moment : réessayez dans un instant");
+    }
+    if (res.status === 429) throw new DomainError("EMAIL_DELIVERY_FAILED", "Trop de demandes : patientez une minute avant de redemander un code");
+    if (!res.ok) throw new DomainError("EMAIL_DELIVERY_FAILED", "Envoi du code refusé : vérifiez l'adresse e-mail");
+  }
+
+  private async neonVerifyCode(email: string, code: string): Promise<AuthSessionResult> {
+    let token: string | undefined;
+    try {
+      const signIn = await this.neonCall("/sign-in/email-otp", { method: "POST", body: { email, otp: code } });
+      if (!signIn.ok) throw new DomainError("TOKEN_INVALID", "Code invalide");
+      const cookie = signIn.headers
+        .getSetCookie()
+        .map((c) => c.split(";")[0])
+        .join("; ");
+      const res = await this.neonCall("/token", { method: "GET", cookie });
+      if (res.ok) token = ((await res.json()) as { token?: string }).token;
+    } catch (err) {
+      if (err instanceof DomainError) throw err;
+      throw new DomainError("EMAIL_DELIVERY_FAILED", "Vérification du code impossible pour le moment : réessayez");
+    }
+    if (!token) throw new DomainError("SESSION_INVALID", "Session non délivrée");
+    return this.exchangeNeonToken({ token });
+  }
+
+  /**
+   * Échange un jeton Neon Auth (e-mail prouvé par Neon) contre une session
+   * KÓMBE. Signature, expiration et émetteur vérifiés ; une adresse non
+   * vérifiée est refusée. Réponse uniforme en cas d'échec (401).
+   */
+  async exchangeNeonToken(input: { token: string }): Promise<AuthSessionResult> {
+    if (!this.neonAuth) throw new DomainError("EMAIL_DELIVERY_FAILED", "Connexion Neon Auth non configurée sur ce déploiement");
+    let email: string;
+    try {
+      const { payload } = await jwtVerify(input.token, this.neonAuth.jwks, { clockTolerance: 30 });
+      const iss = typeof payload.iss === "string" ? payload.iss : "";
+      if (iss && new URL(iss).origin !== new URL(this.neonAuth.baseUrl).origin) throw new Error("issuer");
+      const verified = payload.emailVerified ?? payload.email_verified;
+      if (verified === false) throw new Error("unverified");
+      if (typeof payload.email !== "string") throw new Error("email");
+      email = payload.email;
+    } catch {
+      throw new DomainError("SESSION_INVALID", "Session non délivrée");
+    }
+    const { login, kind } = canonicalLogin(email);
+    if (kind !== "email") throw new DomainError("SESSION_INVALID", "Session non délivrée");
+    await inTx(this.pool, async (db) => {
+      await asIdentity(db, login);
+      await db.query(`INSERT INTO identity (identity_id) VALUES ($1) ON CONFLICT DO NOTHING`, [login]);
+      await db.query(`INSERT INTO identity_access (identity_id) VALUES ($1) ON CONFLICT DO NOTHING`, [login]);
+    });
+    return this.openSession(login);
+  }
+
+  /**
+   * Limitation PARTAGÉE (PostgreSQL, toutes instances) des demandes et
+   * vérifications de code (ADR-0043) : borne les envois en rafale, la force
+   * brute et les coûts SMS. L'adresse IP a une borne large (réseaux mobiles
+   * camerounais partagés derrière un même NAT) ; l'identifiant, une borne
+   * stricte. Réponse 429 uniforme, sans dire si le compte existe.
+   */
+  private async throttle(kind: "request" | "verify", login: string, ip: string | undefined): Promise<void> {
+    const at = new Date(this.now());
+    const rules: [string, number, number][] =
+      kind === "request"
+        ? [[`otp:req:login:${login}`, 3600, 6], ...(ip ? ([[`otp:req:ip:${ip}`, 3600, ipLimit()]] as [string, number, number][]) : [])]
+        : [[`otp:ver:login:${login}`, 3600, 20], ...(ip ? ([[`otp:ver:ip:${ip}`, 3600, ipLimit() * 3]] as [string, number, number][]) : [])];
+    const allowed = await inTx(this.pool, async (db) => {
+      let ok = true;
+      for (const [key, win, max] of rules) {
+        const r = await db.query("SELECT kombe_rate_hit($1,$2,$3,$4) AS ok", [key, win, max, at]);
+        if (r.rows[0]?.ok !== true) ok = false;
+      }
+      return ok;
+    });
+    if (!allowed) throw new DomainError("AUTH_THROTTLED", "Trop de demandes : patientez avant de réessayer");
+  }
+
+  async requestCode(input: { login: string; channel?: "sms" | "whatsapp" | "email" | undefined; ip?: string | undefined }): Promise<AuthCodeRequestResult> {
     const { login, kind } = canonicalLogin(input.login);
+    await this.throttle("request", login, input.ip);
+    if (this.viaNeon(kind)) {
+      await this.neonRequestCode(login);
+      return { accepted: true, login, channel: "email" };
+    }
     const channel: "sms" | "whatsapp" | "email" = kind === "email" ? "email" : input.channel === "whatsapp" ? "whatsapp" : "sms";
     const sender = channel === "email" ? this.emailSender : this.sender;
     if (!sender.channels.includes(channel)) {
@@ -149,9 +295,11 @@ export class TontineAuth {
     return { accepted: true, login, channel, ...(devCode ? { devCode } : {}) };
   }
 
-  async verifyCode(input: { login: string; code: string }): Promise<AuthSessionResult> {
-    const { login } = canonicalLogin(input.login);
+  async verifyCode(input: { login: string; code: string; ip?: string | undefined }): Promise<AuthSessionResult> {
+    const { login, kind } = canonicalLogin(input.login);
     if (!/^\d{6}$/.test(input.code)) throw new DomainError("TOKEN_INVALID", "Code invalide");
+    await this.throttle("verify", login, input.ip);
+    if (this.viaNeon(kind)) return this.neonVerifyCode(login, input.code);
     // Phase 1 : vérification durable (le compteur d'essais survit à l'échec).
     const outcome = await inTx(this.pool, async (db) => {
       await asIdentity(db, login);
@@ -176,7 +324,11 @@ export class TontineAuth {
       return { kind: out.kind };
     });
     if (outcome.kind !== "verified") throw tokenVerificationError(outcome.kind === "mismatch" ? "mismatch" : outcome.kind);
-    // Phase 2 : compte activé (canal prouvé) et vraie session serveur.
+    return this.openSession(login);
+  }
+
+  /** Phase 2 : compte activé (canal prouvé) et vraie session serveur. */
+  private async openSession(login: string): Promise<AuthSessionResult> {
     return inTx(this.pool, async (db) => {
       await asIdentity(db, login);
       const acc = await db.query(`SELECT state, session_generation FROM identity_access WHERE identity_id = $1 FOR UPDATE`, [login]);
@@ -210,7 +362,7 @@ export class TontineAuth {
     const sid = bearerOf(headers);
     await inTx(this.pool, async (db) => {
       await sessionIdentity(db, headers, this.now());
-      await db.query(`UPDATE access_session SET revoked_at = now() WHERE session_id = $1 AND revoked_at IS NULL`, [sid]);
+      await db.query(`UPDATE access_session SET revoked_at = now() WHERE session_id = kombe_session_key($1) AND revoked_at IS NULL`, [sid]);
     });
   }
 
@@ -242,5 +394,6 @@ export async function meOf(db: Db, identityId: string): Promise<MeView> {
     login: identityId,
     displayName: r.rows[0]?.display_name ? String(r.rows[0].display_name) : null,
     language: (r.rows[0]?.language as Language | undefined) ?? "fr",
+    photoVersion: await myPhotoVersion(db, identityId),
   };
 }

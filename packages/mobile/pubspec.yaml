@@ -1,7 +1,7 @@
 name: kombe_mobile
 description: KÓMBE — client mobile Flutter natif, sans données métier embarquées.
 publish_to: "none"
-version: 0.1.0+1
+version: 0.8.1+81
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
@@ -23,6 +23,10 @@ dependencies:
   file_picker: ^13.1.0
   url_launcher: ^6.3.2
   http: ^1.6.0
+  flutter_svg: ^2.3.0
+  crypto: ^3.0.6
+  image: ^4.8.0
+  image_picker: ^1.2.2
 
 dev_dependencies:
   flutter_test:
@@ -36,8 +40,10 @@ flutter:
   generate: true
   assets:
     - assets/fonts/OFL-Manrope.txt
-    - assets/fonts/OFL-Fraunces.txt
+    - assets/fonts/OFL-Merriweather.txt
+    - assets/fonts/OFL-LibreFranklin.txt
     - assets/images/
+    - assets/images/fonds/
   # Polices OFL auto-hébergées : instances statiques tirées des fichiers
   # variables Google Fonts (voir docs/design-system/KOMBE_DESIGN_SYSTEM.md).
   fonts:
@@ -53,9 +59,19 @@ flutter:
           weight: 700
         - asset: assets/fonts/Manrope-800.ttf
           weight: 800
-    - family: Fraunces
+    - family: Merriweather
       fonts:
-        - asset: assets/fonts/Fraunces-Display-500.ttf
+        - asset: assets/fonts/Merriweather-400.ttf
+          weight: 400
+    - family: Libre Franklin
+      fonts:
+        - asset: assets/fonts/LibreFranklin-400.ttf
+          weight: 400
+        - asset: assets/fonts/LibreFranklin-500.ttf
           weight: 500
-        - asset: assets/fonts/Fraunces-Title-600.ttf
+        - asset: assets/fonts/LibreFranklin-600.ttf
           weight: 600
+        - asset: assets/fonts/LibreFranklin-700.ttf
+          weight: 700
+        - asset: assets/fonts/LibreFranklin-800.ttf
+          weight: 800

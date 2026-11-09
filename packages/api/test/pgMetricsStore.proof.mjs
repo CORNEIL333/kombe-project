@@ -19,8 +19,11 @@
 //                        usurpé « 2020 » est IGNORÉ), écrit en base.
 //   M-ANALYTICS-REJECT : propriété financière individuelle (montant) → 422
 //                        METRICS_CHAMPS_FINANCIER_INDIVIDUEL (domaine, avant écriture).
-//   M-FUNNEL           : GET /v1/metrics/analytics/funnel/:cohortId?groupId →
-//                        individualFinancialFields = 0 (C18-ANALYTICS), étapes relues.
+//   M-OPERATOR-ONLY    : funnel / cohorts / economics / risks avec la session
+//                        MEMBRE → 403 PRIVILEGE_NOT_GRANTED (analyse plateforme
+//                        réservée aux opérateurs, avant le grant is_operator).
+//   M-FUNNEL           : GET /v1/metrics/analytics/funnel/:cohortId?groupId (session
+//                        opératrice) → individualFinancialFields = 0 (C18-ANALYTICS).
 //   M-FUNNEL-NOGROUP   : même route SANS groupId → 422 METRICS_IDENTIFIANT_REQUIS
 //                        (le store RÉEL exige le groupe porteur ; RLS + FK NOT NULL).
 //   M-COHORT-UPSERT    : POST /v1/metrics/cohorts 10 membres / 30 tours → 3 cycles,
@@ -58,6 +61,7 @@ function blocked(reason) {
   process.exit(2);
 }
 
+process.env.KOMBE_OPERATOR_MFA ??= "off";
 const url = process.env.KOMBE_API_DATABASE_URL;
 if (!url) blocked("KOMBE_API_DATABASE_URL absente : aucune base PostgreSQL joignable (jamais simulé).");
 
@@ -82,7 +86,7 @@ async function runSql(client, relPath) {
   await client.query(sql);
 }
 
-const migrator = new pg.Client({ connectionString: url });
+const migrator = new pg.Client({ connectionString: process.env.KOMBE_DATABASE_URL ?? url });
 await migrator.connect();
 await (await import("../../db/scripts/guard.mjs")).assertNonProdTeardown(migrator, "kombe.api.pgMetricsStore");
 const observations = {};
@@ -123,7 +127,13 @@ try {
   `);
 
   const DOWN = [
-    "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
+    "migrations/0043_retours_membres.down.sql", "migrations/0042_securite_residuelle.down.sql", "migrations/0041_crm.down.sql",
+    "migrations/0040_performance_charge.down.sql",
+    "migrations/0039_role_api.down.sql",
+    "migrations/0038_notifications_livraison.down.sql",
+    "migrations/0037_rls_identite.down.sql",
+    "migrations/0036_securite_operateurs.down.sql",
+    "migrations/0035_member_photo.down.sql", "migrations/0034_group_photo.down.sql", "migrations/0034_echeances_notifications.down.sql", "migrations/0033_custom_funds.down.sql", "migrations/0032_audit_indexes.down.sql", "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
     "migrations/0016_privacy_law.down.sql", "migrations/0015_export_manifest.down.sql",
     "migrations/0014_support_security.down.sql", "migrations/0013_outbox.down.sql",
     "migrations/0012_proposal.down.sql", "migrations/0011_disbursement.down.sql",
@@ -143,7 +153,7 @@ try {
     "migrations/0010_dispute_cases.sql", "migrations/0011_disbursement.sql", "migrations/0012_proposal.sql",
     "migrations/0013_outbox.sql", "migrations/0014_support_security.sql", "migrations/0015_export_manifest.sql",
     "migrations/0016_privacy_law.sql", "migrations/0017_pilot_metrics.sql",
-    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "provision/roles.sql",
+    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "migrations/0032_audit_indexes.sql", "migrations/0033_custom_funds.sql", "migrations/0034_echeances_notifications.sql", "migrations/0034_group_photo.sql", "migrations/0035_member_photo.sql", "migrations/0036_securite_operateurs.sql", "migrations/0037_rls_identite.sql", "migrations/0038_notifications_livraison.sql", "migrations/0039_role_api.sql", "migrations/0040_performance_charge.sql", "migrations/0041_crm.sql", "migrations/0042_securite_residuelle.sql", "migrations/0043_retours_membres.sql", "provision/roles.sql",
   ];
   for (const f of UP) await runSql(migrator, f);
 
@@ -229,6 +239,27 @@ try {
     });
   }
 
+  // ── X-08 : analyse plateforme réservée aux opérateurs (funnel, cohorts,
+  //    economics, risks) : la session MEMBRE est refusée 403 partout ─────────
+  const funnelRefused = await inject({
+    method: "GET", url: "/v1/metrics/analytics/funnel/cM?groupId=grpM", headers: headers(sessionId),
+  });
+  const cohortRefused = await inject({
+    method: "POST", url: "/v1/metrics/cohorts", headers: headers(sessionId),
+    payload: { groupId: "grpM", memberCount: 10, roundsCompleted: 30 },
+  });
+  const econRefused = await inject({
+    method: "POST", url: "/v1/metrics/economics", headers: headers(sessionId),
+    payload: { exposedMembers: 10, paidCount: 2, promisedCount: 5, supportMinutes: 0, supportCostPerMinuteMinor: "0", infrastructureCostMinor: "0", cancellations: 0, taxesMinor: "0" },
+  });
+  const riskRefused = await inject({ method: "GET", url: "/v1/metrics/risks", headers: headers(sessionId) });
+  check("M-OPERATOR-ONLY", funnelRefused.statusCode === 403 && cohortRefused.statusCode === 403 && econRefused.statusCode === 403 && riskRefused.statusCode === 403, {
+    funnel: funnelRefused.statusCode, cohorts: cohortRefused.statusCode, economics: econRefused.statusCode, risks: riskRefused.statusCode,
+  });
+  await migrator.query(`UPDATE identity_access SET is_operator = true WHERE identity_id = 'membre_m@example.test'`);
+  // Fonction « direction » (ADR-0043) ; second facteur prouvé ailleurs (KOMBE_OPERATOR_MFA=off ici, hors production).
+  await migrator.query(`INSERT INTO operator_role (identity_id, role, granted_by) VALUES ('membre_m@example.test', 'direction', 'proof') ON CONFLICT DO NOTHING`);
+
   // ── M-FUNNEL : entonnoir RELU depuis la base, sans champ individuel ───────
   const funnelRes = await inject({
     method: "GET", url: "/v1/metrics/analytics/funnel/cM?groupId=grpM", headers: headers(sessionId),
@@ -283,17 +314,6 @@ try {
     notFoundRes.statusCode === 404 && notFoundRes.json().code === "RESERVATION_INCOHERENTE",
     { status: notFoundRes.statusCode, body: notFoundRes.json() },
   );
-
-  // ── X-08 : indicateurs GLOBAUX réservés aux opérateurs de la plateforme ──
-  const econRefused = await inject({
-    method: "POST", url: "/v1/metrics/economics", headers: headers(sessionId),
-    payload: { exposedMembers: 10, paidCount: 2, promisedCount: 5, supportMinutes: 0, supportCostPerMinuteMinor: "0", infrastructureCostMinor: "0", cancellations: 0, taxesMinor: "0" },
-  });
-  const riskRefused = await inject({ method: "GET", url: "/v1/metrics/risks", headers: headers(sessionId) });
-  check("M-OPERATOR-ONLY", econRefused.statusCode === 403 && riskRefused.statusCode === 403, {
-    economics: econRefused.statusCode, risks: riskRefused.statusCode,
-  });
-  await migrator.query(`UPDATE identity_access SET is_operator = true WHERE identity_id = 'membre_m@example.test'`);
 
   // ── M-ECONOMICS : calcul RÉEL (2/10 = 20 % < 25 % ⇒ G2 non atteinte) ──────
   const econRes = await inject({

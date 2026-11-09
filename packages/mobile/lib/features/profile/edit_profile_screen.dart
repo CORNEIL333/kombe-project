@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/state/operation_result.dart';
-import '../../core/widgets/server_action_guard.dart';
+import '../../core/state/resource.dart';
+import '../../core/widgets/operation_feedback.dart';
 import '../../domain/entities/profile.dart';
 import '../../domain/repositories/profile_repository.dart';
 
@@ -15,6 +16,21 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _name = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefill();
+  }
+
+  Future<void> _prefill() async {
+    final Resource<UserProfile> p = await context.read<ProfileRepository>().loadProfile();
+    if (!mounted) return;
+    if (p case ResourceReady<UserProfile>(:final UserProfile data) when _name.text.isEmpty) {
+      _name.text = data.displayName;
+    }
+  }
 
   @override
   void dispose() {
@@ -23,21 +39,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _save() async {
-    if (_name.text.trim().isEmpty) return;
-    final OperationResult<UserProfile> result =
-        await context.read<ProfileRepository>().updateProfile(
-              displayName: _name.text.trim(),
-              localeCode: Localizations.localeOf(context).languageCode,
-            );
-    if (!mounted) return;
-    switch (result) {
-      case OperationSuccess<UserProfile>():
-        Navigator.of(context).pop();
-      case OperationBlocked<UserProfile>():
-        await showServerAuthorityRequired(context);
-      case OperationFailure<UserProfile>(:final error):
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    final String name = _name.text.trim();
+    if (name.length < 2) {
+      showKombeMessage(context, 'Indiquez au moins 2 caractères.');
+      return;
     }
+    setState(() => _saving = true);
+    final OperationResult<UserProfile> result = await context.read<ProfileRepository>().updateProfile(
+          displayName: name,
+          localeCode: Localizations.localeOf(context).languageCode,
+        );
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (reportOutcome(context, result)) Navigator.of(context).pop();
   }
 
   @override
@@ -49,11 +63,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             children: <Widget>[
               TextField(
                 controller: _name,
+                maxLength: 80,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(labelText: 'Nom affiché'),
+                decoration: const InputDecoration(
+                  labelText: 'Nom affiché',
+                  helperText: 'C’est le nom que les membres de vos groupes voient.',
+                ),
               ),
               const SizedBox(height: 20),
-              FilledButton(onPressed: _save, child: const Text('Enregistrer')),
+              FilledButton(
+                onPressed: _saving ? null : _save,
+                child: _saving
+                    ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Enregistrer'),
+              ),
             ],
           ),
         ),

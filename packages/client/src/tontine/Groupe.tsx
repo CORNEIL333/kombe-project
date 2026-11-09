@@ -2,6 +2,7 @@
    Amendes & secours, Statuts, Registre, Règlement. Chaque bouton n'apparaît
    que pour la fonction qui peut l'exercer ; le serveur reste seul juge. */
 
+import { AvatarGroupe, DialoguePhoto, peutChangerPhoto } from "./PhotoGroupe.js";
 import { useState } from "react";
 import type { GroupRole } from "@kombe/domain";
 import {
@@ -19,31 +20,34 @@ import {
   type TontineDetail,
 } from "./api.js";
 import { peut } from "./droits.js";
-import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { BoutonIcone, Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees, aujourdhui } from "./ui.js";
+import { estBureau, ouvrirBureau } from "./bureau.js";
+import { Icone, type NomIcone } from "../composants/Icones.js";
 import type { PaymentChannel } from "@kombe/domain";
 import { useTextes, type CleTexte } from "./textes.js";
 import { Membres } from "./Membres.js";
 import { Seances } from "./Seances.js";
 import { Argent, CANAUX, FormulaireDeclaration } from "./Argent.js";
+import { Caisses, useNomCaisse } from "./Caisses.js";
 import { Tours } from "./Tours.js";
 import { Discipline } from "./Discipline.js";
 import { Decisions } from "./Decisions.js";
 import { Statuts, Journal } from "./Statuts.js";
 import { Reglages } from "./Reglages.js";
-import { EnFileAttente } from "./fileAttente.js";
+import { EnFileAttente } from "./fileAttenteMoteur.js";
 
 type Onglet = "apercu" | "membres" | "seances" | "argent" | "tours" | "discipline" | "decisions" | "statuts" | "journal" | "reglages";
-const ONGLETS: { id: Onglet; cle: CleTexte }[] = [
-  { id: "apercu", cle: "td.apercu" },
-  { id: "argent", cle: "td.argent" },
-  { id: "seances", cle: "td.seances" },
-  { id: "tours", cle: "td.tours" },
-  { id: "membres", cle: "td.membres" },
-  { id: "discipline", cle: "td.discipline" },
-  { id: "decisions", cle: "td.decisions" },
-  { id: "statuts", cle: "td.statuts" },
-  { id: "journal", cle: "td.journal" },
-  { id: "reglages", cle: "td.reglages" },
+const ONGLETS: { id: Onglet; cle: CleTexte; icone: NomIcone }[] = [
+  { id: "apercu", cle: "td.apercu", icone: "accueil" },
+  { id: "argent", cle: "td.argent", icone: "cagnotte" },
+  { id: "seances", cle: "td.seances", icone: "seance" },
+  { id: "tours", cle: "td.tours", icone: "cycle" },
+  { id: "membres", cle: "td.membres", icone: "personnes" },
+  { id: "discipline", cle: "td.discipline", icone: "balance" },
+  { id: "decisions", cle: "td.decisions", icone: "vote" },
+  { id: "statuts", cle: "td.statuts", icone: "document" },
+  { id: "journal", cle: "td.journal", icone: "registre" },
+  { id: "reglages", cle: "td.reglages", icone: "reglages" },
 ];
 
 export interface ContexteGroupe {
@@ -53,51 +57,113 @@ export interface ContexteGroupe {
   readonly rafraichir: () => void;
 }
 
-export function Groupe({ session, groupId, onRetour }: { readonly session: Session; readonly groupId: string; readonly onRetour: () => void }) {
+export function Groupe({
+  session,
+  groupId,
+  onRetour,
+  ongletInitial,
+}: {
+  readonly session: Session;
+  readonly groupId: string;
+  readonly onRetour: () => void;
+  readonly ongletInitial?: string;
+}) {
   const { tx, dyn } = useTextes();
-  const [onglet, setOnglet] = useState<Onglet>("apercu");
+  const [onglet, setOnglet] = useState<Onglet>(() => (ONGLETS.some((o) => o.id === ongletInitial) ? (ongletInitial as Onglet) : "apercu"));
   const { etat, recharger } = useDonnees(() => tontines.detail(session, groupId), [session.sessionId, groupId]);
+  const [editionPhoto, setEditionPhoto] = useState(false);
 
   return (
-    <div className="pile">
-      <button type="button" className="lien-retour" onClick={onRetour}>
-        ← {tx("app.accueil")}
-      </button>
+    <div className="pile ecran">
       <Charge etat={etat} recharger={recharger}>
         {(g) => {
           const ctx: ContexteGroupe = { session, groupe: g, roles: g.me.roles, rafraichir: recharger };
+          // Position réelle dans le cycle (aucune valeur inventée : sans cycle ni tour, pas d'orbite).
+          const tourActuel =
+            g.cycle && g.currentRound
+              ? { total: g.cycle.lastSeq - g.cycle.firstSeq + 1, index: g.currentRound.seq - g.cycle.firstSeq }
+              : null;
           return (
             <>
               <header className="entete-groupe">
-                <h2>{g.name}</h2>
-                <p className="aide-champ">
-                  {tx("td.etat", { etat: dyn(`etat.${g.state}`) })}
-                  {g.cycle ? ` · ${tx("td.cycleN", { n: g.cycle.number })}` : ""} · {g.me.roles.map((r) => dyn(`role.${r}`)).join(" · ")}
-                </p>
+                <div className="entete-groupe__barre">
+                  <BoutonIcone icone="retour" libelle={tx("app.accueil")} onClick={onRetour} />
+                  {estBureau(g.me.roles) ? (
+                    <BoutonIcone icone="bureau" ton="or" legende libelle={tx("app.bureau")} onClick={() => ouvrirBureau(session, g.groupId)} />
+                  ) : null}
+                </div>
+                <div className="entete-groupe__identite">
+                  <span className="entete-groupe__avatar">
+                    <AvatarGroupe session={session} groupId={g.groupId} nom={g.name} version={g.photoVersion} taille={88} />
+                    {peutChangerPhoto(g.me.roles) ? (
+                      <button type="button" className="entete-groupe__photo" aria-label={tx("ph.modifier")} title={tx("ph.modifier")} onClick={() => setEditionPhoto(true)}>
+                        <Icone nom="modifier" taille={16} />
+                      </button>
+                    ) : null}
+                  </span>
+                  <div className="entete-groupe__texte">
+                    <h1 className="entete-groupe__nom">{g.name}</h1>
+                    <p className="entete-groupe__meta">
+                      {tx("td.etat", { etat: dyn(`etat.${g.state}`) })}
+                      {g.cycle ? ` · ${tx("td.cycleN", { n: g.cycle.number })}` : ""} · {g.me.roles.map((r) => dyn(`role.${r}`)).join(" · ")}
+                    </p>
+                    {tourActuel ? (
+                      <p className="entete-groupe__tour">
+                        {tx("imm.tourSur", { n: tourActuel.index + 1, total: tourActuel.total })}
+                        {g.currentRound?.beneficiaryName ? ` · ${tx("imm.beneficiaire", { nom: g.currentRound.beneficiaryName })}` : ""}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
               </header>
+              {editionPhoto ? (
+                <DialoguePhoto
+                  session={session}
+                  groupId={g.groupId}
+                  nom={g.name}
+                  version={g.photoVersion}
+                  onFermer={() => setEditionPhoto(false)}
+                  onChange={() => {
+                    recharger();
+                    window.dispatchEvent(new Event("kombe:groupes"));
+                  }}
+                />
+              ) : null}
               <nav className="onglets-groupe" aria-label={g.name}>
                 {ONGLETS.filter((o) => o.id !== "reglages" || peut(g.me.roles, "group.manage")).map((o) => (
                   <button
                     key={o.id}
                     type="button"
                     aria-current={onglet === o.id ? "page" : undefined}
-                    className={onglet === o.id ? "onglet onglet--actif" : "onglet"}
+                    className={onglet === o.id ? "onglet onglet--icone onglet--actif" : "onglet onglet--icone"}
+                    title={tx(o.cle)}
                     onClick={() => setOnglet(o.id)}
                   >
-                    {tx(o.cle)}
+                    <Icone nom={o.icone} taille={20} />
+                    <span className="onglet__libelle">{tx(o.cle)}</span>
                   </button>
                 ))}
               </nav>
-              {onglet === "apercu" ? <Apercu ctx={ctx} allerA={setOnglet} /> : null}
-              {onglet === "membres" ? <Membres ctx={ctx} /> : null}
-              {onglet === "seances" ? <Seances ctx={ctx} /> : null}
-              {onglet === "argent" ? <Argent ctx={ctx} /> : null}
-              {onglet === "tours" ? <Tours ctx={ctx} /> : null}
-              {onglet === "discipline" ? <Discipline ctx={ctx} /> : null}
-              {onglet === "decisions" ? <Decisions ctx={ctx} /> : null}
-              {onglet === "statuts" ? <Statuts ctx={ctx} /> : null}
-              {onglet === "journal" ? <Journal ctx={ctx} /> : null}
-              {onglet === "reglages" ? <Reglages ctx={ctx} /> : null}
+              {g.me.roles.some((r) => r !== "member") ? (
+                <p className="aide-champ">
+                  <a href="/bureau/">{tx("td.espaceBureau")}</a>
+                </p>
+              ) : null}
+              <div className={`groupe-corps groupe-corps--${onglet}`}>
+                <div className="groupe-principal">
+                  {onglet === "apercu" ? <Apercu ctx={ctx} allerA={setOnglet} /> : null}
+                  {onglet === "membres" ? <Membres ctx={ctx} /> : null}
+                  {onglet === "seances" ? <Seances ctx={ctx} /> : null}
+                  {onglet === "argent" ? <Argent ctx={ctx} /> : null}
+                  {onglet === "tours" ? <Tours ctx={ctx} /> : null}
+                  {onglet === "discipline" ? <Discipline ctx={ctx} /> : null}
+                  {onglet === "decisions" ? <Decisions ctx={ctx} /> : null}
+                  {onglet === "statuts" ? <Statuts ctx={ctx} /> : null}
+                  {onglet === "journal" ? <Journal ctx={ctx} /> : null}
+                  {onglet === "reglages" ? <Reglages ctx={ctx} /> : null}
+                </div>
+                {onglet === "apercu" ? null : <RailGroupe groupe={g} allerA={setOnglet} />}
+              </div>
             </>
           );
         }}
@@ -108,6 +174,7 @@ export function Groupe({ session, groupId, onRetour }: { readonly session: Sessi
 
 function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA: (o: Onglet) => void }) {
   const { tx, dyn, xaf, date } = useTextes();
+  const nomCaisse = useNomCaisse();
   const g = ctx.groupe;
   const echeances = useDonnees(() => acces.mesEcheances(ctx.session, g.groupId), [g.groupId, ctx.session.sessionId]);
   const [aDeclarer, setADeclarer] = useState<DueView | null>(null);
@@ -117,22 +184,32 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
       {g.statutes && !g.statutes.acceptedByMe ? (
         <div className="msg msg--attente" role="status">
           <p>{tx("td.statutsAAccepter", { v: g.statutes.version })}</p>
-          <button type="button" className="bouton bouton-compact" onClick={() => allerA("statuts")}>
-            {tx("td.lireAccepter")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" onClick={() => allerA("statuts")} title={tx("td.lireAccepter")}>
+            <Icone nom="document" taille={18} />
+            <span className="bouton-libelle">{tx("td.lireAccepter")}</span>
+          </button>
+        </div>
+      ) : null}
+      {g.me.pendingRoles.length > 0 ? (
+        <div className="msg msg--attente" role="status">
+          <p>{tx("td.fonctionProposee", { fonctions: g.me.pendingRoles.map((r) => dyn(`role.${r}`)).join(", ") })}</p>
+          <button type="button" className="bouton bouton-compact" onClick={() => allerA("membres")}>
+            {tx("td.repondre")}
           </button>
         </div>
       ) : null}
       {g.pendingCount > 0 && peut(ctx.roles, "member.admit") ? (
         <div className="msg msg--attente" role="status">
           <p>{tx("td.adhesions", { n: g.pendingCount })}</p>
-          <button type="button" className="bouton bouton-compact" onClick={() => allerA("membres")}>
-            {tx("td.membres")}
+          <button type="button" className="bouton bouton-compact bouton-avec-icone" onClick={() => allerA("membres")} title={tx("td.membres")}>
+            <Icone nom="personnes" taille={18} />
+            <span className="bouton-libelle">{tx("td.membres")}</span>
           </button>
         </div>
       ) : null}
 
-      {!g.cycleStarted && peut(ctx.roles, "schedule.manage") ? <Demarrage ctx={ctx} /> : null}
-      {g.cycle?.finished && peut(ctx.roles, "schedule.manage") ? <Demarrage ctx={ctx} cycleTermine={g.cycle.number} /> : null}
+      {!g.cycleStarted && peut(ctx.roles, "schedule.manage") ? <Demarrage ctx={ctx} allerA={allerA} /> : null}
+      {g.cycle?.finished && peut(ctx.roles, "schedule.manage") ? <Demarrage ctx={ctx} cycleTermine={g.cycle.number} allerA={allerA} /> : null}
 
       {g.currentRound ? (
         <Carte titre={tx("td.tourCourant", { seq: g.currentRound.seq, date: date(g.currentRound.date) })}>
@@ -152,8 +229,9 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
             {dyn(`se.etat.${g.nextMeeting.state}`)}
             {g.nextMeeting.location ? ` · ${g.nextMeeting.location}` : ""}
           </p>
-          <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => allerA("seances")}>
-            {tx("td.seances")}
+          <button type="button" className="bouton bouton-secondaire bouton-compact bouton-avec-icone" onClick={() => allerA("seances")} title={tx("td.seances")}>
+            <Icone nom="seance" taille={18} />
+            <span className="bouton-libelle">{tx("td.seances")}</span>
           </button>
         </Carte>
       ) : null}
@@ -177,7 +255,7 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
                 {liste.map((d) => (
                   <li key={`${d.fundId}-${d.roundSeq}`} className="liste__ligne">
                     <div>
-                      <strong>{dyn(`caisse.${d.fundKind}`)}</strong>
+                      <strong>{nomCaisse(d)}</strong>
                       <span className="aide-champ">
                         {tx("ar.tour")} {d.roundSeq} · {date(d.date)} · {tx("ar.reste", { montant: xaf(d.remaining) })}
                         {BigInt(d.declared) > 0n ? ` · ${tx("td.enAttente")} ${xaf(d.declared)}` : ""}
@@ -185,8 +263,9 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
                       <Pastille ton={d.lateness === "late" ? "alerte" : d.lateness === "grace" ? "attente" : "neutre"}>{dyn(`ar.retard.${d.lateness}`)}</Pastille>
                     </div>
                     {BigInt(d.remaining) > 0n ? (
-                      <button type="button" className="bouton bouton-compact" onClick={() => setADeclarer(d)}>
-                        {tx("acc.declarer")}
+                      <button type="button" className="bouton bouton-compact bouton-avec-icone" onClick={() => setADeclarer(d)} title={tx("acc.declarer")}>
+                        <Icone nom="declarer" taille={18} />
+                        <span className="bouton-libelle">{tx("acc.declarer")}</span>
                       </button>
                     ) : null}
                   </li>
@@ -209,29 +288,61 @@ function Apercu({ ctx, allerA }: { readonly ctx: ContexteGroupe; readonly allerA
         ) : null}
       </Carte>
 
-      <Carte titre={tx("td.caisses")}>
-        <p className="aide-champ">{tx("td.caisseTenue")}</p>
-        <ul className="liste">
-          {g.funds.map((f) => (
-            <li key={f.fundId} className="liste__ligne">
-              <div>
-                <strong>{dyn(`caisse.${f.kind}`)}</strong>
-                <span className="aide-champ">
-                  {tx("td.confirme")} : {xaf(f.confirmedBalance)}
-                  {BigInt(f.pendingIn) > 0n ? ` · ${tx("td.enAttente")} : ${xaf(f.pendingIn)}` : ""}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-        {g.funds.some((f) => f.kind === "year_end_reserve" && BigInt(f.confirmedBalance) > 0n) &&
-        (peut(ctx.roles, "movement.confirm") || ctx.roles.includes("animator") || ctx.roles.includes("vice_president")) ? (
+      <Caisses ctx={ctx} />
+      {g.funds.some((f) => f.kind === "year_end_reserve" && BigInt(f.confirmedBalance) > 0n) &&
+      (peut(ctx.roles, "movement.confirm") || ctx.roles.includes("animator") || ctx.roles.includes("vice_president")) ? (
+        <Carte>
           <RendreReserve ctx={ctx} />
-        ) : null}
-      </Carte>
+        </Carte>
+      ) : null}
 
       {g.cycleStarted ? <Regularite ctx={ctx} /> : null}
     </div>
+  );
+}
+
+/** Colonne de contexte (grand écran seulement, masquée sur téléphone) :
+   tour en cours, prochaine séance, membres — rien que des données déjà chargées. */
+function RailGroupe({ groupe: g, allerA }: { readonly groupe: TontineDetail; readonly allerA: (o: Onglet) => void }) {
+  const { tx, xaf, date } = useTextes();
+  const tour = g.currentRound;
+  const attendu = tour ? BigInt(tour.expectedPot) : 0n;
+  const pct = tour && attendu > 0n ? Number((BigInt(tour.collected) * 100n) / attendu) : 0;
+  return (
+    <aside className="groupe-rail" aria-label={g.name}>
+      {tour && g.cycle ? (
+        <section className="rail-carte rail-carte--foret">
+          <p className="rail-carte__sur">{tx("imm.tourSur", { n: tour.seq - g.cycle.firstSeq + 1, total: g.cycle.lastSeq - g.cycle.firstSeq + 1 })}</p>
+          {tour.beneficiaryName ? <p className="rail-carte__titre">{tx("imm.beneficiaire", { nom: tour.beneficiaryName })}</p> : null}
+          <p className="rail-carte__montant montant">{xaf(tour.collected)}</p>
+          <div className="rail-carte__piste" aria-hidden="true">
+            <span style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+          </div>
+          <p className="rail-carte__note">{tx("td.collecte", { collecte: xaf(tour.collected), attendu: xaf(tour.expectedPot) })}</p>
+        </section>
+      ) : null}
+      {g.nextMeeting ? (
+        <button type="button" className="rail-carte rail-carte--lien" onClick={() => allerA("seances")}>
+          <span className="ligne-riche__ico ligne-riche__ico--argent" aria-hidden="true">
+            <Icone nom="seance" taille={20} />
+          </span>
+          <span className="rail-carte__texte">
+            <span className="rail-carte__sur">{tx("td.seances")}</span>
+            <strong>{date(g.nextMeeting.date)}</strong>
+            {g.nextMeeting.location ? <span className="rail-carte__note">{g.nextMeeting.location}</span> : null}
+          </span>
+        </button>
+      ) : null}
+      <button type="button" className="rail-carte rail-carte--lien" onClick={() => allerA("membres")}>
+        <span className="ligne-riche__ico ligne-riche__ico--ok" aria-hidden="true">
+          <Icone nom="personnes" taille={20} />
+        </span>
+        <span className="rail-carte__texte">
+          <span className="rail-carte__sur">{tx("td.membres")}</span>
+          <strong>{tx("sh.sousTitreGroupe", { n: g.memberCount })}</strong>
+        </span>
+      </button>
+    </aside>
   );
 }
 
@@ -361,8 +472,8 @@ function RendreReserve({ ctx }: { readonly ctx: ContexteGroupe }) {
   );
 }
 
-function Demarrage({ ctx, cycleTermine }: { readonly ctx: ContexteGroupe; readonly cycleTermine?: number }) {
-  const { tx } = useTextes();
+function Demarrage({ ctx, cycleTermine, allerA }: { readonly ctx: ContexteGroupe; readonly cycleTermine?: number; readonly allerA: (o: Onglet) => void }) {
+  const { tx, date } = useTextes();
   const [ordre, setOrdre] = useState<"draw" | "join_order" | "manual">("draw");
   const [tirage, setTirage] = useState<{ drawId: string; commitment: string } | null>(null);
   const membres = useDonnees(() => tontines.membres(ctx.session, ctx.groupe.groupId), [ctx.groupe.groupId]);
@@ -377,17 +488,40 @@ function Demarrage({ ctx, cycleTermine }: { readonly ctx: ContexteGroupe; readon
   const [liste, setListe] = useState<MemberView[] | null>(null);
   const action = useAction();
   const actifs = membres.etat.statut === "ok" ? membres.etat.donnees.filter((m) => m.state === "active") : [];
-  const avecTelephone = actifs.filter((m) => !m.offline).length;
-  const tresorier = actifs.some((m) => m.roles.includes("treasurer"));
+  // Mêmes règles que le serveur : trésorier ou trésorier adjoint ; seuls les
+  // membres ADMIS doivent avoir accepté (une demande en attente ne bloque pas).
+  const tresorier = actifs.some((m) => m.roles.includes("treasurer") || m.roles.includes("treasurer_deputy"));
   const st = statuts.etat.statut === "ok" ? statuts.etat.donnees : null;
-  const conditions: { ok: boolean; texte: string }[] = [
-    { ok: actifs.length >= 2, texte: tx("td.c.membres", { n: actifs.length }) },
-    { ok: tresorier, texte: tx("td.c.tresorier") },
-    { ok: st !== null, texte: tx("td.c.statuts") },
-    { ok: st !== null && st.acceptedCount >= avecTelephone, texte: tx("td.c.acceptes", { n: st?.acceptedCount ?? 0, total: avecTelephone }) },
+  const retardataires = st ? st.pending.filter((p) => p.state === "active") : [];
+  const attendus = actifs.filter((m) => !m.offline).length;
+  const conditions: { ok: boolean; texte: string; onglet: Onglet }[] = [
+    { ok: actifs.length >= 2, texte: tx("td.c.membres", { n: actifs.length }), onglet: "membres" },
+    { ok: tresorier, texte: tx("td.c.tresorier"), onglet: "membres" },
+    { ok: st !== null, texte: tx("td.c.statuts"), onglet: "statuts" },
+    {
+      ok: st !== null && retardataires.length === 0,
+      texte:
+        retardataires.length > 0
+          ? tx("td.c.acceptesQui", { noms: retardataires.map((p) => p.name).join(", ") })
+          : tx("td.c.acceptes", { n: attendus - retardataires.length, total: attendus }),
+      onglet: "statuts",
+    },
   ];
   const pret = conditions.every((c) => c.ok);
-  const ordreManuel = liste ?? actifs;
+  // Ordre décidé : une ligne par PART (un membre à 2 parts passe 2 fois ; une
+  // demi-main partagée compte une seule fois pour le binôme).
+  const parts: MemberView[] = [];
+  const vus = new Set<string>();
+  for (const m of actifs) {
+    if (m.sharePartnerMembershipId) {
+      if (vus.has(m.membershipId)) continue;
+      vus.add(m.membershipId).add(m.sharePartnerMembershipId);
+      parts.push(m);
+      continue;
+    }
+    for (let i = 0; i < Math.max(1, m.shares); i++) parts.push(m);
+  }
+  const ordreManuel = liste ?? parts;
 
   const deplacer = (i: number, d: -1 | 1) => {
     const l = [...ordreManuel];
@@ -414,24 +548,30 @@ function Demarrage({ ctx, cycleTermine }: { readonly ctx: ContexteGroupe; readon
   return (
     <Carte titre={cycleTermine ? tx("td.nouveauCycle", { n: cycleTermine + 1 }) : tx("td.demarrer")}>
       <p className="aide-champ">{cycleTermine ? tx("td.nouveauCycleAide", { n: cycleTermine }) : tx("td.demarrerAide")}</p>
+      {!cycleTermine && ctx.groupe.settings.firstMeetingDate < aujourdhui() ? (
+        <p className="msg msg--info">
+          {tx("td.datePassee", { date: date(ctx.groupe.settings.firstMeetingDate) })}{" "}
+          {peut(ctx.roles, "group.manage") ? (
+            <button type="button" className="lien-retour" onClick={() => allerA("reglages")}>
+              {tx("td.changerDate")}
+            </button>
+          ) : null}
+        </p>
+      ) : null}
       <ul className="liste">
         {conditions.map((c) => (
           <li key={c.texte} className="liste__ligne">
             <span>{c.texte}</span>
-            <Pastille ton={c.ok ? "ok" : "attente"}>{c.ok ? "OK" : tx("td.aFaire")}</Pastille>
+            {c.ok ? (
+              <Pastille ton="ok">OK</Pastille>
+            ) : (
+              <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => allerA(c.onglet)}>
+                {tx("td.aFaire")} →
+              </button>
+            )}
           </li>
         ))}
       </ul>
-      {st === null && peut(ctx.roles, "statutes.publish") ? (
-        <button
-          type="button"
-          className="bouton bouton-secondaire"
-          disabled={action.enCours}
-          onClick={() => void action.lancer(() => reglement.publier(ctx.session, ctx.groupe.groupId)).then(() => (statuts.recharger(), ctx.rafraichir()))}
-        >
-          {tx("st.publier")}
-        </button>
-      ) : null}
       <fieldset className="champ">
         <legend>{tx("cr.e.ordre")}</legend>
         {(["draw", "join_order", "manual"] as const).map((o) => (
@@ -457,7 +597,7 @@ function Demarrage({ ctx, cycleTermine }: { readonly ctx: ContexteGroupe; readon
       {ordre === "manual" ? (
         <ol className="liste liste--ordre">
           {ordreManuel.map((m, i) => (
-            <li key={m.membershipId} className="liste__ligne">
+            <li key={`${m.membershipId}-${i}`} className="liste__ligne">
               <span>
                 {i + 1}. {m.displayName}
               </span>

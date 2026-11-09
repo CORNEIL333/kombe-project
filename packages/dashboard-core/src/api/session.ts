@@ -7,7 +7,7 @@ export interface KombeSession { readonly sessionId: string; readonly expiresAt: 
 export type SessionPhase =
   | { readonly kind: 'anonymous' }
   | { readonly kind: 'code_sent'; readonly identityId: string; readonly devCode?: string }
-  | { readonly kind: 'authenticated'; readonly identityId: string; readonly session: KombeSession };
+  | { readonly kind: 'authenticated'; readonly identityId: string; readonly session: KombeSession; readonly displayName?: string };
 
 interface CodeRequestResult { readonly accepted: true; readonly login: string; readonly channel: string; readonly devCode?: string }
 interface CodeVerificationResult { readonly sessionId: string; readonly expiresAt: number; readonly identityId: string }
@@ -24,6 +24,13 @@ export class AccessApi {
   async completeLogin(login: string, code: string): Promise<KombeSession & { identityId: string }> {
     const r = await this.api.post<CodeVerificationResult>('/v1/auth/code-verifications', { login, code }, { 'idempotency-key': cle() });
     return { sessionId: r.sessionId, expiresAt: r.expiresAt, identityId: r.identityId };
+  }
+  /** Nom affiché de la personne connectée (jamais bloquant). */
+  async displayName(token: string): Promise<string | undefined> {
+    try {
+      const me = await this.api.request<{ displayName?: string | null }>('/v1/me', { method: 'GET', headers: { authorization: `Bearer ${token}` } });
+      return me.displayName ?? undefined;
+    } catch { return undefined; }
   }
   logout(token: string) {
     return this.api.request<void>('/v1/auth/logout', { method: 'POST', headers: { authorization: `Bearer ${token}` }, body: '{}' });
@@ -42,6 +49,8 @@ export interface SessionController {
   readonly token: string | null;
   begin(login: string): Promise<void>;
   confirm(code: string): Promise<void>;
+  /** Revenir à la saisie de l'identifiant (autre numéro ou adresse). */
+  restart(): void;
   logout(): void;
   dismissError(): void;
 }
@@ -54,9 +63,20 @@ function restore(): SessionPhase {
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return { kind: 'anonymous' };
-    const p = JSON.parse(raw) as { identityId?: unknown; sessionId?: unknown; expiresAt?: unknown };
+    const p = JSON.parse(raw) as { identityId?: unknown; sessionId?: unknown; expiresAt?: unknown; displayName?: unknown };
     if (typeof p.identityId === 'string' && typeof p.sessionId === 'string' && typeof p.expiresAt === 'number' && p.expiresAt > Date.now()) {
-      return { kind: 'authenticated', identityId: p.identityId, session: { sessionId: p.sessionId, expiresAt: p.expiresAt } };
+      return { kind: 'authenticated', identityId: p.identityId, session: { sessionId: p.sessionId, expiresAt: p.expiresAt }, ...(typeof p.displayName === 'string' ? { displayName: p.displayName } : {}) };
+    }
+  } catch { /* stockage indisponible */ }
+  // Même origine que l'application des membres : on reprend sa session
+  // (« kombe.session ») au lieu de redemander un code.
+  try {
+    const raw = window.localStorage.getItem('kombe.session');
+    if (raw) {
+      const p = JSON.parse(raw) as { identityId?: unknown; sessionId?: unknown; expiresAt?: unknown };
+      if (typeof p.identityId === 'string' && typeof p.sessionId === 'string' && typeof p.expiresAt === 'number' && p.expiresAt > Date.now()) {
+        return { kind: 'authenticated', identityId: p.identityId, session: { sessionId: p.sessionId, expiresAt: p.expiresAt } };
+      }
     }
   } catch { /* stockage indisponible */ }
   return { kind: 'anonymous' };
@@ -64,7 +84,7 @@ function restore(): SessionPhase {
 
 function persist(phase: SessionPhase): void {
   try {
-    if (phase.kind === 'authenticated') window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ identityId: phase.identityId, ...phase.session }));
+    if (phase.kind === 'authenticated') window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ identityId: phase.identityId, ...phase.session, ...(phase.displayName ? { displayName: phase.displayName } : {}) }));
     else window.sessionStorage.removeItem(STORAGE_KEY);
   } catch { /* stockage indisponible */ }
 }
@@ -89,15 +109,19 @@ export function useSession(access: AccessApi): SessionController {
     setBusy(true); setError(null);
     try {
       const s = await access.completeLogin(phase.identityId, code);
-      setPhase({ kind: 'authenticated', identityId: s.identityId, session: { sessionId: s.sessionId, expiresAt: s.expiresAt } });
+      const displayName = await access.displayName(s.sessionId);
+      setPhase({ kind: 'authenticated', identityId: s.identityId, session: { sessionId: s.sessionId, expiresAt: s.expiresAt }, ...(displayName ? { displayName } : {}) });
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
   }, [access, phase]);
   const logout = useCallback(() => {
     if (phase.kind === 'authenticated') void access.logout(phase.session.sessionId).catch(() => undefined);
+    // La session est partagée avec l'application des membres : on l'oublie aussi.
+    try { window.localStorage.removeItem('kombe.session'); } catch { /* stockage indisponible */ }
     setPhase({ kind: 'anonymous' }); setError(null);
   }, [access, phase]);
   const dismissError = useCallback(() => setError(null), []);
+  const restart = useCallback(() => { setPhase({ kind: 'anonymous' }); setError(null); }, []);
   const token = phase.kind === 'authenticated' ? phase.session.sessionId : null;
-  return { phase, busy, error, token, begin, confirm, logout, dismissError };
+  return { phase, busy, error, token, begin, confirm, restart, logout, dismissError };
 }

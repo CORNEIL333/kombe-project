@@ -7,23 +7,39 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type pg from "pg";
 import { z } from "zod";
 import type { CreateTontineInput, DeclareMovementInput, PayoutInput } from "@kombe/domain";
-import { AID_EVENTS, ATTENDANCE_STATUSES, BALLOT_CHOICES, DECISION_KINDS, FINE_KINDS, GROUP_ROLES, PAYMENT_CHANNELS } from "@kombe/domain";
+import { AID_EVENTS, ATTENDANCE_STATUSES, BALLOT_CHOICES, DECISION_KINDS, FINE_KINDS, GROUP_ROLES, MEETING_FORMATS, PAYMENT_CHANNELS } from "@kombe/domain";
 import type { EmailSender } from "../email/emailSender.js";
-import { TontineAuth } from "./auth.js";
+import { TontineAuth, neonAuthFromEnv, type NeonAuthConfig } from "./auth.js";
 import { CycleService } from "./cycle.js";
+import { processAllGroupsInBatches } from "./echeances.js";
+import { inCommandTx, inTx } from "./infra.js";
+import { clientIp } from "../httpGuards.js";
 import { DecisionService } from "./decisions.js";
 import { DisciplineService } from "./discipline.js";
 import { GroupService } from "./groups.js";
 import { HistoryService, type HistoryImportInput } from "./history.js";
 import { InboxService } from "./inbox.js";
+import { MemberPhotoService, PhotoService } from "./photos.js";
 import { InsightService, type CycleSimulationInput } from "./insights.js";
 import { MeetingService } from "./meetings.js";
 import { MoneyService } from "./money.js";
+import { PollService } from "./polls.js";
+import { ExportService } from "./exportXlsx.js";
 import { cadenceSchema, settingsSchema } from "./settings.js";
 import { EmailCodeSender, codeSenderFromEnv, type CodeSender } from "./sms.js";
+import { NotificationDispatcher, afterResponse, createPiggyback, dispatcherOptionsFromEnv, piggybackInterval, type DispatcherOptions } from "./delivery.js";
+import { NotificationPrefs } from "./notificationPrefs.js";
+import { translatePgError } from "./infra.js";
+import { SupportTickets } from "../crm/crmRoutes.js";
 
 const id = z.string().min(3).max(200);
-const moneyStr = z.string().regex(/^\d{1,10}$/);
+// Plafond aligné sur le domaine base `kombe_money` (bigint ≤ 1e9, 0001_init) :
+// au-delà, l'insertion échouait en STATE_CONFLICT générique — ici le refus est
+// précoce et porte le bon message.
+const moneyStr = z
+  .string()
+  .regex(/^\d{1,10}$/)
+  .refine((s) => BigInt(s) <= 1_000_000_000n, "Montant au-delà du plafond XAF (1 000 000 000)");
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const reason = z.object({ reason: z.string().trim().min(3).max(500) });
 const channelFields = {
@@ -32,8 +48,28 @@ const channelFields = {
   justification: z.string().trim().min(1).max(500).optional(),
 };
 
+const fundMode = z.enum(["each_meeting", "one_time", "free"]);
+const fundText = z.string().trim().max(280).nullable().optional();
+
 const S = {
+  fundCreate: z.object({
+    name: z.string().trim().min(2).max(80),
+    mode: fundMode,
+    amount: moneyStr.optional(),
+    from: isoDate.optional(),
+    purpose: fundText,
+    target: moneyStr.nullable().optional(),
+  }),
+  fundUpdate: z.object({
+    name: z.string().trim().min(2).max(80).optional(),
+    purpose: fundText,
+    target: moneyStr.nullable().optional(),
+    amount: moneyStr.optional(),
+    from: isoDate.optional(),
+    close: z.literal(true).optional(),
+  }),
   codeRequest: z.object({ login: z.string().min(3).max(120), channel: z.enum(["sms", "whatsapp", "email"]).optional() }),
+  neonExchange: z.object({ token: z.string().min(20).max(8000) }),
   codeVerify: z.object({ login: z.string().min(3).max(120), code: z.string().regex(/^\d{6}$/) }),
   meUpdate: z.object({ displayName: z.string().max(80).optional(), language: z.enum(["fr", "en"]).optional() }),
   create: z.object({ name: z.string().min(1).max(120), founderDisplayName: z.string().min(1).max(80), settings: settingsSchema }),
@@ -46,6 +82,10 @@ const S = {
   invitation: z.object({ maxUses: z.number().int().min(1).max(200).optional(), days: z.number().int().min(1).max(90).optional() }),
   join: z.object({ displayName: z.string().min(1).max(80), sponsorMembershipId: id.optional() }),
   hash: z.object({ hash: z.string().regex(/^[0-9a-f]{64}$/) }),
+  statutesPublish: z
+    .object({ acceptanceDays: z.number().int().min(1).max(60).optional(), onExpiry: z.enum(["exclude", "keep"]).optional() })
+    .optional(),
+  statutesDeadline: z.object({ extendDays: z.number().int().min(0).max(60).optional(), onExpiry: z.enum(["exclude", "keep"]).optional() }),
   start: z.object({
     order: z.enum(["draw", "manual", "join_order"]),
     drawId: id.optional(),
@@ -128,12 +168,40 @@ const S = {
         id: z.string().min(1).max(200),
         name: z.string().min(1).max(200),
         members: z.array(z.object({ uid: z.string().max(200), name: z.string().max(120), phone: z.string().max(40).optional(), email: z.string().max(200).optional(), role: z.string().max(40).optional() })).max(1000),
-        contributions: z.array(z.object({ id: z.string().max(200), uid: z.string().max(200), amount: z.number(), date: z.string().max(40), status: z.string().max(40).optional() })).max(5000),
+        contributions: z.array(z.object({ id: z.string().max(200), uid: z.string().max(200), amount: z.number().finite().min(0).max(1_000_000_000), date: z.string().max(40), status: z.string().max(40).optional() })).max(5000),
       })
       .optional(),
-    rows: z.array(z.object({ memberName: z.string().max(120), date: z.string().max(40), amount: z.number() })).max(5000).optional(),
+    // Une ligne du cahier au montant invalide (décimal) est écartée ligne à
+    // ligne par le domaine, jamais tout l'import : seul le plafond est borné ici.
+    rows: z.array(z.object({ memberName: z.string().max(120), date: z.string().max(40), amount: z.number().finite().min(0).max(1_000_000_000) })).max(5000).optional(),
   }),
   notificationsRead: z.object({ ids: z.union([z.array(z.string().max(20)).max(500), z.literal("all")]) }),
+  notificationPrefs: z.object({
+    pushEnabled: z.boolean(),
+    smsEnabled: z.boolean(),
+    emailEnabled: z.boolean(),
+    quietStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(),
+    quietEnd: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(),
+    mutedKinds: z.array(z.string().regex(/^[a-z_]{2,40}$/)).max(40),
+  }),
+  pushDevice: z.object({ platform: z.enum(["android", "ios", "web"]), token: z.string().min(16).max(4096) }),
+  meetingUpdate: z.object({
+    format: z.enum(MEETING_FORMATS).optional(),
+    onlineUrl: z.string().trim().max(500).nullable().optional(),
+    location: z.string().trim().max(120).nullable().optional(),
+  }),
+  pollCreate: z.object({
+    question: z.string().trim().min(3).max(300),
+    details: z.string().trim().max(2000).nullable().optional(),
+    options: z.array(z.string().trim().max(120)).max(10),
+    allowFreeAnswer: z.boolean().optional(),
+    multiple: z.boolean().optional(),
+    anonymous: z.boolean().optional(),
+    hours: z.number().int().min(1).max(720).optional(),
+  }),
+  pollBallot: z.object({ choices: z.array(z.number().int().min(0).max(9)).max(10), freeAnswer: z.string().trim().max(300).nullable().optional() }),
+  shareLabel: z.object({ label: z.string().trim().min(1).max(40) }),
+  fineRefund: z.object(channelFields),
   reason,
 };
 
@@ -149,44 +217,99 @@ export interface TontineRoutesOptions {
   /** Faux si la production n'a pas de clé Resend : voie e-mail fermée. */
   readonly emailAvailable?: boolean;
   readonly codeSender?: CodeSender;
+  /** Livraison hors application (ADR-0044) ; absent = lue dans l'environnement. */
+  readonly delivery?: DispatcherOptions;
+  /** Neon Auth (ADR-0040) ; `null` = désactivé ; absent = lu dans l'environnement. */
+  readonly neonAuth?: NeonAuthConfig | null;
 }
 
 export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesOptions): void {
   const { pool, now } = opts;
-  const auth = new TontineAuth(pool, opts.codeSender ?? codeSenderFromEnv(), new EmailCodeSender(opts.emailSender, opts.emailSimulated, opts.emailAvailable !== false), now);
+  const codeSender = opts.codeSender ?? codeSenderFromEnv();
+  const auth = new TontineAuth(
+    pool,
+    codeSender,
+    new EmailCodeSender(opts.emailSender, opts.emailSimulated, opts.emailAvailable !== false),
+    now,
+    opts.neonAuth === undefined ? neonAuthFromEnv() : opts.neonAuth,
+  );
   const groups = new GroupService(pool, now);
   const cycle = new CycleService(pool, now);
   const meetings = new MeetingService(pool, now);
   const money = new MoneyService(pool, now);
   const discipline = new DisciplineService(pool, now);
   const inbox = new InboxService(pool, now);
+  const prefs = new NotificationPrefs(pool, now);
+  const support = new SupportTickets(pool, now);
+  const dispatcher = new NotificationDispatcher(
+    pool,
+    now,
+    opts.delivery ??
+      dispatcherOptionsFromEnv({ codeSender, emailSender: opts.emailSender, emailSimulated: opts.emailSimulated, emailAvailable: opts.emailAvailable !== false }),
+  );
+  /** Après une écriture validée : les notifications créées partent sans attendre la tâche planifiée. */
+  const kick = () => {
+    const p = dispatcher.kick();
+    afterResponse(() => p);
+  };
+  // R-05 : relève des envois différés au passage d'un membre connecté.
+  const releve = createPiggyback(piggybackInterval(), () => Date.now(), kick);
+  app.addHook("onResponse", async (req) => {
+    releve(req.method, typeof req.headers.authorization === "string");
+  });
+  const photos = new PhotoService(pool, now);
+  const memberPhotos = new MemberPhotoService(pool, now);
   const decisions = new DecisionService(pool, now);
   const history = new HistoryService(pool, now);
   const insights = new InsightService(pool, now);
+  const polls = new PollService(pool, now);
+  const exporter = new ExportService(pool, now);
 
   const H = (r: FastifyRequest): Record<string, unknown> => r.headers as Record<string, unknown>;
   const seqOf = (raw: string | undefined): number => z.coerce.number().int().min(1).max(10_000).parse(raw);
 
-  /** Écriture idempotente : rejoue la réponse mémorisée pour la même clé. */
+  /** Écriture idempotente : rejoue la réponse mémorisée pour la même clé.
+   *  Deux requêtes CONCURRENTES portant la même clé sont sérialisées par un
+   *  verrou consultatif PG (session dédiée du pool) : la première exécute
+   *  l'effet puis mémorise, la seconde rejoue la réponse — jamais deux effets
+   *  pour une clé (l'ancien enchaînement replay→run admettait la double
+   *  exécution entre le SELECT et l'INSERT). Sans en-tête : comportement
+   *  inchangé, aucune mémorisation. */
+  /**
+   * Commande d'écriture. Avec `Idempotency-Key` : UNE transaction PostgreSQL
+   * réunit le verrou de la clé, la relecture d'une réponse déjà donnée, l'effet
+   * métier et l'enregistrement de la réponse (atomicité : une coupure avant le
+   * COMMIT n'a rien produit, après le COMMIT la relance rejoue la réponse). Deux
+   * requêtes simultanées portant la même clé : la seconde attend la première
+   * (verrou transactionnel), puis rejoue sa réponse ; un corps différent sous la
+   * même clé est refusé (409).
+   */
   async function write<T>(req: FastifyRequest, reply: FastifyReply, status: number, run: () => Promise<T>): Promise<unknown> {
     const key = typeof req.headers["idempotency-key"] === "string" ? req.headers["idempotency-key"] : undefined;
     const route = `${req.method} ${req.url.split("?")[0]}`;
     if (key) {
-      const prior = await inbox.replay(H(req), key, route, req.body);
-      if (prior) {
-        reply.header("idempotent-replay", "true");
-        return reply.code(prior.status).send(prior.body);
-      }
+      const result = await inCommandTx(pool, async (db) => {
+        await db.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [route, key]);
+        const prior = await inbox.replay(H(req), key, route, req.body);
+        if (prior) return { replay: true as const, status: prior.status, body: prior.body };
+        const out = await run();
+        await inbox.remember(H(req), key, route, req.body, status, out);
+        return { replay: false as const, status, body: out };
+      });
+      if (result.replay) reply.header("idempotent-replay", "true");
+      else kick();
+      return reply.code(result.status).send(result.body === undefined ? null : result.body);
     }
     const out = await run();
-    if (key) await inbox.remember(H(req), key, route, req.body, status, out);
+    kick();
     return reply.code(status).send(out === undefined ? null : out);
   }
 
   /* ── Connexion ─────────────────────────────────────────────────────── */
   app.get("/v1/auth/channels", async () => auth.channels());
-  app.post("/v1/auth/code-requests", async (req, reply) => reply.code(202).send(await auth.requestCode(S.codeRequest.parse(req.body))));
-  app.post("/v1/auth/code-verifications", async (req, reply) => reply.code(201).send(await auth.verifyCode(S.codeVerify.parse(req.body))));
+  app.post("/v1/auth/code-requests", async (req, reply) => reply.code(202).send(await auth.requestCode({ ...S.codeRequest.parse(req.body), ip: clientIp(req) })));
+  app.post("/v1/auth/code-verifications", async (req, reply) => reply.code(201).send(await auth.verifyCode({ ...S.codeVerify.parse(req.body), ip: clientIp(req) })));
+  app.post("/v1/auth/neon-exchange", async (req, reply) => reply.code(201).send(await auth.exchangeNeonToken(S.neonExchange.parse(req.body))));
   app.post("/v1/auth/logout", async (req, reply) => {
     await auth.logout(H(req));
     return reply.code(204).send();
@@ -194,60 +317,139 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
 
   /* ── Moi ───────────────────────────────────────────────────────────── */
   app.get("/v1/me", async (req) => auth.me(H(req)));
-  app.patch("/v1/me", async (req) => auth.updateMe(H(req), S.meUpdate.parse(req.body)));
+  app.patch("/v1/me", async (req, reply) => write(req, reply, 200, () => auth.updateMe(H(req), S.meUpdate.parse(req.body))));
   app.get("/v1/me/tontines", async (req) => groups.mine(H(req)));
   app.get("/v1/me/dues", async (req) => money.myDues(H(req), (req.query as Q).groupId));
+  // Tâche planifiée (Vercel Cron, une fois par jour) : relances et échéances
+  // de tous les groupes. Protégée par CRON_SECRET (en-tête Bearer posé par
+  // Vercel) ; absente si le secret n'est pas configuré.
+  app.get("/v1/internal/cron/echeances", async (req, reply) => {
+    const secret = process.env.CRON_SECRET;
+    if (!secret || req.headers.authorization !== `Bearer ${secret}`) return reply.code(404).send({ code: "OBJET_INTROUVABLE", message: "Introuvable" });
+    const echeances = await processAllGroupsInBatches(pool, now());
+    const delivery = await dispatcher.drain({ rounds: 20, batch: 100, budgetMs: 20_000 });
+    return { ...(echeances as object), delivery };
+  });
+  // Filet de sécurité de la livraison (même secret) : reprend les lignes dues
+  // (heures de silence écoulées, nouvelles tentatives, baux expirés).
+  app.get("/v1/internal/cron/notifications", async (req, reply) => {
+    const secret = process.env.CRON_SECRET;
+    if (!secret || req.headers.authorization !== `Bearer ${secret}`) return reply.code(404).send({ code: "OBJET_INTROUVABLE", message: "Introuvable" });
+    return dispatcher.drain({ rounds: 20, batch: 100, budgetMs: 20_000 });
+  });
+  app.get("/v1/me/notification-preferences", async (req) => prefs.get(H(req)));
+  app.put("/v1/me/notification-preferences", async (req, reply) => write(req, reply, 200, () => prefs.put(H(req), S.notificationPrefs.parse(req.body))));
+  app.post("/v1/me/push-devices", async (req, reply) => {
+    const b = S.pushDevice.parse(req.body);
+    return write(req, reply, 201, () => prefs.registerDevice(H(req), b.platform, b.token));
+  });
+  app.delete("/v1/me/push-devices/:deviceId", async (req, reply) => write(req, reply, 200, () => prefs.revokeDevice(H(req), (req.params as P).deviceId as string)));
+  app.get("/v1/me/notifications/unread-count", async (req) => inbox.unreadCount(H(req)));
   app.get("/v1/me/notifications", async (req) => inbox.notifications(H(req), { unreadOnly: (req.query as Q).unread === "1" }));
-  app.post("/v1/me/notifications/read", async (req) => inbox.markRead(H(req), S.notificationsRead.parse(req.body).ids));
+  app.post("/v1/me/notifications/read", async (req, reply) => write(req, reply, 200, () => inbox.markRead(H(req), S.notificationsRead.parse(req.body).ids)));
+
+  /* ── Assistance : mes demandes au support (CRM, 0041) ─────────────── */
+  app.get("/v1/me/support-tickets", async (req) => support.mine(H(req)));
+  app.post("/v1/me/support-tickets", async (req, reply) => write(req, reply, 201, () => support.open(H(req), req.body)));
+  app.get("/v1/me/support-tickets/:ticketId", async (req) => support.one(H(req), (req.params as P).ticketId as string));
+  app.post("/v1/me/support-tickets/:ticketId/messages", async (req, reply) =>
+    write(req, reply, 201, () => support.reply(H(req), (req.params as P).ticketId as string, req.body)),
+  );
+  app.post("/v1/me/support-tickets/:ticketId/satisfaction", async (req, reply) =>
+    write(req, reply, 200, () => support.rate(H(req), (req.params as P).ticketId as string, req.body)),
+  );
 
   /* ── Associations ──────────────────────────────────────────────────── */
   app.post("/v1/tontines", async (req, reply) => write(req, reply, 201, () => groups.create(H(req), S.create.parse(req.body) as CreateTontineInput)));
   app.get("/v1/tontines/:id", async (req) => groups.detail(H(req), (req.params as P).id as string));
-  app.patch("/v1/tontines/:id/settings", async (req) => groups.updateSettings(H(req), (req.params as P).id as string, S.settings.parse(req.body)));
+  app.patch("/v1/tontines/:id/settings", async (req, reply) => write(req, reply, 200, () => groups.updateSettings(H(req), (req.params as P).id as string, S.settings.parse(req.body))));
   app.get("/v1/tontines/:id/members", async (req) => groups.members(H(req), (req.params as P).id as string, (req.query as Q).all === "1"));
   app.post("/v1/tontines/:id/members/offline", async (req, reply) =>
     write(req, reply, 201, () => groups.addOffline(H(req), (req.params as P).id as string, S.offline.parse(req.body))),
   );
-  app.post("/v1/tontines/:id/members/:mid/admission", async (req) => {
+  app.post("/v1/tontines/:id/members/:mid/admission", async (req, reply) => {
     const p = req.params as P;
-    return groups.admission(H(req), p.id as string, p.mid as string, S.admission.parse(req.body));
+    return write(req, reply, 200, () => groups.admission(H(req), p.id as string, p.mid as string, S.admission.parse(req.body)));
   });
-  app.post("/v1/tontines/:id/members/:mid/shares", async (req) => {
+  app.post("/v1/tontines/:id/members/:mid/shares", async (req, reply) => {
     const p = req.params as P;
-    return groups.setShares(H(req), p.id as string, p.mid as string, S.shares.parse(req.body));
+    return write(req, reply, 200, () => groups.setShares(H(req), p.id as string, p.mid as string, S.shares.parse(req.body)));
   });
-  app.post("/v1/tontines/:id/roles", async (req) => groups.proposeRole(H(req), (req.params as P).id as string, S.role.parse(req.body)));
-  app.post("/v1/tontines/:id/roles/acceptance", async (req) => groups.acceptRole(H(req), (req.params as P).id as string, S.roleAccept.parse(req.body).role));
+  app.post("/v1/tontines/:id/roles", async (req, reply) => write(req, reply, 200, () => groups.proposeRole(H(req), (req.params as P).id as string, S.role.parse(req.body))));
+  app.post("/v1/tontines/:id/roles/acceptance", async (req, reply) => write(req, reply, 200, () => groups.acceptRole(H(req), (req.params as P).id as string, S.roleAccept.parse(req.body).role)));
   app.post("/v1/tontines/:id/invitations", async (req, reply) =>
     write(req, reply, 201, () => groups.createInvitation(H(req), (req.params as P).id as string, S.invitation.parse(req.body ?? {}))),
   );
   app.get("/v1/tontines/:id/invitations", async (req) => groups.invitations(H(req), (req.params as P).id as string));
   app.post("/v1/tontines/:id/invitations/:iid/revocation", async (req, reply) => {
     const p = req.params as P;
-    await groups.revokeInvitation(H(req), p.id as string, p.iid as string);
-    return reply.code(204).send();
+    return write(req, reply, 204, () => groups.revokeInvitation(H(req), p.id as string, p.iid as string));
   });
   app.get("/v1/invitations/:code", async (req) => groups.previewInvitation(H(req), (req.params as P).code as string));
+
+  /* ── Photo de la tontine (0034) ────────────────────────────────────── */
+  // Octets JPEG servis avec la session (jamais d'URL publique) ; ETag = version.
+  const envoyerPhoto = (req: FastifyRequest, reply: FastifyReply, photo: { bytes: Buffer; version: number } | null, size: number) => {
+    if (!photo) return reply.code(404).send({ code: "NOT_FOUND", message: "Pas de photo" });
+    const etag = `"p${photo.version}-${size}"`;
+    reply.header("cache-control", "private, max-age=86400").header("etag", etag).header("x-content-type-options", "nosniff");
+    if (req.headers["if-none-match"] === etag) return reply.code(304).send();
+    return reply.type("image/jpeg").send(photo.bytes);
+  };
+  const taille = (req: FastifyRequest): 256 | 512 => ((req.query as Q).size === "512" ? 512 : 256);
+  // Photo de profil : la sienne, ou celle d'un membre d'un groupe commun (0035).
+  app.get("/v1/me/photo", async (req, reply) => envoyerPhoto(req, reply, await memberPhotos.readMine(H(req), taille(req)), taille(req)));
+  app.put("/v1/me/photo", { bodyLimit: 1_300_000 }, async (req, reply) =>
+    write(req, reply, 200, () => memberPhotos.replace(H(req), (req.body ?? {}) as { image512?: unknown; image256?: unknown })),
+  );
+  app.delete("/v1/me/photo", async (req, reply) => write(req, reply, 200, () => memberPhotos.remove(H(req))));
+  app.get("/v1/tontines/:id/members/:mid/photo", async (req, reply) => {
+    const p = req.params as P;
+    return envoyerPhoto(req, reply, await memberPhotos.readMember(H(req), p.id as string, p.mid as string, taille(req)), taille(req));
+  });
+
+  app.get("/v1/tontines/:id/photo", async (req, reply) =>
+    envoyerPhoto(req, reply, await photos.read(H(req), (req.params as P).id as string, taille(req)), taille(req)),
+  );
+  app.get("/v1/invitations/:code/photo", async (req, reply) =>
+    envoyerPhoto(req, reply, await photos.readForInvitation(H(req), (req.params as P).code as string, taille(req)), taille(req)),
+  );
+  app.put("/v1/tontines/:id/photo", { bodyLimit: 1_300_000 }, async (req, reply) =>
+    write(req, reply, 200, () => photos.replace(H(req), (req.params as P).id as string, (req.body ?? {}) as { image512?: unknown; image256?: unknown })),
+  );
+  app.delete("/v1/tontines/:id/photo", async (req, reply) => write(req, reply, 200, () => photos.remove(H(req), (req.params as P).id as string)));
   app.post("/v1/invitations/:code/join", async (req, reply) =>
     write(req, reply, 201, () => groups.join(H(req), (req.params as P).code as string, S.join.parse(req.body))),
   );
 
   /* ── Statuts ───────────────────────────────────────────────────────── */
   app.get("/v1/tontines/:id/statutes", async (req) => groups.statutes(H(req), (req.params as P).id as string));
-  app.post("/v1/tontines/:id/statutes", async (req) => groups.publishStatutes(H(req), (req.params as P).id as string));
-  app.post("/v1/tontines/:id/statutes/acceptance", async (req) => groups.acceptStatutes(H(req), (req.params as P).id as string, S.hash.parse(req.body).hash));
+  app.post("/v1/tontines/:id/statutes", async (req, reply) =>
+    write(req, reply, 200, () => groups.publishStatutes(H(req), (req.params as P).id as string, S.statutesPublish.parse(req.body ?? undefined) ?? {})),
+  );
+  app.patch("/v1/tontines/:id/statutes/deadline", async (req, reply) =>
+    write(req, reply, 200, () => groups.setStatutesDeadline(H(req), (req.params as P).id as string, S.statutesDeadline.parse(req.body))),
+  );
+  app.post("/v1/tontines/:id/statutes/reminders", async (req, reply) => write(req, reply, 200, () => groups.remindStatutes(H(req), (req.params as P).id as string)));
+  app.post("/v1/tontines/:id/statutes/acceptance", async (req, reply) => write(req, reply, 200, () => groups.acceptStatutes(H(req), (req.params as P).id as string, S.hash.parse(req.body).hash)));
 
   /* ── Cycle ─────────────────────────────────────────────────────────── */
-  app.post("/v1/tontines/:id/draws", async (req, reply) => reply.code(201).send(await cycle.createDraw(H(req), (req.params as P).id as string)));
+  app.post("/v1/tontines/:id/draws", async (req, reply) => write(req, reply, 201, () => cycle.createDraw(H(req), (req.params as P).id as string)));
   app.get("/v1/tontines/:id/draws/:drawId", async (req) => {
     const p = req.params as P;
     return cycle.getDraw(H(req), p.id as string, p.drawId as string);
   });
-  app.post("/v1/tontines/:id/cycle", async (req) => cycle.start(H(req), (req.params as P).id as string, S.start.parse(req.body)));
+  app.post("/v1/tontines/:id/cycle", async (req, reply) => write(req, reply, 200, () => cycle.start(H(req), (req.params as P).id as string, S.start.parse(req.body))));
   app.post("/v1/tontines/:id/cycle-renewals", async (req, reply) =>
     write(req, reply, 201, () => cycle.renew(H(req), (req.params as P).id as string, S.renewal.parse(req.body))),
   );
   app.get("/v1/tontines/:id/rounds", async (req) => cycle.rounds(H(req), (req.params as P).id as string));
+  /* Noms (0041) : chaque part est un nom à part entière. */
+  app.get("/v1/tontines/:id/names", async (req) => cycle.names(H(req), (req.params as P).id as string));
+  app.patch("/v1/tontines/:id/names/:sid", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => cycle.renameShare(H(req), p.id as string, p.sid as string, S.shareLabel.parse(req.body).label));
+  });
   app.get("/v1/tontines/:id/rounds/:seq/grid", async (req) => {
     const p = req.params as P;
     return cycle.grid(H(req), p.id as string, seqOf(p.seq));
@@ -256,21 +458,21 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     const p = req.params as P;
     return write(req, reply, 201, () => cycle.payout(H(req), p.id as string, seqOf(p.seq), S.payout.parse(req.body) as PayoutInput));
   });
-  app.post("/v1/tontines/:id/rounds/:seq/close", async (req) => {
+  app.post("/v1/tontines/:id/rounds/:seq/close", async (req, reply) => {
     const p = req.params as P;
-    return cycle.closeRound(H(req), p.id as string, seqOf(p.seq));
+    return write(req, reply, 200, () => cycle.closeRound(H(req), p.id as string, seqOf(p.seq)));
   });
   app.get("/v1/tontines/:id/order-changes", async (req) => cycle.orderChanges(H(req), (req.params as P).id as string));
   app.post("/v1/tontines/:id/order-changes", async (req, reply) =>
     write(req, reply, 201, () => cycle.requestSwap(H(req), (req.params as P).id as string, S.swap.parse(req.body))),
   );
-  app.post("/v1/tontines/:id/order-changes/:cid/acceptance", async (req) => {
+  app.post("/v1/tontines/:id/order-changes/:cid/acceptance", async (req, reply) => {
     const p = req.params as P;
-    return cycle.acceptSwap(H(req), p.id as string, p.cid as string);
+    return write(req, reply, 200, () => cycle.acceptSwap(H(req), p.id as string, p.cid as string));
   });
-  app.post("/v1/tontines/:id/order-changes/:cid/approval", async (req) => {
+  app.post("/v1/tontines/:id/order-changes/:cid/approval", async (req, reply) => {
     const p = req.params as P;
-    return cycle.approveSwap(H(req), p.id as string, p.cid as string);
+    return write(req, reply, 200, () => cycle.approveSwap(H(req), p.id as string, p.cid as string));
   });
 
   /* ── Repères : simulateur, mon tour, régularité, réserve ─────────────── */
@@ -291,25 +493,36 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     const p = req.params as P;
     return meetings.detail(H(req), p.id as string, p.mid as string);
   });
-  app.post("/v1/tontines/:id/meetings/:mid/open", async (req) => {
+  app.patch("/v1/tontines/:id/meetings/:mid", async (req, reply) => {
     const p = req.params as P;
-    return meetings.open(H(req), p.id as string, p.mid as string);
+    return write(req, reply, 200, () => meetings.update(H(req), p.id as string, p.mid as string, S.meetingUpdate.parse(req.body ?? {})));
   });
-  app.put("/v1/tontines/:id/meetings/:mid/attendance", async (req) => {
+  app.post("/v1/tontines/:id/meetings/:mid/open", async (req, reply) => {
     const p = req.params as P;
-    return meetings.attendance(H(req), p.id as string, p.mid as string, S.attendance.parse(req.body).entries);
+    return write(req, reply, 200, () => meetings.open(H(req), p.id as string, p.mid as string));
   });
-  app.post("/v1/tontines/:id/meetings/:mid/close", async (req) => {
+  app.put("/v1/tontines/:id/meetings/:mid/attendance", async (req, reply) => {
     const p = req.params as P;
-    return meetings.close(H(req), p.id as string, p.mid as string, S.close.parse(req.body ?? {}));
+    return write(req, reply, 200, () => meetings.attendance(H(req), p.id as string, p.mid as string, S.attendance.parse(req.body).entries));
   });
-  app.post("/v1/tontines/:id/meetings/:mid/minutes-approval", async (req) => {
+  app.post("/v1/tontines/:id/meetings/:mid/close", async (req, reply) => {
     const p = req.params as P;
-    return meetings.approveMinutes(H(req), p.id as string, p.mid as string, S.hash.parse(req.body).hash);
+    return write(req, reply, 200, () => meetings.close(H(req), p.id as string, p.mid as string, S.close.parse(req.body ?? {})));
+  });
+  app.post("/v1/tontines/:id/meetings/:mid/minutes-approval", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => meetings.approveMinutes(H(req), p.id as string, p.mid as string, S.hash.parse(req.body).hash));
   });
 
   /* ── Caisses et mouvements ─────────────────────────────────────────── */
   app.get("/v1/tontines/:id/funds", async (req) => money.funds(H(req), (req.params as P).id as string));
+  app.post("/v1/tontines/:id/funds", async (req, reply) =>
+    write(req, reply, 201, () => money.createFund(H(req), (req.params as P).id as string, S.fundCreate.parse(req.body))),
+  );
+  app.patch("/v1/tontines/:id/funds/:fid", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => money.updateFund(H(req), p.id as string, p.fid as string, S.fundUpdate.parse(req.body ?? {})));
+  });
   app.get("/v1/tontines/:id/movements", async (req) => {
     const q = req.query as Q;
     return money.movements(H(req), (req.params as P).id as string, {
@@ -326,17 +539,17 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   app.post("/v1/tontines/:id/movements/confirmations", async (req, reply) =>
     write(req, reply, 200, () => money.confirm(H(req), (req.params as P).id as string, S.confirmations.parse(req.body).movementIds)),
   );
-  app.post("/v1/tontines/:id/movements/:mvid/control", async (req) => {
+  app.post("/v1/tontines/:id/movements/:mvid/control", async (req, reply) => {
     const p = req.params as P;
-    return money.control(H(req), p.id as string, p.mvid as string);
+    return write(req, reply, 200, () => money.control(H(req), p.id as string, p.mvid as string));
   });
-  app.post("/v1/tontines/:id/movements/:mvid/rejection", async (req) => {
+  app.post("/v1/tontines/:id/movements/:mvid/rejection", async (req, reply) => {
     const p = req.params as P;
-    return money.reject(H(req), p.id as string, p.mvid as string, S.reason.parse(req.body).reason);
+    return write(req, reply, 200, () => money.reject(H(req), p.id as string, p.mvid as string, S.reason.parse(req.body).reason));
   });
-  app.post("/v1/tontines/:id/movements/:mvid/acknowledgement", async (req) => {
+  app.post("/v1/tontines/:id/movements/:mvid/acknowledgement", async (req, reply) => {
     const p = req.params as P;
-    return money.acknowledge(H(req), p.id as string, p.mvid as string);
+    return write(req, reply, 200, () => money.acknowledge(H(req), p.id as string, p.mvid as string));
   });
 
   /* ── Discipline, secours, dettes ───────────────────────────────────── */
@@ -344,34 +557,38 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   app.post("/v1/tontines/:id/fines", async (req, reply) =>
     write(req, reply, 201, () => discipline.issueFine(H(req), (req.params as P).id as string, S.fine.parse(req.body))),
   );
-  app.post("/v1/tontines/:id/fines/:fid/contest", async (req) => {
+  app.post("/v1/tontines/:id/fines/:fid/contest", async (req, reply) => {
     const p = req.params as P;
-    return discipline.contestFine(H(req), p.id as string, p.fid as string, S.reason.parse(req.body).reason);
+    return write(req, reply, 200, () => discipline.contestFine(H(req), p.id as string, p.fid as string, S.reason.parse(req.body).reason));
   });
-  app.post("/v1/tontines/:id/fines/:fid/cancel", async (req) => {
+  app.post("/v1/tontines/:id/fines/:fid/cancel", async (req, reply) => {
     const p = req.params as P;
-    return discipline.decideFine(H(req), p.id as string, p.fid as string, "cancel", S.reason.parse(req.body).reason);
+    return write(req, reply, 200, () => discipline.decideFine(H(req), p.id as string, p.fid as string, "cancel", S.reason.parse(req.body).reason));
   });
-  app.post("/v1/tontines/:id/fines/:fid/maintain", async (req) => {
+  app.post("/v1/tontines/:id/fines/:fid/maintain", async (req, reply) => {
     const p = req.params as P;
-    return discipline.decideFine(H(req), p.id as string, p.fid as string, "maintain", S.reason.parse(req.body).reason);
+    return write(req, reply, 200, () => discipline.decideFine(H(req), p.id as string, p.fid as string, "maintain", S.reason.parse(req.body).reason));
+  });
+  app.post("/v1/tontines/:id/fines/:fid/refund", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 201, () => discipline.refundFine(H(req), p.id as string, p.fid as string, S.fineRefund.parse(req.body)));
   });
   app.get("/v1/tontines/:id/aids", async (req) => discipline.aids(H(req), (req.params as P).id as string));
   app.post("/v1/tontines/:id/aids", async (req, reply) =>
     write(req, reply, 201, () => discipline.requestAid(H(req), (req.params as P).id as string, S.aid.parse(req.body))),
   );
-  app.post("/v1/tontines/:id/aids/:aid/decision", async (req) => {
+  app.post("/v1/tontines/:id/aids/:aid/decision", async (req, reply) => {
     const p = req.params as P;
-    return discipline.decideAid(H(req), p.id as string, p.aid as string, S.aidDecision.parse(req.body));
+    return write(req, reply, 200, () => discipline.decideAid(H(req), p.id as string, p.aid as string, S.aidDecision.parse(req.body)));
   });
   app.post("/v1/tontines/:id/aids/:aid/payout", async (req, reply) => {
     const p = req.params as P;
     return write(req, reply, 201, () => discipline.payAid(H(req), p.id as string, p.aid as string, S.aidPayout.parse(req.body)));
   });
   app.get("/v1/tontines/:id/debts", async (req) => discipline.debts(H(req), (req.params as P).id as string));
-  app.post("/v1/tontines/:id/debts/:did/write-off", async (req) => {
+  app.post("/v1/tontines/:id/debts/:did/write-off", async (req, reply) => {
     const p = req.params as P;
-    return discipline.writeOff(H(req), p.id as string, p.did as string, S.reason.parse(req.body).reason);
+    return write(req, reply, 200, () => discipline.writeOff(H(req), p.id as string, p.did as string, S.reason.parse(req.body).reason));
   });
 
   /* ── Décisions votées, sanctions (ADR-0038) ───────────────────────── */
@@ -383,19 +600,46 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     const p = req.params as P;
     return write(req, reply, 201, () => decisions.vote(H(req), p.id as string, p.did as string, S.ballot.parse(req.body).choice));
   });
-  app.post("/v1/tontines/:id/decisions/:did/close", async (req) => {
+  app.post("/v1/tontines/:id/decisions/:did/close", async (req, reply) => {
     const p = req.params as P;
-    return decisions.close(H(req), p.id as string, p.did as string);
+    return write(req, reply, 200, () => decisions.close(H(req), p.id as string, p.did as string));
   });
-  app.post("/v1/tontines/:id/decisions/:did/cancel", async (req) => {
+  app.post("/v1/tontines/:id/decisions/:did/cancel", async (req, reply) => {
     const p = req.params as P;
-    return decisions.cancel(H(req), p.id as string, p.did as string, S.reason.parse(req.body).reason);
+    return write(req, reply, 200, () => decisions.cancel(H(req), p.id as string, p.did as string, S.reason.parse(req.body).reason));
   });
-  app.post("/v1/tontines/:id/decisions/:did/lift", async (req) => {
+  app.post("/v1/tontines/:id/decisions/:did/lift", async (req, reply) => {
     const p = req.params as P;
-    return decisions.lift(H(req), p.id as string, p.did as string, S.reason.parse(req.body).reason);
+    return write(req, reply, 200, () => decisions.lift(H(req), p.id as string, p.did as string, S.reason.parse(req.body).reason));
   });
   app.get("/v1/tontines/:id/sanctions", async (req) => decisions.sanctions(H(req), (req.params as P).id as string));
+
+  /* ── Votes libres (0041) : sans effet automatique ─────────────────── */
+  app.get("/v1/tontines/:id/polls", async (req) => polls.list(H(req), (req.params as P).id as string));
+  app.post("/v1/tontines/:id/polls", async (req, reply) => write(req, reply, 201, () => polls.create(H(req), (req.params as P).id as string, S.pollCreate.parse(req.body))));
+  app.put("/v1/tontines/:id/polls/:pid/ballot", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => polls.vote(H(req), p.id as string, p.pid as string, S.pollBallot.parse(req.body)));
+  });
+  app.post("/v1/tontines/:id/polls/:pid/close", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => polls.end(H(req), p.id as string, p.pid as string, "closed"));
+  });
+  app.post("/v1/tontines/:id/polls/:pid/cancel", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => polls.end(H(req), p.id as string, p.pid as string, "cancelled"));
+  });
+
+  /* ── Export Excel (0041) : bureau seulement, en-tête Bearer, jamais de jeton en URL ── */
+  app.get("/v1/tontines/:id/export.xlsx", async (req, reply) => {
+    const out = await exporter.workbook(H(req), (req.params as P).id as string);
+    return reply
+      .header("cache-control", "no-store")
+      .header("x-content-type-options", "nosniff")
+      .header("content-disposition", `attachment; filename="${out.fileName}"`)
+      .type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+      .send(out.bytes);
+  });
 
   /* ── Reprise de l'historique (L-20) ─────────────────────────────── */
   app.get("/v1/tontines/:id/history", async (req) => history.summary(H(req), (req.params as P).id as string));

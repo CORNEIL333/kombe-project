@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../domain/entities/group.dart';
 import '../design/kombe_colors.dart';
+import '../design/kombe_theme.dart';
 import '../formatters/xaf.dart';
-import 'kombe_visuals.dart';
+import 'group_avatar.dart';
+import 'kombe_components.dart';
 
-/// Carte héro d'un groupe (maquettes « Tableau de bord » / « Cycle ») :
-/// photo de la marque sous un voile forêt, nom, cycle, membres, montant.
+/// Carte d'un groupe : photo ou monogramme, nom, part de cotisation.
 class GroupHeroCard extends StatelessWidget {
   const GroupHeroCard({required this.group, super.key, this.onTap, this.eyebrow});
 
@@ -18,66 +19,37 @@ class GroupHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme t = Theme.of(context).textTheme;
     return Semantics(
       button: onTap != null,
-      label: '${group.name}, cycle ${group.cycleIndex} sur ${group.cycleTotal}, '
+      label: '${group.name}, tour ${group.cycleIndex} sur ${group.cycleTotal}, '
           '${group.memberCount} membres, cotisation ${Xaf.format(group.contributionAmountXaf)}',
       child: ExcludeSemantics(
-        child: Material(
-          color: KombeColors.forest,
-          borderRadius: BorderRadius.circular(22),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: PhotoBackdrop(
-              asset: KombePhotos.coverFor(group.id),
-              alignment: const Alignment(.4, 0),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 16, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
+        child: KombeCard(
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  GroupAvatar(groupId: group.id, name: group.name, photoVersion: group.photoVersion, size: 52),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        if (eyebrow != null) ...<Widget>[
-                          const Icon(Icons.groups_rounded, color: Colors.white, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(eyebrow!, style: t.bodyMedium?.copyWith(color: Colors.white))),
-                        ] else
-                          Expanded(
-                            child: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleLarge?.copyWith(color: Colors.white, fontSize: 22)),
-                          ),
-                        CycleBadge(index: group.cycleIndex, total: group.cycleTotal),
+                        if (eyebrow != null) Text(eyebrow!, style: Theme.of(context).textTheme.bodySmall),
+                        Text(group.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: KombeType.display(size: 22, color: KombeColors.ink)),
+                        Text('${group.memberCount} membres', style: Theme.of(context).textTheme.bodySmall),
                       ],
                     ),
-                    if (eyebrow != null) ...<Widget>[
-                      const SizedBox(height: 10),
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleLarge?.copyWith(color: Colors.white, fontSize: 22)),
-                          ),
-                          if (onTap != null) const Icon(Icons.chevron_right_rounded, color: Colors.white),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 6),
-                    Text('${group.memberCount} membres', style: t.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: .85))),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: Container(height: 1, width: 220, color: Colors.white.withValues(alpha: .18)),
-                    ),
-                    Text('Montant de la cotisation', style: t.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: .85))),
-                    const SizedBox(height: 4),
-                    Text(
-                      Xaf.format(group.contributionAmountXaf),
-                      style: t.headlineLarge?.copyWith(color: Colors.white, fontSize: 30, fontFeatures: const <FontFeature>[FontFeature.tabularFigures()]),
-                    ),
-                  ],
-                ),
+                  ),
+                  if (onTap != null) const Icon(Icons.chevron_right_rounded, color: KombeColors.slate),
+                ],
               ),
-            ),
+              const SizedBox(height: 14),
+              Text('Part de cotisation', style: Theme.of(context).textTheme.bodySmall),
+              FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(group.contributionAmountXaf, size: 28, color: KombeColors.ink)),
+            ],
           ),
         ),
       ),

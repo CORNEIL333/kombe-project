@@ -87,10 +87,10 @@ describe("gardes HTTP (§20/§25) : CORS à liste fermée + limitation de débit
     }
   });
 
-  it("limite serrée anti-force-brute sur /v1/access/* (10/min/IP)", async () => {
+  it("limite anti-force-brute sur /v1/access/* (30/min/IP, CGNAT ; chaque identifiant reste limité en base)", async () => {
     const app = buildApp();
     let last = 0;
-    for (let i = 0; i < 11; i += 1) {
+    for (let i = 0; i < 31; i += 1) {
       const res = await app.inject({
         method: "POST",
         url: "/v1/access/sessions",
@@ -198,5 +198,47 @@ describe("POST declaration de cotisation (squelette)", () => {
     const res = await declare(app, { obligationId: "nope", amount: 5000 }, baseHeaders);
     expect(res.statusCode).toBe(404);
     expect(res.json().message).toBe("Requête refusée");
+  });
+});
+
+describe("journaux structurés (observabilité)", () => {
+  it("masque jetons, cookies et clés d'idempotence ; silencieux sous test ; warn par défaut", async () => {
+    const { loggerOptions } = await import("../src/server.js");
+    expect(loggerOptions({ NODE_ENV: "test" })).toBe(false);
+    const o = loggerOptions({ NODE_ENV: "production" }) as { level: string; redact: { paths: string[] } };
+    expect(o.level).toBe("warn");
+    expect(o.redact.paths).toEqual(expect.arrayContaining(["req.headers.authorization", "req.headers.cookie", 'req.headers["idempotency-key"]']));
+  });
+  it("renvoie un identifiant de corrélation sur chaque réponse", async () => {
+    const res = await buildApp().inject({ method: "GET", url: "/v1/health/live" });
+    expect(res.headers["x-correlation-id"]).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});
+
+describe("limitation de débit adaptée au CGNAT (plusieurs abonnés derrière une IP)", () => {
+  const env = { ...process.env, KOMBE_RATE_LIMIT_GLOBAL: "5", KOMBE_RATE_LIMIT_IP: "12" };
+  it("compte par session authentifiée, pas par IP partagée", async () => {
+    const { registerHttpGuards } = await import("../src/httpGuards.js");
+    const Fastify = (await import("fastify")).default;
+    const app = Fastify();
+    registerHttpGuards(app, env);
+    app.get("/v1/ping", async () => ({ ok: true }));
+    const hit = (tok?: string) => app.inject({ method: "GET", url: "/v1/ping", headers: tok ? { authorization: `Bearer ${tok}` } : {} });
+    const a = Array.from({ length: 5 }, () => hit("session-aaaaaaaaaaaaaaaaaaaa"));
+    const b = Array.from({ length: 5 }, () => hit("session-bbbbbbbbbbbbbbbbbbbb"));
+    const codes = (await Promise.all([...a, ...b])).map((r) => r.statusCode);
+    expect(codes.every((c) => c === 200)).toBe(true); // 10 requêtes, même IP, deux personnes : aucune bloquée
+    expect((await hit("session-aaaaaaaaaaaaaaaaaaaa")).statusCode).toBe(429); // 6e de la même session
+    expect((await hit("session-cccccccccccccccccccc")).statusCode).toBe(200);
+    expect((await hit("session-dddddddddddddddddddd")).statusCode).toBe(429); // plafond IP (12) : rotation de jetons bornée
+  });
+  it("ne compte jamais les fichiers statiques", async () => {
+    const { registerHttpGuards } = await import("../src/httpGuards.js");
+    const Fastify = (await import("fastify")).default;
+    const app = Fastify();
+    registerHttpGuards(app, env);
+    app.get("/assets/x.js", async () => "x");
+    const codes = await Promise.all(Array.from({ length: 30 }, () => app.inject({ method: "GET", url: "/assets/x.js" })));
+    expect(codes.every((r) => r.statusCode === 200)).toBe(true);
   });
 });

@@ -151,6 +151,8 @@ try {
   check("FORECAST-LAST", fA.turns[0].seq === 3 && fA.turns[0].position === "even" && fA.totalDue === "15000" && fA.totalToReceive === "15000", fA);
   const early = await call(A.token, "POST", `/v1/tontines/${gid}/cycle-renewals`, { order: "join_order" });
   check("RENEW-NOT-BEFORE-END", early.status === 409, early);
+  const midCycleRules = await call(A.token, "PATCH", `/v1/tontines/${gid}/settings`, { settings: { ...settings, contributionPerShare: "6000" } });
+  check("RULES-FROZEN-DURING-CYCLE", midCycleRules.status === 422 && /entre deux saisons/.test(midCycleRules.body.message), midCycleRules);
   const earlyDraw = await call(A.token, "POST", `/v1/tontines/${gid}/draws`);
   check("DRAW-NOT-DURING-CYCLE", earlyDraw.status === 409, earlyDraw);
 
@@ -238,6 +240,23 @@ try {
   check("RESERVE-ONCE", r3.movements.length === 0, r3);
   const fundsAfter = await ok(A.token, "GET", `/v1/tontines/${gid}/funds`);
   check("RESERVE-EMPTY", fundsAfter.find((f) => f.kind === "year_end_reserve").confirmedBalance === "0", fundsAfter.map((f) => [f.kind, f.confirmedBalance]));
+
+  /* ── Entre deux saisons : le règlement change, l'histoire non ────── */
+  const roundsBefore = await ok(A.token, "GET", `/v1/tontines/${gid}/rounds`);
+  const gridBefore = await ok(A.token, "GET", `/v1/tontines/${gid}/rounds/1/grid`);
+  const between = await call(A.token, "PATCH", `/v1/tontines/${gid}/settings`, { settings: { ...settings, contributionPerShare: "6000" } });
+  check("RULES-EDITABLE-BETWEEN-SEASONS", between.status === 200 && between.body.settings.contributionPerShare === "6000", between.status);
+  const roundsAfter = await ok(A.token, "GET", `/v1/tontines/${gid}/rounds`);
+  const gridAfter = await ok(A.token, "GET", `/v1/tontines/${gid}/rounds/1/grid`);
+  check(
+    "PAST-ROUNDS-KEEP-THEIR-RULES",
+    JSON.stringify(roundsAfter.map((r) => r.expectedPot)) === JSON.stringify(roundsBefore.map((r) => r.expectedPot)) &&
+      roundsAfter.every((r) => r.expectedPot === "15000") &&
+      JSON.stringify(gridAfter.rows.map((r) => [r.due, r.status])) === JSON.stringify(gridBefore.rows.map((r) => [r.due, r.status])),
+    { before: roundsBefore.map((r) => r.expectedPot), after: roundsAfter.map((r) => r.expectedPot) },
+  );
+  // Retour au montant d'origine pour la suite de la preuve (saison 2 à 5 000).
+  await ok(A.token, "PATCH", `/v1/tontines/${gid}/settings`, { settings });
 
   /* ── Nouveau cycle : tours 4 à 7, deux parts pour Chantal ────────── */
   const draw2 = await call(A.token, "POST", `/v1/tontines/${gid}/draws`);

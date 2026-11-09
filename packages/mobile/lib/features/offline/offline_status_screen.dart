@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/offline/offline_policy.dart';
+import '../../core/design/kombe_colors.dart';
 import '../../core/widgets/section_card.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/repositories/draft_repository.dart';
@@ -42,7 +43,7 @@ class _OfflineStatusScreenState extends State<OfflineStatusScreen> {
                     leading: Icon(Icons.edit_note_outlined),
                     title: Text('Brouillons locaux'),
                     subtitle: Text(
-                      'Autorisés. Ils ne deviennent jamais des opérations officielles sans serveur.',
+                      'Possibles : ils restent sur ce téléphone jusqu’à leur envoi.',
                     ),
                   ),
                   const Divider(),
@@ -108,12 +109,12 @@ class _CapabilityRow extends StatelessWidget {
         title: Text(label),
         trailing: Icon(
           allowed ? Icons.check_circle : Icons.block,
-          color: allowed ? Colors.green : Colors.red,
+          color: allowed ? KombeColors.jade : KombeColors.danger,
           // Indicateur d'état : ne repose pas que sur la couleur. Un lecteur
           // d'écran annonce le verdict en toutes lettres (a11y seniors).
           semanticLabel: allowed
               ? 'Autorisé hors connexion'
-              : 'Non autorisé : validation du serveur requise',
+              : 'Impossible hors connexion : la décision doit être enregistrée en ligne',
         ),
       );
 }

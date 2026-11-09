@@ -1,0 +1,133 @@
+{
+  "base": "http://127.0.0.1:3311",
+  "groups": 20,
+  "membersPerGroup": 10,
+  "users": 200,
+  "concurrency": 16,
+  "seconds": 5,
+  "setupSeconds": 4.4,
+  "node": "v22.22.0",
+  "phases": [
+    {
+      "phase": "A-lecture",
+      "requests": 1575,
+      "rps": 312.9,
+      "p50": 49.9,
+      "p95": 80.9,
+      "p99": 92.2,
+      "max": 109.1,
+      "codes": {
+        "200": 1575
+      }
+    },
+    {
+      "phase": "B-declaration",
+      "requests": 200,
+      "rps": 126.5,
+      "p50": 119.3,
+      "p95": 169,
+      "p99": 184.9,
+      "max": 195.5,
+      "codes": {
+        "201": 200
+      }
+    },
+    {
+      "phase": "B-rejeu-meme-cle",
+      "requests": 200,
+      "rps": 1005,
+      "p50": 14.9,
+      "p95": 23.4,
+      "p99": 25.4,
+      "max": 29.9,
+      "codes": {
+        "201": 200
+      },
+      "replays": 200
+    },
+    {
+      "phase": "C-mixte-90-10",
+      "requests": 1921,
+      "rps": 382.2,
+      "p50": 41.1,
+      "p95": 66.4,
+      "p99": 78,
+      "max": 93,
+      "codes": {
+        "200": 1921
+      }
+    },
+    {
+      "phase": "D-me/tontines",
+      "requests": 1333,
+      "rps": 264.3,
+      "p50": 60,
+      "p95": 84.3,
+      "p99": 96.4,
+      "max": 114.8,
+      "codes": {
+        "200": 1333
+      }
+    },
+    {
+      "phase": "D-tontines/:id",
+      "requests": 1710,
+      "rps": 340,
+      "p50": 46.5,
+      "p95": 66.7,
+      "p99": 75.4,
+      "max": 86.5,
+      "codes": {
+        "200": 1710
+      }
+    },
+    {
+      "phase": "D-me/dues",
+      "requests": 2299,
+      "rps": 457.1,
+      "p50": 34.5,
+      "p95": 48.1,
+      "p99": 55.1,
+      "max": 63.4,
+      "codes": {
+        "200": 2299
+      }
+    },
+    {
+      "phase": "D-me/notifications",
+      "requests": 1268,
+      "rps": 250.7,
+      "p50": 63.9,
+      "p95": 85.1,
+      "p99": 93.8,
+      "max": 107,
+      "codes": {
+        "200": 1268
+      }
+    },
+    {
+      "phase": "D-unread-count",
+      "requests": 8235,
+      "rps": 1645.7,
+      "p50": 9.1,
+      "p95": 16.3,
+      "p99": 20.7,
+      "max": 34.9,
+      "codes": {
+        "200": 8235
+      }
+    },
+    {
+      "phase": "D-tontines/:id/movements",
+      "requests": 3326,
+      "rps": 661.9,
+      "p50": 23.5,
+      "p95": 36.2,
+      "p99": 44.4,
+      "max": 59.4,
+      "codes": {
+        "200": 3326
+      }
+    }
+  ]
+}

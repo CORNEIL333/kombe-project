@@ -41,7 +41,7 @@
   "dataviz": ["#176B52", "#C7922E", "#2A8A68", "#865C18", "#7FB59C", "#46413A"],
   "font": {
     "family-ui": "Manrope",
-    "family-display": "Fraunces",
+    "family-display": "Manrope",
     "fallback": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
   },
   "type": {

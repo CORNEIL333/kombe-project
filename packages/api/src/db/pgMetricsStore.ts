@@ -48,7 +48,7 @@ import {
   type PaymentSignal,
   type Risk,
 } from "@kombe/domain";
-import { withGroupTx } from "./txContext.js";
+import { withGroupTx, withIdentityTx } from "./txContext.js";
 import type {
   CohortView,
   EconomicsInput,
@@ -227,7 +227,7 @@ export class PgMetricsStore implements MetricsStore {
     this.gateAuth(ctx);
     const risk = buildRisk(input);
     // `pilot_risk` est révisable (une revue met à jour la ligne), non append-only.
-    await this.pool.query(
+    await withIdentityTx(this.pool, ctx.actorIdentityId, (c) => c.query(
       `INSERT INTO pilot_risk
          (risk_id, severity, probability_percent, impact_percent, control, evidence_ref, owner, reviewed_at, residual)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8::date,$9)
@@ -251,7 +251,7 @@ export class PgMetricsStore implements MetricsStore {
         risk.reviewedAt,
         risk.residual,
       ],
-    );
+    ));
     return risk;
   }
 
@@ -259,11 +259,11 @@ export class PgMetricsStore implements MetricsStore {
     this.gateAuth(ctx);
     // `to_char` fige la date de revue en AAAA-MM-JJ : évite tout décalage de
     // fuseau qu'introduirait la conversion d'un `date` en `Date` JS.
-    const res = await this.pool.query(
+    const res = await withIdentityTx(this.pool, ctx.actorIdentityId, (c) => c.query(
       `SELECT risk_id, severity, probability_percent, impact_percent, control, evidence_ref,
               owner, to_char(reviewed_at, 'YYYY-MM-DD') AS reviewed_at, residual
        FROM pilot_risk ORDER BY risk_id ASC`,
-    );
+    ));
     return res.rows.map((row) =>
       buildRisk({
         riskId: String(row.risk_id),

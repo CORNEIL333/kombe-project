@@ -1,1 +1,1 @@
-{"apiBaseUrl":"https://kombe-api.vercel.app","environment":"production"}
+{"apiBaseUrl":"http://127.0.0.1:3000","environment":"local"}

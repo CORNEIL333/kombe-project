@@ -32,3 +32,4 @@ android/app/.cxx/
 coverage/
 doc/api/
 .flutter_analyze_snapshot
+test/golden/failures/

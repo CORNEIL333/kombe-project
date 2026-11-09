@@ -5,15 +5,21 @@
 // Aucune route HTTP ne permet de devenir opérateur : c'est un acte
 // d'administration de la base, tracé ici par la sortie JSON.
 //
-// La personne doit s'être connectée au moins une fois (le compte existe et son
-// canal est vérifié). Usage :
-//   KOMBE_DATABASE_URL=postgres://<propriétaire>@…/kombe_prod \
-//     node packages/db/scripts/grant-operator.mjs +237677123456
-//   … grant-operator.mjs awa@exemple.cm --revoke
+// Depuis 0036 (ADR-0043), l'opérateur reçoit des FONCTIONS distinctes :
+// support, operations, direction, engineering, admin (par défaut : operations).
+// L'accès effectif exige aussi le second facteur (TOTP) activé par la personne
+// dans la console. La personne doit s'être connectée au moins une fois.
+// Usage :
+//   KOMBE_DATABASE_URL=postgres://<propriétaire>@…/neondb \
+//     node packages/db/scripts/grant-operator.mjs +237677123456 --roles=support,operations
+//   … grant-operator.mjs awa@exemple.cm --revoke        (retire tout)
 // Sortie : 0 = fait, 1 = échec (compte introuvable…), 2 = BLOCKED (pas de base).
 
 const args = process.argv.slice(2);
 const revoke = args.includes("--revoke");
+const ROLES = ["support", "operations", "direction", "engineering", "admin"];
+const rolesArg = args.find((a) => a.startsWith("--roles="));
+const roles = rolesArg ? rolesArg.slice(8).split(",").map((x) => x.trim()).filter(Boolean) : ["operations"];
 const raw = args.find((a) => !a.startsWith("--"));
 
 function emit(o, code) {
@@ -32,7 +38,8 @@ export function canonicalLogin(input) {
   return d;
 }
 
-if (!raw) emit({ status: "FAIL", reason: "Usage : grant-operator.mjs <téléphone|e-mail> [--revoke]" }, 1);
+if (!raw) emit({ status: "FAIL", reason: "Usage : grant-operator.mjs <téléphone|e-mail> [--roles=support,operations,…] [--revoke]" }, 1);
+if (!roles.every((r) => ROLES.includes(r))) emit({ status: "FAIL", reason: `Fonctions possibles : ${ROLES.join(", ")}` }, 1);
 const url = process.env.KOMBE_DATABASE_URL;
 if (!url) emit({ status: "BLOCKED", reason: "KOMBE_DATABASE_URL absente" }, 2);
 
@@ -47,6 +54,7 @@ const login = canonicalLogin(raw);
 const client = new pg.Client({ connectionString: url });
 try {
   await client.connect();
+  await client.query("BEGIN");
   const r = await client.query(
     `UPDATE identity_access SET is_operator = $2, updated_at = now()
       WHERE identity_id = $1 AND state = 'active' AND channel_verified
@@ -54,9 +62,19 @@ try {
     [login, !revoke],
   );
   if (r.rowCount !== 1) {
+    await client.query("ROLLBACK");
     emit({ status: "FAIL", login, reason: "Compte introuvable ou jamais connecté : se connecter une fois à la PWA puis relancer." }, 1);
   }
-  emit({ status: "OK", login, isOperator: r.rows[0].is_operator }, 0);
+  if (revoke) {
+    await client.query(`DELETE FROM operator_role WHERE identity_id = $1`, [login]);
+  } else {
+    for (const role of roles) {
+      await client.query(`INSERT INTO operator_role (identity_id, role, granted_by) VALUES ($1,$2,'grant-operator') ON CONFLICT DO NOTHING`, [login, role]);
+    }
+  }
+  const now = await client.query(`SELECT array_agg(role ORDER BY role) AS roles FROM operator_role WHERE identity_id = $1`, [login]);
+  await client.query("COMMIT");
+  emit({ status: "OK", login, isOperator: r.rows[0].is_operator, roles: now.rows[0]?.roles ?? [] }, 0);
 } catch (e) {
   emit({ status: "FAIL", login, reason: e instanceof Error ? e.message : String(e) }, 1);
 } finally {

@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 // Dépôts FACTICES pour les tests visuels (golden, visite d'écrans).
 // Vivent dans test/ : jamais embarqués dans l'application.
 import 'dart:async';
@@ -11,23 +12,29 @@ import 'package:kombe_mobile/data/local/preferences_repository_impl.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:kombe_mobile/domain/entities/fund.dart';
+import 'package:kombe_mobile/domain/repositories/fund_repository.dart';
+import 'package:kombe_mobile/core/api/api_failure.dart';
 import 'package:kombe_mobile/core/state/operation_result.dart';
 import 'package:kombe_mobile/core/state/resource.dart';
 import 'package:kombe_mobile/domain/entities/auth.dart';
 import 'package:kombe_mobile/domain/entities/contribution.dart';
 import 'package:kombe_mobile/domain/entities/cycle.dart';
 import 'package:kombe_mobile/domain/entities/dashboard.dart';
-import 'package:kombe_mobile/domain/entities/dispute.dart';
 import 'package:kombe_mobile/domain/entities/document.dart';
+import 'package:kombe_mobile/domain/entities/fine.dart';
+import 'package:kombe_mobile/domain/entities/meeting.dart';
 import 'package:kombe_mobile/domain/entities/governance.dart';
 import 'package:kombe_mobile/domain/entities/group.dart';
 import 'package:kombe_mobile/domain/entities/notification.dart';
 import 'package:kombe_mobile/domain/entities/profile.dart';
+import 'package:kombe_mobile/domain/repositories/draft_repository.dart';
 import 'package:kombe_mobile/domain/repositories/auth_repository.dart';
 import 'package:kombe_mobile/domain/repositories/contribution_repository.dart';
 import 'package:kombe_mobile/domain/repositories/dashboard_repository.dart';
-import 'package:kombe_mobile/domain/repositories/dispute_repository.dart';
 import 'package:kombe_mobile/domain/repositories/document_repository.dart';
+import 'package:kombe_mobile/domain/repositories/fine_repository.dart';
+import 'package:kombe_mobile/domain/repositories/meeting_repository.dart';
 import 'package:kombe_mobile/domain/repositories/governance_repository.dart';
 import 'package:kombe_mobile/domain/repositories/group_repository.dart';
 import 'package:kombe_mobile/domain/repositories/notification_repository.dart';
@@ -63,7 +70,7 @@ final class FakeWorld {
     nextDue = DateTime.utc(now.year, now.month, now.day).add(const Duration(days: 6));
     groups = <GroupSummary>[
       GroupSummary(id: 'essai-etoiles', name: 'Les Étoiles de Yaoundé', role: GroupRole.member, memberCount: 12, cycleIndex: 4, cycleTotal: 12, contributionAmountXaf: 25000, nextDueAtUtc: nextDue),
-      GroupSummary(id: 'essai-bamileke', name: 'Solidarité Bamiléké', role: GroupRole.treasurer, memberCount: 10, cycleIndex: 2, cycleTotal: 10, contributionAmountXaf: 15000, nextDueAtUtc: nextDue.add(const Duration(days: 5))),
+      GroupSummary(openDueXaf: 26000, id: 'essai-bamileke', name: 'Solidarité Bamiléké', role: GroupRole.treasurer, memberCount: 10, cycleIndex: 2, cycleTotal: 10, contributionAmountXaf: 15000, nextDueAtUtc: nextDue.add(const Duration(days: 5))),
       GroupSummary(id: 'essai-vision', name: 'Vision Entrepreneurs', role: GroupRole.member, memberCount: 8, cycleIndex: 5, cycleTotal: 8, contributionAmountXaf: 50000, nextDueAtUtc: nextDue.add(const Duration(days: 3))),
     ];
     history = <Contribution>[
@@ -92,8 +99,8 @@ final class FakeWorld {
       KombeNotification(id: 'n3', kind: NotificationKind.vote, title: 'Nouveau vote ouvert', body: 'Passer la cotisation à 30 000 XAF', createdAtUtc: now.subtract(const Duration(days: 2)), read: true),
       KombeNotification(id: 'n4', kind: NotificationKind.meeting, title: 'Réunion du groupe samedi', body: 'Chez Amina, 16 h', createdAtUtc: now.subtract(const Duration(days: 4)), read: true),
     ];
-    disputes = <DisputeSummary>[
-      DisputeSummary(id: 'essai-lit-1', groupId: 'essai-etoiles', subject: 'Cotisation de mars non retrouvée', status: DisputeStatus.underReview, openedAtUtc: now.subtract(const Duration(days: 6))),
+    fines = <MyFine>[
+      MyFine(fineId: 'essai-amende-1', groupId: 'essai-etoiles', groupName: 'Les Étoiles de Yaoundé', kind: 'meeting_late', amountXaf: 500, reason: 'Arrivée après l’appel', state: FineState.issued, issuedAtUtc: now.subtract(const Duration(days: 6)), issuedByName: 'Éric Kamga'),
     ];
   }
 
@@ -110,13 +117,14 @@ final class FakeWorld {
   late final List<ValidationItem> pending;
   late final List<VoteSummary> votes;
   late final List<KombeNotification> notifications;
-  late final List<DisputeSummary> disputes;
+  late final List<MyFine> fines;
   int _seq = 100;
   String nextId(String prefix) => 'essai-$prefix-${_seq++}';
 }
 
 final class FakeAuthRepository implements AuthRepository {
   FakeAuthRepository();
+
   final StreamController<Resource<AuthSession?>> _ctrl = StreamController<Resource<AuthSession?>>.broadcast();
   AuthSession? _session;
 
@@ -127,29 +135,21 @@ final class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<OperationResult<void>> requestRegistration(String identityId) async {
+  Future<Resource<AuthChannels>> loadChannels() async =>
+      const ResourceReady<AuthChannels>(AuthChannels(email: true, sms: false, whatsapp: false));
+
+  @override
+  Future<OperationResult<void>> requestCode({required String login, required LoginChannel channel}) async {
     await _lag();
     return const OperationSuccess<void>(null);
   }
 
+  /// En essai, n'importe quel code est accepté (aucun message n'est envoyé).
   @override
-  Future<OperationResult<AccountStatus>> verifyRegistration({required String identityId, required String code}) async {
-    await _lag();
-    return const OperationSuccess<AccountStatus>(AccountStatus.active);
-  }
-
-  @override
-  Future<OperationResult<void>> requestLogin(String identityId) async {
-    await _lag();
-    return const OperationSuccess<void>(null);
-  }
-
-  /// En essai, n'importe quel code est accepté (aucun email n'est envoyé).
-  @override
-  Future<OperationResult<AuthSession>> completeLogin({required String identityId, required String code}) async {
+  Future<OperationResult<AuthSession>> verifyCode({required String login, required String code}) async {
     await _lag();
     final AuthSession s = AuthSession(
-      identityId: identityId.isEmpty ? 'essai@kombe.app' : identityId,
+      identityId: login.isEmpty ? 'essai@kombe.app' : login,
       accountStatus: AccountStatus.active,
       expiresAtUtc: DateTime.now().toUtc().add(const Duration(days: 30)),
     );
@@ -157,13 +157,6 @@ final class FakeAuthRepository implements AuthRepository {
     _ctrl.add(ResourceReady<AuthSession?>(s));
     return OperationSuccess<AuthSession>(s);
   }
-
-  @override
-  Future<OperationResult<void>> requestRecovery(String identityId) async => const OperationSuccess<void>(null);
-
-  @override
-  Future<OperationResult<void>> completeRecovery({required String identityId, required String code}) async =>
-      const OperationSuccess<void>(null);
 
   @override
   Future<OperationResult<void>> signOut() async {
@@ -174,6 +167,15 @@ final class FakeAuthRepository implements AuthRepository {
 }
 
 final class FakeProfileRepository implements ProfileRepository {
+  @override
+  Future<Uint8List?> loadPhoto(int version, int size) async => null;
+
+  @override
+  Future<OperationResult<int>> setPhoto(Uint8List jpeg512, Uint8List jpeg256) async => const OperationSuccess<int>(1);
+
+  @override
+  Future<OperationResult<void>> removePhoto() async => const OperationSuccess<void>(null);
+
   UserProfile _p = const UserProfile(identityId: 'essai@kombe.app', displayName: 'Amina Ngué', phoneE164: '+237670123456', localeCode: 'fr');
 
   @override
@@ -187,12 +189,6 @@ final class FakeProfileRepository implements ProfileRepository {
     await _lag();
     _p = UserProfile(identityId: _p.identityId, displayName: displayName, phoneE164: _p.phoneE164, localeCode: localeCode);
     return OperationSuccess<UserProfile>(_p);
-  }
-
-  @override
-  Future<OperationResult<void>> changePin({required String currentPin, required String newPin}) async {
-    await _lag();
-    return const OperationSuccess<void>(null);
   }
 }
 
@@ -243,7 +239,7 @@ final class FakeGroupRepository implements GroupRepository {
   Future<Resource<CycleDetails>> getCycle(String groupId) async {
     await _lag();
     final GroupSummary? g = _g(groupId);
-    if (g == null) return const ResourceUnavailable<CycleDetails>();
+    if (g == null || g.cycleTotal == 0) return const ResourceUnavailable<CycleDetails>();
     final List<BeneficiaryTurn> turns = <BeneficiaryTurn>[
       for (int i = 0; i < g.cycleTotal; i++)
         BeneficiaryTurn(
@@ -277,44 +273,161 @@ final class FakeGroupRepository implements GroupRepository {
     return const OperationSuccess<void>(null);
   }
 
+  final Map<String, Uint8List> photos = <String, Uint8List>{};
+
   @override
-  Future<OperationResult<void>> inviteMember({required String groupId, required String phoneE164}) async {
+  Future<OperationResult<GroupInvitation>> createInvitation(String groupId) async {
+    await _lag();
+    return OperationSuccess<GroupInvitation>(GroupInvitation(
+      invitationId: 'essai-inv-1',
+      code: 'ESSAI234',
+      url: 'https://kombe.example/#/rejoindre/ESSAI234',
+      whatsappText: 'Rejoins notre tontine sur KÓMBE : https://kombe.example/#/rejoindre/ESSAI234 (code ESSAI234).',
+      expiresAtUtc: DateTime.now().toUtc().add(const Duration(days: 14)),
+      maxUses: 30,
+      usedCount: 0,
+    ));
+  }
+
+  @override
+  Future<Uint8List?> loadMemberPhoto(String groupId, String memberId, int version, int size) async => null;
+
+  @override
+  Future<Uint8List?> loadPhoto(String groupId, int version, int size) async => photos['$groupId:$size'];
+
+  @override
+  Future<OperationResult<int>> setPhoto(String groupId, Uint8List jpeg512, Uint8List jpeg256) async {
+    photos['$groupId:512'] = jpeg512;
+    photos['$groupId:256'] = jpeg256;
+    return const OperationSuccess<int>(1);
+  }
+
+  @override
+  Future<OperationResult<void>> removePhoto(String groupId) async {
+    photos.removeWhere((String k, _) => k.startsWith('$groupId:'));
+    return const OperationSuccess<void>(null);
+  }
+
+  @override
+  Future<OperationResult<void>> decideAdmission({required String groupId, required String membershipId, required bool admit}) async {
     await _lag();
     return const OperationSuccess<void>(null);
   }
 
   @override
-  Future<OperationResult<String>> createGroup({
+  Future<OperationResult<void>> proposeRole({required String groupId, required String membershipId, required String role}) async {
+    await _lag();
+    return const OperationSuccess<void>(null);
+  }
+
+  @override
+  Future<OperationResult<void>> acceptRole({required String groupId, required String role}) async {
+    await _lag();
+    return const OperationSuccess<void>(null);
+  }
+
+  TontineStatutes _statutes() => TontineStatutes(
+        version: 1,
+        title: 'Statuts du groupe (fictifs)',
+        body: 'Article 1 — Objet.\nArticle 2 — Cotisations.',
+        hash: List<String>.filled(64, 'a').join(),
+        publishedAtUtc: w.nextDue.subtract(const Duration(days: 10)),
+        acceptedByMe: false,
+        acceptedCount: 3,
+        expectedCount: 12,
+        deadline: StatutesDeadline(deadlineAtUtc: w.nextDue, acceptanceDays: 7, onExpiry: StatutesOnExpiry.exclude),
+        myDeadlineAtUtc: w.nextDue,
+      );
+
+  @override
+  Future<Resource<TontineStatutes?>> getStatutes(String groupId) async {
+    await _lag();
+    return ResourceReady<TontineStatutes?>(_statutes());
+  }
+
+  @override
+  Future<OperationResult<TontineStatutes>> acceptStatutes({required String groupId, required String hash}) async {
+    await _lag();
+    return OperationSuccess<TontineStatutes>(_statutes());
+  }
+
+  @override
+  Future<OperationResult<TontineStatutes>> publishStatutes({
     required String groupId,
-    required String displayName,
-    required String tontineModel,
-    required String rotationType,
-    String? parentGroupId,
+    required int acceptanceDays,
+    required StatutesOnExpiry onExpiry,
   }) async {
+    await _lag();
+    return OperationSuccess<TontineStatutes>(_statutes());
+  }
+
+  @override
+  Future<OperationResult<TontineStatutes>> extendStatutesDeadline({
+    required String groupId,
+    required int extendDays,
+    StatutesOnExpiry? onExpiry,
+  }) async {
+    await _lag();
+    return OperationSuccess<TontineStatutes>(_statutes());
+  }
+
+  @override
+  Future<OperationResult<int>> remindStatutes(String groupId) async {
+    await _lag();
+    return const OperationSuccess<int>(9);
+  }
+
+  @override
+  Future<OperationResult<String>> createGroup(TontineCreation draft) async {
     await _lag();
     w.groups.insert(
       0,
       GroupSummary(
-        id: groupId,
-        name: displayName,
+        id: 'grp-fake-${w.groups.length + 1}',
+        name: draft.name,
         role: GroupRole.administrator,
         memberCount: 1,
         cycleIndex: 0,
-        cycleTotal: 1,
-        contributionAmountXaf: 0,
+        cycleTotal: 0,
+        contributionAmountXaf: int.tryParse(draft.contributionPerShare) ?? 0,
         nextDueAtUtc: w.nextDue,
       ),
     );
-    return OperationSuccess<String>(groupId);
+    return const OperationSuccess<String>('grp-fake-1');
   }
 
   @override
-  Future<Resource<List<DiscoverableGroup>>> listDiscoverable() async {
+  Future<OperationResult<void>> startCycle(String groupId, CycleOrderKind order) async {
     await _lag();
-    return const ResourceReady<List<DiscoverableGroup>>(<DiscoverableGroup>[
-      DiscoverableGroup(groupId: 'decouvrir-1', name: 'Tontine des artisans', tontineModel: 'collegues', rotationType: 'rotative_fermee'),
-      DiscoverableGroup(groupId: 'decouvrir-2', name: 'Épargne construction', tontineModel: 'construction', rotationType: 'rotative_fermee'),
-    ]);
+    return _planifierCycle(groupId, order);
+  }
+
+  @override
+  Future<OperationResult<void>> renewCycle(String groupId, CycleOrderKind order) async {
+    await _lag();
+    return _planifierCycle(groupId, order);
+  }
+
+  Future<OperationResult<void>> _planifierCycle(String groupId, CycleOrderKind order) async {
+    final GroupSummary? g = _g(groupId);
+    if (g == null) return const OperationFailure<void>(ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE'));
+    if (g.memberCount < 2) {
+      return const OperationFailure<void>(
+        ApiFailure(statusCode: 409, code: 'CYCLE_START_NOT_READY', message: 'Au moins deux membres actifs'),
+      );
+    }
+    final int index = w.groups.indexOf(g);
+    w.groups[index] = GroupSummary(
+      id: g.id,
+      name: g.name,
+      role: g.role,
+      memberCount: g.memberCount,
+      cycleIndex: 1,
+      cycleTotal: g.cycleIndex > 0 ? g.cycleTotal : g.memberCount,
+      contributionAmountXaf: g.contributionAmountXaf,
+      nextDueAtUtc: w.nextDue,
+    );
+    return const OperationSuccess<void>(null);
   }
 
   @override
@@ -325,23 +438,10 @@ final class FakeGroupRepository implements GroupRepository {
         MemberGroup(
           groupId: g.id,
           displayName: g.name,
-          tontineModel: 'famille',
-          rotationType: 'rotative_fermee',
           groupState: 'active',
           membershipState: 'active',
         ),
     ]);
-  }
-
-  @override
-  Future<OperationResult<void>> requestSponsorship({
-    required String groupId,
-    required String sponsorshipId,
-    required String candidateId,
-    required String sponsorId,
-  }) async {
-    await _lag();
-    return const OperationSuccess<void>(null);
   }
 }
 
@@ -366,27 +466,36 @@ final class FakeContributionRepository implements ContributionRepository {
     return const ResourceUnavailable<Contribution>();
   }
 
+  @override
+  Future<Resource<List<OpenDue>>> openDues(String groupId) async => const ResourceReady<List<OpenDue>>(<OpenDue>[
+        OpenDue(fundId: 'f_rot', fundName: 'Cagnotte', fundKind: 'rotation', roundSeq: 3, remainingXaf: 25000, late: false),
+        OpenDue(fundId: 'f_sec', fundName: 'Secours', fundKind: 'solidarity', roundSeq: 3, remainingXaf: 1000, late: false),
+      ]);
+
   /// La déclaration rejoint l'historique « en attente » — jamais « validée ».
   @override
-  Future<OperationResult<Contribution>> submitDraft(ContributionDraft draft) async {
+  Future<DeclarationReceipt> sendDeclaration(ContributionDraft draft) async {
     await _lag(700);
-    final Contribution c = Contribution(
-      id: w.nextId('cot'),
-      groupId: draft.groupId,
-      obligationId: w.nextId('obl'),
-      amountXaf: draft.amountXaf,
-      status: ContributionStatus.submitted,
-      channel: draft.channel,
-      declaredAtUtc: DateTime.now().toUtc(),
-      note: draft.note,
-      evidenceName: draft.evidencePath?.split(RegExp(r'[\\/]')).last,
-    );
-    w.history.add(c);
-    w.notifications.insert(
-      0,
-      KombeNotification(id: w.nextId('n'), kind: NotificationKind.contribution, title: 'Votre déclaration a été envoyée', body: 'En attente de validation', createdAtUtc: DateTime.now().toUtc(), read: false),
-    );
-    return OperationSuccess<Contribution>(c);
+    final List<DeclarationLine> lines = <DeclarationLine>[];
+    for (final DeclarationLine l in draft.plan) {
+      if (l.recorded) {
+        lines.add(l);
+        continue;
+      }
+      final String id = w.nextId('cot');
+      w.history.add(Contribution(
+        id: id,
+        groupId: draft.groupId,
+        obligationId: w.nextId('obl'),
+        amountXaf: l.amountXaf,
+        status: ContributionStatus.submitted,
+        channel: draft.channel,
+        declaredAtUtc: DateTime.now().toUtc(),
+        note: draft.reference,
+      ));
+      lines.add(l.recordedAs(id));
+    }
+    return DeclarationReceipt(lines: lines);
   }
 }
 
@@ -411,7 +520,7 @@ final class FakeGovernanceRepository implements GovernanceRepository {
   }
 
   @override
-  Future<OperationResult<void>> decideValidation({required String contributionId, required int expectedVersion, required ValidationDecision decision}) async {
+  Future<OperationResult<void>> decideValidation({required String contributionId, required int expectedVersion, required ValidationDecision decision, String? reason}) async {
     await _lag(600);
     w.pending.removeWhere((ValidationItem v) => v.contributionId == contributionId);
     return const OperationSuccess<void>(null);
@@ -451,42 +560,88 @@ final class FakeGovernanceRepository implements GovernanceRepository {
   }
 }
 
-final class FakeDisputeRepository implements DisputeRepository {
-  FakeDisputeRepository(this.w);
+final class FakeFineRepository implements FineRepository {
+  FakeFineRepository(this.w);
   final FakeWorld w;
 
   @override
-  Future<Resource<List<DisputeSummary>>> listDisputes() async {
+  Future<Resource<List<MyFine>>> listMyFines() async {
     await _lag();
-    return ResourceReady<List<DisputeSummary>>(List<DisputeSummary>.unmodifiable(w.disputes));
+    return ResourceReady<List<MyFine>>(List<MyFine>.unmodifiable(w.fines));
   }
 
   @override
-  Future<Resource<DisputeDetails>> getDispute(String disputeId) async {
-    await _lag(250);
-    for (final DisputeSummary d in w.disputes) {
-      if (d.id == disputeId) {
-        return ResourceReady<DisputeDetails>(DisputeDetails(
-          summary: d,
-          description: 'La cotisation de mars n’apparaît pas dans l’historique alors que le membre affirme l’avoir versée.',
-          timeline: <DisputeTimelineEntry>[
-            DisputeTimelineEntry(label: 'Litige ouvert', atUtc: d.openedAtUtc),
-            DisputeTimelineEntry(label: 'Justificatif demandé au membre', atUtc: d.openedAtUtc.add(const Duration(days: 1))),
-            DisputeTimelineEntry(label: 'Examen par le contrôleur', atUtc: d.openedAtUtc.add(const Duration(days: 3))),
-          ],
-        ));
-      }
-    }
-    return const ResourceUnavailable<DisputeDetails>();
-  }
-
-  @override
-  Future<OperationResult<DisputeSummary>> openDispute({required String groupId, required String subject, required String description, String? relatedOperationId}) async {
+  Future<OperationResult<MyFine>> contestFine({required MyFine fine, required String reason}) async {
     await _lag(600);
-    final DisputeSummary d = DisputeSummary(id: w.nextId('lit'), groupId: groupId, subject: subject, status: DisputeStatus.open, openedAtUtc: DateTime.now().toUtc());
-    w.disputes.insert(0, d);
-    return OperationSuccess<DisputeSummary>(d);
+    final MyFine c = MyFine(
+      fineId: fine.fineId,
+      groupId: fine.groupId,
+      groupName: fine.groupName,
+      kind: fine.kind,
+      amountXaf: fine.amountXaf,
+      reason: fine.reason,
+      state: FineState.contested,
+      issuedAtUtc: fine.issuedAtUtc,
+      issuedByName: fine.issuedByName,
+    );
+    w.fines[w.fines.indexWhere((MyFine f) => f.fineId == fine.fineId)] = c;
+    return OperationSuccess<MyFine>(c);
   }
+  @override
+  Future<Resource<List<MyFine>>> listGroupFines({required String groupId, required String groupName}) async {
+    await _lag();
+    return ResourceReady<List<MyFine>>(List<MyFine>.unmodifiable(w.fines.where((MyFine f) => f.groupId == groupId)));
+  }
+
+  @override
+  Future<OperationResult<MyFine>> cancelFine({required MyFine fine, required String reason}) async => OperationSuccess<MyFine>(fine);
+
+  @override
+  Future<OperationResult<MyFine>> refundFine({required MyFine fine, required String channel, String? reference}) async => OperationSuccess<MyFine>(fine);
+}
+
+final class FakeMeetingRepository implements MeetingRepository {
+  FakeMeetingRepository();
+
+  static MeetingDetail _detail(String groupId, int seq, MeetingState state) => MeetingDetail(
+        meetingId: 'essai-seance-$seq',
+        groupId: groupId,
+        seq: seq,
+        date: DateTime.utc(2026, 8 + seq, 15),
+        state: state,
+        minutesApproved: state == MeetingState.closed,
+        location: 'Chez Mme Ngo, Bonamoussadi',
+        hostName: 'Amina Tchoua',
+        roundSeq: seq,
+        attendance: const <MeetingAttendance>[
+          MeetingAttendance(membershipId: 'essai-membre-1', displayName: 'Amina Tchoua', status: AttendanceStatus.present),
+          MeetingAttendance(membershipId: 'essai-membre-2', displayName: 'Paul Abega', status: AttendanceStatus.late),
+          MeetingAttendance(membershipId: 'essai-membre-3', displayName: 'Serge Nkoué', status: AttendanceStatus.excused),
+        ],
+        minutes: state == MeetingState.closed ? const MeetingMinutes(text: 'La séance s’est tenue. Le tour a été remis à son bénéficiaire devant les membres présents.') : null,
+      );
+
+  @override
+  Future<Resource<List<MeetingSummary>>> listMeetings(String groupId) async {
+    await _lag();
+    return ResourceReady<List<MeetingSummary>>(<MeetingSummary>[_detail(groupId, 4, MeetingState.planned), _detail(groupId, 3, MeetingState.closed), _detail(groupId, 2, MeetingState.closed)]);
+  }
+
+  @override
+  Future<Resource<MeetingDetail>> getMeeting({required String groupId, required String meetingId}) async {
+    await _lag();
+    return ResourceReady<MeetingDetail>(_detail(groupId, 3, MeetingState.closed));
+  }
+
+  @override
+  Future<OperationResult<MeetingDetail>> updateMeeting({
+    required String groupId,
+    required String meetingId,
+    required MeetingFormat format,
+    String? onlineUrl,
+    String? location,
+  }) async =>
+      const OperationBlocked<MeetingDetail>('Indisponible');
 }
 
 final class FakeNotificationRepository implements NotificationRepository {
@@ -504,7 +659,18 @@ final class FakeNotificationRepository implements NotificationRepository {
     final int i = w.notifications.indexWhere((KombeNotification n) => n.id == notificationId);
     if (i >= 0) {
       final KombeNotification n = w.notifications[i];
-      w.notifications[i] = KombeNotification(id: n.id, kind: n.kind, title: n.title, body: n.body, createdAtUtc: n.createdAtUtc, read: true);
+      w.notifications[i] = n.markedRead();
+    }
+    return const OperationSuccess<void>(null);
+  }
+
+  @override
+  Future<int> unreadCount() async => w.notifications.where((KombeNotification n) => !n.read).length;
+
+  @override
+  Future<OperationResult<void>> markAllRead() async {
+    for (int i = 0; i < w.notifications.length; i++) {
+      w.notifications[i] = w.notifications[i].markedRead();
     }
     return const OperationSuccess<void>(null);
   }
@@ -520,12 +686,6 @@ final class FakeDocumentRepository implements DocumentRepository {
       KombeDocument(id: 'd2', kind: DocumentKind.cycleReport, title: 'Relevé du cycle — tours 1 à 3', createdAtUtc: now.subtract(const Duration(days: 8)), downloadUri: Uri.parse('about:blank')),
     ]);
   }
-
-  @override
-  Future<Resource<List<KombeDocument>>> listExports() async {
-    await _lag();
-    return const ResourceReady<List<KombeDocument>>(<KombeDocument>[]);
-  }
 }
 
 final class FakeDashboardRepository implements DashboardRepository {
@@ -533,23 +693,85 @@ final class FakeDashboardRepository implements DashboardRepository {
   final FakeWorld w;
 
   @override
-  Future<Resource<DashboardData>> loadDashboard() async {
+  Future<Resource<HomeData>> loadHome(GroupSummary group) async {
     await _lag(500);
-    final int declared = w.history
-        .where((Contribution c) => c.declaredAtUtc != null && c.declaredAtUtc!.month == DateTime.now().toUtc().month)
-        .fold<int>(0, (int s, Contribution c) => s + c.amountXaf);
-    return ResourceReady<DashboardData>(DashboardData(
-      primaryGroup: w.groups.first,
-      nextContributionAtUtc: w.nextDue,
-      currentMonthDeclaredXaf: declared,
-      progressPercent: declared == 0 ? 0 : 100,
-      recentActivity: w.notifications.take(4).toList(),
+    return ResourceReady<HomeData>(HomeData(
+      group: group,
+      dues: const <OpenDue>[
+        OpenDue(fundId: 'f_rot', fundName: 'Cagnotte', fundKind: 'rotation', roundSeq: 3, remainingXaf: 25000, late: false),
+        OpenDue(fundId: 'f_sec', fundName: 'Secours', fundKind: 'solidarity', roundSeq: 3, remainingXaf: 1000, late: false),
+      ],
+      nextDueDate: w.nextDue,
+      pendingDeclaredXaf: 15000,
+      pendingDeclarations: 1,
+      toValidate: group.role == GroupRole.member ? 0 : 2,
+      votes: <PendingVote>[PendingVote(id: 'essai-vote-1', title: 'Pause des séances', closesAtUtc: w.nextDue)],
+      nextMeetingDate: w.nextDue,
+      nextMeetingPlace: 'Chez Mme Ngo, Bonamoussadi',
+      recent: w.notifications.take(3).toList(),
     ));
   }
 }
 
 /// Dépendances complètes de l'app branchées sur les dépôts factices (tests uniquement).
-AppDependencies fakeDependencies() {
+/// Brouillons en mémoire (pas de SQLite dans les tests de widgets).
+final class InMemoryDraftRepository implements ContributionDraftRepository {
+  final Map<String, ContributionDraft> store = <String, ContributionDraft>{};
+  @override
+  Future<List<ContributionDraft>> listDrafts() async => store.values.toList();
+  @override
+  Future<ContributionDraft?> getDraft(String localId) async => store[localId];
+  @override
+  Future<void> upsertDraft(ContributionDraft draft) async => store[draft.localId] = draft;
+  @override
+  Future<void> deleteDraft(String localId) async => store.remove(localId);
+  @override
+  Future<void> purgeAll() async => store.clear();
+}
+
+/// Caisses factices : règlement, caisse propre avec objectif, caisse clôturée.
+class FakeFundRepository implements FundRepository {
+  const FakeFundRepository();
+
+  @override
+  Future<Resource<GroupFunds>> listFunds(String groupId) async => const ResourceReady<GroupFunds>(
+        GroupFunds(
+          canManage: true,
+          funds: <GroupFund>[
+            GroupFund(id: 'f_rot', kind: 'rotation', name: 'Cagnotte', closed: false, confirmedXaf: 225000, pendingXaf: 15000, perMeetingXaf: 25000),
+            GroupFund(id: 'f_sec', kind: 'solidarity', name: 'Secours', closed: false, confirmedXaf: 48000, pendingXaf: 0, perMeetingXaf: 1000),
+            GroupFund(
+              id: 'f_fete',
+              kind: 'custom',
+              name: 'Fête de fin d’année',
+              closed: false,
+              confirmedXaf: 180000,
+              pendingXaf: 0,
+              perMeetingXaf: 0,
+              custom: CustomFundRules(mode: FundMode.eachMeeting, currentAmountXaf: 2000, purpose: 'Repas et salle du 27 décembre.', targetXaf: 300000),
+            ),
+            GroupFund(
+              id: 'f_ach',
+              kind: 'custom',
+              name: 'Achat groupé de chaises',
+              closed: true,
+              confirmedXaf: 60000,
+              pendingXaf: 0,
+              perMeetingXaf: 0,
+              custom: CustomFundRules(mode: FundMode.oneTime, currentAmountXaf: 5000, closedOn: '2026-09-30'),
+            ),
+          ],
+        ),
+      );
+
+  @override
+  Future<OperationResult<void>> createFund(String groupId, FundCreation creation) async => const OperationSuccess<void>(null);
+
+  @override
+  Future<OperationResult<void>> closeFund(String groupId, String fundId) async => const OperationSuccess<void>(null);
+}
+
+AppDependencies fakeDependencies({ContributionDraftRepository? drafts}) {
   final FakeWorld world = FakeWorld();
   return AppDependencies(
     authRepository: FakeAuthRepository(),
@@ -557,13 +779,15 @@ AppDependencies fakeDependencies() {
     groupRepository: FakeGroupRepository(world),
     contributionRepository: FakeContributionRepository(world),
     governanceRepository: FakeGovernanceRepository(world),
-    disputeRepository: FakeDisputeRepository(world),
+    fineRepository: FakeFineRepository(world),
+    meetingRepository: FakeMeetingRepository(),
     notificationRepository: FakeNotificationRepository(world),
     documentRepository: FakeDocumentRepository(),
+    fundRepository: const FakeFundRepository(),
     dashboardRepository: FakeDashboardRepository(world),
-    draftRepository: ContributionDraftDatabase(),
+    draftRepository: drafts ?? ContributionDraftDatabase(),
     preferencesRepository: PreferencesRepositoryImpl(SharedPreferencesAsync()),
     biometricService: BiometricService(LocalAuthentication()),
-    secureSessionStore: const SecureSessionStore(FlutterSecureStorage()),
+    secureSessionStore: SecureSessionStore(const FlutterSecureStorage()),
   );
 }

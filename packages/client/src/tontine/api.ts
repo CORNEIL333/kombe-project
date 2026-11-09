@@ -10,6 +10,7 @@ import type {
   AidView,
   AuthCodeRequestResult,
   AuthSessionResult,
+  CreateFundInput,
   CreateTontineInput,
   DebtView,
   DeclareMovementInput,
@@ -33,19 +34,28 @@ import type {
   TontineDetail,
   TontineSettings,
   TontineSummary,
+  UpdateFundInput,
   DecisionView,
   SanctionView,
   HistoryImportResult,
   HistorySummary,
   Cadence,
+  MeetingFormat,
+  PollView,
+  ShareNameView,
   PaymentChannel,
 } from "@kombe/domain";
 import { ApiClient, ApiError, loadRuntimeConfig } from "@kombe/dashboard-core";
-import { EnFileAttente, envoyerFile, estErreurReseau, mettreEnFile } from "./fileAttente.js";
+import { EnFileAttente, envoyerFile, estErreurReseau, mettreEnFile } from "./fileAttenteMoteur.js";
 
 export { ApiError };
 export type {
+  MeetingFormat,
+  PollView,
+  ShareNameView,
   AidView,
+  CreateFundInput,
+  UpdateFundInput,
   DebtView,
   DecisionView,
   HistoryImportResult,
@@ -119,7 +129,7 @@ function cleIdempotence(): string {
   return `k-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
-type Methode = "GET" | "POST" | "PUT" | "PATCH";
+type Methode = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /** Écriture gardable sans réseau (mode séance, L-05) : groupe + libellé affiché. */
 interface HorsLigne {
@@ -157,6 +167,30 @@ async function appel<T>(
   }
 }
 
+/** Photo d'un groupe : octets JPEG lus avec la session (jamais d'URL publique). */
+async function lireJpeg(session: Session, chemin: string, version: number, taille: 256 | 512): Promise<Blob | null> {
+  const config = await loadRuntimeConfig();
+  const base = config.apiBaseUrl.replace(/\/+$/, "");
+  const r = await fetch(`${base}${chemin}?size=${taille}&v=${version}`, { headers: { authorization: `Bearer ${session.sessionId}` } });
+  if (!r.ok) return null;
+  const blob = await r.blob();
+  return blob.type === "image/jpeg" ? blob : null;
+}
+
+export function lirePhotoGroupe(session: Session, groupId: string, version: number, taille: 256 | 512, viaInvitation?: string): Promise<Blob | null> {
+  return lireJpeg(session, viaInvitation ? `/v1/invitations/${encodeURIComponent(viaInvitation)}/photo` : `${t(groupId)}/photo`, version, taille);
+}
+
+/** Photo de profil d'un membre du groupe. */
+export function lirePhotoMembre(session: Session, groupId: string, membreId: string, version: number, taille: 256 | 512): Promise<Blob | null> {
+  return lireJpeg(session, `${t(groupId)}/members/${encodeURIComponent(membreId)}/photo`, version, taille);
+}
+
+/** Ma photo de profil. */
+export function lireMaPhoto(session: Session, version: number, taille: 256 | 512): Promise<Blob | null> {
+  return lireJpeg(session, "/v1/me/photo", version, taille);
+}
+
 /** Envoie les opérations gardées sur ce téléphone, avec leur clé d'origine. */
 export async function envoyerEnAttente(session: Session): Promise<{ envoyees: number; refusees: number; restantes: number }> {
   const api = await client();
@@ -177,19 +211,71 @@ const t = (id: string) => `/v1/tontines/${encodeURIComponent(id)}`;
 /* ── Accès ─────────────────────────────────────────────────────────────── */
 
 export const acces = {
-  canaux: () => appel<{ sms: boolean; whatsapp: boolean; email: boolean }>(null, "GET", "/v1/auth/channels"),
+  canaux: () => appel<{ sms: boolean; whatsapp: boolean; email: boolean; neonAuthUrl?: string | null }>(null, "GET", "/v1/auth/channels"),
+  /** Jeton Neon Auth (e-mail prouvé par Neon) → session KÓMBE (ADR-0040). */
   demanderCode: (login: string, channel?: "sms" | "whatsapp" | "email") =>
     appel<AuthCodeRequestResult>(null, "POST", "/v1/auth/code-requests", { login, ...(channel ? { channel } : {}) }),
   verifierCode: (login: string, code: string) => appel<AuthSessionResult>(null, "POST", "/v1/auth/code-verifications", { login, code }),
   deconnexion: (s: Session) => appel<void>(s, "POST", "/v1/auth/logout"),
   moi: (s: Session) => appel<MeView>(s, "GET", "/v1/me"),
+  changerMaPhoto: (s: Session, image512: string, image256: string) => appel<{ photoVersion: number }>(s, "PUT", "/v1/me/photo", { image512, image256 }),
+  retirerMaPhoto: (s: Session) => appel<{ photoVersion: null }>(s, "DELETE", "/v1/me/photo"),
   majMoi: (s: Session, maj: { displayName?: string; language?: "fr" | "en" }) => appel<MeView>(s, "PATCH", "/v1/me", maj),
   mesTontines: (s: Session) => appel<TontineSummary[]>(s, "GET", "/v1/me/tontines"),
   mesEcheances: (s: Session, groupId?: string) => appel<DueView[]>(s, "GET", "/v1/me/dues", undefined, { groupId }),
   notifications: (s: Session, nonLues = false) =>
     appel<NotificationView[]>(s, "GET", "/v1/me/notifications", undefined, nonLues ? { unread: "1" } : {}),
   marquerLues: (s: Session, ids: string[] | "all") => appel<void>(s, "POST", "/v1/me/notifications/read", { ids }),
+  /** Pastille légère (sondée chaque minute) : un nombre, pas la liste. */
+  nonLues: (s: Session) => appel<{ unread: number }>(s, "GET", "/v1/me/notifications/unread-count"),
+  /** Préférences de livraison hors application (ADR-0044). */
+  preferencesNotif: (s: Session) => appel<PreferencesNotif>(s, "GET", "/v1/me/notification-preferences"),
+  majPreferencesNotif: (s: Session, p: PreferencesNotifSaisie) => appel<PreferencesNotif>(s, "PUT", "/v1/me/notification-preferences", p),
 };
+
+/* ── Assistance : mes demandes au support (CRM, ADR-0046) ─────────────── */
+
+export const CATEGORIES_DEMANDE = ["connexion", "cotisation", "remise", "amende", "statuts", "application", "donnees_personnelles", "reclamation", "autre"] as const;
+export type CategorieDemande = (typeof CATEGORIES_DEMANDE)[number];
+export type StatutDemande = "nouveau" | "en_cours" | "attente_membre" | "resolu" | "ferme";
+export interface DemandeResume {
+  readonly ticketId: string;
+  readonly ref: string;
+  readonly subject: string;
+  readonly category: CategorieDemande;
+  readonly status: StatutDemande;
+  readonly groupName: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly satisfaction: number | null;
+}
+export interface DemandeDetail extends Omit<DemandeResume, "groupName"> {
+  readonly messages: readonly { readonly messageId: string; readonly from: "moi" | "support"; readonly body: string; readonly createdAt: string }[];
+}
+const st = (id: string) => `/v1/me/support-tickets/${encodeURIComponent(id)}`;
+export const assistance = {
+  mesDemandes: (s: Session) => appel<DemandeResume[]>(s, "GET", "/v1/me/support-tickets"),
+  ouvrir: (s: Session, d: { subject: string; category: CategorieDemande; body: string; groupId?: string }) =>
+    appel<{ ticketId: string; ref: string }>(s, "POST", "/v1/me/support-tickets", d),
+  demande: (s: Session, id: string) => appel<DemandeDetail>(s, "GET", st(id)),
+  repondre: (s: Session, id: string, body: string) => appel<{ messageId: string }>(s, "POST", `${st(id)}/messages`, { body }),
+  noter: (s: Session, id: string, score: number, comment?: string) =>
+    appel<{ rated: true }>(s, "POST", `${st(id)}/satisfaction`, { score, ...(comment ? { comment } : {}) }),
+};
+
+export interface PreferencesNotifSaisie {
+  readonly pushEnabled: boolean;
+  readonly smsEnabled: boolean;
+  readonly emailEnabled: boolean;
+  readonly quietStart: string | null;
+  readonly quietEnd: string | null;
+  readonly mutedKinds: readonly string[];
+}
+export interface PreferencesNotif extends PreferencesNotifSaisie {
+  readonly available: { readonly push: boolean; readonly sms: boolean; readonly email: boolean };
+  readonly devices: number;
+  readonly unread: number;
+}
 
 /* ── Association ───────────────────────────────────────────────────────── */
 
@@ -215,6 +301,10 @@ export const tontines = {
   invitations: (s: Session, id: string) => appel<InvitationView[]>(s, "GET", `${t(id)}/invitations`),
   revoquerInvitation: (s: Session, id: string, iid: string) =>
     appel<void>(s, "POST", `${t(id)}/invitations/${encodeURIComponent(iid)}/revocation`),
+  /** JPEG carrés 512/256 en base64, préparés par `preparerPhoto`. */
+  changerPhoto: (s: Session, id: string, image512: string, image256: string) =>
+    appel<{ photoVersion: number }>(s, "PUT", `${t(id)}/photo`, { image512, image256 }),
+  retirerPhoto: (s: Session, id: string) => appel<{ photoVersion: null }>(s, "DELETE", `${t(id)}/photo`),
   apercuInvitation: (s: Session, code: string) => appel<InvitationPreview>(s, "GET", `/v1/invitations/${encodeURIComponent(code)}`),
   rejoindre: (s: Session, code: string, displayName: string, sponsorMembershipId?: string) =>
     appel<TontineSummary>(s, "POST", `/v1/invitations/${encodeURIComponent(code)}/join`, {
@@ -227,7 +317,11 @@ export const tontines = {
 
 export const reglement = {
   statuts: (s: Session, id: string) => appel<StatutesView>(s, "GET", `${t(id)}/statutes`),
-  publier: (s: Session, id: string) => appel<StatutesView>(s, "POST", `${t(id)}/statutes`),
+  publier: (s: Session, id: string, opts: { acceptanceDays?: number; onExpiry?: "exclude" | "keep" } = {}) =>
+    appel<StatutesView>(s, "POST", `${t(id)}/statutes`, opts),
+  echeance: (s: Session, id: string, body: { extendDays?: number; onExpiry?: "exclude" | "keep" }) =>
+    appel<StatutesView>(s, "PATCH", `${t(id)}/statutes/deadline`, body),
+  relancer: (s: Session, id: string) => appel<{ reminded: number }>(s, "POST", `${t(id)}/statutes/reminders`),
   accepter: (s: Session, id: string, hash: string) => appel<StatutesView>(s, "POST", `${t(id)}/statutes/acceptance`, { hash }),
 };
 
@@ -285,12 +379,20 @@ export const seances = {
     appel<MeetingDetail>(s, "POST", `${t(id)}/meetings/${encodeURIComponent(mid)}/minutes-approval`, { hash }),
   /** Résumé prêt à coller dans le groupe WhatsApp (sans numéro de téléphone). */
   resume: (s: Session, id: string, mid: string) => appel<{ text: string }>(s, "GET", `${t(id)}/meetings/${encodeURIComponent(mid)}/share-text`),
+  /** Modalités (0041) : présentiel, en ligne (lien https) ou les deux, et le lieu. */
+  modifier: (s: Session, id: string, mid: string, maj: { format?: MeetingFormat; onlineUrl?: string | null; location?: string | null }) =>
+    appel<MeetingDetail>(s, "PATCH", `${t(id)}/meetings/${encodeURIComponent(mid)}`, maj),
 };
 
 /* ── Caisses et mouvements ─────────────────────────────────────────────── */
 
 export const argent = {
   caisses: (s: Session, id: string) => appel<FundView[]>(s, "GET", `${t(id)}/funds`),
+  /** Caisse ou cotisation propre à la tontine (bureau). */
+  creerCaisse: (s: Session, id: string, input: CreateFundInput) => appel<FundView[]>(s, "POST", `${t(id)}/funds`, input),
+  /** Nom, objet, objectif, nouveau montant pour l'avenir, clôture. */
+  modifierCaisse: (s: Session, id: string, fid: string, input: UpdateFundInput) =>
+    appel<FundView[]>(s, "PATCH", `${t(id)}/funds/${encodeURIComponent(fid)}`, input),
   mouvements: (s: Session, id: string, filtre: { fundId?: string; roundSeq?: number; state?: string; meetingId?: string; mine?: boolean } = {}) =>
     appel<MovementView[]>(s, "GET", `${t(id)}/movements`, undefined, {
       fundId: filtre.fundId,
@@ -381,6 +483,9 @@ export const discipline = {
     appel<FineView>(s, "POST", `${t(id)}/fines/${encodeURIComponent(fid)}/cancel`, { reason }),
   maintenir: (s: Session, id: string, fid: string, reason: string) =>
     appel<FineView>(s, "POST", `${t(id)}/fines/${encodeURIComponent(fid)}/maintain`, { reason }),
+  /** Amende payée puis annulée : la trésorerie rembourse le membre (0041). */
+  rembourser: (s: Session, id: string, fid: string, channel: PaymentChannel, reference?: string) =>
+    appel<FineView>(s, "POST", `${t(id)}/fines/${encodeURIComponent(fid)}/refund`, { channel, ...(reference ? { reference } : {}) }),
   secours: (s: Session, id: string) => appel<AidView[]>(s, "GET", `${t(id)}/aids`),
   demanderSecours: (s: Session, id: string, input: { beneficiaryMembershipId?: string; event: string; eventDate: string; note?: string }) =>
     appel<AidView>(s, "POST", `${t(id)}/aids`, input),
@@ -441,4 +546,57 @@ export function messageErreur(err: unknown): string {
 
 export function estSessionExpiree(err: unknown): boolean {
   return err instanceof ApiError && err.status === 401;
+}
+
+/* ── Votes libres (0041) : ouverts par tout membre, sans effet automatique ── */
+export interface OuvertureVote {
+  readonly question: string;
+  readonly details?: string;
+  readonly options: readonly string[];
+  readonly allowFreeAnswer?: boolean;
+  readonly multiple?: boolean;
+  readonly anonymous?: boolean;
+  readonly hours?: number;
+}
+export const votes = {
+  liste: (s: Session, id: string) => appel<PollView[]>(s, "GET", `${t(id)}/polls`),
+  ouvrir: (s: Session, id: string, input: OuvertureVote) => appel<PollView>(s, "POST", `${t(id)}/polls`, input),
+  repondre: (s: Session, id: string, pid: string, choices: readonly number[], freeAnswer?: string) =>
+    appel<PollView>(s, "PUT", `${t(id)}/polls/${encodeURIComponent(pid)}/ballot`, { choices, ...(freeAnswer ? { freeAnswer } : {}) }),
+  clore: (s: Session, id: string, pid: string) => appel<PollView>(s, "POST", `${t(id)}/polls/${encodeURIComponent(pid)}/close`),
+  annuler: (s: Session, id: string, pid: string) => appel<PollView>(s, "POST", `${t(id)}/polls/${encodeURIComponent(pid)}/cancel`),
+};
+
+/* ── Noms (0041) : une part = un nom à part entière ─────────────────────── */
+export const noms = {
+  liste: (s: Session, id: string) => appel<ShareNameView[]>(s, "GET", `${t(id)}/names`),
+  renommer: (s: Session, id: string, sid: string, label: string) => appel<ShareNameView>(s, "PATCH", `${t(id)}/names/${encodeURIComponent(sid)}`, { label }),
+};
+
+/**
+ * Export Excel du registre (bureau) : le fichier est lu avec la session en
+ * en-tête, puis enregistré depuis la mémoire — aucun jeton dans une URL.
+ */
+export async function telechargerExport(session: Session, groupId: string): Promise<void> {
+  const config = await loadRuntimeConfig();
+  const base = config.apiBaseUrl.replace(/\/+$/, "");
+  const r = await fetch(`${base}${t(groupId)}/export.xlsx`, { headers: { authorization: `Bearer ${session.sessionId}` } });
+  if (!r.ok) {
+    let corps: { message?: string; code?: string } | null = null;
+    try {
+      corps = (await r.json()) as { message?: string; code?: string };
+    } catch {
+      /* corps non JSON */
+    }
+    throw new ApiError(corps?.message ?? "Export impossible", r.status, corps, corps?.code ?? null, r.headers.get("x-correlation-id"));
+  }
+  const nom = /filename="([^"]+)"/.exec(r.headers.get("content-disposition") ?? "")?.[1] ?? "kombe.xlsx";
+  const url = URL.createObjectURL(await r.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nom;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }

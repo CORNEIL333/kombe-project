@@ -42,12 +42,14 @@ export const BUREAU_ROLES: readonly GroupRole[] = GROUP_ROLES.filter((r) => r !=
 
 export const TONTINE_ACTIONS = [
   "group.read",
+  "cycle.start",
   "group.manage",
   "member.invite",
   "member.admit",
   "member.remove",
   "role.assign",
   "rules.publish",
+  "group.photo",
   "schedule.manage",
   "meeting.manage",
   "meeting.attendance",
@@ -73,12 +75,17 @@ const TREASURY: readonly GroupRole[] = ["treasurer", "treasurer_deputy"];
 
 const MATRIX: Readonly<Record<TontineAction, readonly GroupRole[]>> = {
   "group.read": EVERYONE,
+  // Démarrage / renouvellement du cycle : acte de la présidence (le socle
+  // C03-BOOT le réservait au fondateur — dans L-11 le fondateur est Président).
+  "cycle.start": PRESIDENCY,
   "group.manage": ADMIN,
   "member.invite": ADMIN,
   "member.admit": PRESIDENCY,
   "member.remove": PRESIDENCY,
   "role.assign": PRESIDENCY,
   "rules.publish": ADMIN,
+  // Photo du groupe : présidence et secrétariat (comme le règlement).
+  "group.photo": ADMIN,
   "schedule.manage": ADMIN,
   "meeting.manage": ADMIN,
   "meeting.attendance": ["animator", "vice_president", "secretary", "censor"],

@@ -261,7 +261,7 @@ export const journalAppendBody = z.object({
   serverDate: z.string().date(),
   commandId: z.string().min(1).max(120),
   type: z.string().min(1).max(120),
-  body: z.record(z.union([
+  body: z.record(z.string(), z.union([
     z.number().int().min(0).max(9007199254740991),
     z.string().max(120),
   ])),

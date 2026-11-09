@@ -23,11 +23,12 @@ function blocked(reason) {
 const url = process.env.KOMBE_API_DATABASE_URL;
 if (!url) blocked("KOMBE_API_DATABASE_URL absente : aucune base PostgreSQL joignable (jamais simulé).");
 
-let buildApp, createApiPool, NullEmailSender;
+let buildApp, createApiPool, NullEmailSender, base32Decode, totpAt;
 try {
   ({ buildApp } = await import(pathToFileURL(resolve(distRoot, "server.js")).href));
   ({ createApiPool } = await import(pathToFileURL(resolve(distRoot, "db/pgPool.js")).href));
   ({ NullEmailSender } = await import(pathToFileURL(resolve(distRoot, "email/emailSender.js")).href));
+  ({ base32Decode, totpAt } = await import(pathToFileURL(resolve(distRoot, "ops/operatorAccess.js")).href));
 } catch (err) {
   blocked(`Build manquant (pnpm --filter @kombe/api build requis) : ${String(err?.message ?? err)}`);
 }
@@ -87,6 +88,10 @@ try {
   };
   await ok(O.token, "POST", "/v1/tontines", { name: `Groupe console ${run}`, founderDisplayName: "Opératrice", settings });
 
+  // Disponibilité : schéma attendu par le build appliqué ; corrélation sur chaque réponse.
+  const readyRes = await app.inject({ method: "GET", url: "/v1/health/ready" });
+  check("READY-SCHEMA-UP-TO-DATE", readyRes.statusCode === 200 && readyRes.json().schema?.upToDate === true, readyRes.json());
+  check("CORRELATION-ID-HEADER", /^[0-9a-f-]{36}$/.test(String(readyRes.headers["x-correlation-id"])), readyRes.headers["x-correlation-id"]);
   const me1 = await ok(O.token, "GET", "/v1/ops/me");
   check("OPS-ME-NOT-OPERATOR", me1.operator === false && me1.identityId === O.login, me1);
   const refused = await Promise.all(["/v1/ops/overview", "/v1/ops/kpis", "/v1/ops/groups", "/v1/ops/engineering", "/v1/ops/support-requests"].map((p) => call(O.token, "GET", p)));
@@ -95,14 +100,19 @@ try {
   check("OPS-401-ANON", anon.status === 401, anon.status);
 
   // Promotion par le VRAI script d'administration (sortie 0 attendue).
-  const grant = spawnSync(process.execPath, [resolve(here, "../../db/scripts/grant-operator.mjs"), O.login], {
-    env: { ...process.env, KOMBE_DATABASE_URL: url },
+  const grant = spawnSync(process.execPath, [resolve(here, "../../db/scripts/grant-operator.mjs"), O.login, "--roles=admin"], {
+    env: { ...process.env, KOMBE_DATABASE_URL: process.env.KOMBE_DATABASE_URL ?? url },
     encoding: "utf8",
   });
   check("GRANT-OPERATOR-SCRIPT", grant.status === 0 && /"isOperator": true/.test(grant.stdout), { code: grant.status, out: grant.stdout, err: grant.stderr });
 
   const me2 = await ok(O.token, "GET", "/v1/ops/me");
-  check("OPS-ME-OPERATOR", me2.operator === true, me2);
+  check("OPS-ME-OPERATOR", me2.operator === true && me2.roles.includes("admin"), me2);
+  // Second facteur obligatoire (ADR-0043) : 403 tant qu'il n'est pas activé et vérifié.
+  const noMfa = await call(O.token, "GET", "/v1/ops/overview");
+  check("OPS-MFA-REQUIRED", noMfa.status === 403 && noMfa.body?.code === "OPERATOR_MFA_REQUIRED", noMfa);
+  const enr = await ok(O.token, "POST", "/v1/ops/mfa/enrollment");
+  await ok(O.token, "POST", "/v1/ops/mfa/activation", { code: totpAt(base32Decode(enr.secret), Date.now()) });
   const ov = await ok(O.token, "GET", "/v1/ops/overview");
   check(
     "OPS-OVERVIEW",

@@ -51,7 +51,13 @@ function check(name, cond, detail) {
 
 // Même liste canonique que migrate.mjs / isolation.pg.mjs ( Down : inversé ).
 const DOWN = [
-  "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql",
+  "migrations/0043_retours_membres.down.sql", "migrations/0042_securite_residuelle.down.sql", "migrations/0041_crm.down.sql",
+  "migrations/0040_performance_charge.down.sql",
+  "migrations/0039_role_api.down.sql",
+  "migrations/0038_notifications_livraison.down.sql",
+  "migrations/0037_rls_identite.down.sql",
+  "migrations/0036_securite_operateurs.down.sql",
+  "migrations/0035_member_photo.down.sql", "migrations/0034_group_photo.down.sql", "migrations/0034_echeances_notifications.down.sql", "migrations/0033_custom_funds.down.sql", "migrations/0032_audit_indexes.down.sql", "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql",
   "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql",
   "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql",
   "migrations/0017_pilot_metrics.down.sql", "migrations/0016_privacy_law.down.sql",
@@ -65,7 +71,7 @@ const DOWN = [
   "migrations/0001_init.down.sql",
 ];
 
-const EXPECTED_JALONS = 33; // roles_create.sql + 31 migrations (0001..0031) + roles.sql
+const EXPECTED_JALONS = 46; // roles_create.sql + 44 fichiers de migration (0001..0043, dont deux 0034) + roles.sql
 
 try {
   await client.connect();

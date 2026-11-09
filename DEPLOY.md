@@ -163,12 +163,11 @@ propriétaire. Tant qu'une étape n'a pas tourné, son verdict reste PENDING
 
 | # | Étape | Plateforme | Débloque |
 |---|---|---|---|
-| 1 | Base `kombe_prod` + migrations (§7.1) — **EXÉCUTÉ 2026-10-08** | Neon | tout |
-| 2 | API (§7.2) | Vercel | URL publique `https://<api>.vercel.app` |
-| 3 | Config dashboards → URL API (§7.3) | dépôt | builds dashboards |
-| 4 | Dashboards opérations/direction/engineering (§7.3) | Cloudflare Pages | front métier |
-| 5 | PWA (§7.4) + dashboard admin (§7.5) | Vercel | front public |
-| 6 | Smoke réel (§7.7) | CI/hôte | verdict §41/§43 |
+| 1 | Base `kombe_prod` + migrations (§7.1) — **EXÉCUTÉ 2026-10-08, 27 jalons au 2026-10-09** | Neon | tout |
+| 2 | Projet Vercel **unique** : site + PWA + 4 tableaux de bord + API (§7.2) | Vercel | tout le front + `/v1/*` à la même origine |
+| 3 | Pipeline CI GitHub Actions (§7.2.3) — déploie à chaque push master | GitHub Actions | déploiement machine éteinte |
+| 4 | Smoke réel (§7.7, intégré au workflow) | CI | verdict §41/§43 |
+| 5 | Domaines publics (§7.6.4) | DNS propriétaire | URL définitives |
 
 ### 7.1 Neon — base de production
 
@@ -203,110 +202,198 @@ quand le propriétaire crée le projet séparé.
 4. La chaîne `KOMBE_API_DATABASE_URL` de l'API (Vercel) =
    valeur de `KOMBE_PROD_API_DATABASE_URL` dans `.env.prod`.
 
-### 7.2 API — Vercel serverless
+### 7.2 Site + API — LE projet Vercel unique (architecture v3, 2026-10-09)
 
-`vercel.json` (racine) et `api/serverless.js` sont versionnés : build
-`@kombe/api` (inclut `@kombe/domain`), rewrite `/v1/:path*` → `/api/serverless`.
+**Un seul projet Vercel sert tout, à la même origine** (plus de CORS, plus
+d'URL collée au build) : `scripts/build-web.mjs` assemble `dist-web/` —
+`/` PWA (packages/client), `/bureau/`, `/crm/` (ADR-0046 ; `/ops/`, `/direction/`,
+`/engineering/` y redirigent),
+`/site/` — et `vercel.json` racine route `/v1/:path*` vers la fonction
+serverless (`api/serverless.js`). Le build Vercel (`scripts/vercel-build.mjs`)
+compile l'API, assemble le web, et en production applique les migrations
+manquantes avec le vrai runner (idempotent) via `KOMBE_MIGRATION_DATABASE_URL`.
 
-1. Projet Vercel : importer le dépôt, Root Directory = **racine du dépôt**,
-   framework « Other » (déjà fixé par `vercel.json`).
+1. Projet Vercel : importer le dépôt, Root Directory = **racine du dépôt**
+   (déjà décrit par `vercel.json`) — ou laisser la CI GitHub le déployer (§7.2.3).
 2. Variables d'environnement **Production** :
-   | Var | Valeur |
+   | Var | Rôle |
    |---|---|
-   | `KOMBE_API_DATABASE_URL` | chaîne `kombe_app` (§7.1.5) |
-   | `KOMBE_CORS_ORIGINS` | origines front exactes, séparées par virgules (§7.6.4) |
-   | `RESEND_API_KEY` / `KOMBE_EMAIL_FROM` | email transactionnel (déjà gérés, `.env.example`) |
-3. Deploy. Vérifications réelles obligatoires avant toute suite :
-   - `GET https://<api>.vercel.app/v1/health` → `{"status":"ok","mode":"réel"}`
-   - `GET https://<api>.vercel.app/v1/health/ready` → `{"status":"ready","mode":"réel"}`
+   | `KOMBE_API_DATABASE_URL` | runtime API : chaîne `kombe_app` (§7.1.4) |
+   | `KOMBE_MIGRATION_DATABASE_URL` | migrations auto du build prod : chaîne migrateur/owner |
+   | `RESEND_API_KEY` / `KOMBE_EMAIL_FROM` | email transactionnel (`.env.example`) |
+3. **Pipeline CI GitHub Actions (machine éteinte)** —
+   `.github/workflows/deploy-vercel.yml` : à chaque push sur master, déploie
+   `--prod` puis enchaîne le smoke §22 contre l'URL déployée. Secrets requis
+   (Settings → Secrets and variables → Actions) : `VERCEL_TOKEN`,
+   `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `KOMBE_API_DATABASE_URL`,
+   `KOMBE_MIGRATION_DATABASE_URL`. Sans secrets, le job s'ignore proprement
+   (warning) — jamais de déploiement à moitié configuré.
+4. Vérifications réelles obligatoires après premier déploiement :
+   - `GET https://<projet>.vercel.app/v1/health` → `{"status":"ok","mode":"réel"}`
+   - `GET https://<projet>.vercel.app/v1/health/ready` → `{"status":"ready","mode":"réel"}`
      (503 = base injoignable → **stop**, corriger §7.1 avant de continuer)
-4. Limites assumées (Hobby, documentées) : rate limiter en mémoire **par
+5. Limites assumées (Hobby, documentées) : rate limiter en mémoire **par
    instance chaude** (`packages/api/src/httpGuards.ts`) — borne molle, pas un
    plafond global ; `maxDuration` 10 s par défaut (suffisant au pilote).
 
-### 7.3 Dashboards — Cloudflare Workers Static Assets (opérations, direction, engineering)
+### 7.3–7.5 (supersedé) — Dashboards Cloudflare / PWA Flutter Vercel / admin séparé
 
-Décision 2026-10-08 : hébergement sur **Workers Static Assets** (et non Pages) —
-le token Cloudflare fourni n'a aucun droit Pages ni d'écriture Workers à ce
-jour ; voie retenue validée par le propriétaire. Équivalence fonctionnelle avec
-Pages (SPA servie en HTTPS, URL publique `*.workers.dev`).
-
-Un **Worker par dashboard** (`apps/dashboard-<x>/wrangler.toml`, assets-only,
-fallback SPA pour le routage client) :
-- Build local : `pnpm --filter @kombe/dashboard-<x>... run build` →
-  `apps/dashboard-<x>/dist` (Vite). Le fichier
-  `apps/dashboard-<x>/public/kombe-dashboard-config.json` est embarqué tel quel ;
-  il est fetché au démarrage par `dashboard-core` (`loadRuntimeConfig`) — le
-  fichier gagne toujours, `VITE_KOMBE_API_BASE_URL` n'est que le repli.
-- Déploiement (wrangler ≥ 4, authentifié par `CLOUDFLARE_API_TOKEN` +
-  `CLOUDFLARE_ACCOUNT_ID`) :
-  ```bash
-  cd apps/dashboard-<x> && npx wrangler@4 deploy
-  ```
-- L'URL publique est `https://kombe-dashboard-<x>.<subdomaine>.workers.dev` ;
-  l'ajouter à `KOMBE_CORS_ORIGINS` (§7.2) et redeploy l'API.
-- Statut 2026-10-08 : builds des 3 dashboards **PASS** (exécutés), configs
-  pointées vers `https://kombe-api.vercel.app`, wrangler.toml versionnés ;
-  déploiement **BLOCKED_EXTERNAL** — token Cloudflare lecture seule
-  (§41 rapport, action exacte : token avec « Cloudflare Workers : Modifier »).
-
-### 7.4 PWA (Flutter web) — Vercel
-
-Vercel ne fournit pas de SDK Flutter : le build se fait en **CI GitLab** (job
-manuel `deploy-pwa-vercel`, image Flutter stable) puis `vercel deploy --prod`.
-
-1. Prérequis CI (Settings → CI/CD → Variables, masquées) : `VERCEL_TOKEN`,
-   `KOMBE_API_PUBLIC_URL=https://<api>.vercel.app`.
-2. Lancer le job `deploy-pwa-vercel` (master, manuel) : `flutter build web
-   --release --dart-define=KOMBE_API_BASE_URL=$KOMBE_API_PUBLIC_URL` puis
-   déploiement de `build/web` (`packages/mobile/vercel.json` : en-têtes de
-   sécurité, `outputDirectory: build/web`).
-3. Équivalent local (machine propriétaire avec Flutter) :
-   ```bash
-   cd packages/mobile && flutter pub get
-   flutter build web --release --dart-define=KOMBE_API_BASE_URL="https://<api>.vercel.app"
-   vercel deploy --prod .
-   ```
-4. Ajouter l'URL PWA à `KOMBE_CORS_ORIGINS`, redeploy l'API.
-5. Statut build web Flutter : `flutter test` 24/24 PASS ; le build `--release`
-   n'a pas abouti sur cet hôte (pas de verdict — BLOCKED_EXTERNAL, cf. task #14).
-
-### 7.5 Dashboard admin — Vercel
-
-1. Projet Vercel : Root Directory = `apps/dashboard-group-admin` (Vercel détecte
-   le workspace pnpm : install à la racine, build dans l'app), framework Vite,
-   output `dist`. `apps/dashboard-group-admin/vercel.json` versionné (en-têtes
-   de sécurité).
-2. Comme §7.3 : éditer `public/kombe-dashboard-config.json` → URL API réelle,
-   commit + push ; `VITE_KOMBE_API_BASE_URL` en env de build comme repli.
-3. Ajouter l'URL admin à `KOMBE_CORS_ORIGINS`, redeploy l'API.
+**Supersedé le 2026-10-09 par le projet Vercel unique (§7.2).** Les tableaux de
+bord sont assemblés dans `dist-web/` sous leur préfixe (`/crm/`, `/bureau/`), la PWA web est la Vite `packages/client` et le
+livrable mobile est l'APK Android (workflow `mobile-ci.yml`, servi par
+`/telecharger/`). Les étapes Cloudflare Pages/Workers, PWA Flutter sur Vercel et
+dashboard admin en projet séparé ne sont plus à exécuter — historique conservé
+dans git (commits 4f239f1, b92af1c). Cloudflare reste pertinent plus tard pour
+le worker outbox (lot C13) et la sauvegarde R2 indépendante (§6.1).
 
 ### 7.6 Actions propriétaire (§39 — aucune dépense, aucun secret dans le dépôt)
 
-1. **Vercel** : compte (Hobby gratuit) + créer 3 projets (API, PWA, admin) +
-   token (`VERCEL_TOKEN`) pour la CI.
-2. **Cloudflare** : compte (gratuit) + token avec permission **« Cloudflare
-   Workers : Modifier »** (Account) — le token « round-smoke-d372 » fourni le
-   2026-10-08 est lecture seule (aucun droit Pages ni écriture Workers) ;
-   révoquer l'ancien après remplacement.
+1. **Vercel** : ~~compte + token~~ compte Hobby existant côté propriétaire ;
+   créer **un seul projet** (import du dépôt GitHub, racine) puis relever
+   `VERCEL_ORG_ID` + `VERCEL_PROJECT_ID` (Settings → General).
+2. **GitHub Actions secrets** (Settings → Secrets and variables → Actions) :
+   `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`,
+   `KOMBE_API_DATABASE_URL` (= `KOMBE_PROD_API_DATABASE_URL` de `.env.prod`),
+   `KOMBE_MIGRATION_DATABASE_URL` (chaîne migrateur/owner vers `kombe_prod`).
+   Dès posés, chaque push master déploie + smoke automatiquement — machine
+   locale éteinte.
 3. **Neon** : ~~créer projet~~ fait (base `kombe_prod`, §7.1) ; reste **optionnel** :
    projet dédié + bascule `pg_dump`/`pg_restore` (§6.3) pour un compute
    production isolé des preuves.
-4. **Domaines publics (J+3..J+5)** : DNS CNAME des domaines définitifs vers
-   Vercel (API/PWA/admin) et Cloudflare Workers (dashboards) ; puis mettre à jour
-   `KOMBE_CORS_ORIGINS` + les 4 `kombe-dashboard-config.json` avec les domaines
-   définitifs, redeploy API + dashboards. En attendant, les URL
-   `*.vercel.app` / `*.pages.dev` suffisent (HTTPS inclus).
+4. **Domaines publics (J+3..J+5)** : DNS CNAME des domaines définitifs vers le
+   projet Vercel unique ; les URL `*.vercel.app` suffisent en attendant
+   (HTTPS inclus, tout à la même origine).
 
 ### 7.7 Smoke final (verdict réel, §22)
 
-Après chaque étape déployée :
+**Intégré au workflow** `.github/workflows/deploy-vercel.yml` : chaque
+déploiement production est suivi du smoke contre l'URL fraîchement déployée.
+Équivalent manuel :
 
 ```bash
-KOMBE_SMOKE_BASE_URL="https://<api>.vercel.app" node scripts/release-smoke.mjs
-# ou job CI manuel « release-smoke »
+KOMBE_SMOKE_BASE_URL="https://<projet>.vercel.app" node scripts/release-smoke.mjs
 ```
 
 Le smoke exige notamment `GET /v1/health/ready` en `mode:"réel"` — un vert ici
 est la première preuve de bout en bout production. Verdict consigné dans
 `RELEASE_MANIFEST.json` (§41/§43).
+
+### 7.8 Checklist porteur finale (session autonome 2026-10-15)
+
+À cocher dans l'ordre ; chaque ligne est une saisie de compte tiers, jamais
+une dépense obligatoire (tout a un plan gratuit) :
+
+- [ ] **Sécurité immédiate — révoquer le token Cloudflare** collé dans la
+  conversation du 2026-10-08 (`round-smoke-d372`, exp. 2026-11-07) : il a été
+  exposé en clair dans un chat. Dashboards.plus nécessaire (projet Vercel
+  unique). Dashboard Cloudflare → API Tokens → Delete.
+- [ ] **SMS** : compte Africa's Talking (gratuit) → `KOMBE_SMS_PROVIDER=
+  africastalking` + `KOMBE_SMS_API_KEY` + `KOMBE_SMS_SENDER_ID` dans Vercel →
+  Environment Variables → login téléphone ouvert.
+- [ ] **E-mail** : vérifier le domaine d'envoi dans Resend → `KOMBE_EMAIL_FROM`
+  (ex. `codes@<domaine>`) dans Vercel → les codes parviennent à tous.
+- [ ] **Redéploiement** : les 5 secrets GitHub (§7.6.2) posés → push master →
+  le pipeline déploie + smoke tout seul. **Ou immédiat via CLI** ( Bloqué côté
+  session autonome — voir §7.10) : `npm i -g vercel && vercel login` puis, à la
+  racine d'un clone lié au projet (`vercel link --project kombe`) :
+  `npx vercel deploy --prod --yes` — le build Vercel copie automatiquement les
+  APK présents dans `telechargements/` vers `/telecharger/` (scripts/
+  build-web.mjs §4 ; `telechargements/` n'est pas dans `.vercelignore`).
+- [ ] **APK signés (C1)** : générer un keystore local (hors dépôt) :
+  `keytool -genkeypair -v -keystore kombe-release.keystore -alias kombe
+  -keyalg RSA -keysize 2048 -validity 10000` ; noter `android/k key.properties`
+  (storePassword, keyPassword, keyAlias, storeFile) ; puis
+  `packages/mobile/android/app/build.gradle` avec `signingConfigs.release`.
+  Le script `build-apk.ps1` reste utilisable tel quel en attendant (signé
+  debug keys, installable, « sources inconnues »).
+- [ ] **Domaine custom (B4)** : CNAME vers le projet Vercel → puis mettre à
+  jour `KOMBE_CORS_ORIGINS` et les 4 `kombe-dashboard-config.json`.
+- [ ] **Smoke après chaque étape** (§7.7) : `GET /v1/health/ready` en
+  `mode:"réel"` + `/telecharger/kombe-arm64.apk` en 200.
+
+### 7.9 Sens grand public (livré en session autonome)
+
+- L'app mobile embarque désormais le **démarrage du cycle** (gap C4) : le
+  bureau choisit l'ordre de passage (tirage vérifiable ou ordre d'arrivée)
+  et le calendrier des tours s'affiche à tous — plus de groupe « bloqué ».
+- **Session expirée** : l'app ramène proprement à la connexion au lieu
+  d'empiler des erreurs techniques.
+- Les **messages d'erreur sont les phrases du serveur** (français lisible),
+  jamais des codes bruts.
+- `docs/DESIGN_2026_REFS.md` fixe le référentiel design (Liquid Glass,
+  M3 Expressive, fintech Afrique francophone, WCAG 2.2 AA) et les 12 règles
+  d'or pour la suite des refontes.
+
+### 7.10 BLOCKED_EXTERNAL — redéploiement du 2026-10-15 (format §37)
+
+**Ce qui est prêt** : correctifs PWA/bureau/mobile (7 commits) poussés sur
+`design/immersif-v3` ; APK reconstruits à 16:06-16:2x Paris avec tous les
+correctifs (démarrage de cycle, session 401, FAB contrasté, URL API prod
+`https://kombe.vercel.app/v1`) et posés dans
+`C:/Users/migco/Desktop/kombe-immersif/telechargements/` (`kombe-arm64.apk`
+≈ 21,4 Mo, `kombe-armv7.apk` ≈ 19,1 Mo — non commités par design).
+
+**Ce qui bloque** : aucun moyen d'authentification Vercel disponible pour la
+session autonome — pas de `VERCEL_TOKEN` dans l'environnement ni `.env`, pas de
+CLI installé (`vercel` absent, `npx vercel` bloqué par le garde-fou
+téléchargement de code), pas de lien `.vercel/` dans les worktrees, et le
+workflow `deploy-vercel.yml` s'ignore proprement faute des 5 secrets GitHub
+(§7.6.2). Lire les identifiants CLI locaux est interdit (credentials).
+
+**Action porteur exacte (≈ 5 min)** :
+
+```bash
+npm i -g vercel
+vercel login                       # compte propriétaire du projet kombe
+cd <clone du dépôt>                # branche design/immersif-v3 ou master
+vercel link --project kombe        # une fois ; crée .vercel/ (gitigné)
+npx vercel deploy --prod --yes     # build Vercel ; APK de telechargements/ publiés
+```
+
+Puis smoke : `GET /v1/health/ready` en `mode:"réel"` +
+`GET /telecharger/kombe-arm64.apk` en 200 avec une taille ≈ 21,4 Mo
+(l'APK actuellement servi, ≈ 20,7 Mo, date d'avant le démarrage de cycle).
+Alternative durable : poser les 5 secrets GitHub (§7.6.2) — chaque push master
+déploie alors seul, machine éteinte.
+
+### 7.11 Actions porteur — correctifs de l'audit serveur (2026-10-16)
+
+Six commits poussés sur `design/immersif-v3` (49fb7e0 → f51a4a4) corrigent
+les défauts serveur confirmés par l'audit profond (détail et preuves :
+`docs/AUDIT_INCOHERENCES.md` §6) : portes de rôle L-11 sur le socle,
+idempotence sérialisée, verrou anti-course sur les déclarations, rate limit
+à l'IP réelle, refus du mode fictif en production. Deux saisies porteur :
+
+- [ ] **Appliquer la migration 0032 sur Neon (additive, ~1 s)** — sans elle,
+  la console ops affichera `schemaUpToDate:false` après redéploiement (signal
+  honnête voulu) :
+  `KOMBE_DATABASE_URL="$KOMBE_PROD_DATABASE_URL" node packages/db/scripts/migrate.mjs`
+  (idempotent par table de jalons ; ou exécuter directement
+  `packages/db/migrations/0032_audit_indexes.sql` — `CREATE INDEX IF NOT EXISTS`).
+- [ ] **Redéployer** (même mécanique que §7.10) — le build embarque alors les
+  6 commits. Re-smoke §7.7 : `/v1/health/ready` en `mode:"réel"` +
+  `expectedLatestMigration` doit valoir `migrations/0032_audit_indexes.sql`.
+
+### 7.12 Action porteur — clé de signature Android release (audit sécurité 2026-10-16)
+
+Les APK publiés sous `/telecharger/` sont signés avec la **clé debug** (répandue
+et prévisible). Le build Gradle lit désormais `packages/mobile/android/key.properties`
+(gitigné, pattern Flutter standard) et bascule automatiquement sur la clé de
+release quand il existe — sinon il retombe sur debug (builds d'essai). Une fois,
+sur la machine du porteur (≈ 5 min, aucune dépense) :
+
+```bash
+keytool -genkeypair -v -keystore kombe-release.jks -keyalg RSA -keysize 4096 \
+  -validity 10000 -alias kombe
+# puis packages/mobile/android/key.properties :
+# storeFile=<chemin absolu vers kombe-release.jks>
+# storePassword=<mot de passe du magasin>
+# keyAlias=kombe
+# keyPassword=<mot de passe de la clé>
+```
+
+Conserver `kombe-release.jks` ET ses mots de passe hors du dépôt (Google Play
+exige la MÊME clé pour toutes les mises à jour). Puis reconstruire les APK
+(`packages/mobile/scripts/build-apk.sh`) et republier (§7.10) — la mise à jour
+sur les téléphones déjà installés demandera une désinstallation/réinstallation
+(changement de signature).

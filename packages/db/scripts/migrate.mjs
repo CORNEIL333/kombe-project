@@ -67,6 +67,19 @@ const UP_MIGRATIONS = [
   "migrations/0028_product_api.sql",
   "migrations/0029_ops_console.sql",
   "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql",
+  "migrations/0032_audit_indexes.sql",
+  "migrations/0033_custom_funds.sql",
+  "migrations/0034_echeances_notifications.sql",
+  // Photos (refonte 0.8.0) : noms tels qu'enregistrés en production le 05/11/2026.
+  "migrations/0034_group_photo.sql",
+  "migrations/0035_member_photo.sql",
+  "migrations/0036_securite_operateurs.sql",
+  "migrations/0037_rls_identite.sql",
+  "migrations/0038_notifications_livraison.sql",
+  "migrations/0039_role_api.sql",
+  "migrations/0040_performance_charge.sql",
+  "migrations/0041_crm.sql",
+  "migrations/0042_securite_residuelle.sql", "migrations/0043_retours_membres.sql",
   "provision/roles.sql",
 ];
 

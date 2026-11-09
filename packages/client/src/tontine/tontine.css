@@ -678,3 +678,400 @@ fieldset.champ legend {
   margin: 0;
   padding-left: 1.2rem;
 }
+
+/* Ligne d'actions compacte (statuts : prolonger l'échéance). */
+.rangee {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.rangee input {
+  width: 4rem;
+}
+
+/* Notifications cliquables : toute la ligne ouvre l'écran concerné. */
+.notif-bouton {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.notif-bouton:focus-visible {
+  outline: 2px solid var(--k-or-500, #c9a227);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+.notif-texte {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+.notif-fleche {
+  font-size: 1.4rem;
+  opacity: 0.5;
+}
+/* La ligne de notification ne contient plus que son bouton : pleine largeur. */
+.liste-notifications .liste__ligne > .notif-bouton {
+  grid-column: 1 / -1;
+}
+.notif-bouton .pastille {
+  flex-shrink: 0;
+}
+.pn-silence{border:0;padding:0;margin:0;display:grid;gap:8px}.pn-silence legend{font-weight:700;padding:0;margin-bottom:4px}.pn-plage{display:flex;gap:16px;flex-wrap:wrap;align-items:center}.pn-plage select{min-height:44px;padding:8px 10px;border-radius:10px;border:1px solid var(--bordure,#c9d1cc);background:#fff}
+.pn-case{display:flex;align-items:flex-start}.pn-case input{margin-top:2px;flex:none}.pn-case small{line-height:1.4}
+
+/* ── Votes libres (0041) ─────────────────────────────────────────────── */
+.vote-libre__options {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.vote-libre__option {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.25rem 0.625rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 14px;
+  background: var(--s-ivoire);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.vote-libre__option--choisie {
+  background: var(--s-menthe-pale);
+  box-shadow: inset 0 0 0 1.5px var(--s-jade);
+}
+.vote-libre__option input {
+  accent-color: var(--s-foret);
+  width: 18px;
+  height: 18px;
+}
+.vote-libre__compte {
+  font-size: 14px;
+  color: var(--s-ardoise);
+  font-variant-numeric: tabular-nums;
+}
+.vote-libre__barre {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--s-trait);
+  overflow: hidden;
+}
+.vote-libre__barre > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--s-jade);
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.vote-libre__ligne {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.vote-libre__ligne input {
+  flex: 1;
+  min-width: 0;
+}
+.vote-libre__reponses {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 14px;
+  color: var(--s-ardoise);
+  display: grid;
+  gap: 0.25rem;
+}
+.bouton-lien {
+  background: none;
+  border: 0;
+  padding: 0.25rem 0;
+  color: var(--s-foret);
+  font: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  justify-self: start;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vote-libre__option,
+  .vote-libre__barre > span {
+    transition: none;
+  }
+}
+
+/* ── Séance en ligne (0041) ──────────────────────────────────────────── */
+.seance-en-ligne {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 16px;
+  background: var(--s-menthe-pale);
+  color: var(--s-foret);
+}
+.seance-en-ligne > div {
+  display: grid;
+  gap: 0.125rem;
+}
+@media (max-width: 520px) {
+  .seance-en-ligne {
+    grid-template-columns: auto 1fr;
+  }
+  .seance-en-ligne .bouton {
+    grid-column: 1 / -1;
+  }
+}
+
+.tableau__sous-ligne td {
+  font-size: 14px;
+  color: var(--s-ardoise);
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+/* ── Activité : notifications regroupées ─────────────────────────────── */
+.paquet-notif .ligne__icone {
+  position: relative;
+}
+.paquet-notif__compte {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--s-foret);
+  color: var(--s-ivoire);
+  font-size: 14px;
+  line-height: 22px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--s-blanc);
+}
+.paquet-notif__detail {
+  margin: 0.25rem 0 0.5rem 1.25rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--s-trait);
+}
+
+/* ── Accueil : tableau de bord interactif (0041) ─────────────────────── */
+.segments {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--s-sable);
+}
+.segments__bouton {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.375rem 0.875rem;
+  font: inherit;
+  font-size: 14px;
+  color: var(--s-ardoise);
+  cursor: pointer;
+  transition: background 0.24s cubic-bezier(0.22, 1, 0.36, 1), color 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.segments__bouton[aria-selected="true"] {
+  background: var(--s-blanc);
+  color: var(--s-foret);
+  box-shadow: 0 1px 6px rgba(18, 128, 92, 0.12);
+}
+.tableau-bord__jauge {
+  display: grid;
+  gap: 0.625rem;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 20px;
+  padding: 1rem 1.125rem;
+  background: var(--s-blanc);
+  box-shadow: 0 8px 30px rgba(8, 44, 38, 0.06);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.tableau-bord__chiffres {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+}
+.tableau-bord__grand {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--s-foret);
+  font-variant-numeric: tabular-nums;
+}
+.tableau-bord__barre {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--s-sable);
+  overflow: hidden;
+}
+.tableau-bord__barre > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--s-jade), var(--s-foret));
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tableau-bord__histo {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 120px;
+  padding: 0.75rem;
+  border-radius: 20px;
+  background: var(--s-blanc);
+  box-shadow: 0 8px 30px rgba(8, 44, 38, 0.06);
+  overflow-x: auto;
+}
+.tableau-bord__colonne {
+  flex: 1 0 14px;
+  max-width: 36px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  border: 0;
+  padding: 0;
+  border-radius: 8px;
+  background: var(--s-ivoire);
+  cursor: pointer;
+}
+.tableau-bord__colonne > span {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+  background: var(--s-menthe);
+  transition: height 0.5s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tableau-bord__colonne.is-courant > span {
+  background: var(--s-or);
+}
+.tableau-bord__colonne.is-choisi > span {
+  background: var(--s-foret);
+}
+.tableau-bord__colonne:focus-visible {
+  outline: 2px solid var(--s-foret);
+  outline-offset: 2px;
+}
+.tableau-bord__detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.tableau-bord__detail > span {
+  display: grid;
+  gap: 0.125rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tableau-bord__barre > span,
+  .tableau-bord__colonne > span,
+  .segments__bouton {
+    transition: none;
+  }
+}
+
+/* ── Membres : détail ouvert d'un toucher (0041) ─────────────────────── */
+.membre-entete {
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 0.25rem 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.125rem 0.5rem;
+  text-align: left;
+}
+.membre-entete .aide-champ {
+  grid-column: 1;
+}
+.membre-entete > svg {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.membre-entete[aria-expanded="true"] > svg {
+  transform: rotate(90deg);
+}
+.membre-detail {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.875rem;
+  margin: 0.5rem 0 0;
+  padding: 0.75rem 0.875rem;
+  border-radius: 14px;
+  background: var(--s-ivoire);
+  font-size: 14px;
+}
+.membre-detail dt {
+  color: var(--s-ardoise);
+}
+.membre-detail dd {
+  margin: 0;
+}
+
+.liste__ligne.vote-libre {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+.vote-libre .liste__actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.tableau-bord .titre-section {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.vote-libre > div,
+.vote-libre .vote-libre__options,
+.vote-libre .champ {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+/* Échéance nom par nom (0041) */
+.noms-echeance {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 14px;
+  background: var(--s-ivoire);
+  display: grid;
+  gap: 0.375rem;
+  font-size: 14px;
+}
+.noms-echeance li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+}

@@ -49,13 +49,13 @@ test("pause des séances votée par l'assemblée (ADR-0038), puis reprise du cah
   const pBertrand = await pageDe(browser, bertrand);
   await ouvrirVotes(pBertrand, nomGroupe);
   await pBertrand.getByRole("button", { name: "Oui", exact: true }).click();
-  await expect(pBertrand.getByText("Adoptée")).toBeVisible();
+  await expect(pBertrand.locator(".pastille", { hasText: "Adoptée" })).toBeVisible();
   await expect(pBertrand.getByText("Oui 2 · Non 0 · Abstention 0")).toBeVisible();
 
   /* Chantal voit la décision et la note d'exécution. */
   const pChantal = await pageDe(browser, chantal);
   await ouvrirVotes(pChantal, nomGroupe);
-  await expect(pChantal.getByText("Adoptée")).toBeVisible();
+  await expect(pChantal.locator(".pastille", { hasText: "Adoptée" })).toBeVisible();
   await expect(pChantal.getByText(/Séances décalées de 1 occurrence/)).toBeVisible();
   await expect(pChantal.getByRole("button", { name: "Oui", exact: true })).toHaveCount(0);
 

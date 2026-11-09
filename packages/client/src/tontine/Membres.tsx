@@ -5,6 +5,8 @@ import type { GroupRole } from "@kombe/domain";
 import { tontines, type InvitationView, type MemberView } from "./api.js";
 import { ROLES_NOMMABLES, peut } from "./droits.js";
 import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from "./ui.js";
+import { Icone } from "../composants/Icones.js";
+import { AvatarPersonne } from "./PhotoGroupe.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
 
@@ -14,6 +16,9 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
   const { etat, recharger } = useDonnees(() => tontines.membres(ctx.session, gid), [gid]);
   const action = useAction();
   const avantDemarrage = !ctx.groupe.cycleStarted;
+  // Liste sobre (photo, nom, fonction) ; numéro, noms tenus et réglages
+  // n'apparaissent que dans le détail d'un membre, ouvert d'un toucher.
+  const [ouvert, setOuvert] = useState<string | null>(null);
 
   const apres = () => {
     recharger();
@@ -27,22 +32,48 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
         <Retour erreur={action.erreur} succes={action.succes} />
         <Charge etat={etat} recharger={recharger}>
           {(membres) => (
-            <ul className="liste">
+            <ul className="liste liste--colonnes">
               {membres.map((m) => (
-                <li key={m.membershipId} className="liste__ligne liste__ligne--haute">
+                <li key={m.membershipId} className="liste__ligne liste__ligne--haute ligne-riche">
+                  <AvatarPersonne session={ctx.session} groupId={gid} membreId={m.membershipId} nom={m.displayName} version={m.photoVersion} />
                   <div>
-                    <strong>
-                      {m.displayName}
-                      {m.isMe ? ` (${tx("mb.moi")})` : ""}
-                    </strong>
-                    <span className="aide-champ">
-                      {m.roles.map((r) => dyn(`role.${r}`)).join(" · ")}
-                      {m.login ? ` · ${m.login}` : ""}
-                      {m.offline ? ` · ${tx("mb.sansSmartphone")}` : ""}
-                      {m.shares > 1 ? ` · ${tx("mb.parts")} : ${m.shares}` : ""}
-                      {m.sharePartnerMembershipId ? ` · ${tx("mb.partageAvec", { nom: membres.find((x) => x.membershipId === m.sharePartnerMembershipId)?.displayName ?? "" })}` : ""}
-                      {m.state !== "active" && m.state !== "pending" ? ` · ${dyn(`mb.etat.${m.state}`)}` : ""}
-                    </span>
+                    <button type="button" className="membre-entete" aria-expanded={ouvert === m.membershipId} onClick={() => setOuvert((o) => (o === m.membershipId ? null : m.membershipId))}>
+                      <strong>
+                        {m.displayName}
+                        {m.isMe ? ` (${tx("mb.moi")})` : ""}
+                      </strong>
+                      <span className="aide-champ">
+                        {m.roles.filter((r) => r !== "member").map((r) => dyn(`role.${r}`)).join(" · ") || dyn("role.member")}
+                      </span>
+                      <Icone nom="chevron" taille={16} />
+                    </button>
+                    {ouvert === m.membershipId ? (
+                      <dl className="membre-detail">
+                        {m.login ? (
+                          <>
+                            <dt>{tx("mb.numero")}</dt>
+                            <dd>{m.login}</dd>
+                          </>
+                        ) : null}
+                        <dt>{tx("mb.nomsTenus")}</dt>
+                        <dd>
+                          {m.shares}
+                          {m.sharePartnerMembershipId ? ` · ${tx("mb.partageAvec", { nom: membres.find((x) => x.membershipId === m.sharePartnerMembershipId)?.displayName ?? "" })}` : ""}
+                        </dd>
+                        {m.offline ? (
+                          <>
+                            <dt>{tx("mb.acces")}</dt>
+                            <dd>{tx("mb.sansSmartphone")}</dd>
+                          </>
+                        ) : null}
+                        {m.state !== "active" && m.state !== "pending" ? (
+                          <>
+                            <dt>{tx("mb.etat")}</dt>
+                            <dd>{dyn(`mb.etat.${m.state}`)}</dd>
+                          </>
+                        ) : null}
+                      </dl>
+                    ) : null}
                     {m.state === "pending" ? <Pastille ton="attente">{tx("mb.attente")}</Pastille> : null}
                     {m.isMe && m.pendingRoles.length
                       ? m.pendingRoles.map((r) => (
@@ -68,23 +99,25 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
                       <>
                         <button
                           type="button"
-                          className="bouton bouton-compact"
+                          className="bouton bouton-compact bouton-avec-icone"
                           disabled={action.enCours}
                           onClick={() => void action.lancer(() => tontines.admission(ctx.session, gid, m.membershipId, "admit")).then(apres)}
-                        >
-                          {tx("mb.admettre")}
+                         title={tx("mb.admettre")}>
+                          <Icone nom="coche" taille={18} />
+                          <span className="bouton-libelle">{tx("mb.admettre")}</span>
                         </button>
                         <button
                           type="button"
-                          className="bouton bouton-secondaire bouton-compact"
+                          className="bouton bouton-secondaire bouton-compact bouton-avec-icone"
                           disabled={action.enCours}
                           onClick={() => void action.lancer(() => tontines.admission(ctx.session, gid, m.membershipId, "reject")).then(apres)}
-                        >
-                          {tx("mb.refuser")}
+                         title={tx("mb.refuser")}>
+                          <Icone nom="fermer" taille={18} />
+                          <span className="bouton-libelle">{tx("mb.refuser")}</span>
                         </button>
                       </>
                     ) : null}
-                    {m.state === "active" && avantDemarrage && peut(ctx.roles, "group.manage") ? (
+                    {ouvert === m.membershipId && m.state === "active" && avantDemarrage && peut(ctx.roles, "group.manage") ? (
                       <>
                         {!m.sharePartnerMembershipId ? (
                           <label className="champ-inline">
@@ -132,41 +165,70 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
   );
 }
 
+/** Deux initiales pour la pastille de la ligne (décoratif ; le nom reste écrit). */
+function initiales(nom: string): string {
+  const mots = nom.trim().split(/\s+/).filter(Boolean);
+  return ((mots[0]?.[0] ?? "") + (mots.length > 1 ? (mots[mots.length - 1]?.[0] ?? "") : "")).toUpperCase() || "·";
+}
+
 function Invitations({ ctx }: { readonly ctx: ContexteGroupe }) {
   const { tx, date } = useTextes();
   const gid = ctx.groupe.groupId;
   const { etat, recharger } = useDonnees(() => tontines.invitations(ctx.session, gid), [gid]);
   const action = useAction();
   const [copie, setCopie] = useState<string | null>(null);
+  const [copieEchec, setCopieEchec] = useState(false);
+  const [uses, setUses] = useState("");
+  const [jours, setJours] = useState("");
+
+  const nUses = uses.trim() === "" ? undefined : Number(uses);
+  const nJours = jours.trim() === "" ? undefined : Number(jours);
+  const formulaireValide =
+    (nUses === undefined || (Number.isInteger(nUses) && nUses >= 1 && nUses <= 100)) &&
+    (nJours === undefined || (Number.isInteger(nJours) && nJours >= 1 && nJours <= 30));
+
+  const creer = () => {
+    if (!formulaireValide || action.enCours) return;
+    void action.lancer(() => tontines.creerInvitation(ctx.session, gid, nUses, nJours)).then(recharger);
+  };
 
   const copier = async (inv: InvitationView) => {
     try {
       await navigator.clipboard.writeText(inv.url);
       setCopie(inv.invitationId);
+      setCopieEchec(false);
     } catch {
       setCopie(null);
+      setCopieEchec(true);
     }
   };
 
   return (
-    <Carte
-      titre={tx("mb.inviter")}
-      actions={
-        <button
-          type="button"
-          className="bouton bouton-compact"
-          disabled={action.enCours}
-          onClick={() => void action.lancer(() => tontines.creerInvitation(ctx.session, gid, 30, 14)).then(recharger)}
-        >
-          {tx("mb.creerLien")}
+    <Carte titre={tx("mb.inviter")}>
+      <form
+        className="pile"
+        onSubmit={(e) => {
+          e.preventDefault();
+          creer();
+        }}
+      >
+        <Retour erreur={action.erreur} succes={action.succes} />
+        <Champ id="inv-uses" libelle={tx("mb.invUses")}>
+          <input id="inv-uses" inputMode="numeric" value={uses} placeholder="30" onChange={(e) => setUses(e.target.value)} />
+        </Champ>
+        <Champ id="inv-jours" libelle={tx("mb.invJours")} aide={tx("mb.invDefauts")}>
+          <input id="inv-jours" inputMode="numeric" value={jours} placeholder="14" onChange={(e) => setJours(e.target.value)} />
+        </Champ>
+        <button type="submit" className="bouton bouton-compact bouton-avec-icone bouton-icone-seule" disabled={action.enCours || !formulaireValide} title={tx("mb.creerLien")}>
+          <Icone nom="inviter" taille={18} />
+          <span className="bouton-libelle">{tx("mb.creerLien")}</span>
         </button>
-      }
-    >
-      <Retour erreur={action.erreur} succes={action.succes} />
+        {copieEchec ? <p className="aide-champ">{tx("mb.copieEchec")}</p> : null}
+      </form>
       <Charge etat={etat} recharger={recharger}>
         {(liste) =>
           liste.length === 0 ? (
-            <p>{tx("app.vide")}</p>
+            <p className="etat-vide-ligne">{tx("app.vide")}</p>
           ) : (
             <ul className="liste">
               {liste.map((inv) => (
@@ -178,7 +240,7 @@ function Invitations({ ctx }: { readonly ctx: ContexteGroupe }) {
                   </div>
                   {inv.revoked ? null : (
                     <div className="liste__actions">
-                      <a className="bouton bouton-compact" href={`https://wa.me/?text=${encodeURIComponent(inv.whatsappText)}`} target="_blank" rel="noreferrer">
+                      <a className="bouton bouton-compact" href={`https://wa.me/?text=${encodeURIComponent(inv.whatsappText)}`} target="_blank" rel="noopener noreferrer">
                         {tx("mb.partagerWhatsapp")}
                       </a>
                       <button type="button" className="bouton bouton-secondaire bouton-compact" onClick={() => void copier(inv)}>

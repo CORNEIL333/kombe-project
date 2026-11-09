@@ -3,414 +3,498 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/design/kombe_colors.dart';
-import '../../core/design/kombe_spacing.dart';
-import '../../core/design/kombe_tokens.g.dart';
+import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/xaf.dart';
-import '../../core/widgets/group_hero_card.dart';
-import '../../core/widgets/kombe_logo.dart';
-import '../../core/widgets/kombe_visuals.dart';
+import '../../core/widgets/group_avatar.dart';
+import '../../core/widgets/kombe_components.dart';
+import '../../domain/entities/contribution.dart';
 import '../../domain/entities/dashboard.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
-import '../../l10n/app_localizations.dart';
+import '../groups/group_photo_sheet.dart';
+import '../notifications/notification_actions.dart';
+import '../notifications/notifications_screen.dart';
 
-/// Tableau de bord (maquette « Vue principale après connexion ») :
-/// salutation → groupe principal → échéance et déclaré du mois → 4 actions →
-/// activité récente. Toutes les valeurs viennent de [DashboardData].
-class DashboardContent extends StatelessWidget {
-  const DashboardContent({
-    required this.data,
-    required this.onRefresh,
-    super.key,
-    this.displayName,
-    this.avatarUrl,
-    this.now,
-  });
+String _day(BuildContext context, DateTime utc) =>
+    DateFormat('EEEE d MMMM', Localizations.localeOf(context).toLanguageTag()).format(utc.toLocal());
 
-  final DashboardData data;
-  final Future<void> Function() onRefresh;
-  final String? displayName;
-  final Uri? avatarUrl;
-
-  /// Horloge injectable (tests) ; défaut : maintenant.
+/// Accueil « Ndop ». Emplacements STABLES, dans cet ordre :
+/// héros vert (salutation, reste à régler, échéance, action principale, à
+/// confirmer, perles du cycle) ; raccourcis du groupe ; « À faire » (règles explicables : envoi à
+/// reprendre, confirmations de ma fonction, vote ouvert) ; prochaine séance ;
+/// activité récente du groupe. Aucune donnée inventée.
+class HomeContent extends StatelessWidget {
+  const HomeContent({super.key, required this.data, this.drafts = const <ContributionDraft>[], this.now, this.firstName, this.photoMissing = false, this.myName = '', this.myPhotoVersion});
+  final HomeData data;
+  final List<ContributionDraft> drafts;
   final DateTime? now;
+  final String? firstName;
+  /// Je n'ai pas encore de photo de profil.
+  final bool photoMissing;
+  final String myName;
+  final int? myPhotoVersion;
 
   @override
   Widget build(BuildContext context) {
-    final GroupSummary? group = data.primaryGroup;
-    final int unread = data.recentActivity.where((KombeNotification n) => !n.read).length;
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      color: KombeColors.emerald,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(KombeSpacing.screen, KombeSpacing.md, KombeSpacing.screen, 112),
-        children: <Widget>[
-          _Greeting(name: displayName, avatarUrl: avatarUrl, unread: unread),
-          const SizedBox(height: 18),
-          if (group == null)
-            _NoGroup(onJoin: () => context.push('/app/groups/join'))
-          else ...<Widget>[
-            GroupHeroCard(
-              group: group,
-              eyebrow: 'Mon groupe principal',
-              onTap: () => context.push('/app/groups/${group.id}'),
+    final String gid = Uri.encodeComponent(data.group.id);
+    final List<Widget> todo = <Widget>[
+      for (final ContributionDraft d in drafts)
+        _TodoRow(
+          icon: d.sending ? Icons.sync_problem_rounded : Icons.edit_note_rounded,
+          tone: d.sending ? KombeTone.danger : KombeTone.brand,
+          title: d.sending ? 'Envoi à reprendre' : 'Paiement à terminer',
+          subtitle: '${Xaf.format(d.amountXaf)} · ${d.sending ? 'rien ne sera déclaré deux fois' : 'pas encore envoyé'}',
+          onTap: () => context.push('/app/groups/$gid/contributions/new?draft=${Uri.encodeComponent(d.localId)}'),
+        ),
+      if (data.toValidate > 0)
+        _TodoRow(
+          icon: Icons.fact_check_outlined,
+          tone: KombeTone.money,
+          title: data.group.role == GroupRole.controller
+              ? '${data.toValidate} paiement${data.toValidate > 1 ? 's' : ''} à contrôler'
+              : '${data.toValidate} paiement${data.toValidate > 1 ? 's' : ''} à confirmer',
+          subtitle: 'Bureau',
+          onTap: () => context.push('/app/validations'),
+        ),
+      if (photoMissing)
+        _TodoRow(
+          icon: Icons.add_a_photo_outlined,
+          tone: KombeTone.brand,
+          title: 'Ajoutez votre photo',
+          subtitle: 'Votre groupe vous reconnaît',
+          onTap: () => context.push('/app/profile'),
+        ),
+      if (data.group.photoVersion == null && canEditGroupPhoto(data.group.role))
+        _TodoRow(
+          icon: Icons.add_photo_alternate_outlined,
+          tone: KombeTone.brand,
+          title: 'Ajoutez la photo du groupe',
+          subtitle: data.group.name,
+          onTap: () => context.push('/app/groups/$gid'),
+        ),
+      if (data.openPolls > 0)
+        _TodoRow(
+          icon: Icons.ballot_outlined,
+          tone: KombeTone.info,
+          title: data.openPolls == 1 ? '1 vote libre attend votre réponse' : '${data.openPolls} votes libres attendent votre réponse',
+          subtitle: 'Votre avis compte',
+          onTap: () => context.push('/app/groups/$gid/polls'),
+        ),
+      for (final PendingVote v in data.votes)
+        _TodoRow(
+          icon: Icons.how_to_vote_outlined,
+          tone: KombeTone.info,
+          title: 'Vote : ${v.title}',
+          subtitle: 'Jusqu’au ${_day(context, v.closesAtUtc)}',
+          onTap: () => context.push('/app/votes/${Uri.encodeComponent(v.id)}'),
+        ),
+    ];
+    final GroupSummary g = data.group;
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 32),
+      children: <Widget>[
+        _Hero(data: data, firstName: firstName, myName: myName, myPhotoVersion: myPhotoVersion),
+        // Raccourcis du groupe : quatre entrées, toujours au même endroit.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 18, 12, 0),
+          child: Row(
+            children: <Widget>[
+              _Shortcut(tone: KombeTone.success, icon: Icons.donut_large_rounded, label: 'Cycle', onTap: () => context.push('/app/groups/$gid/cycle')),
+              _Shortcut(tone: KombeTone.brand, icon: Icons.groups_2_outlined, label: 'Membres', onTap: () => context.push('/app/groups/$gid/members')),
+              _Shortcut(tone: KombeTone.money, icon: Icons.account_balance_wallet_outlined, label: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
+              _Shortcut(tone: KombeTone.info, icon: Icons.menu_book_outlined, label: 'Règles', onTap: () => context.push('/app/groups/$gid/rules')),
+            ],
+          ),
+        ),
+        if (data.rounds.isNotEmpty) ...<Widget>[
+          const KombeSection('Tableau de bord'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: RoundsDashboard(rounds: data.rounds, onOpen: () => context.push('/app/groups/$gid/cycle')),
+          ),
+        ],
+        if (todo.isNotEmpty) ...<Widget>[
+          KombeSection('À faire', action: 'Tout voir', onAction: () => context.go('/app/notifications')),
+          KombeGroupedList(children: todo),
+        ],
+        if (data.nextMeetingDate != null) ...<Widget>[
+          const KombeSection('Prochaine séance'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _MeetingCard(date: data.nextMeetingDate!, place: data.nextMeetingOnline ? <String>[if (data.nextMeetingPlace != null) data.nextMeetingPlace!, 'en ligne'].join(' · ') : data.nextMeetingPlace, group: g.name, onTap: () => context.push('/app/groups/$gid')),
+          ),
+        ],
+        KombeSection('Activité récente', action: data.recent.isEmpty ? null : 'Historique', onAction: () => context.go('/app/notifications')),
+        if (data.recent.isEmpty)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
+            child: Text('Rien de nouveau.'),
+          )
+        else
+          KombeGroupedList(
+            children: <Widget>[
+              for (final KombeNotification n in data.recent.take(4)) NotificationTile(n: n, now: now, onTap: () => openNotification(context, n)),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+/// Héros de l'accueil : prolonge la barre. Un seul message (ce que je dois, ou
+/// « à jour »), une action, puis le rang de perles du cycle.
+class _Hero extends StatelessWidget {
+  const _Hero({required this.data, this.firstName, this.myName = '', this.myPhotoVersion});
+  final HomeData data;
+  final String? firstName;
+  final String myName;
+  final int? myPhotoVersion;
+
+  @override
+  Widget build(BuildContext context) {
+    final int due = data.remainingXaf;
+    final String gid = Uri.encodeComponent(data.group.id);
+    const TextStyle soft = TextStyle(color: Colors.white, fontSize: 15, height: 1.35, fontWeight: FontWeight.w600);
+    final bool cycle = data.group.cycleTotal > 0 && data.group.cycleIndex > 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        DecoratedBox(
+          decoration: const BoxDecoration(color: KombeColors.brand, borderRadius: BorderRadius.vertical(bottom: Radius.circular(28))),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    if (myName.isNotEmpty) ...<Widget>[
+                      MyAvatar(name: myName, photoVersion: myPhotoVersion, size: 40),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(child: Text(firstName == null ? 'Bonjour' : 'Bonjour $firstName', style: soft)),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                if (due > 0) ...<Widget>[
+                  const Text('À payer', style: soft),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: KombeAmount(due, size: 54, color: Colors.white),
+                  ),
+                  const SizedBox(height: 6),
+                  if (data.late)
+                    const StatusPill('En retard', tone: KombeTone.danger, icon: Icons.error_outline_rounded)
+                  else
+                    Text(data.nextDueDate == null ? 'Pour ce tour' : 'Avant le ${_day(context, data.nextDueDate!)}', style: soft.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+                    onPressed: () => context.push('/app/groups/$gid/contributions/new'),
+                    icon: const Icon(Icons.check_rounded),
+                    label: const Text('J’ai payé'),
+                  ),
+                ] else ...<Widget>[
+                  Text('Vous êtes à jour', style: KombeType.display(size: 38, color: Colors.white)),
+                  const SizedBox(height: 18),
+                ],
+                if (data.pendingDeclarations > 0) ...<Widget>[
+                  const SizedBox(height: 10),
+                  Material(
+                    type: MaterialType.transparency,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => context.go('/app/contributions'),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Row(
+                          children: <Widget>[
+                            const Icon(Icons.hourglass_top_rounded, size: 18, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text('${Xaf.format(data.pendingDeclaredXaf)} à confirmer', style: soft)),
+                            const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.white),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (cycle) ...<Widget>[
+                  const SizedBox(height: 14),
+                  KombeCycleBand(index: data.group.cycleIndex, total: data.group.cycleTotal, onDark: true, late: data.late),
+                  const SizedBox(height: 8),
+                  Text('Tour ${data.group.cycleIndex} sur ${data.group.cycleTotal}', style: soft),
+                ],
+              ],
             ),
-            const SizedBox(height: 14),
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Raccourci : picto dans un disque, libellé dessous.
+class _Shortcut extends StatelessWidget {
+  const _Shortcut({required this.tone, required this.icon, required this.label, required this.onTap});
+  final KombeTone tone;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: Semantics(
+          button: true,
+          label: label,
+          excludeSemantics: true,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Column(
                 children: <Widget>[
-                  Expanded(child: _NextDueCard(dueAtUtc: data.nextContributionAtUtc, now: now)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _DeclaredCard(amountXaf: data.currentMonthDeclaredXaf, percent: data.progressPercent)),
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(color: tone.bg, shape: BoxShape.circle),
+                    child: Icon(icon, color: tone.fg, size: 24),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: KombeColors.ink)),
                 ],
               ),
             ),
-            const SizedBox(height: 18),
-            _QuickActions(groupId: group.id),
-          ],
-          const SizedBox(height: 26),
-          Row(
-            children: <Widget>[
-              Expanded(child: Text('Activité récente', style: Theme.of(context).textTheme.titleLarge)),
-              TextButton(
-                onPressed: () => context.go('/app/notifications'),
-                style: TextButton.styleFrom(foregroundColor: KombeColors.goldDark),
-                child: const Text('Voir tout'),
-              ),
-            ],
-          ),
-          if (data.recentActivity.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Text('L’historique de votre groupe apparaîtra ici.', style: Theme.of(context).textTheme.bodyMedium),
-            )
-          else
-            for (final KombeNotification item in data.recentActivity) _ActivityRow(item: item, now: now),
-        ],
-      ),
-    );
-  }
-}
-
-class _Greeting extends StatelessWidget {
-  const _Greeting({required this.name, required this.avatarUrl, required this.unread});
-  final String? name;
-  final Uri? avatarUrl;
-  final int unread;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme t = Theme.of(context).textTheme;
-    final String? first = name?.trim().split(RegExp(r'\s+')).first;
-    return Row(
-      children: <Widget>[
-        if (first != null && first.isNotEmpty) ...<Widget>[
-          KombeAvatar(name: name!, url: avatarUrl, size: 52),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text('Bonjour $first 👋', style: t.titleLarge?.copyWith(fontSize: 21)),
-                const SizedBox(height: 2),
-                Text('Ensemble, on va plus loin.', style: t.bodyMedium),
-              ],
-            ),
-          ),
-        ] else
-          const Expanded(child: Align(alignment: Alignment.centerLeft, child: KombeLogo(size: 40))),
-        _Bell(unread: unread),
-      ],
-    );
-  }
-}
-
-class _Bell extends StatelessWidget {
-  const _Bell({required this.unread});
-  final int unread;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        button: true,
-        label: unread == 0 ? 'Notifications' : 'Notifications, $unread non lues',
-        child: ExcludeSemantics(
-          child: InkResponse(
-            onTap: () => context.go('/app/notifications'),
-            radius: 28,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: <Widget>[
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                  child: const Icon(Icons.notifications_none_rounded, color: KombeColors.ink),
-                ),
-                if (unread > 0)
-                  Positioned(
-                    right: 2,
-                    top: 0,
-                    child: Container(
-                      constraints: const BoxConstraints(minWidth: 19),
-                      height: 19,
-                      padding: const EdgeInsets.symmetric(horizontal: 5),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: KombeColors.danger,
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(color: KombeColors.cream, width: 2),
-                      ),
-                      child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800)),
-                    ),
-                  ),
-              ],
-            ),
           ),
         ),
       );
 }
 
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.icon, required this.iconBg, required this.iconFg, required this.children});
-  final IconData icon;
-  final Color iconBg;
-  final Color iconFg;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: KombeColors.line),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(9)),
-              child: Icon(icon, size: 19, color: iconFg),
-            ),
-            const SizedBox(height: 10),
-            ...children,
-          ],
-        ),
-      );
-}
-
-class _NextDueCard extends StatelessWidget {
-  const _NextDueCard({required this.dueAtUtc, required this.now});
-  final DateTime? dueAtUtc;
-  final DateTime? now;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme t = Theme.of(context).textTheme;
-    final String locale = Localizations.localeOf(context).toLanguageTag();
-    final DateTime? due = dueAtUtc?.toLocal();
-    final DateTime today = DateUtils.dateOnly(now ?? DateTime.now());
-    final int? days = due == null ? null : DateUtils.dateOnly(due).difference(today).inDays;
-    return _InfoCard(
-      icon: Icons.calendar_month_rounded,
-      iconBg: KombeTokens.gold100,
-      iconFg: KombeTokens.gold700,
-      children: <Widget>[
-        Text('Prochaine cotisation', style: t.bodySmall),
-        const SizedBox(height: 4),
-        Text(due == null ? '—' : DateFormat.yMMMd(locale).format(due), style: t.titleMedium?.copyWith(fontSize: 17)),
-        if (days != null) ...<Widget>[
-          const SizedBox(height: 6),
-          Text(
-            days < 0 ? 'Échéance dépassée' : days == 0 ? 'Aujourd’hui' : days == 1 ? 'Demain' : 'Dans $days jours',
-            style: t.bodySmall?.copyWith(color: days < 0 ? KombeColors.danger : KombeTokens.gold700, fontWeight: FontWeight.w700),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _DeclaredCard extends StatelessWidget {
-  const _DeclaredCard({required this.amountXaf, required this.percent});
-  final int amountXaf;
-  final int percent;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme t = Theme.of(context).textTheme;
-    return _InfoCard(
-      icon: Icons.account_balance_wallet_rounded,
-      iconBg: KombeTokens.forest50,
-      iconFg: KombeColors.emerald,
-      children: <Widget>[
-        Text('Déclaré ce mois', style: t.bodySmall),
-        const SizedBox(height: 4),
-        Text(Xaf.format(amountXaf), style: t.titleMedium?.copyWith(fontSize: 17, fontFeatures: const <FontFeature>[FontFeature.tabularFigures()])),
-        const SizedBox(height: 8),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(99),
-                child: LinearProgressIndicator(value: (percent / 100).clamp(0, 1), minHeight: 6),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text('$percent%', style: t.labelMedium?.copyWith(color: KombeColors.emerald)),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickActions extends StatelessWidget {
-  const _QuickActions({required this.groupId});
-  final String groupId;
-
-  @override
-  Widget build(BuildContext context) {
-    final AppLocalizations l10n = AppLocalizations.of(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: <Widget>[
-        _ActionCircle(icon: Icons.upload_rounded, label: l10n.contribute, bg: KombeColors.forest, fg: Colors.white,
-            onTap: () => context.push('/app/groups/$groupId/contributions/new')),
-        _ActionCircle(icon: Icons.check_circle_outline_rounded, label: 'Valider', bg: KombeColors.gold, fg: Colors.white,
-            onTap: () => context.push('/app/validations')),
-        _ActionCircle(icon: Icons.groups_rounded, label: 'Voir le cycle', bg: KombeColors.sand, fg: KombeColors.forest,
-            onTap: () => context.push('/app/groups/$groupId/cycle')),
-        _ActionCircle(icon: Icons.history_rounded, label: l10n.history, bg: KombeColors.sand, fg: KombeColors.forest,
-            onTap: () => context.push('/app/contributions')),
-      ],
-    );
-  }
-}
-
-class _ActionCircle extends StatelessWidget {
-  const _ActionCircle({required this.icon, required this.label, required this.bg, required this.fg, required this.onTap});
-  final IconData icon;
-  final String label;
-  final Color bg;
-  final Color fg;
+/// Prochaine séance : pavé calendrier, jour en toutes lettres, lieu.
+class _MeetingCard extends StatelessWidget {
+  const _MeetingCard({required this.date, required this.place, required this.group, required this.onTap});
+  final DateTime date;
+  final String? place;
+  final String group;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Semantics(
         button: true,
-        label: label,
-        child: ExcludeSemantics(
-          child: InkResponse(
-            onTap: onTap,
-            radius: 44,
-            child: SizedBox(
-              width: 80,
-              child: Column(
-                children: <Widget>[
-                  Container(
-                    width: 68,
-                    height: 68,
-                    decoration: BoxDecoration(
-                      color: bg,
-                      shape: BoxShape.circle,
-                      boxShadow: bg == KombeColors.sand
-                          ? null
-                          : <BoxShadow>[BoxShadow(color: bg.withValues(alpha: .28), blurRadius: 14, offset: const Offset(0, 6))],
+        child: KombeCard(
+          onTap: onTap,
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: <Widget>[
+              KombeDateBlock(date),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(toBeginningOfSentenceCase(_day(context, date)), style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: <Widget>[
+                        const Icon(Icons.place_outlined, size: 15, color: KombeColors.slate),
+                        const SizedBox(width: 4),
+                        Flexible(child: Text(place ?? group, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyMedium)),
+                      ],
                     ),
-                    child: Icon(icon, color: fg, size: 28),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: KombeColors.ink, fontWeight: FontWeight.w600)),
-                ],
+                  ],
+                ),
               ),
-            ),
+              const Icon(Icons.chevron_right_rounded, color: KombeColors.slate),
+            ],
           ),
         ),
       );
 }
 
-class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({required this.item, required this.now});
-  final KombeNotification item;
-  final DateTime? now;
+class _TodoRow extends StatelessWidget {
+  const _TodoRow({required this.icon, required this.title, required this.subtitle, required this.onTap, this.tone = KombeTone.brand});
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final KombeTone tone;
 
-  static IconData _icon(NotificationKind k) => switch (k) {
-        NotificationKind.contribution => Icons.payments_outlined,
-        NotificationKind.validation => Icons.verified_outlined,
-        NotificationKind.meeting => Icons.campaign_outlined,
-        NotificationKind.vote => Icons.how_to_vote_outlined,
-        NotificationKind.dispute => Icons.gavel_rounded,
-        NotificationKind.security => Icons.shield_outlined,
-        NotificationKind.system => Icons.info_outline_rounded,
-      };
+  @override
+  Widget build(BuildContext context) => ListTile(
+        minTileHeight: 68,
+        leading: KombeIconBadge(icon, tone: tone),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right_rounded, color: KombeColors.slate),
+        onTap: onTap,
+      );
+}
 
-  String _ago(DateTime at) {
-    final Duration d = (now ?? DateTime.now()).difference(at.toLocal());
-    if (d.inMinutes < 60) return 'Il y a ${d.inMinutes.clamp(1, 59)} min';
-    if (d.inHours < 24) return 'Il y a ${d.inHours} heure${d.inHours > 1 ? 's' : ''}';
-    if (d.inDays < 7) return 'Il y a ${d.inDays} jour${d.inDays > 1 ? 's' : ''}';
-    return DateFormat.yMMMd('fr').format(at.toLocal());
-  }
+/// Silhouette de l'accueil : mêmes blocs que le contenu réel, aucune valeur.
+class HomeSkeleton extends StatelessWidget {
+  const HomeSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: 'Chargement',
+        child: ListView(
+          physics: const NeverScrollableScrollPhysics(),
+          children: <Widget>[
+            Container(
+              height: 320,
+              decoration: const BoxDecoration(color: KombeColors.brand, borderRadius: BorderRadius.vertical(bottom: Radius.circular(28))),
+            ),
+            const SizedBox(height: 22),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  KombeSkeleton(width: 52, height: 52, radius: 26),
+                  KombeSkeleton(width: 52, height: 52, radius: 26),
+                  KombeSkeleton(width: 52, height: 52, radius: 26),
+                  KombeSkeleton(width: 52, height: 52, radius: 26),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: KombeSkeleton(width: 120, height: 16)),
+            const SizedBox(height: 12),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: KombeSkeleton(height: 136, radius: 22)),
+          ],
+        ),
+      );
+}
+
+/// Aucun groupe : rejoindre (code reçu du bureau) ou créer.
+class NoGroupHome extends StatelessWidget {
+  const NoGroupHome({super.key});
 
   @override
   Widget build(BuildContext context) {
     final TextTheme t = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: KombeColors.line))),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(color: KombeColors.sand, shape: BoxShape.circle),
-            child: Icon(_icon(item.kind), color: KombeColors.forest, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(item.title, style: t.titleSmall?.copyWith(fontWeight: item.read ? FontWeight.w600 : FontWeight.w800)),
-                const SizedBox(height: 2),
-                Text(_ago(item.createdAtUtc), style: t.bodySmall),
-              ],
-            ),
-          ),
-          if (!item.read)
-            Container(width: 8, height: 8, decoration: const BoxDecoration(color: KombeColors.emerald, shape: BoxShape.circle)),
-        ],
-      ),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+      children: <Widget>[
+        const Center(child: KombeEmptyArt(icon: Icons.diversity_3_rounded, size: 150)),
+        const SizedBox(height: 24),
+        Text('Bienvenue sur KÓMBE', style: t.headlineMedium, textAlign: TextAlign.center),
+        const SizedBox(height: 10),
+        const Text(
+          'KÓMBE tient le registre de votre tontine : cotisations, tours, séances. '
+          'L’argent, lui, reste entre vos mains.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 28),
+        FilledButton.icon(
+          onPressed: () => context.push('/app/groups/join'),
+          icon: const Icon(Icons.group_add_outlined),
+          label: const Text('Rejoindre avec un code'),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: () => context.push('/app/groups/create'),
+          icon: const Icon(Icons.add_circle_outline_rounded),
+          label: const Text('Créer une tontine'),
+        ),
+      ],
     );
   }
 }
 
-/// Aucun groupe : une photo de cercle, une phrase, une action.
-class _NoGroup extends StatelessWidget {
-  const _NoGroup({required this.onJoin});
-  final VoidCallback onJoin;
+/// Tableau de bord interactif : « Ce tour » (jauge de la collecte) ou « Tout
+/// le cycle » (une barre par tour, à toucher pour voir son détail). Chiffres
+/// du serveur, rien d'estimé.
+class RoundsDashboard extends StatefulWidget {
+  const RoundsDashboard({super.key, required this.rounds, required this.onOpen});
+  final List<RoundProgress> rounds;
+  final VoidCallback onOpen;
+
+  @override
+  State<RoundsDashboard> createState() => _RoundsDashboardState();
+}
+
+class _RoundsDashboardState extends State<RoundsDashboard> {
+  bool _cycle = false;
+  late int _selected = (widget.rounds.where((RoundProgress r) => r.open).firstOrNull ?? widget.rounds.last).seq;
 
   @override
   Widget build(BuildContext context) {
     final TextTheme t = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: Image.asset(KombePhotos.heroCircle, height: 180, fit: BoxFit.cover, excludeFromSemantics: true),
-        ),
-        const SizedBox(height: 20),
-        Text('Vous n’avez encore rejoint aucune tontine.', style: t.titleLarge),
-        const SizedBox(height: 8),
-        Text('Avec un code d’invitation, vous rejoignez le cercle de votre groupe.', style: t.bodyMedium),
-        const SizedBox(height: 18),
-        FilledButton(onPressed: onJoin, child: const Text('Rejoindre une tontine')),
-      ],
+    final RoundProgress current = widget.rounds.where((RoundProgress r) => r.open).firstOrNull ?? widget.rounds.last;
+    final RoundProgress shown = _cycle ? widget.rounds.firstWhere((RoundProgress r) => r.seq == _selected, orElse: () => current) : current;
+    final int expected = widget.rounds.fold<int>(0, (int s, RoundProgress r) => s + r.expectedXaf);
+    final int collected = widget.rounds.fold<int>(0, (int s, RoundProgress r) => s + r.collectedXaf);
+    return KombeCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SegmentedButton<bool>(
+            showSelectedIcon: false,
+            segments: const <ButtonSegment<bool>>[
+              ButtonSegment<bool>(value: false, label: Text('Ce tour')),
+              ButtonSegment<bool>(value: true, label: Text('Tout le cycle')),
+            ],
+            selected: <bool>{_cycle},
+            onSelectionChanged: (Set<bool> v) => setState(() => _cycle = v.first),
+          ),
+          const SizedBox(height: 14),
+          if (!_cycle) ...<Widget>[
+            Text('${(current.ratio * 100).round()} %', style: KombeType.display(size: 30).copyWith(color: KombeColors.brand)),
+            Text('${Xaf.format(current.collectedXaf)} reçus sur ${Xaf.format(current.expectedXaf)}', style: t.bodyMedium),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(minHeight: 10, value: current.ratio, color: KombeColors.brand, backgroundColor: KombeColors.sand),
+            ),
+            const SizedBox(height: 8),
+            Text('Tour ${current.seq} · ${_day(context, current.date)}${current.label != null ? ' · ${current.label}' : ''}', style: t.bodySmall),
+          ] else ...<Widget>[
+            Text('${Xaf.format(collected)} reçus sur ${Xaf.format(expected)} pour le cycle', style: t.bodyMedium),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 110,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  for (final RoundProgress r in widget.rounds)
+                    Expanded(
+                      child: Semantics(
+                        button: true,
+                        selected: r.seq == _selected,
+                        label: 'Tour ${r.seq} : ${(r.ratio * 100).round()} % collecté',
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selected = r.seq),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            alignment: Alignment.bottomCenter,
+                            decoration: BoxDecoration(color: KombeColors.cream, borderRadius: BorderRadius.circular(8)),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 400),
+                              curve: Curves.easeOutCubic,
+                              height: 110 * (r.ratio < 0.04 ? 0.04 : r.ratio),
+                              decoration: BoxDecoration(
+                                color: r.seq == _selected ? KombeColors.forest : r.open ? KombeColors.gold : KombeColors.mint,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text('Tour ${shown.seq} · ${_day(context, shown.date)}${shown.label != null ? ' · ${shown.label}' : ''}', style: t.titleSmall),
+            Text('${Xaf.format(shown.collectedXaf)} reçus sur ${Xaf.format(shown.expectedXaf)}', style: t.bodySmall),
+          ],
+          Align(alignment: Alignment.centerRight, child: TextButton(onPressed: widget.onOpen, child: const Text('Voir le cycle'))),
+        ],
+      ),
     );
   }
 }

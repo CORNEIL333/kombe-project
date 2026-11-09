@@ -19,13 +19,16 @@ U="postgresql://kombe_migrateur:kombe@${HOSTPART}/${DB}"
 OUT="${KOMBE_PROOF_LOGS:-/tmp/kombe-proofs}"; mkdir -p "$OUT"
 
 provision() {
-  psql "$SU/postgres" -v ON_ERROR_STOP=1 -q -c "DROP DATABASE IF EXISTS $DB" -c "CREATE DATABASE $DB" >/dev/null 2>&1 || return 1
+  psql "$SU/postgres" -v ON_ERROR_STOP=1 -q -c "DROP DATABASE IF EXISTS $DB WITH (FORCE)" -c "CREATE DATABASE $DB" >/dev/null 2>&1 || return 1
   psql "$SU/$DB" -v ON_ERROR_STOP=1 -q >/dev/null <<'SQL' || return 1
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kombe_migrateur') THEN CREATE ROLE kombe_migrateur LOGIN PASSWORD 'kombe'; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kombe_app') THEN CREATE ROLE kombe_app NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kombe_worker') THEN CREATE ROLE kombe_worker NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE; END IF;
+  -- Rôle de connexion de l'API (ADR-0045) ; mot de passe de test, local seulement.
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='kombe_api') THEN CREATE ROLE kombe_api LOGIN PASSWORD 'kombe' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE INHERIT; END IF;
 END $$;
+GRANT kombe_app TO kombe_api;
 GRANT kombe_app TO kombe_migrateur;
 GRANT kombe_worker TO kombe_migrateur;
 SQL
@@ -49,7 +52,12 @@ for f in packages/db/tests/*.pg.mjs packages/api/test/*.proof.mjs; do
   if ! KOMBE_DATABASE_URL="$U" node packages/db/scripts/migrate.mjs migrate >"$OUT/$n.migrate.log" 2>&1; then
     echo "$n : migrate FAIL (voir $OUT/$n.migrate.log)"; fail=1; continue
   fi
-  KOMBE_TEST_DATABASE_URL="$U" KOMBE_API_DATABASE_URL="$U" KOMBE_DATABASE_URL="$U" \
+  # Option KOMBE_PROOF_API_POOLER=hôte:port : l'API se connecte en kombe_api via
+  # un pooler en mode transaction (PgBouncer), comme en production cible ;
+  # migrations et contrôles d'administration restent en connexion directe.
+  API_URL="$U"
+  if [ -n "${KOMBE_PROOF_API_POOLER:-}" ]; then API_URL="postgresql://kombe_api:kombe@${KOMBE_PROOF_API_POOLER}/${DB}"; fi
+  KOMBE_TEST_DATABASE_URL="$U" KOMBE_API_DATABASE_URL="$API_URL" KOMBE_DATABASE_URL="$U" \
     timeout 900 node "$f" >"$OUT/$n.log" 2>&1
   code=$?
   echo "$n exit=$code"

@@ -1,0 +1,61 @@
+{
+  "base": "http://127.0.0.1:3311",
+  "groups": 20,
+  "membersPerGroup": 10,
+  "users": 200,
+  "concurrency": 32,
+  "seconds": 30,
+  "setupSeconds": 4.7,
+  "node": "v22.22.0",
+  "phases": [
+    {
+      "phase": "A-lecture",
+      "requests": 11076,
+      "rps": 368.2,
+      "p50": 84.7,
+      "p95": 126.3,
+      "p99": 148,
+      "max": 267.9,
+      "codes": {
+        "200": 11076
+      }
+    },
+    {
+      "phase": "B-declaration",
+      "requests": 200,
+      "rps": 121.1,
+      "p50": 241.9,
+      "p95": 308.2,
+      "p99": 334.8,
+      "max": 345.5,
+      "codes": {
+        "201": 200
+      }
+    },
+    {
+      "phase": "B-rejeu-meme-cle",
+      "requests": 200,
+      "rps": 939,
+      "p50": 33.6,
+      "p95": 45.6,
+      "p99": 49.4,
+      "max": 52.8,
+      "codes": {
+        "201": 200
+      },
+      "replays": 200
+    },
+    {
+      "phase": "C-mixte-90-10",
+      "requests": 11143,
+      "rps": 370.4,
+      "p50": 83.2,
+      "p95": 127.4,
+      "p99": 159.7,
+      "max": 200.4,
+      "codes": {
+        "200": 11143
+      }
+    }
+  ]
+}

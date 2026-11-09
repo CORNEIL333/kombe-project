@@ -52,6 +52,7 @@ function blocked(reason) {
   process.exit(2);
 }
 
+process.env.KOMBE_OPERATOR_MFA ??= "off";
 const url = process.env.KOMBE_API_DATABASE_URL;
 if (!url) blocked("KOMBE_API_DATABASE_URL absente : aucune base PostgreSQL joignable (jamais simulé).");
 
@@ -76,7 +77,7 @@ async function runSql(client, relPath) {
   await client.query(sql);
 }
 
-const migrator = new pg.Client({ connectionString: url });
+const migrator = new pg.Client({ connectionString: process.env.KOMBE_DATABASE_URL ?? url });
 await migrator.connect();
 await (await import("../../db/scripts/guard.mjs")).assertNonProdTeardown(migrator, "kombe.api.serverRealMode");
 const observations = {};
@@ -110,7 +111,13 @@ try {
   `);
 
   const DOWN = [
-    "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
+    "migrations/0043_retours_membres.down.sql", "migrations/0042_securite_residuelle.down.sql", "migrations/0041_crm.down.sql",
+    "migrations/0040_performance_charge.down.sql",
+    "migrations/0039_role_api.down.sql",
+    "migrations/0038_notifications_livraison.down.sql",
+    "migrations/0037_rls_identite.down.sql",
+    "migrations/0036_securite_operateurs.down.sql",
+    "migrations/0035_member_photo.down.sql", "migrations/0034_group_photo.down.sql", "migrations/0034_echeances_notifications.down.sql", "migrations/0033_custom_funds.down.sql", "migrations/0032_audit_indexes.down.sql", "migrations/0031_cycles_reserve.down.sql", "migrations/0030_decisions.down.sql", "migrations/0029_ops_console.down.sql", "migrations/0028_product_api.down.sql", "migrations/0027_association.down.sql", "migrations/0026_tontine_core.down.sql", "migrations/0025_member_groups.down.sql", "migrations/0024_group_onboarding.down.sql", "migrations/0023_worker_discovery.down.sql", "migrations/0022_cycle_schedule.down.sql", "migrations/0021_privacy_restore_points.down.sql", "migrations/0020_group_resolvers.down.sql", "migrations/0019_token_security.down.sql", "migrations/0018_session_resolver.down.sql", "migrations/0017_pilot_metrics.down.sql",
     "migrations/0016_privacy_law.down.sql", "migrations/0015_export_manifest.down.sql",
     "migrations/0014_support_security.down.sql", "migrations/0013_outbox.down.sql",
     "migrations/0012_proposal.down.sql", "migrations/0011_disbursement.down.sql",
@@ -130,7 +137,7 @@ try {
     "migrations/0010_dispute_cases.sql", "migrations/0011_disbursement.sql", "migrations/0012_proposal.sql",
     "migrations/0013_outbox.sql", "migrations/0014_support_security.sql", "migrations/0015_export_manifest.sql",
     "migrations/0016_privacy_law.sql", "migrations/0017_pilot_metrics.sql",
-    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "provision/roles.sql",
+    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "migrations/0032_audit_indexes.sql", "migrations/0033_custom_funds.sql", "migrations/0034_echeances_notifications.sql", "migrations/0034_group_photo.sql", "migrations/0035_member_photo.sql", "migrations/0036_securite_operateurs.sql", "migrations/0037_rls_identite.sql", "migrations/0038_notifications_livraison.sql", "migrations/0039_role_api.sql", "migrations/0040_performance_charge.sql", "migrations/0041_crm.sql", "migrations/0042_securite_residuelle.sql", "migrations/0043_retours_membres.sql", "provision/roles.sql",
   ];
   for (const f of UP) await runSql(migrator, f);
 
@@ -145,8 +152,11 @@ try {
       VALUES ('mem_a3','grpA3','alice@example.test','active'),
              ('mem_a3_bob','grpA3','bob@example.test','active'),
              ('mem_a3_carol','grpA3','carol@example.test','active') ON CONFLICT DO NOTHING;
+    -- La personne qui agit tient aussi la présidence : depuis 5381c34, les
+    -- routes du socle exigent les fonctions L-11 (cycle, échéancier, retraits).
     INSERT INTO role_assignment (role_assignment_id, group_id, membership_id, role, accepted_at)
       VALUES ('ra_a3','grpA3','mem_a3','treasurer', now()),
+             ('ra_a3_pres','grpA3','mem_a3','animator', now()),
              ('ra_a3_bob','grpA3','mem_a3_bob','animator', now()),
              ('ra_a3_carol','grpA3','mem_a3_carol','member', now()) ON CONFLICT DO NOTHING;
     -- Comptes ACTIFS pour bob/carol (alice le devient via A3-REGISTER) : la
@@ -726,6 +736,11 @@ try {
   await migrator.query(
     `UPDATE identity_access SET is_operator = true WHERE identity_id IN ('alice@example.test','bob@example.test','carol@example.test')`,
   );
+  // Fonction d'opérateur « support » (ADR-0043) ; le second facteur est prouvé
+  // par operatorSecurity.proof.mjs (ici KOMBE_OPERATOR_MFA=off, hors production).
+  await migrator.query(
+    `INSERT INTO operator_role (identity_id, role, granted_by) SELECT id, 'support', 'proof' FROM unnest(ARRAY['alice@example.test','bob@example.test','carol@example.test']) AS id ON CONFLICT DO NOTHING`,
+  );
   const c17Request = await inject({
     method: "POST",
     url: "/v1/support/access-requests",
@@ -749,7 +764,7 @@ try {
   const c17Approve1 = await inject({
     method: "POST",
     url: "/v1/support/access-requests/sup_a4/approvals",
-    headers: bobAuth,
+    headers: { ...bobAuth, "if-match-version": String(c17Request.json().version) },
     payload: { ttlSeconds: 3600 },
   });
   check(
@@ -763,7 +778,7 @@ try {
   const c17Approve2 = await inject({
     method: "POST",
     url: "/v1/support/access-requests/sup_a4/approvals",
-    headers: carolAuth,
+    headers: { ...carolAuth, "if-match-version": String(c17Approve1.json().version) },
     payload: { ttlSeconds: 3600 },
   });
   check(
@@ -800,10 +815,30 @@ try {
   );
 
   // ── A4-C16 : notices, consentement, droits, export perso, restauration ─
+  // Actes d'administration (mentions légales, registre, restauration) : un
+  // opérateur « support » est refusé (403), seule la fonction admin passe.
+  const noticeBody = {
+    noticeId: "not_a4_refused", kind: "privacy", version: "1.0.0", lastUpdatedAt: "2026-10-08",
+    body: "KÓMBE est un registre partagé de tontine. Les paiements restent hors application.",
+  };
+  const c16NoticeRefused = await inject({ method: "POST", url: "/v1/privacy/notices", headers: aliceAuth, payload: noticeBody });
+  const c16RecordRefused = await inject({
+    method: "POST", url: "/v1/privacy/processing-records", headers: aliceAuth,
+    payload: { purpose: "Tentative", dataCategories: ["nom"], legalBasis: "consent", recipients: ["x"], country: "Cameroun", retentionDays: 30 },
+  });
+  const c16PointRefused = await inject({ method: "POST", url: "/v1/privacy/restore-points", headers: aliceAuth });
+  const c16RestoreRefused = await inject({ method: "POST", url: "/v1/privacy/restorations", headers: aliceAuth, payload: { probeIdentityId: "bob@example.test" } });
+  check(
+    "A4-PRIVACY-ADMIN-ONLY",
+    [c16NoticeRefused, c16RecordRefused, c16PointRefused, c16RestoreRefused].every((r) => r.statusCode === 403) &&
+      !c16PointRefused.body.includes("@example.test") && !c16RestoreRefused.body.includes("@example.test"),
+    [c16NoticeRefused, c16RecordRefused, c16PointRefused, c16RestoreRefused].map((r) => r.statusCode),
+  );
+  await migrator.query(`INSERT INTO operator_role (identity_id, role, granted_by) VALUES ('carol@example.test', 'admin', 'proof') ON CONFLICT DO NOTHING`);
   const c16Notice = await inject({
     method: "POST",
     url: "/v1/privacy/notices",
-    headers: aliceAuth,
+    headers: carolAuth,
     payload: {
       noticeId: "not_a4",
       kind: "privacy",
@@ -900,18 +935,53 @@ try {
   const c16RestorePoint = await inject({
     method: "POST",
     url: "/v1/privacy/restore-points",
-    headers: aliceAuth,
+    headers: carolAuth,
   });
-  const restoreIdentities = Array.isArray(c16RestorePoint.json().identities)
-    ? c16RestorePoint.json().identities
-    : [];
+  // Administration seule, et des COMPTES : aucun identifiant de connexion.
   check(
     "A4-PRIVACY-RESTORE-POINT",
     c16RestorePoint.statusCode === 201 &&
-      restoreIdentities.includes("alice@example.test") &&
-      restoreIdentities.includes("bob@example.test") &&
-      restoreIdentities.includes("carol@example.test"),
-    { status: c16RestorePoint.statusCode, identities: restoreIdentities },
+      c16RestorePoint.json().identityCount >= 3 &&
+      !c16RestorePoint.body.includes("@example.test"),
+    { status: c16RestorePoint.statusCode, body: c16RestorePoint.json() },
+  );
+  const c16Restore = await inject({ method: "POST", url: "/v1/privacy/restorations", headers: carolAuth, payload: { probeIdentityId: "bob@example.test" } });
+  check(
+    "A4-PRIVACY-RESTORATION-COUNTS",
+    c16Restore.statusCode === 200 &&
+      c16Restore.json().visibleCount >= 3 &&
+      c16Restore.json().deletedIdentityVisible === true &&
+      !c16Restore.body.includes("@example.test"),
+    { status: c16Restore.statusCode, body: c16Restore.json() },
+  );
+
+  // ── R-02 (0042) : RLS des tables « vie privée » et du registre des risques.
+  // Sans identité posée, le rôle applicatif ne voit rien (sauf les mentions
+  // légales, publiques) ; une personne ne voit que SES consentements.
+  const rls = await (async () => {
+    const c = await pool.connect();
+    try {
+      await c.query("BEGIN");
+      const anon = (await c.query(`SELECT
+          (SELECT count(*) FROM personal_consent) AS consent, (SELECT count(*) FROM restore_point) AS points,
+          (SELECT count(*) FROM processing_record) AS registre, (SELECT count(*) FROM data_erasure_tombstone) AS tombes,
+          (SELECT count(*) FROM pilot_risk) AS risques, (SELECT count(*) FROM legal_notice) AS notices`)).rows[0];
+      await c.query("SELECT set_config('kombe.identity_id', 'bob@example.test', true)");
+      const bob = (await c.query("SELECT count(*) AS n FROM personal_consent WHERE identity_id = 'alice@example.test'")).rows[0];
+      let forged = null;
+      try {
+        await c.query("SAVEPOINT f");
+        await c.query("INSERT INTO personal_consent (identity_id, category, granted, updated_at) VALUES ('alice@example.test','research',false,now())");
+      } catch (e) { forged = e.code; await c.query("ROLLBACK TO SAVEPOINT f"); }
+      await c.query("ROLLBACK");
+      return { anon, bobSeesAlice: Number(bob.n), forged };
+    } finally { c.release(); }
+  })();
+  check(
+    "R02-RLS-PRIVACY",
+    ["consent", "points", "registre", "tombes", "risques"].every((k) => Number(rls.anon[k]) === 0) &&
+      Number(rls.anon.notices) >= 1 && rls.bobSeesAlice === 0 && rls.forged === "42501",
+    rls,
   );
 
   // ── A3-FICTIF-INTACT : sans pool, le squelette fictif répond encore ────

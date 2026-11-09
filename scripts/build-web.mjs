@@ -5,9 +5,9 @@
 //
 //   /              PWA (membres)           packages/client
 //   /bureau/       Espace bureau           apps/dashboard-group-admin
-//   /ops/          Opérations & Support    apps/dashboard-operations
-//   /direction/    Direction & Analytics   apps/dashboard-direction
-//   /engineering/  Engineering             apps/dashboard-engineering
+//   /crm/          CRM de la plateforme    apps/dashboard-crm (fusion Opérations,
+//                                          Direction, Engineering — ADR-0046)
+//   /ops/, /direction/, /engineering/      pages de redirection vers /crm/
 //   /site/         Site de présentation    apps/site
 //   /v1/*          API (fonction serverless, voir vercel.json)
 //
@@ -25,9 +25,7 @@ const out = resolve(root, "dist-web");
 
 const APPS = [
   { dir: "apps/dashboard-group-admin", base: "/bureau/" },
-  { dir: "apps/dashboard-operations", base: "/ops/" },
-  { dir: "apps/dashboard-direction", base: "/direction/" },
-  { dir: "apps/dashboard-engineering", base: "/engineering/" },
+  { dir: "apps/dashboard-crm", base: "/crm/" },
   { dir: "apps/site", base: "/site/" },
 ];
 
@@ -58,10 +56,60 @@ for (const app of APPS) {
   if (existsSync(resolve(dest, "brand")) && !existsSync(resolve(out, "brand"))) cpSync(resolve(dest, "brand"), resolve(out, "brand"), { recursive: true });
 }
 
+// 2 bis) Anciennes consoles fusionnées dans le CRM : les adresses connues
+//    (favoris, runbooks) mènent à la bonne section. Redirection sans script
+//    (la CSP interdit le JavaScript en ligne).
+const ANCIENNES = { ops: "/crm/#/ops", direction: "/crm/#/direction", engineering: "/crm/#/technique" };
+for (const [dossier, cible] of Object.entries(ANCIENNES)) {
+  const d = resolve(out, dossier);
+  rmSync(d, { recursive: true, force: true });
+  mkdirSync(d, { recursive: true });
+  writeFileSync(
+    resolve(d, "index.html"),
+    `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0; url=${cible}"><title>KÓMBE CRM</title></head><body><p>Cette console fait désormais partie du <a href="${cible}">CRM KÓMBE</a>.</p></body></html>\n`,
+  );
+}
+
 // 3) Configuration unique, même origine par défaut.
 const config = {
   apiBaseUrl: process.env.KOMBE_WEB_API_BASE_URL || "/",
   environment: process.env.VERCEL_ENV || process.env.KOMBE_ENVIRONMENT || "production",
 };
 writeFileSync(resolve(out, "kombe-dashboard-config.json"), JSON.stringify(config) + "\n");
+// 4) Application Android : page /telecharger/. Les APK ne passent plus par le
+//    déploiement : les liens visent la release GitHub « mobile-latest » (voir
+//    les redirections de vercel.json), donc le site suit chaque nouvelle version
+//    quelle que soit la machine qui déploie.
+const apks = ["kombe-arm64.apk", "kombe-armv7.apk"];
+{
+  const dl = resolve(out, "telecharger");
+  mkdirSync(dl, { recursive: true });
+  const libelle = (f) =>
+    f.includes("armv7") ? "Téléphones anciens ou d'entrée de gamme (32 bits)" : f.includes("arm64") ? "La plupart des téléphones (recommandé)" : "Tous les téléphones";
+  const lignes = apks
+    .map((f) => {
+      return `<li><a class="b" href="/telecharger/${f}">${libelle(f)}</a><small>${f}</small></li>`;
+    })
+    .join("\n");
+  writeFileSync(
+    resolve(dl, "index.html"),
+    `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Télécharger KÓMBE pour Android</title>
+<style>body{margin:0;font-family:Manrope,system-ui,sans-serif;background:#061F1B;color:#F3ECDD;line-height:1.55}
+.scene{position:relative;min-height:46vh;display:flex;align-items:flex-end;background:#082C26 url(/brand/photos/mains-telephone.webp) center/cover}
+.scene:before{content:"";position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(180deg,rgba(6,31,27,.25),rgba(6,31,27,.97))}
+.scene div{position:relative;max-width:32rem;margin:0 auto;padding:2rem 1.25rem 1rem;width:100%;box-sizing:border-box}
+.logo{display:inline-flex;align-items:center;font-weight:800;letter-spacing:.06em;font-size:22px;color:#FBF8F1}
+h1{font-size:2rem;line-height:1.08;letter-spacing:-.03em;margin:1.4rem 0 .4rem;color:#FBF8F1}h1 em{display:block;font-family:Newsreader,Georgia,serif;font-weight:400;color:#E2B868}
+main{max-width:32rem;margin:0 auto;padding:.5rem 1.25rem 2.5rem}ul{list-style:none;padding:0}li{margin:1rem 0}
+a.b{display:block;padding:1rem 1.25rem;border-radius:999px;background:#E2B868;color:#13211C;font-weight:800;text-decoration:none;text-align:center}
+small{display:block;text-align:center;opacity:.72;margin-top:.35rem}ol{padding-left:1.25rem}h2{font-size:1.15rem}</style></head>
+<body><header class="scene"><div><span class="logo" role="img" aria-label="KÓMBE">K<svg width="21" height="21" viewBox="0 0 40 40" aria-hidden="true" style="margin:0 .04em"><circle cx="20" cy="22" r="13" fill="none" stroke="currentColor" stroke-width="4.5"/><path d="M23.5 3.5 L30 1" stroke="#C7922E" stroke-width="4.5" stroke-linecap="round"/></svg>MBE</span>
+<h1>KÓMBE pour Android <em>votre tontine, plus claire.</em></h1><p>Le registre de votre tontine. KÓMBE ne garde pas votre argent.</p></div></header><main>
+<ul>${lignes}</ul>
+<h2>Installer</h2><ol><li>Touchez le bouton, puis ouvrez le fichier téléchargé.</li><li>Autorisez « Installer des applications inconnues » si le téléphone le demande.</li><li>Connectez-vous avec votre adresse e-mail et le code reçu.</li></ol>
+<p>« Application non compatible » ? Prenez l'autre bouton. Pas d'Android ? Utilisez <a href="/" style="color:#E2B868">kombe.vercel.app</a> dans le navigateur.</p></main></body></html>\n`,
+  );
+}
+
 process.stdout.write(`dist-web prêt : / ${APPS.map((a) => a.base).join(" ")} · apiBaseUrl=${config.apiBaseUrl}\n`);

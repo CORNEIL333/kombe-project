@@ -8,6 +8,7 @@
  * erreur annule l'ensemble : jamais d'effet partiel.
  */
 import { randomUUID } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type pg from "pg";
 import {
   DomainError,
@@ -21,6 +22,7 @@ import {
   canAct,
 } from "@kombe/domain";
 import { resolveSession } from "../db/pgSessionResolver.js";
+import { assertDbRole } from "../db/pgPool.js";
 
 export type Db = pg.PoolClient;
 
@@ -29,7 +31,9 @@ export function newId(prefix: string): string {
   return `${prefix}_${randomUUID().replace(/-/g, "")}`;
 }
 
-/** Montant XAF reçu en chaîne d'entier → bigint (jamais de flottant). */
+/** Montant XAF reçu en chaîne d'entier → bigint (jamais de flottant). Plafond
+ *  `kombe_money` (bigint ≤ 1e9, migration 0001) : le refus est précoce et
+ *  porte le bon code, pas un STATE_CONFLICT venu du CHECK. */
 export function money(value: string | number | bigint | null | undefined, field = "montant"): bigint {
   if (value === null || value === undefined) return 0n;
   if (typeof value === "bigint") return value;
@@ -37,7 +41,11 @@ export function money(value: string | number | bigint | null | undefined, field 
   if (!/^\d{1,13}$/.test(s)) {
     throw new DomainError("MONEY_NOT_INTEGER", `${field} : entier XAF attendu`);
   }
-  return BigInt(s);
+  const v = BigInt(s);
+  if (v > 1_000_000_000n) {
+    throw new DomainError("MONEY_OVER_PER_AMOUNT_CEILING", `${field} : au-delà du plafond XAF (1 000 000 000)`);
+  }
+  return v;
 }
 
 export function m(value: bigint): string {
@@ -69,13 +77,99 @@ export function isoInstant(value: unknown): string | null {
 
 /* ── Transactions ─────────────────────────────────────────────────────── */
 
-export async function inTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promise<T> {
+/**
+ * Transaction de commande idempotente en cours (si la requête porte une
+ * `Idempotency-Key`) : tout `inTx` imbriqué se déroule DANS cette transaction
+ * (point de sauvegarde), si bien que l'effet métier et l'enregistrement de la
+ * réponse sont validés ou annulés ENSEMBLE — jamais d'effet sans trace
+ * rejouable, jamais de trace sans effet.
+ */
+const ambient = new AsyncLocalStorage<{ readonly db: Db; depth: number }>();
+
+/**
+ * Ouverture de transaction en UN SEUL aller-retour (protocole simple, sans
+ * paramètre) au lieu de quatre : chaque aller-retour coûte une latence réseau
+ * vers la base (pooler compris) et occupe la connexion. Délais :
+ * 9 s < 10 s — en serverless la plateforme coupe la fonction ; mieux vaut un
+ * échec métier propre (translatePgError) qu'un 500 sans réponse.
+ */
+const OPEN_TX_WITH_TIMEOUTS =
+  "BEGIN; SET LOCAL idle_in_transaction_session_timeout = '9s'; SET LOCAL lock_timeout = '3s'; SET LOCAL statement_timeout = '9s'";
+/** Garde de moindre privilège (avant de prendre une connexion), puis ouverture :
+ *  délais déjà posés par la connexion (vérifié une fois par instance) → simple BEGIN. */
+async function connectTx(pool: pg.Pool): Promise<pg.PoolClient> {
+  const c = await assertDbRole(pool);
   const db = await pool.connect();
   try {
-    await db.query("BEGIN");
-    await db.query("SET LOCAL idle_in_transaction_session_timeout = '15s'");
-    await db.query("SET LOCAL lock_timeout = '3s'");
-    await db.query("SET LOCAL statement_timeout = '15s'");
+    await db.query(c.timeoutsSet ? "BEGIN" : OPEN_TX_WITH_TIMEOUTS);
+  } catch (error) {
+    db.release();
+    throw error;
+  }
+  return db;
+}
+
+/**
+ * Cache de LECTURE limité à une requête en lecture seule (`inReadTx`) : un même
+ * chargeur (tours, caisses, parts, règlement, noms) appelé deux fois pour le
+ * même groupe pendant la requête ne relit pas la base (mesuré : 5 lectures en
+ * double sur 31 pour l'écran « mes tontines »). Jamais actif hors de inReadTx :
+ * une requête qui écrit relit toujours la base.
+ */
+const readCache = new AsyncLocalStorage<Map<string, Promise<unknown>>>();
+export function cachedRead<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const c = readCache.getStore();
+  if (!c) return load();
+  let p = c.get(key) as Promise<T> | undefined;
+  if (!p) {
+    p = load();
+    c.set(key, p);
+    p.catch(() => c.delete(key));
+  }
+  return p;
+}
+/** Transaction de LECTURE SEULE (aucune écriture dans `fn`) avec cache de requête. */
+export async function inReadTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promise<T> {
+  return readCache.run(new Map(), () => inTx(pool, fn));
+}
+
+/** Ouvre la transaction d'une commande idempotente (voir `write` dans routes.ts). */
+export async function inCommandTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promise<T> {
+  if (ambient.getStore()) throw new Error("inCommandTx imbriqué");
+  const db = await connectTx(pool);
+  try {
+    const out = await ambient.run({ db, depth: 0 }, () => fn(db));
+    await db.query("COMMIT");
+    return out;
+  } catch (error) {
+    try {
+      await db.query("ROLLBACK");
+    } catch {
+      /* connexion perdue : le pool la recrée */
+    }
+    throw translatePgError(error);
+  } finally {
+    db.release();
+  }
+}
+
+export async function inTx<T>(pool: pg.Pool, fn: (db: Db) => Promise<T>): Promise<T> {
+  const amb = ambient.getStore();
+  if (amb) {
+    // Imbriqué dans une commande idempotente : même connexion, point de sauvegarde.
+    const sp = `kombe_sp_${++amb.depth}`;
+    await amb.db.query(`SAVEPOINT ${sp}`);
+    try {
+      const out = await fn(amb.db);
+      await amb.db.query(`RELEASE SAVEPOINT ${sp}`);
+      return out;
+    } catch (error) {
+      await amb.db.query(`ROLLBACK TO SAVEPOINT ${sp}`).catch(() => undefined);
+      throw translatePgError(error);
+    }
+  }
+  const db = await connectTx(pool);
+  try {
     const out = await fn(db);
     await db.query("COMMIT");
     return out;
@@ -99,6 +193,8 @@ export function translatePgError(error: unknown): unknown {
     process.stderr.write(`[tontine pg] ${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
   }
   if (code === "23505") return new DomainError("STATE_CONFLICT", "Déjà enregistré");
+  if (code === "22P02") return new DomainError("REQUEST_INVALID", "Identifiant ou valeur mal formée");
+  if (code === "22023") return new DomainError("REQUEST_INVALID", "Valeur refusée");
   if (code === "23514" || code === "23503" || code === "23502") {
     return new DomainError("STATE_CONFLICT", "Opération refusée par les règles du registre");
   }
@@ -267,12 +363,39 @@ export type NotificationKind =
   | "membership"
   | "minutes_ready"
   | "general"
-  | "decision";
+  | "decision"
+  | "join_request"
+  | "admitted"
+  | "rejected"
+  | "role_proposed"
+  | "role_reminder"
+  | "statutes_published"
+  | "statutes_reminder"
+  | "statutes_excluded"
+  | "statutes_expired"
+  | "cycle_started"
+  | "meeting_opened"
+  | "draw_committed"
+  | "fine_cancelled"
+  | "aid_requested"
+  | "vote_reminder"
+  | "payout_to_confirm"
+  | "fund_created"
+  | "movement_rejected"
+  | "fine_contested"
+  | "support_reply"
+  | "poll_opened"
+  | "meeting_updated"
+  | "fine_refunded";
+
+/** Détail court d'une notification (lu après authentification, jamais en push). */
+export type NotificationParams = Readonly<Record<string, string | number | boolean | null>>;
 
 /**
- * Notifie des identités du groupe courant. Libellé SANS montant ni nom
- * (écran verrouillé) : `target` est un chemin de l'app, le détail se lit
- * après authentification. Dédupliqué par `dedup`.
+ * Notifie des identités du groupe courant. Le TITRE affiché (par type) ne
+ * porte ni montant ni nom (écran verrouillé, ADR-0016) ; `params` donne le
+ * détail lisible dans l'application authentifiée, `target` l'écran à ouvrir
+ * (`/tontines/<groupe>/<section>[/<objet>]`). Dédupliqué par `dedup`.
  */
 export async function notify(
   db: Db,
@@ -281,10 +404,17 @@ export async function notify(
   kind: NotificationKind,
   target: string | null,
   dedup: string,
+  params: NotificationParams | null = null,
 ): Promise<void> {
-  for (const id of new Set(identityIds)) {
-    if (id.startsWith("offline_")) continue;
-    await db.query("SELECT kombe_notify($1,$2,$3,$4,$5)", [id, groupId, kind, target, `${dedup}:${id}`]);
+  const ids = [...new Set(identityIds)].filter((i) => !i.startsWith("offline_"));
+  if (ids.length === 0) return;
+  let detail = params;
+  if (!detail || typeof detail.groupName !== "string") {
+    const g = await db.query(`SELECT display_name FROM "group" WHERE group_id = $1`, [groupId]);
+    detail = { ...(detail ?? {}), groupName: g.rows[0]?.display_name ? String(g.rows[0].display_name) : null };
+  }
+  for (const id of ids) {
+    await db.query("SELECT kombe_notify_v2($1,$2,$3,$4,$5,$6::jsonb)", [id, groupId, kind, target, `${dedup}:${id}`, JSON.stringify(detail)]);
   }
 }
 

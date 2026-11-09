@@ -1,0 +1,275 @@
+/* KÓMBE — rendu des planches de référence (2026-11, mobile et bureau).
+   Chargé en dernier : il précise premium.css et coquille.css. Contraintes
+   tenues : pas de `inset`/`aspect-ratio`/flex `gap`, cibles ≥ 44 px, focus
+   visible, contrastes AA, aucun flou sur du contenu qui défile. */
+
+/* ── Barre supérieure ─────────────────────────────────────────────────── */
+.barre-haut { background: var(--p-ivoire); border-bottom: 0; }
+.barre-haut__titre { justify-content: center; }
+.selecteur-groupe { padding: 6px 14px; border-radius: 999px; background: var(--p-menthe); color: var(--p-foret); font-size: 0.95rem; }
+.selecteur-groupe .avatar-groupe, .selecteur-groupe__sous { display: none; }
+.selecteur-groupe__texte { display: flex; flex-direction: column; min-width: 0; text-align: left; }
+.selecteur-groupe__ligne { display: inline-flex; align-items: center; min-width: 0; }
+.barre-haut__cloche .compteur { background: var(--p-or); color: var(--p-encre); }
+/* Accueil sur téléphone : la barre se fond dans le bandeau forêt. */
+@media (max-width: 899px) {
+  .ecran--accueil .barre-haut { background: var(--p-foret); color: var(--p-ivoire); }
+  .ecran--accueil .barre-haut__menu, .ecran--accueil .barre-haut__cloche { color: var(--p-ivoire); }
+  .ecran--accueil .selecteur-groupe { background: rgba(251, 248, 241, 0.14); color: var(--p-ivoire); }
+}
+@media (min-width: 900px) {
+  .barre-haut { min-height: 84px; padding: 10px 24px; background: transparent; }
+  .barre-haut__titre { justify-content: flex-start; }
+  .selecteur-groupe { padding: 6px 10px 6px 6px; border-radius: 18px; background: transparent; color: var(--p-encre); }
+  .selecteur-groupe:hover { background: rgba(16, 60, 50, 0.05); }
+  .selecteur-groupe .avatar-groupe { display: inline-flex; margin-right: 14px; border-radius: 14px; }
+  .selecteur-groupe__nom { font: 800 1.55rem/1.15 var(--f-ui, Manrope, sans-serif); letter-spacing: -0.02em; }
+  .selecteur-groupe__sous { display: block; margin-top: 2px; font: 500 1rem/1.3 var(--f-ui, Manrope, sans-serif); color: var(--p-texte-2); }
+  .barre-haut__cloche { width: 52px; height: 52px; border-radius: 16px; background: #fff; box-shadow: var(--p-ombre-1); }
+}
+
+/* ── Menu latéral ─────────────────────────────────────────────────────── */
+.menu-lateral { padding: 0; background: var(--p-ivoire); display: flex; flex-direction: column; }
+.menu-lateral__tete {
+  padding: 18px 12px 14px 20px; color: var(--p-ivoire);
+  background-color: var(--p-foret);
+  background-image: linear-gradient(90deg, var(--p-foret) 55%, rgba(16, 60, 50, 0.6)), url("/brand/fonds/creation.webp");
+  background-size: cover; background-position: right center;
+}
+.menu-lateral__marque { display: flex; flex-direction: column; }
+.menu-lateral__signature { margin-top: 2px; font-size: 0.85rem; color: rgba(251, 248, 241, 0.86); }
+.menu-lateral__fermer { color: var(--p-ivoire); }
+.menu-lateral__personne {
+  display: flex; align-items: center; width: 100%; min-height: 76px; padding: 12px 16px 16px 20px; border: 0; text-align: left; cursor: pointer;
+  background: #134a3d; color: var(--p-ivoire); font: inherit; border-radius: 0 0 22px 0;
+}
+.menu-lateral__personne:focus-visible { outline: 3px solid var(--p-or); outline-offset: -3px; }
+.menu-lateral__personne-avatar {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; margin-right: 12px;
+  border-radius: 999px; background: var(--p-or); color: var(--p-encre); font-weight: 800; font-size: 1.1rem; box-shadow: 0 0 0 3px rgba(251, 248, 241, 0.25);
+}
+.menu-lateral__personne-texte { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.menu-lateral__personne-nom { font-weight: 800; font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-lateral__personne-role { font-size: 0.9rem; color: rgba(251, 248, 241, 0.82); }
+.menu-lateral__corps { flex: 1 1 auto; padding: 12px 12px 8px; }
+.menu-lateral__titre { display: flex; align-items: center; justify-content: space-between; margin: 6px 4px 8px 8px; }
+.menu-lateral__titre h2 { margin: 0; font: 700 1rem/1.3 var(--f-ui, Manrope, sans-serif); color: var(--p-encre); }
+.menu-lateral__ajout { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 0; border-radius: 999px; background: var(--p-or-pale); color: var(--p-foret); cursor: pointer; }
+.menu-lateral__groupe { min-height: 60px; border-radius: 16px; }
+.menu-lateral__groupe.is-choisi { background: var(--p-menthe); }
+.menu-lateral__groupe-nom { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-lateral__groupe-role { font-size: 0.88rem; color: var(--p-texte-2); }
+.menu-lateral__lien { border-radius: 14px; font-weight: 600; }
+.menu-lateral__nav .menu-lateral__lien[aria-current="page"] { background: var(--p-foret); color: var(--p-ivoire); }
+.menu-lateral__principal { display: none !important; }
+.menu-lateral__pied {
+  flex: 0 0 auto; height: 64px; margin-top: 8px;
+  background-color: var(--p-foret);
+  background-image: linear-gradient(rgba(16, 60, 50, 0.55), rgba(16, 60, 50, 0.55)), url("/brand/fonds/creation.webp");
+  background-size: cover;
+}
+@media (min-width: 900px) { .menu-lateral__fermer { display: none; } }
+
+/* ── Bandeau d'accueil (téléphone) ────────────────────────────────────── */
+.bandeau-accueil {
+  margin: 0 -16px; padding: 4px 16px 72px; color: var(--p-ivoire);
+  background-color: var(--p-foret);
+  background-image: linear-gradient(90deg, var(--p-foret) 48%, rgba(16, 60, 50, 0.25)), url("/brand/fonds/creation.webp");
+  background-size: cover; background-position: right center;
+}
+.bandeau-accueil__salut { margin: 0; font: 600 0.95rem/1.3 var(--f-ui, Manrope, sans-serif); letter-spacing: 0; color: rgba(251, 248, 241, 0.9); }
+.bandeau-accueil__marque { margin: 2px 0 0; font: 800 2rem/1.1 var(--f-ui, Manrope, sans-serif); letter-spacing: -0.01em; }
+.bandeau-accueil__groupe { margin: 4px 0 0; font-size: 0.9rem; color: rgba(251, 248, 241, 0.86); }
+@media (min-width: 900px) { .bandeau-accueil { display: none; } }
+
+/* ── Carte de cotisation : ivoire (téléphone), héros forêt (bureau) ───── */
+.hero-cotisation {
+  position: relative; overflow: hidden; margin-top: -56px; padding: 18px 18px 20px; border-radius: 24px;
+  background: #ffffff; color: var(--p-encre); box-shadow: var(--p-ombre-2);
+}
+.hero-cotisation__contenu { position: relative; z-index: 1; }
+.hero-cotisation__sur { display: none; }
+.hero-cotisation__libelle { margin: 0; font: 600 0.95rem/1.3 var(--f-ui, Manrope, sans-serif); color: var(--p-texte-2); }
+.hero-cotisation__montant { margin: 2px 0 0; font: 800 2.3rem/1.08 var(--f-ui, Manrope, sans-serif); letter-spacing: -0.03em; color: var(--p-foret); }
+.hero-cotisation__echeance { display: flex; align-items: center; margin: 6px 0 16px; color: var(--p-texte-2); font-size: 0.92rem; }
+.hero-cotisation__echeance svg { display: none; }
+.is-retard .hero-cotisation__echeance { color: var(--p-alerte); font-weight: 700; }
+.hero-cotisation__ajour { display: flex; align-items: center; margin: 4px 0; font: 700 1.2rem/1.3 var(--f-ui, Manrope, sans-serif); }
+.hero-cotisation__ajour svg { margin-right: 10px; color: var(--p-jade); }
+.hero-cotisation__cta {
+  display: flex; align-items: center; justify-content: center; width: 100%; min-height: 52px; border: 0; border-radius: 999px;
+  background: var(--p-foret); color: var(--p-ivoire); font-weight: 800; font-size: 1rem; box-shadow: 0 8px 20px -10px rgba(16, 60, 50, 0.7);
+  transition: transform 160ms var(--p-ressort);
+}
+.hero-cotisation__cta:active { transform: scale(0.98); }
+.hero-cotisation__cta svg { margin-right: 8px; }
+.hero-cotisation__pieces {
+  position: absolute; top: 16px; right: 16px; display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px;
+  border-radius: 999px; background: radial-gradient(circle at 35% 30%, #f3d48f, var(--p-or) 70%); color: #7a5600; box-shadow: 0 8px 18px -8px rgba(242, 176, 30, 0.9);
+}
+.hero-cotisation__visuel { display: none; }
+@media (min-width: 900px) {
+  .hero-cotisation {
+    margin-top: 0; min-height: 280px; padding: 34px 34px 30px; border-radius: 28px; color: var(--p-ivoire);
+    background-color: var(--p-foret);
+    background-image: url("/brand/fonds/confirmation.webp"); background-size: cover; background-position: left center;
+  }
+  .hero-cotisation__contenu { max-width: 56%; }
+  .hero-cotisation__sur { display: flex; align-items: center; margin: 0 0 10px; color: var(--p-or); font: 800 1.15rem/1.3 var(--f-ui, Manrope, sans-serif); }
+  .hero-cotisation__sur svg { margin-right: 10px; }
+  .hero-cotisation__libelle { position: absolute; left: -9999px; }
+  .hero-cotisation__montant { font-size: 3.4rem; color: var(--p-ivoire); }
+  .hero-cotisation__echeance { margin: 12px 0 22px; color: rgba(251, 248, 241, 0.92); font-size: 1.05rem; }
+  .hero-cotisation__echeance svg { display: inline; margin-right: 10px; }
+  .hero-cotisation__cta { display: inline-flex; width: auto; padding: 0 30px; min-height: 58px; border-radius: 16px; background: var(--p-or); color: var(--p-encre); font-size: 1.1rem; box-shadow: 0 10px 24px -12px rgba(242, 176, 30, 0.95); }
+  .hero-cotisation__pieces { display: none; }
+  .hero-cotisation__visuel {
+    display: block; position: absolute; top: 0; right: 0; bottom: 0; width: 46%;
+    background-size: cover; background-position: center;
+    -webkit-clip-path: polygon(14% 0, 100% 0, 100% 100%, 0 100%); clip-path: polygon(14% 0, 100% 0, 100% 100%, 0 100%);
+  }
+  .is-retard .hero-cotisation__echeance { color: #ffd9d2; }
+}
+
+/* Ligne « déclaré, en attente » (téléphone). */
+.ligne-attente {
+  display: flex; align-items: center; width: 100%; min-height: 52px; margin-top: 12px; padding: 10px 14px; border: 0; border-radius: 16px;
+  background: #ffffff; box-shadow: var(--p-ombre-1); text-align: left; font: inherit; color: var(--p-encre); cursor: pointer;
+}
+.ligne-attente > span { flex: 1 1 auto; margin: 0 10px; font-size: 0.9rem; }
+.ligne-attente > svg:first-child { color: var(--p-or); }
+@media (min-width: 900px) { .ligne-attente { display: none; } }
+
+/* Actions rapides : bureau seulement (planche). */
+.actions-rapides { display: none; }
+@media (min-width: 900px) {
+  .actions-rapides { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-gap: 16px; margin-top: 18px; }
+  .tuile-action { min-height: 104px; border-radius: 18px; font-size: 0.98rem; font-weight: 600; }
+  .tuile-action__icone { margin-bottom: 8px; }
+}
+
+/* Sections, listes en carte. */
+.titre-section--action h2 { font: 800 1rem/1.3 var(--f-ui, Manrope, sans-serif); color: var(--p-encre); }
+.titre-section--action h2 svg { margin-right: 8px; color: var(--p-or); }
+@media (min-width: 900px) {
+  .titre-section--action h2 { font-size: 1.3rem; }
+  .carte-liste { padding: 4px 8px; border-radius: 20px; background: #fff; box-shadow: var(--p-ombre-1); }
+  .carte-liste--vide { padding: 16px; }
+}
+.accueil-duo { display: block; }
+@media (min-width: 900px) { .accueil-duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-column-gap: 24px; } }
+
+/* Prochaine séance : forêt tissée (téléphone), carte avec vignette (bureau). */
+.carte-seance { margin-top: 0; }
+.carte-seance__vignette { display: none; }
+.carte-seance__lieu { display: flex; align-items: center; }
+.carte-seance__lieu svg { margin-right: 6px; }
+@media (min-width: 900px) {
+  .carte-seance { padding: 12px; border-radius: 20px; background: #fff; color: var(--p-encre); box-shadow: var(--p-ombre-1); }
+  .carte-seance__icone, .carte-seance__sur { display: none; }
+  .carte-seance__vignette { display: block; flex: 0 0 auto; width: 112px; height: 112px; margin-right: 16px; border-radius: 16px; background: url("/brand/fonds/paysage.webp") center / cover; }
+  .carte-seance__date { font-size: 1.05rem; }
+  .carte-seance__lieu { margin-top: 6px; color: var(--p-texte-2); }
+  .carte-seance__lieu svg { color: var(--p-or); }
+}
+
+/* ── Colonne de droite (bureau) ───────────────────────────────────────── */
+.accueil-rail { display: none; }
+@media (min-width: 1024px) {
+  .accueil-grille { grid-template-columns: minmax(0, 1fr) 340px; grid-column-gap: 28px; }
+  .accueil-rail { display: block; margin-top: 0; top: 96px; }
+}
+.carte-rail { border-radius: 22px; padding: 20px; }
+.carte-rail__grand { font-size: 1.6rem; }
+.carte-rail__chiffres { list-style: none; padding: 0; margin: 14px 0 0; }
+.carte-rail__chiffres li { display: flex; align-items: center; padding: 10px 0; border-top: 1px solid var(--p-trait); }
+.carte-rail__chiffres li > span:last-child { display: flex; flex-direction: column; }
+.carte-rail__pastille { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-right: 12px; border-radius: 999px; }
+.carte-rail__pastille--or { background: var(--p-or-pale); color: #7a5600; }
+.carte-rail__pastille--jade { background: var(--p-menthe); color: var(--p-jade); }
+.carte-rail__libelle { font-size: 0.85rem; color: var(--p-texte-2); }
+.carte-rail__valeur { font-weight: 800; font-size: 1.1rem; }
+.carte-rail--membres { display: block; margin-top: 18px; cursor: pointer; }
+.carte-rail--membres .carte-rail__titre { justify-content: space-between; }
+.carte-rail--membres .carte-rail__titre svg:last-child { margin-left: auto; color: var(--p-encre); }
+.pile-avatars { display: flex; margin-top: 14px; }
+.pile-avatars__un {
+  display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-right: -8px;
+  border-radius: 999px; border: 3px solid #fff; background: var(--p-foret); color: var(--p-ivoire); font-weight: 800; font-size: 0.9rem;
+}
+.pile-avatars__un:nth-child(2) { background: var(--p-jade); }
+.pile-avatars__un:nth-child(3) { background: #8a5f14; }
+.pile-avatars__un:nth-child(4) { background: #0b7a53; }
+.pile-avatars__plus { background: var(--p-menthe) !important; color: var(--p-foret); }
+.carte-promo {
+  margin-top: 18px; padding: 22px; border-radius: 22px; color: var(--p-ivoire);
+  background-color: var(--p-foret);
+  background-image: linear-gradient(90deg, var(--p-foret) 62%, rgba(16, 60, 50, 0.2)), url("/brand/fonds/creation.webp");
+  background-size: cover; background-position: right center;
+}
+.carte-promo svg { color: var(--p-or); }
+.carte-promo h2 { margin: 10px 0 6px; font: 800 1.3rem/1.25 var(--f-ui, Manrope, sans-serif); max-width: 80%; }
+.carte-promo p { margin: 0; color: rgba(251, 248, 241, 0.86); max-width: 80%; }
+
+/* ── Barre du bas : téléphone et tablette ; sur bureau la colonne de gauche porte les quatre destinations. */
+.nav-basse__item.is-actif .nav-basse__icone { background: var(--p-menthe); border-radius: 999px; }
+@media (min-width: 900px) {
+  .nav-basse { display: none; }
+  .app--session .contenu-tontine { padding-bottom: 40px; }
+}
+
+/* ── Écrans Groupes et Activité ───────────────────────────────────────── */
+.entete-ecran {
+  position: relative; margin: 0 -16px 4px; padding: 8px 16px 6px;
+  background-image: url("/brand/fonds/creation.webp"); background-repeat: no-repeat; background-size: 150px auto; background-position: right -40px top -20px;
+}
+.ecran-sous-titre { margin: 4px 0 0; color: var(--p-texte-2); }
+.activite .titre-section--action { align-items: flex-start; }
+.tuiles-groupes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-gap: 12px; margin: 12px 0 18px; }
+.tuile-groupe {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 92px; padding: 12px; border: 0; border-radius: 18px;
+  background: var(--p-menthe); color: var(--p-foret); font: 700 0.95rem/1.25 var(--f-ui, Manrope, sans-serif); cursor: pointer; box-shadow: var(--p-ombre-1);
+}
+.tuile-groupe svg { margin-bottom: 6px; }
+.tuile-groupe--forte { background: var(--p-foret); color: var(--p-ivoire); }
+.tuile-groupe:focus-visible { outline: 3px solid var(--p-or); outline-offset: 2px; }
+.carte-groupe { display: block; border: 0; border-radius: 20px; box-shadow: var(--p-ombre-1); }
+.carte-groupe.is-actif { box-shadow: 0 0 0 2px var(--p-jade), var(--p-ombre-1); }
+.carte-groupe__corps { padding: 14px; border-radius: 20px 20px 0 0; }
+.carte-groupe__corps > .avatar-groupe { border-radius: 18px; }
+.carte-groupe__corps > svg:last-of-type { flex: 0 0 auto; color: var(--p-encre); }
+.carte-groupe__nom { font-size: 1.12rem; white-space: normal; }
+.carte-groupe__meta { display: flex; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+.carte-groupe__meta svg { margin-right: 6px; color: var(--p-foret); }
+.carte-groupe__meta .etiquette { margin-left: 10px; }
+.etiquette--or { background: var(--p-or-pale); color: #7a5600; }
+.carte-groupe__cycle { display: flex; align-items: center; margin-top: 10px; font-size: 0.9rem; }
+.carte-groupe__cycle > span:first-child { margin-right: 10px; white-space: nowrap; }
+.carte-groupe__barre { flex: 1 1 auto; height: 6px; border-radius: 999px; background: var(--p-menthe); overflow: hidden; }
+.carte-groupe__barre > span { display: block; height: 100%; background: var(--p-foret); transform-origin: left center; }
+.carte-groupe__pct { margin-left: 10px; font-weight: 800; color: var(--p-jade); }
+.carte-groupe__pied { display: flex; align-items: center; border-top: 1px solid var(--p-trait); }
+.carte-groupe__prochaine {
+  flex: 1 1 auto; display: flex; align-items: center; min-height: 60px; padding: 10px 14px; border: 0; background: transparent; text-align: left; font: inherit; color: var(--p-encre); cursor: pointer;
+}
+.carte-groupe__calendrier { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin-right: 12px; border-radius: 12px; background: var(--p-or-pale); color: #7a5600; }
+.carte-groupe__prochaine-texte { flex: 1 1 auto; display: flex; flex-direction: column; font-size: 0.85rem; color: var(--p-texte-2); }
+.carte-groupe__prochaine-texte strong { font-size: 0.95rem; color: var(--p-encre); }
+.carte-groupe__bureau { margin: 0 12px 0 4px; }
+@media (min-width: 900px) {
+  .cartes-groupes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-gap: 16px; }
+  .cartes-groupes .carte-groupe { margin: 0; }
+  .tuiles-groupes { max-width: 520px; }
+}
+
+/* Lignes : icônes en pastille menthe ; non lues mises en avant. */
+.ligne__icone { background: var(--p-menthe); color: var(--p-foret); }
+.ligne--nonlue { background: rgba(220, 239, 230, 0.45); }
+.ligne__point { background: var(--p-foret); }
+
+/* Correctifs de la recette visuelle. */
+.titre-section--action h2 > * + *, .hero-cotisation__sur > * + *, .hero-cotisation__echeance > * + *, .carte-rail__titre > * + *, .carte-seance__lieu > * + * { margin-left: 8px; }
+.hero-cotisation__echeance { text-align: left; justify-content: flex-start; }
+.seulement-bureau { display: none; }
+@media (min-width: 900px) { .seulement-bureau { display: inline; } .seulement-telephone { display: none; } }
+@media (max-width: 899px) { .app--session.app-tontine { padding-left: 0; padding-right: 0; } }

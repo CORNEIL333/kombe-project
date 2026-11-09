@@ -23,6 +23,7 @@ export const FUND_KINDS = [
   "fines",
   "loan",
   "collector",
+  "custom",
 ] as const;
 export type FundKind = (typeof FUND_KINDS)[number];
 
@@ -37,6 +38,7 @@ export const FUND_LABELS: Readonly<Record<FundKind, { fr: string; en: string }>>
   fines: { fr: "Caisse des amendes", en: "Fines fund" },
   loan: { fr: "Caisse de prêts (registre)", en: "Loan fund (register)" },
   collector: { fr: "Collecte par un tontinier", en: "Daily collector" },
+  custom: { fr: "Caisse personnalisée", en: "Custom fund" },
 };
 
 /**
@@ -240,6 +242,7 @@ export const DEFAULT_FUND_RULES: Readonly<Record<FundKind, FundRules>> = {
   fines: { perMeetingAmount: 0n, annualAmount: 0n, controlRequired: false, allowNegative: false },
   loan: { perMeetingAmount: 0n, annualAmount: 0n, controlRequired: true, allowNegative: false },
   collector: { perMeetingAmount: 0n, annualAmount: 0n, controlRequired: false, allowNegative: false },
+  custom: { perMeetingAmount: 0n, annualAmount: 0n, controlRequired: false, allowNegative: false },
 };
 
 export function assertFundRules(r: FundRules): void {
@@ -319,4 +322,144 @@ export function planReserveDistribution(
     left -= 1n;
   }
   return base.filter((e) => e.amount > 0n).map(({ membershipId, owed: o, amount }) => ({ membershipId, owed: o, amount }));
+}
+
+/* ── Caisses personnalisées (retours terrain, oct. 2026) ─────────────────
+ * Une tontine crée ses propres caisses et cotisations, chacune avec SES
+ * règles : projet commun, fête de fin d'année, achat groupé, caisse d'urgence…
+ *
+ *   each_meeting : un montant dû à chaque séance (cotisation régulière) ;
+ *   one_time     : un montant dû une seule fois (cotisation exceptionnelle),
+ *                  à la première séance à partir de la date d'effet ;
+ *   free         : contributions libres (volontaires), aucun montant dû.
+ *
+ * Règle d'or du registre : AUCUNE règle n'est rétroactive. Le montant d'une
+ * caisse évolue par un barème daté (`schedule`) ; chaque entrée ne vaut que
+ * pour les séances à partir de sa date d'effet, jamais pour les séances
+ * passées. Clore une caisse arrête les échéances des séances APRÈS sa date
+ * de clôture ; les séances jusqu'à ce jour inclus restent dues.
+ */
+export const CUSTOM_FUND_MODES = ["each_meeting", "one_time", "free"] as const;
+export type CustomFundMode = (typeof CUSTOM_FUND_MODES)[number];
+
+export interface CustomFundStep {
+  /** Date d'effet (AAAA-MM-JJ, heure de Douala). */
+  readonly from: string;
+  /** Montant dû (FCFA entiers) à partir de cette date. */
+  readonly amount: string;
+}
+
+export interface CustomFundRules {
+  readonly mode: CustomFundMode;
+  /** À quoi sert la caisse (affiché aux membres). */
+  readonly purpose: string | null;
+  /** Objectif à atteindre, facultatif (FCFA). */
+  readonly target: string | null;
+  /** Barème daté, trié par date croissante (vide pour une caisse libre). */
+  readonly schedule: readonly CustomFundStep[];
+  /** Date de clôture : plus aucune échéance pour les séances postérieures. */
+  readonly closedOn: string | null;
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const AMOUNT = /^\d{1,12}$/;
+
+/** Lit des règles stockées (JSON) en règles sûres ; défauts prudents. */
+export function parseCustomFundRules(raw: unknown): CustomFundRules {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const mode = (CUSTOM_FUND_MODES as readonly string[]).includes(String(r.mode)) ? (r.mode as CustomFundMode) : "free";
+  const schedule = Array.isArray(r.schedule)
+    ? (r.schedule as unknown[])
+        .map((x) => (x && typeof x === "object" ? (x as Record<string, unknown>) : {}))
+        .filter((x) => ISO_DAY.test(String(x.from)) && AMOUNT.test(String(x.amount)))
+        .map((x) => ({ from: String(x.from), amount: String(x.amount) }))
+        .sort((a, b) => a.from.localeCompare(b.from))
+    : [];
+  return {
+    mode,
+    purpose: typeof r.purpose === "string" && r.purpose.trim() ? r.purpose.trim() : null,
+    target: typeof r.target === "string" && AMOUNT.test(r.target) && r.target !== "0" ? r.target : null,
+    schedule,
+    closedOn: typeof r.closedOn === "string" && ISO_DAY.test(r.closedOn) ? r.closedOn : null,
+  };
+}
+
+/**
+ * Montant dû sur une caisse personnalisée pour une séance datée.
+ * `firstOnOrAfter` : date de la première séance à partir de la date d'effet
+ * (sert au mode « une seule fois »).
+ */
+export function customFundDue(rules: CustomFundRules, roundDate: string, firstOnOrAfter: string | null): bigint {
+  if (rules.closedOn && roundDate > rules.closedOn) return 0n;
+  if (rules.mode === "free" || rules.schedule.length === 0) return 0n;
+  if (rules.mode === "one_time") {
+    const first = rules.schedule[0];
+    if (!first || firstOnOrAfter === null || roundDate !== firstOnOrAfter) return 0n;
+    return BigInt(first.amount);
+  }
+  let due = 0n;
+  for (const step of rules.schedule) if (step.from <= roundDate) due = BigInt(step.amount);
+  return due;
+}
+
+export interface CreateCustomFundInput {
+  readonly name: string;
+  readonly mode: CustomFundMode;
+  readonly amount?: string | undefined;
+  readonly from?: string | undefined;
+  readonly purpose?: string | null | undefined;
+  readonly target?: string | null | undefined;
+}
+
+/** Construit et valide les règles d'une nouvelle caisse (date d'effet ≥ aujourd'hui). */
+export function newCustomFundRules(input: CreateCustomFundInput, today: string): CustomFundRules {
+  const name = input.name.trim().replace(/\s+/g, " ");
+  if (name.length < 2 || name.length > 80) throw new DomainError("FUND_INVALID", "Nom de caisse de 2 à 80 caractères");
+  if (!(CUSTOM_FUND_MODES as readonly string[]).includes(input.mode)) throw new DomainError("FUND_INVALID", "Type de cotisation inconnu");
+  const purpose = input.purpose?.trim() ? input.purpose.trim().slice(0, 280) : null;
+  const target = input.target && input.target !== "0" ? input.target : null;
+  if (target !== null && !AMOUNT.test(target)) throw new DomainError("FUND_INVALID", "Objectif : montant entier en FCFA");
+  if (input.mode === "free") return { mode: "free", purpose, target, schedule: [], closedOn: null };
+  const amount = input.amount ?? "";
+  if (!AMOUNT.test(amount) || BigInt(amount) <= 0n) throw new DomainError("FUND_INVALID", "Montant de la cotisation : entier positif en FCFA");
+  perAmount(BigInt(amount));
+  const from = input.from ?? today;
+  if (!ISO_DAY.test(from)) throw new DomainError("FUND_INVALID", "Date d'effet invalide");
+  if (from < today) throw new DomainError("FUND_INVALID", "Une règle n'est jamais rétroactive : la date d'effet est aujourd'hui ou plus tard");
+  return { mode: input.mode, purpose, target, schedule: [{ from, amount }], closedOn: null };
+}
+
+export interface UpdateCustomFundInput {
+  readonly name?: string | undefined;
+  readonly purpose?: string | null | undefined;
+  readonly target?: string | null | undefined;
+  /** Nouveau montant, à partir de `from` (≥ aujourd'hui). */
+  readonly amount?: string | undefined;
+  readonly from?: string | undefined;
+  /** Clôturer la caisse aujourd'hui (les séances jusqu'à aujourd'hui restent dues). */
+  readonly close?: boolean | undefined;
+}
+
+/** Applique une modification sans jamais réécrire le passé. */
+export function updateCustomFundRules(cur: CustomFundRules, input: UpdateCustomFundInput, today: string): CustomFundRules {
+  if (cur.closedOn) throw new DomainError("FUND_INVALID", "Caisse déjà clôturée");
+  let schedule = [...cur.schedule];
+  if (input.amount !== undefined) {
+    if (cur.mode === "free") throw new DomainError("FUND_INVALID", "Une caisse libre n'a pas de montant dû");
+    if (cur.mode === "one_time") throw new DomainError("FUND_INVALID", "Une cotisation unique ne change pas de montant : créez une nouvelle cotisation");
+    if (!AMOUNT.test(input.amount) || BigInt(input.amount) <= 0n) throw new DomainError("FUND_INVALID", "Montant : entier positif en FCFA");
+    perAmount(BigInt(input.amount));
+    const from = input.from ?? today;
+    if (!ISO_DAY.test(from) || from < today) throw new DomainError("FUND_INVALID", "Une règle n'est jamais rétroactive : la date d'effet est aujourd'hui ou plus tard");
+    schedule = schedule.filter((st) => st.from < from).concat([{ from, amount: input.amount }]);
+  }
+  const target = input.target === undefined ? cur.target : input.target && input.target !== "0" ? input.target : null;
+  if (target !== null && !AMOUNT.test(target)) throw new DomainError("FUND_INVALID", "Objectif : montant entier en FCFA");
+  return {
+    mode: cur.mode,
+    purpose: input.purpose === undefined ? cur.purpose : input.purpose?.trim() ? input.purpose.trim().slice(0, 280) : null,
+    target,
+    schedule,
+    closedOn: input.close ? today : null,
+  };
 }

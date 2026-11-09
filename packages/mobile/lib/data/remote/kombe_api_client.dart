@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -25,22 +26,27 @@ final class ApiResponse {
 /// la réponse en données structurées. Les décisions (idempotence, capacité
 /// sous verrou, droits) restent côté serveur ; le client ne fait qu'appeler le
 /// contrat. Les erreurs non-2xx sont converties en [ApiFailure] portant l'
-/// ErrorCode stable du serveur, sans réinterprétation.
+/// ErrorCode stable du serveur, sans réinterprétation. Un 401 déclenche en
+/// plus [onUnauthorized] (purge de session côté appelant) : l'app finit
+/// toujours reconnectée à l'écran de connexion au lieu d'empiler des erreurs.
 final class KombeApiClient {
   KombeApiClient({
     required Uri baseUrl,
     http.Client? client,
     SessionHeaders? sessionHeaders,
     Duration timeout = const Duration(seconds: 15),
+    Future<void> Function()? onUnauthorized,
   })  : _baseUrl = baseUrl,
         _client = client ?? http.Client(),
         _sessionHeaders = sessionHeaders ?? _noSession,
-        _timeout = timeout;
+        _timeout = timeout,
+        _onUnauthorized = onUnauthorized;
 
   final Uri _baseUrl;
   final http.Client _client;
   final SessionHeaders _sessionHeaders;
   final Duration _timeout;
+  final Future<void> Function()? _onUnauthorized;
 
   static Future<Map<String, String>> _noSession() async => const {};
 
@@ -63,6 +69,23 @@ final class KombeApiClient {
   }) =>
       _send('POST', path, body: body, headers: headers);
 
+  /// Suppression (DELETE), même traitement des erreurs que les autres verbes.
+  Future<ApiResponse> delete(String path, {Map<String, String>? headers}) =>
+      _send('DELETE', path, headers: headers);
+
+  /// Octets bruts (photo de groupe). `null` si absente (404) ; la session est
+  /// portée comme pour toute requête — aucune URL publique.
+  Future<Uint8List?> getBytes(String path) async {
+    final http.Request request = http.Request('GET', _uri(path))..headers.addAll(await _sessionHeaders());
+    try {
+      final http.Response res = await _client.send(request).then(http.Response.fromStream).timeout(_timeout);
+      if (res.statusCode != 200) return null;
+      return (res.headers['content-type'] ?? '').startsWith('image/jpeg') ? res.bodyBytes : null;
+    } catch (_) {
+      return null; // réseau instable : les initiales restent affichées
+    }
+  }
+
   Future<ApiResponse> patch(
     String path,
     Map<String, dynamic> body, {
@@ -81,6 +104,13 @@ final class KombeApiClient {
   /// reprise réseau ne crée jamais deux déclarations côté serveur).
   Future<ApiResponse> postOnce(String path, Map<String, dynamic> body) =>
       _send('POST', path, body: body, headers: <String, String>{'idempotency-key': newIdempotencyKey()});
+
+  /// Écriture rejouable : la clé est DÉRIVÉE de l'intention (même brouillon,
+  /// même ligne) par l'appelant. Après une réponse perdue, renvoyer la même
+  /// requête avec la même clé fait rejouer au serveur la réponse mémorisée —
+  /// jamais une seconde écriture.
+  Future<ApiResponse> postWithKey(String path, Map<String, dynamic> body, String idempotencyKey) =>
+      _send('POST', path, body: body, headers: <String, String>{'idempotency-key': idempotencyKey});
 
   Future<ApiResponse> _send(
     String method,
@@ -131,6 +161,13 @@ final class KombeApiClient {
         );
       }
       throw ApiFailure(statusCode: res.statusCode, code: 'RESPONSE_NOT_JSON');
+    }
+    if (res.statusCode == 401) {
+      try {
+        await _onUnauthorized?.call();
+      } catch (_) {
+        // La purge ne doit jamais masquer l'échec d'origine (401).
+      }
     }
     throw _toFailure(res);
   }

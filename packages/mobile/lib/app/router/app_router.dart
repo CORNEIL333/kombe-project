@@ -1,27 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/auth/biometric_setup_screen.dart';
+import '../../domain/entities/auth.dart';
+import '../../features/governance/poll_screens.dart';
+import '../../features/groups/share_names_screen.dart';
+import '../../features/auth/display_name_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/recovery_request_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/auth/verify_code_screen.dart';
 import '../../features/auth/welcome_screen.dart';
 import '../../features/contributions/contribution_detail_screen.dart';
-import '../../features/contributions/contribution_evidence_screen.dart';
 import '../../features/contributions/contribution_history_screen.dart';
-import '../../features/contributions/contribution_review_screen.dart';
 import '../../features/contributions/contribution_start_screen.dart';
-import '../../features/disputes/dispute_screens.dart';
 import '../../features/documents/document_screens.dart';
+import '../../features/fines/fine_screens.dart';
+import '../../features/meetings/meeting_screens.dart';
 import '../../features/governance/vote_screens.dart';
 import '../../features/groups/beneficiaries_screen.dart';
 import '../../features/groups/create_group_screen.dart';
 import '../../features/groups/cycle_screen.dart';
-import '../../features/groups/discover_groups_screen.dart';
 import '../../features/groups/group_detail_screen.dart';
 import '../../features/groups/group_settings_screen.dart';
-import '../../features/groups/groups_screen.dart';
 import '../../features/groups/invite_member_screen.dart';
 import '../../features/groups/join_group_screen.dart';
 import '../../features/groups/member_detail_screen.dart';
@@ -32,11 +32,12 @@ import '../../features/home/dashboard_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/offline/offline_status_screen.dart';
 import '../../features/offline/server_required_screen.dart';
+import '../../features/groups/bureau_screen.dart';
+import '../../features/groups/funds_screen.dart';
 import '../../features/profile/edit_profile_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/settings/about_screen.dart';
 import '../../features/settings/language_screen.dart';
-import '../../features/settings/more_screen.dart';
 import '../../features/settings/notification_preferences_screen.dart';
 import '../../features/settings/privacy_screen.dart';
 import '../../features/settings/security_screen.dart';
@@ -64,6 +65,7 @@ final class AppRouter {
               orElse: () => VerifyCodePurpose.login,
             ),
             identityId: state.uri.queryParameters['identityId'] ?? '',
+            channel: loginChannelFrom(state.uri.queryParameters['channel']) ?? LoginChannel.email,
           ),
         ),
         GoRoute(
@@ -71,8 +73,8 @@ final class AppRouter {
           builder: (_, __) => const RecoveryRequestScreen(),
         ),
         GoRoute(
-          path: '/biometric-setup',
-          builder: (_, __) => const BiometricSetupScreen(),
+          path: '/app/welcome-name',
+          builder: (_, __) => const DisplayNameScreen(),
         ),
         GoRoute(
           path: '/server-required',
@@ -93,8 +95,16 @@ final class AppRouter {
             StatefulShellBranch(
               routes: <RouteBase>[
                 GoRoute(
+                  path: '/app/contributions',
+                  builder: (_, __) => const ContributionHistoryScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: <RouteBase>[
+                GoRoute(
                   path: '/app/groups',
-                  builder: (_, __) => const GroupsScreen(),
+                  builder: (_, __) => const MyGroupsScreen(),
                 ),
               ],
             ),
@@ -106,15 +116,11 @@ final class AppRouter {
                 ),
               ],
             ),
-            StatefulShellBranch(
-              routes: <RouteBase>[
-                GoRoute(
-                  path: '/app/more',
-                  builder: (_, __) => const MoreScreen(),
-                ),
-              ],
-            ),
           ],
+        ),
+        GoRoute(
+          path: '/app/bureau',
+          builder: (_, __) => const ActiveBureauScreen(),
         ),
         GoRoute(
           path: '/app/groups/join',
@@ -124,14 +130,7 @@ final class AppRouter {
           path: '/app/groups/create',
           builder: (_, __) => const CreateGroupScreen(),
         ),
-        GoRoute(
-          path: '/app/groups/discover',
-          builder: (_, __) => const DiscoverGroupsScreen(),
-        ),
-        GoRoute(
-          path: '/app/groups/mine',
-          builder: (_, __) => const MyGroupsScreen(),
-        ),
+        GoRoute(path: '/app/groups/mine', redirect: (_, __) => '/app/groups'),
         GoRoute(
           path: '/app/groups/:groupId',
           builder: (_, state) =>
@@ -160,6 +159,16 @@ final class AppRouter {
               BeneficiariesScreen(groupId: state.pathParameters['groupId']!),
         ),
         GoRoute(
+          path: '/app/groups/:groupId/bureau',
+          builder: (_, state) =>
+              BureauScreen(groupId: state.pathParameters['groupId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/funds',
+          builder: (_, state) =>
+              FundsScreen(groupId: state.pathParameters['groupId']!),
+        ),
+        GoRoute(
           path: '/app/groups/:groupId/rules',
           builder: (_, state) =>
               RulesScreen(groupId: state.pathParameters['groupId']!),
@@ -180,24 +189,6 @@ final class AppRouter {
             groupId: state.pathParameters['groupId']!,
             draftId: state.uri.queryParameters['draft'],
           ),
-        ),
-        GoRoute(
-          path: '/app/groups/:groupId/contributions/:draftId/evidence',
-          builder: (_, state) => ContributionEvidenceScreen(
-            groupId: state.pathParameters['groupId']!,
-            draftId: state.pathParameters['draftId']!,
-          ),
-        ),
-        GoRoute(
-          path: '/app/groups/:groupId/contributions/:draftId/review',
-          builder: (_, state) => ContributionReviewScreen(
-            groupId: state.pathParameters['groupId']!,
-            draftId: state.pathParameters['draftId']!,
-          ),
-        ),
-        GoRoute(
-          path: '/app/contributions',
-          builder: (_, __) => const ContributionHistoryScreen(),
         ),
         GoRoute(
           path: '/app/contributions/:contributionId',
@@ -222,18 +213,31 @@ final class AppRouter {
               VoteDetailScreen(voteId: state.pathParameters['voteId']!),
         ),
         GoRoute(
-          path: '/app/disputes',
-          builder: (_, __) => const DisputesScreen(),
+          path: '/app/groups/:groupId/names',
+          builder: (_, state) => ShareNamesScreen(groupId: state.pathParameters['groupId']!),
         ),
         GoRoute(
-          path: '/app/disputes/new',
-          builder: (_, __) => const CreateDisputeScreen(),
+          path: '/app/groups/:groupId/polls',
+          builder: (_, state) => PollsScreen(groupId: state.pathParameters['groupId']!),
         ),
         GoRoute(
-          path: '/app/disputes/:disputeId',
-          builder: (_, state) => DisputeDetailScreen(
-            disputeId: state.pathParameters['disputeId']!,
+          path: '/app/groups/:groupId/fines',
+          builder: (_, state) => GroupFinesScreen(groupId: state.pathParameters['groupId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/meetings',
+          builder: (_, state) => MeetingsScreen(groupId: state.pathParameters['groupId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/meetings/:meetingId',
+          builder: (_, state) => MeetingDetailScreen(
+            groupId: state.pathParameters['groupId']!,
+            meetingId: state.pathParameters['meetingId']!,
           ),
+        ),
+        GoRoute(
+          path: '/app/fines',
+          builder: (_, __) => const MyFinesScreen(),
         ),
         GoRoute(
           path: '/app/profile',
@@ -264,10 +268,6 @@ final class AppRouter {
           builder: (_, __) => const DocumentsScreen(),
         ),
         GoRoute(
-          path: '/app/exports',
-          builder: (_, __) => const ExportCenterScreen(),
-        ),
-        GoRoute(
           path: '/app/help',
           builder: (_, __) => const HelpCenterScreen(),
         ),
@@ -295,10 +295,15 @@ final class AppRouter {
         path == '/login' ||
         path == '/register' ||
         path == '/verify-code' ||
-        path == '/recovery-request' ||
-        path == '/biometric-setup';
+        path == '/recovery-request';
 
-    if (sessionController.kind == SessionStateKind.signedIn && authPath) {
+    final bool signedIn = sessionController.kind == SessionStateKind.signedIn;
+    // Compte sans nom : on le demande avant d'entrer (« Comment vous
+    // appelle-t-on ? »), puis on entre dans l'application.
+    if (signedIn && sessionController.needsDisplayName) {
+      return path == '/app/welcome-name' ? null : '/app/welcome-name';
+    }
+    if (signedIn && (authPath || path == '/app/welcome-name')) {
       return '/app';
     }
 

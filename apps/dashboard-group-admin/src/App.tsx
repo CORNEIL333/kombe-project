@@ -9,7 +9,7 @@ import {
   CapabilityNotice, DashboardBoot, DashboardShell, DataTable, KeyValue, PageHeader, Panel, RemoteState, StatCard, StatusChip,
   formatServerDate, formatXaf, useHashRoute, useRemote, type DashboardContext,
 } from '@kombe/dashboard-core';
-import { GroupAdminApi, type DecisionView, downloadCsv, toCsv, type MeetingDetail, type MovementView, type TontineSummary } from './api';
+import { GroupAdminApi, type DecisionView, downloadBlob, downloadCsv, toCsv, type MeetingDetail, type MovementView, type TontineSummary } from './api';
 
 const messages = { app: { fr: 'Espace bureau', en: 'Board space' } } as const;
 const NAV = [
@@ -32,7 +32,7 @@ export const ETAT_MVT: Record<string, [string, 'ok' | 'warn' | 'danger' | 'neutr
   declared: ['Déclaré', 'warn'], confirmed: ['Confirmé par le trésorier', 'ok'], validated: ['Validé', 'ok'], rejected: ['Rejeté', 'danger'], compensated: ['Corrigé', 'neutral'],
 };
 const CAISSE: Record<string, string> = {
-  rotation: 'Cagnotte (njangi)', solidarity: 'Secours', year_end_reserve: 'Réserve de fin d’année', operating: 'Fonctionnement', fines: 'Amendes', loan: 'Prêts', collector: 'Collecte journalière',
+  rotation: 'Cagnotte (njangi)', solidarity: 'Secours', year_end_reserve: 'Réserve de fin d’année', operating: 'Fonctionnement', fines: 'Amendes', loan: 'Prêts', collector: 'Collecte journalière', custom: 'Caisse personnalisée',
 };
 const TYPE: Record<string, string> = {
   contribution: 'Cotisation', payout: 'Remise', fine_payment: 'Amende payée', advance: 'Avance de caisse', advance_repayment: 'Remboursement d’avance',
@@ -178,7 +178,7 @@ function Collecte({ api, g }: P) {
             </>
           )}</RemoteState>
         </Panel></div>
-        <div className="k-span-5"><AConfirmer api={api} g={g} /></div>
+        <div className="k-span-5"><AConfirmer api={api} g={g} /><AValider api={api} g={g} /></div>
       </div>
     </>
   );
@@ -202,9 +202,10 @@ function AConfirmer({ api, g }: P) {
             <DataTable rows={rows} rowKey={(m) => m.movementId} caption="Déclarations à confirmer" columns={[
               { header: '', render: (m) => m.can.confirm ? <input type="checkbox" aria-label={`Sélectionner ${m.memberName ?? ''}`} checked={sel.has(m.movementId)} onChange={(e) => setSel((s) => { const n = new Set(s); if (e.target.checked) n.add(m.movementId); else n.delete(m.movementId); return n; })} /> : null, width: '36px' },
               { header: 'Membre', render: (m) => m.memberName ?? '—' },
-              { header: 'Caisse', render: (m) => CAISSE[m.fundKind] ?? m.fundKind },
+              { header: 'Caisse', render: (m) => (m.fundKind === 'custom' ? m.fundName : CAISSE[m.fundKind] ?? m.fundKind) },
               { header: 'Montant', render: (m) => xaf(m.amount) },
               { header: 'Moyen', render: (m) => `${CANAL[m.channel] ?? m.channel}${m.reference ? ` · ${m.reference}` : ''}` },
+              { header: '', render: (m) => m.can.reject ? <button type="button" className="k-button k-button-secondary" disabled={busy} onClick={() => { const motif = window.prompt('Motif du rejet (visible par le membre) :'); if (motif && motif.trim().length >= 3) void run(() => api.reject(g.groupId, m.movementId, motif.trim()), 'Déclaration rejetée.'); }}>Rejeter</button> : null },
             ]} />
             <div className="k-toolbar">
               <button type="button" className="k-button k-button-secondary" disabled={!ok.length} onClick={() => setSel(new Set(ok.map((m) => m.movementId)))}>Tout sélectionner ({ok.length})</button>
@@ -219,12 +220,42 @@ function AConfirmer({ api, g }: P) {
   );
 }
 
+/** Commissaire aux comptes : valide après contrôle les versements confirmés (jamais les siens). */
+function AValider({ api, g }: P) {
+  const q = useRemote((s) => api.movements(g.groupId, { state: 'confirmed' }, s), [api, g.groupId]);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const run = async (fn: () => Promise<unknown>, ok: string) => {
+    setBusy(true); setMsg(null);
+    try { await fn(); setMsg(ok); q.reload(); } catch (e) { setMsg(errText(e)); } finally { setBusy(false); }
+  };
+  return (
+    <Panel title="À valider (commissaire aux comptes)">
+      <RemoteState state={q.state} onRetry={q.reload} emptyTitle="Rien à valider">{(all) => {
+        const rows = all.filter((m) => m.can.control);
+        if (rows.length === 0) return <p className="k-hint">Rien à valider pour vous : les versements confirmés le sont par le commissaire aux comptes, jamais sur ses propres versements.</p>;
+        return (
+          <>
+            <DataTable rows={rows} rowKey={(m) => m.movementId} caption="Versements confirmés à valider" columns={[
+              { header: 'Membre', render: (m) => m.memberName ?? '—' },
+              { header: 'Montant', render: (m) => xaf(m.amount) },
+              { header: 'Confirmé par', render: (m) => m.confirmedByName ?? '—' },
+              { header: '', render: (m) => <button type="button" className="k-button k-button-primary" disabled={busy} onClick={() => void run(() => api.control(g.groupId, m.movementId), 'Versement validé.')}>Valider</button> },
+            ]} />
+            {msg ? <p className="k-hint" role="status">{msg}</p> : null}
+          </>
+        );
+      }}</RemoteState>
+    </Panel>
+  );
+}
+
 function Mouvements({ api, g }: P) {
   const [state, setState] = useState('');
   const q = useRemote((s) => api.movements(g.groupId, state ? { state } : {}, s), [api, g.groupId, state]);
   const exporter = (rows: readonly MovementView[]) => downloadCsv(`kombe-mouvements-${g.name.replace(/\W+/g, '-')}.csv`, toCsv(
     ['Date', 'Type', 'Caisse', 'Membre', 'Tour', 'Montant (XAF)', 'Moyen', 'Référence', 'État', 'Déclaré par', 'Confirmé par', 'Contrôlé par'],
-    rows.map((m) => [m.declaredAt.slice(0, 10), TYPE[m.kind] ?? m.kind, CAISSE[m.fundKind] ?? m.fundKind, m.memberName, m.roundSeq, m.amount, CANAL[m.channel] ?? m.channel, m.reference, ETAT_MVT[m.state]?.[0] ?? m.state, m.declaredByName, m.confirmedByName, m.controlledByName]),
+    rows.map((m) => [m.declaredAt.slice(0, 10), TYPE[m.kind] ?? m.kind, m.fundKind === 'custom' ? m.fundName : CAISSE[m.fundKind] ?? m.fundKind, m.memberName, m.roundSeq, m.amount, CANAL[m.channel] ?? m.channel, m.reference, ETAT_MVT[m.state]?.[0] ?? m.state, m.declaredByName, m.confirmedByName, m.controlledByName]),
   ));
   return (
     <>
@@ -241,7 +272,7 @@ function Mouvements({ api, g }: P) {
             <DataTable rows={rows} rowKey={(m) => m.movementId} caption="Mouvements" columns={[
               { header: 'Date', render: (m) => jour(m.declaredAt) },
               { header: 'Type', render: (m) => TYPE[m.kind] ?? m.kind },
-              { header: 'Caisse', render: (m) => CAISSE[m.fundKind] ?? m.fundKind },
+              { header: 'Caisse', render: (m) => (m.fundKind === 'custom' ? m.fundName : CAISSE[m.fundKind] ?? m.fundKind) },
               { header: 'Membre', render: (m) => m.memberName ?? '—' },
               { header: 'Montant', render: (m) => xaf(m.amount) },
               { header: 'Moyen', render: (m) => `${CANAL[m.channel] ?? m.channel}${m.reference ? ` · ${m.reference}` : ''}` },
@@ -261,6 +292,16 @@ function Membres({ api, g }: P) {
   const q = useRemote((s) => api.members(g.groupId, s), [api, g.groupId]);
   const inv = useRemote((s) => api.invitations(g.groupId, s), [api, g.groupId], { enabled: admin, isEmpty: () => false });
   const [msg, setMsg] = useState<string | null>(null);
+  const [invUses, setInvUses] = useState('');
+  const [invJours, setInvJours] = useState('');
+  const creerInvitation = async () => {
+    const n = (v: string) => (v.trim() === '' ? undefined : Number(v));
+    const uses = n(invUses);
+    const days = n(invJours);
+    const ok = (x: number | undefined, max: number) => x === undefined || (Number.isInteger(x) && x >= 1 && x <= max);
+    if (!ok(uses, 100) || !ok(days, 30)) { setMsg('Utilisations de 1 à 100, jours de 1 à 30.'); return; }
+    await act(() => api.createInvitation(g.groupId, uses, days));
+  };
   const act = async (fn: () => Promise<unknown>) => { setMsg(null); try { await fn(); q.reload(); if (admin) inv.reload(); } catch (e) { setMsg(errText(e)); } };
   return (
     <>
@@ -280,18 +321,25 @@ function Membres({ api, g }: P) {
             ]} />
           )}</RemoteState>
         </Panel></div>
-        <div className="k-span-4"><Panel title="Invitations" action={admin ? <button type="button" className="k-button k-button-primary" onClick={() => void act(() => api.createInvitation(g.groupId))}>Nouveau lien</button> : undefined}>
-          {admin ? <RemoteState state={inv.state} onRetry={inv.reload}>{(rows) => rows.length === 0 ? <p className="k-hint">Aucun lien.</p> : <>{rows.map((i) => (
+        <div className="k-span-4"><Panel title="Invitations" action={admin ? <button type="button" className="k-button k-button-primary" onClick={() => void creerInvitation()}>Nouveau lien</button> : undefined}>
+          {admin ? <>
+          <div className="k-toolbar">
+            <label className="k-hint">Utilisations <input type="number" min={1} max={100} value={invUses} onChange={(e) => setInvUses(e.target.value)} style={{ width: '5em' }} /></label>
+            <label className="k-hint">Jours <input type="number" min={1} max={30} value={invJours} onChange={(e) => setInvJours(e.target.value)} style={{ width: '4em' }} /></label>
+          </div>
+          <p className="k-hint">Vide = défauts du serveur (30 utilisations, 14 jours).</p>
+          <RemoteState state={inv.state} onRetry={inv.reload}>{(rows) => rows.length === 0 ? <p className="k-hint">Aucun lien.</p> : <>{rows.map((i) => (
             <div key={i.invitationId} className="k-invite">
               <KeyValue label="Code" value={<span className="k-code">{i.code}</span>} />
               <KeyValue label="Valable" value={`jusqu’au ${jour(i.expiresAt)} · ${i.usedCount}/${i.maxUses}`} />
               {i.revoked ? <StatusChip status="Révoqué" tone="neutral" /> : <div className="k-toolbar">
-                <a className="k-button k-button-primary" href={`https://wa.me/?text=${encodeURIComponent(i.whatsappText)}`} target="_blank" rel="noreferrer">WhatsApp</a>
+                <a className="k-button k-button-primary" href={`https://wa.me/?text=${encodeURIComponent(i.whatsappText)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
                 <button type="button" className="k-button k-button-secondary" onClick={() => void navigator.clipboard?.writeText(i.url)}>Copier le lien</button>
                 <button type="button" className="k-button k-button-secondary" onClick={() => void act(() => api.revokeInvitation(g.groupId, i.invitationId))}>Révoquer</button>
               </div>}
             </div>
-          ))}</>}</RemoteState> : <p className="k-hint">Réservé au président, au vice-président et au secrétaire.</p>}
+          ))}</>}</RemoteState>
+          </> : <p className="k-hint">Réservé au président, au vice-président et au secrétaire.</p>}
         </Panel></div>
       </div>
     </>
@@ -435,11 +483,33 @@ function Votes({ api, g }: P) {
   );
 }
 
+/** Classeur Excel complet du groupe (tours, membres, mouvements, amendes, séances, votes). */
+function ExportExcel({ api, g }: P) {
+  const [etat, setEtat] = useState<'repos' | 'encours' | 'erreur'>('repos');
+  const lancer = async () => {
+    setEtat('encours');
+    try {
+      const blob = await api.exportXlsx(g.groupId);
+      downloadBlob(`kombe-${g.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\W+/g, '-')}.xlsx`, blob);
+      setEtat('repos');
+    } catch {
+      setEtat('erreur');
+    }
+  };
+  return (
+    <div className="k-toolbar">
+      <button type="button" className="k-button" disabled={etat === 'encours'} onClick={() => void lancer()}>{etat === 'encours' ? 'Préparation du classeur…' : 'Exporter tout en Excel (.xlsx)'}</button>
+      {etat === 'erreur' ? <span role="alert">Export impossible pour le moment. Réessayez.</span> : null}
+    </div>
+  );
+}
+
 function Registre({ api, g }: P) {
   const q = useRemote((s) => api.journal(g.groupId, s), [api, g.groupId], { isEmpty: (d) => d.entries.length === 0 });
   return (
     <>
       <PageHeader title="Registre" description="Journal append-only chaîné par empreintes : un événement modifié ou supprimé casse la chaîne." />
+      <ExportExcel api={api} g={g} />
       <RemoteState state={q.state} onRetry={q.reload}>{(j) => (
         <Panel title={j.valid ? 'Chaîne vérifiée' : 'Chaîne NON vérifiée'} action={<button type="button" className="k-button k-button-secondary" onClick={() => downloadCsv(`kombe-registre-${g.name.replace(/\W+/g, '-')}.csv`, toCsv(['N°', 'Date', 'Événement', 'Auteur', 'Empreinte'], j.entries.map((e) => [e.seq, e.at, e.summary, e.actorName, e.hash])))}>Exporter en CSV</button>}>
           <StatusChip status={j.valid ? 'Aucun événement modifié ni supprimé' : 'Prévenez le commissaire aux comptes'} tone={j.valid ? 'ok' : 'danger'} />
@@ -455,10 +525,11 @@ function Registre({ api, g }: P) {
 
 function Reglement({ api, g }: P) {
   const d = useRemote((s) => api.detail(g.groupId, s), [api, g.groupId], { isEmpty: () => false });
-  const st = useRemote((s) => api.statutes(g.groupId, s), [api, g.groupId], { isEmpty: () => false });
+  // Avant publication, l'API répond 404 : ce n'est pas une panne, juste « pas encore ».
+  const st = useRemote((s) => api.statutes(g.groupId, s).catch((e: unknown) => { if (e && typeof e === 'object' && (e as { status?: number }).status === 404) return null; throw e; }), [api, g.groupId], { isEmpty: () => false });
   return (
     <>
-      <PageHeader title="Règlement & statuts" description="Le règlement se modifie dans l’application tant que le cycle n’a pas démarré ; les règles ne sont jamais rétroactives." />
+      <PageHeader title="Règlement & statuts" description="Le règlement se modifie dans l’application avant le premier cycle et entre deux saisons ; les règles ne sont jamais rétroactives." />
       <div className="k-grid">
         <div className="k-span-5"><Panel title="Règlement"><RemoteState state={d.state} onRetry={d.reload}>{(t) => (
           <>
@@ -475,9 +546,12 @@ function Reglement({ api, g }: P) {
             <KeyValue label="Jours de grâce" value={String(t.settings.fines.graceDays)} />
           </>
         )}</RemoteState></Panel></div>
-        <div className="k-span-7"><Panel title="Statuts et règlement intérieur"><RemoteState state={st.state} onRetry={st.reload}>{(s) => (
+        <div className="k-span-7"><Panel title="Statuts et règlement intérieur"><RemoteState state={st.state} onRetry={st.reload}>{(s) => s === null ? (
+          <p className="k-hint">Statuts pas encore publiés. Le président les publie depuis l’application (onglet Statuts), avec une date limite d’acceptation.</p>
+        ) : (
           <>
-            <p className="k-hint">Version {s.version} · acceptée par {s.acceptedCount} membre(s) · empreinte <span className="k-code">{s.hash.slice(0, 16)}</span></p>
+            <p className="k-hint">Version {s.version} · acceptée par {s.acceptedCount} sur {s.expectedCount}{s.deadline ? ` · échéance ${new Date(s.deadline.deadlineAt).toLocaleString('fr-FR', { timeZone: 'Africa/Douala', dateStyle: 'medium', timeStyle: 'short' })} (${s.deadline.onExpiry === 'exclude' ? 'retardataires exclus' : 'bureau prévenu'})` : ''} · empreinte <span className="k-code">{s.hash.slice(0, 16)}</span></p>
+            {s.pending.length ? <p className="k-hint">Pas encore accepté : {s.pending.map((p) => p.name).join(', ')}</p> : null}
             <pre className="k-minutes">{s.body}</pre>
             <p className="k-hint">Document indicatif inspiré de la loi n° 90/053 sur la liberté d’association ; sans valeur juridique par lui-même.</p>
           </>

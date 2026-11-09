@@ -35,7 +35,7 @@ dans un registre vérifiable.
 | `packages/api` | API Fastify ; l'API produit est dans `src/tontine/` ([contrat](docs/API_TONTINE.md)) |
 | `packages/client` | Application web installable (PWA, React) |
 | `packages/mobile` | Application mobile Flutter (Android, iOS) |
-| `apps/dashboard-*` | Espace bureau (`/bureau/`), Opérations (`/ops/`), Direction (`/direction/`), Engineering (`/engineering/`) — les trois derniers réservés aux opérateurs de la plateforme |
+| `apps/dashboard-*` | Espace bureau (`/bureau/`) et **CRM de la plateforme** (`/crm/`, réservé aux opérateurs : demandes et délais de service, comptes, contacts, opérations, direction, technique, conformité — ADR-0046) |
 | `packages/worker` | Envoi différé des messages (outbox) |
 
 ## Démarrer en local
@@ -52,8 +52,8 @@ KOMBE_API_DATABASE_URL=$KOMBE_DATABASE_URL KOMBE_WEB_ROOT=$PWD/dist-web \
 ```
 
 Puis : `http://localhost:3000/` (membres), `/bureau/` (bureau d'un groupe),
-`/ops/`, `/direction/`, `/engineering/` (opérateurs : `node
-packages/db/scripts/grant-operator.mjs <téléphone ou e-mail>`).
+`/crm/` (opérateurs : `node packages/db/scripts/grant-operator.mjs
+<téléphone ou e-mail> --roles=…`).
 
 En développement, aucun SMS ne part : le code de connexion est renvoyé par
 l'API (`devCode`) et affiché par l'application. **Mise en ligne en quelques
