@@ -265,3 +265,38 @@ export function BoutonIcone({
     </button>
   );
 }
+
+/**
+ * Historique allégé : les `n` éléments les plus récents, le reste sur demande.
+ * Les éléments qui attendent une action restent toujours visibles.
+ */
+export function ListeAllegee<T>({
+  items,
+  rendre,
+  n = 8,
+  garder,
+  ordonnee = false,
+}: {
+  readonly items: readonly T[];
+  readonly rendre: (item: T) => ReactNode;
+  readonly n?: number;
+  readonly garder?: (item: T) => boolean;
+  readonly ordonnee?: boolean;
+}) {
+  const { tx } = useTextes();
+  const [tout, setTout] = useState(false);
+  const visibles = tout ? items : items.filter((x, i) => i < n || (garder?.(x) ?? false));
+  const Liste = ordonnee ? "ol" : "ul";
+  return (
+    <>
+      <Liste className="liste">{visibles.map(rendre)}</Liste>
+      {items.length > visibles.length || tout ? (
+        items.length > n ? (
+          <button type="button" className="bouton-lien" aria-expanded={tout} onClick={() => setTout((v) => !v)}>
+            {tout ? tx("app.voirMoins") : tx("app.voirTout", { n: items.length })}
+          </button>
+        ) : null
+      ) : null}
+    </>
+  );
+}

@@ -37,6 +37,10 @@ final class MyFine {
     required this.state,
     required this.issuedAtUtc,
     this.issuedByName,
+    this.memberName = '',
+    this.membershipId = '',
+    this.refundDue = false,
+    this.refundedAtUtc,
   });
 
   final String fineId;
@@ -50,6 +54,14 @@ final class MyFine {
   final FineState state;
   final DateTime issuedAtUtc;
   final String? issuedByName;
+
+  /// Membre concerné (vue bureau des amendes du groupe).
+  final String memberName;
+  final String membershipId;
+
+  /// Payée puis annulée : la trésorerie doit rembourser le membre (0041).
+  final bool refundDue;
+  final DateTime? refundedAtUtc;
 
   /// Seule une amende « à régler » se conteste.
   bool get contestable => state == FineState.issued;

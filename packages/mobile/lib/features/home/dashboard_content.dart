@@ -72,6 +72,14 @@ class HomeContent extends StatelessWidget {
           subtitle: data.group.name,
           onTap: () => context.push('/app/groups/$gid'),
         ),
+      if (data.openPolls > 0)
+        _TodoRow(
+          icon: Icons.ballot_outlined,
+          tone: KombeTone.info,
+          title: data.openPolls == 1 ? '1 vote libre attend votre réponse' : '${data.openPolls} votes libres attendent votre réponse',
+          subtitle: 'Votre avis compte',
+          onTap: () => context.push('/app/groups/$gid/polls'),
+        ),
       for (final PendingVote v in data.votes)
         _TodoRow(
           icon: Icons.how_to_vote_outlined,
@@ -98,6 +106,13 @@ class HomeContent extends StatelessWidget {
             ],
           ),
         ),
+        if (data.rounds.isNotEmpty) ...<Widget>[
+          const KombeSection('Tableau de bord'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: RoundsDashboard(rounds: data.rounds, onOpen: () => context.push('/app/groups/$gid/cycle')),
+          ),
+        ],
         if (todo.isNotEmpty) ...<Widget>[
           KombeSection('À faire', action: 'Tout voir', onAction: () => context.go('/app/notifications')),
           KombeGroupedList(children: todo),
@@ -106,7 +121,7 @@ class HomeContent extends StatelessWidget {
           const KombeSection('Prochaine séance'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _MeetingCard(date: data.nextMeetingDate!, place: data.nextMeetingPlace, group: g.name, onTap: () => context.push('/app/groups/$gid')),
+            child: _MeetingCard(date: data.nextMeetingDate!, place: data.nextMeetingOnline ? <String>[if (data.nextMeetingPlace != null) data.nextMeetingPlace!, 'en ligne'].join(' · ') : data.nextMeetingPlace, group: g.name, onTap: () => context.push('/app/groups/$gid')),
           ),
         ],
         KombeSection('Activité récente', action: data.recent.isEmpty ? null : 'Historique', onAction: () => context.go('/app/notifications')),
@@ -386,6 +401,100 @@ class NoGroupHome extends StatelessWidget {
           label: const Text('Créer une tontine'),
         ),
       ],
+    );
+  }
+}
+
+/// Tableau de bord interactif : « Ce tour » (jauge de la collecte) ou « Tout
+/// le cycle » (une barre par tour, à toucher pour voir son détail). Chiffres
+/// du serveur, rien d'estimé.
+class RoundsDashboard extends StatefulWidget {
+  const RoundsDashboard({super.key, required this.rounds, required this.onOpen});
+  final List<RoundProgress> rounds;
+  final VoidCallback onOpen;
+
+  @override
+  State<RoundsDashboard> createState() => _RoundsDashboardState();
+}
+
+class _RoundsDashboardState extends State<RoundsDashboard> {
+  bool _cycle = false;
+  late int _selected = (widget.rounds.where((RoundProgress r) => r.open).firstOrNull ?? widget.rounds.last).seq;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme t = Theme.of(context).textTheme;
+    final RoundProgress current = widget.rounds.where((RoundProgress r) => r.open).firstOrNull ?? widget.rounds.last;
+    final RoundProgress shown = _cycle ? widget.rounds.firstWhere((RoundProgress r) => r.seq == _selected, orElse: () => current) : current;
+    final int expected = widget.rounds.fold<int>(0, (int s, RoundProgress r) => s + r.expectedXaf);
+    final int collected = widget.rounds.fold<int>(0, (int s, RoundProgress r) => s + r.collectedXaf);
+    return KombeCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SegmentedButton<bool>(
+            showSelectedIcon: false,
+            segments: const <ButtonSegment<bool>>[
+              ButtonSegment<bool>(value: false, label: Text('Ce tour')),
+              ButtonSegment<bool>(value: true, label: Text('Tout le cycle')),
+            ],
+            selected: <bool>{_cycle},
+            onSelectionChanged: (Set<bool> v) => setState(() => _cycle = v.first),
+          ),
+          const SizedBox(height: 14),
+          if (!_cycle) ...<Widget>[
+            Text('${(current.ratio * 100).round()} %', style: KombeType.display(size: 30).copyWith(color: KombeColors.brand)),
+            Text('${Xaf.format(current.collectedXaf)} reçus sur ${Xaf.format(current.expectedXaf)}', style: t.bodyMedium),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(minHeight: 10, value: current.ratio, color: KombeColors.brand, backgroundColor: KombeColors.sand),
+            ),
+            const SizedBox(height: 8),
+            Text('Tour ${current.seq} · ${_day(context, current.date)}${current.label != null ? ' · ${current.label}' : ''}', style: t.bodySmall),
+          ] else ...<Widget>[
+            Text('${Xaf.format(collected)} reçus sur ${Xaf.format(expected)} pour le cycle', style: t.bodyMedium),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 110,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  for (final RoundProgress r in widget.rounds)
+                    Expanded(
+                      child: Semantics(
+                        button: true,
+                        selected: r.seq == _selected,
+                        label: 'Tour ${r.seq} : ${(r.ratio * 100).round()} % collecté',
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selected = r.seq),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            alignment: Alignment.bottomCenter,
+                            decoration: BoxDecoration(color: KombeColors.cream, borderRadius: BorderRadius.circular(8)),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 400),
+                              curve: Curves.easeOutCubic,
+                              height: 110 * (r.ratio < 0.04 ? 0.04 : r.ratio),
+                              decoration: BoxDecoration(
+                                color: r.seq == _selected ? KombeColors.forest : r.open ? KombeColors.gold : KombeColors.mint,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text('Tour ${shown.seq} · ${_day(context, shown.date)}${shown.label != null ? ' · ${shown.label}' : ''}', style: t.titleSmall),
+            Text('${Xaf.format(shown.collectedXaf)} reçus sur ${Xaf.format(shown.expectedXaf)}', style: t.bodySmall),
+          ],
+          Align(alignment: Alignment.centerRight, child: TextButton(onPressed: widget.onOpen, child: const Text('Voir le cycle'))),
+        ],
+      ),
     );
   }
 }

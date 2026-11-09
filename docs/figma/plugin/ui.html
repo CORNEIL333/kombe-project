@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+  body { font: 13px/1.45 system-ui, sans-serif; margin: 16px; color: #13211c; }
+  h1 { font-size: 15px; margin: 0 0 8px; }
+  p { margin: 0 0 12px; color: #56645e; }
+  label.bouton { display: block; text-align: center; padding: 11px; border-radius: 999px; background: #f2b01e; font-weight: 600; cursor: pointer; }
+  input { display: none; }
+  progress { width: 100%; margin-top: 14px; }
+  #etat { margin-top: 8px; word-break: break-word; }
+  #erreurs { margin-top: 8px; color: #b42318; max-height: 110px; overflow: auto; }
+</style>
+<h1>Importer les écrans KÓMBE</h1>
+<p>Choisissez des fichiers du dossier docs/figma : .json de « calques » (modifiables), .png de « ecrans » (images), ou kombe.tokens.json.</p>
+<label class="bouton" for="f">Choisir les fichiers</label>
+<input id="f" type="file" multiple accept=".json,.png" />
+<progress id="p" value="0" max="1" hidden></progress>
+<div id="etat"></div>
+<div id="erreurs"></div>
+<script>
+  const input = document.getElementById("f"), barre = document.getElementById("p"), etat = document.getElementById("etat"), erreurs = document.getElementById("erreurs");
+  let file = [], total = 0;
+  async function suivant() {
+    const f = file.shift();
+    barre.value = total - file.length;
+    if (!f) { etat.textContent = `Terminé : ${total} fichier(s).`; parent.postMessage({ pluginMessage: { type: "fin" } }, "*"); return; }
+    etat.textContent = f.name;
+    const contenu = f.name.endsWith(".json") ? await f.text() : new Uint8Array(await f.arrayBuffer());
+    parent.postMessage({ pluginMessage: { type: "fichier", nom: f.name, contenu } }, "*");
+  }
+  input.onchange = () => {
+    file = [...input.files].sort((a, b) => a.name.localeCompare(b.name));
+    total = file.length; barre.max = total || 1; barre.hidden = false; erreurs.textContent = "";
+    suivant();
+  };
+  onmessage = (e) => {
+    const m = e.data.pluginMessage;
+    if (m && m.type === "suivant") { if (m.erreur) erreurs.textContent += `${m.erreur}\n`; suivant(); }
+  };
+</script>

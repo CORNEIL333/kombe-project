@@ -12,6 +12,7 @@ import {
   lateness,
   memberDueForRound,
   movementSign,
+  splitByWeight,
   type DueView,
   type FundKind,
   type FundView,
@@ -341,6 +342,14 @@ export async function loadRoundRows(db: Db, groupId: string): Promise<RoundRow[]
   });
 }
 
+/** Libellés des noms (parts) du groupe : share_id → libellé. */
+export async function loadShareLabels(db: Db, groupId: string): Promise<Map<string, string>> {
+  return cachedRead(`libelles:${groupId}`, async () => {
+    const r = await db.query(`SELECT share_id, label FROM share WHERE group_id = $1`, [groupId]);
+    return new Map(r.rows.map((x) => [String(x.share_id), String(x.label)]));
+  });
+}
+
 export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> {
   const rows = await loadRoundRows(db, group.groupId);
   if (rows.length === 0) return [];
@@ -369,8 +378,11 @@ export async function loadRounds(db: Db, group: GroupRow): Promise<RoundView[]> 
   const meetings = await db.query(`SELECT meeting_id, round_seq FROM meeting WHERE group_id = $1 AND round_seq IS NOT NULL`, [group.groupId]);
   const meetingOf = new Map(meetings.rows.map((x) => [Number(x.round_seq), String(x.meeting_id)]));
   const photoOf = await memberPhotoVersions(db, group.groupId);
+  const labels = await loadShareLabels(db, group.groupId);
   return rows.map((r) => ({
     seq: r.seq,
+    shareId: r.shareId,
+    shareLabel: r.shareId ? (labels.get(r.shareId) ?? null) : null,
     date: r.date,
     state: r.state,
     beneficiaryMembershipId: r.beneficiaryMembershipId,
@@ -419,6 +431,18 @@ export async function computeDues(
   );
   const holdings = await loadShareHoldings(db, group.groupId);
   const rulesAt = await roundSettingsOf(db, group);
+  const labels = await loadShareLabels(db, group.groupId);
+  /** Noms tenus par le membre à ce tour, avec la part de chacun. */
+  const namesAt = (seq: number): { shareId: string; due: bigint }[] => {
+    const per = BigInt(rulesAt(seq).contributionPerShare);
+    const out: { shareId: string; due: bigint }[] = [];
+    for (const s of sharesAt(holdings, seq)) {
+      for (const part of splitByWeight(per, s.holders)) if (part.membershipId === membershipId) out.push({ shareId: s.shareId, due: part.amount });
+    }
+    // Dans l'ordre des tours : le nom servi le plus tôt d'abord.
+    const tourDe = (id: string) => rounds.find((r) => r.shareId === id)?.seq ?? Number.MAX_SAFE_INTEGER;
+    return out.sort((a, b) => tourDe(a.shareId) - tourDe(b.shareId));
+  };
   const rotationDueAt = (seq: number): bigint => {
     const at = sharesAt(holdings, seq);
     return at.length > 0 ? (memberDueForRound(at, BigInt(rulesAt(seq).contributionPerShare)).get(membershipId) ?? 0n) : 0n;
@@ -478,7 +502,24 @@ export async function computeDues(
       const remaining = due - p.confirmed - p.declared - moved;
       const rem = remaining > 0n ? remaining : 0n;
       if (opts.onlyOpen && rem === 0n) continue;
+      const tenus = f.kind === "rotation" ? namesAt(r.seq) : [];
+      let couvert = p.confirmed + moved;
+      let annonce = p.declared;
+      const names =
+        tenus.length > 1
+          ? tenus.map((n) => {
+              const c = couvert >= n.due ? n.due : couvert;
+              couvert -= c;
+              const resteNom = n.due - c;
+              const d = annonce >= resteNom ? resteNom : annonce;
+              annonce -= d;
+              const status: "paid" | "declared" | "partial" | "unpaid" =
+                c >= n.due ? "paid" : c + d >= n.due ? "declared" : c + d > 0n ? "partial" : "unpaid";
+              return { shareId: n.shareId, label: labels.get(n.shareId) ?? "Nom", due: m(n.due), status };
+            })
+          : null;
       out.push({
+        ...(names ? { names } : {}),
         groupId: group.groupId,
         fundId: f.fundId,
         fundKind: f.kind,
@@ -612,7 +653,7 @@ export function signedAmount(kind: MovementKind, amount: bigint): bigint {
 export async function meetingSummaries(db: Db, groupId: string, meetingId?: string): Promise<MeetingSummary[]> {
   const names = await loadNames(db, groupId);
   const r = await db.query(
-    `SELECT meeting_id, seq, scheduled_date::text AS d, state, location, host_membership_id, round_seq, minutes_approved_at
+    `SELECT meeting_id, seq, scheduled_date::text AS d, state, location, host_membership_id, round_seq, minutes_approved_at, format, online_url
        FROM meeting WHERE group_id = $1 ${meetingId ? "AND meeting_id = $2" : ""} ORDER BY seq`,
     meetingId ? [groupId, meetingId] : [groupId],
   );
@@ -625,6 +666,8 @@ export async function meetingSummaries(db: Db, groupId: string, meetingId?: stri
     hostName: row.host_membership_id ? (names.byMembership.get(String(row.host_membership_id)) ?? null) : null,
     roundSeq: row.round_seq === null ? null : Number(row.round_seq),
     minutesApproved: row.minutes_approved_at !== null,
+    format: (row.format ?? "in_person") as MeetingSummary["format"],
+    onlineUrl: row.online_url ?? null,
   }));
 }
 

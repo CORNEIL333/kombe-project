@@ -4,7 +4,9 @@ La première section « ## » est publiée dans la mise à jour directe (lignes 
 Une ligne « minBuild: N » rend la mise à jour obligatoire pour les builds < N.
 
 ## 0.8.1
-- Nouvelle apparence Ndop et photo de profil, réunies avec les dernières fonctions
+- Apparence plus calme : vert KÓMBE, cartes de groupe simples, texte plus lisible
+- Typographie plus sobre pour les titres et les montants
+- Photos des membres dans les paiements
 - Connexion par la voie réellement ouverte (e-mail, SMS ou WhatsApp), code renvoyable après 45 s
 - Mes amendes, admissions en attente, invitation par code, lien et WhatsApp
 - Statuts avec échéance d'acceptation ; refus du serveur expliqués en français

@@ -14,6 +14,7 @@ import {
   type AttendanceStatus,
   type AttendanceView,
   type MeetingDetail,
+  type MeetingFormat,
   type MeetingState,
   type MeetingSummary,
 } from "@kombe/domain";
@@ -97,6 +98,51 @@ export class MeetingService {
   async detail(headers: Record<string, unknown>, groupId: string, meetingId: string): Promise<MeetingDetail> {
     const nowMs = this.now();
     return inTx(this.pool, async (db) => meetingDetail(db, await this.actor(db, headers, groupId, nowMs), meetingId));
+  }
+
+  /**
+   * Modalités d'une séance à venir ou en cours (0041) : présentiel, en ligne
+   * (lien de visioconférence) ou les deux, et le lieu. Les membres sont
+   * prévenus du changement.
+   */
+  async update(
+    headers: Record<string, unknown>,
+    groupId: string,
+    meetingId: string,
+    input: { format?: MeetingFormat | undefined; onlineUrl?: string | null | undefined; location?: string | null | undefined },
+  ): Promise<MeetingDetail> {
+    const nowMs = this.now();
+    return inTx(this.pool, async (db) => {
+      const actor = await this.actor(db, headers, groupId, nowMs);
+      requireAct(actor, "meeting.manage");
+      const r = await db.query(`SELECT state, seq, format, online_url, location FROM meeting WHERE group_id = $1 AND meeting_id = $2 FOR UPDATE`, [groupId, meetingId]);
+      const row = r.rows[0];
+      if (!row) throw new DomainError("OBJET_INTROUVABLE", "Séance introuvable");
+      if (row.state !== "planned" && row.state !== "open") throw new DomainError("MEETING_STATE_INVALID", "Une séance close ou annulée ne se modifie plus");
+      const format: MeetingFormat = input.format ?? (row.format as MeetingFormat);
+      let onlineUrl: string | null = input.onlineUrl === undefined ? (row.online_url ?? null) : input.onlineUrl?.trim() || null;
+      if (format === "in_person") onlineUrl = null;
+      if (onlineUrl !== null && !/^https:\/\/[^\s]+$/.test(onlineUrl)) throw new DomainError("MEETING_INVALID", "Le lien doit commencer par https://");
+      if (format !== "in_person" && onlineUrl === null) throw new DomainError("MEETING_INVALID", "Indiquez le lien de la séance en ligne");
+      const location = input.location === undefined ? (row.location ?? null) : input.location?.trim() || null;
+      if (location !== null && location.length > 120) throw new DomainError("MEETING_INVALID", "Lieu : 120 caractères au plus");
+      if (format === row.format && onlineUrl === (row.online_url ?? null) && location === (row.location ?? null)) return meetingDetail(db, actor, meetingId);
+      await db.query(
+        `UPDATE meeting SET format = $3, online_url = $4, location = $5, version = version + 1 WHERE group_id = $1 AND meeting_id = $2`,
+        [groupId, meetingId, format, onlineUrl, location],
+      );
+      await appendEvent(db, actor, "meeting.updated", { meetingId, format, online: onlineUrl !== null }, nowMs);
+      await notify(
+        db,
+        groupId,
+        (await activeMemberIdentities(db, groupId)).filter((i) => i !== actor.identityId),
+        "meeting_updated",
+        `/tontines/${groupId}/seances/${meetingId}`,
+        `meetingUpdate:${meetingId}:${nowMs}`,
+        { seq: Number(row.seq), format },
+      );
+      return meetingDetail(db, actor, meetingId);
+    });
   }
 
   async open(headers: Record<string, unknown>, groupId: string, meetingId: string): Promise<MeetingDetail> {

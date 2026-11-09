@@ -47,6 +47,16 @@ export class GroupAdminApi {
   closeDecision(id: string, did: string) { return this.api.post<DecisionView>(`${this.t(id)}/decisions/${encodePath(did)}/close`, {}, W()); }
   statutes(id: string, s?: AbortSignal) { return this.api.get<StatutesView>(`${this.t(id)}/statutes`, undefined, s); }
   journal(id: string, s?: AbortSignal) { return this.api.get<{ valid: boolean; entries: JournalEntryView[] }>(`${this.t(id)}/journal`, undefined, s); }
+  /** Classeur Excel du registre (0041), lu avec la session en en-tête — jamais de jeton dans l'URL. */
+  exportXlsx(id: string) { return this.api.get<Blob>(`${this.t(id)}/export.xlsx`); }
+}
+
+/** Enregistre un fichier reçu en mémoire (aucun lien public). */
+export function downloadBlob(name: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 /** CSV (séparateur « ; », BOM UTF-8 pour Excel FR), montants entiers XAF. */

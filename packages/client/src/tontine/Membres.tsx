@@ -16,6 +16,9 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
   const { etat, recharger } = useDonnees(() => tontines.membres(ctx.session, gid), [gid]);
   const action = useAction();
   const avantDemarrage = !ctx.groupe.cycleStarted;
+  // Liste sobre (photo, nom, fonction) ; numéro, noms tenus et réglages
+  // n'apparaissent que dans le détail d'un membre, ouvert d'un toucher.
+  const [ouvert, setOuvert] = useState<string | null>(null);
 
   const apres = () => {
     recharger();
@@ -34,18 +37,43 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
                 <li key={m.membershipId} className="liste__ligne liste__ligne--haute ligne-riche">
                   <AvatarPersonne session={ctx.session} groupId={gid} membreId={m.membershipId} nom={m.displayName} version={m.photoVersion} />
                   <div>
-                    <strong>
-                      {m.displayName}
-                      {m.isMe ? ` (${tx("mb.moi")})` : ""}
-                    </strong>
-                    <span className="aide-champ">
-                      {m.roles.map((r) => dyn(`role.${r}`)).join(" · ")}
-                      {m.login ? ` · ${m.login}` : ""}
-                      {m.offline ? ` · ${tx("mb.sansSmartphone")}` : ""}
-                      {m.shares > 1 ? ` · ${tx("mb.parts")} : ${m.shares}` : ""}
-                      {m.sharePartnerMembershipId ? ` · ${tx("mb.partageAvec", { nom: membres.find((x) => x.membershipId === m.sharePartnerMembershipId)?.displayName ?? "" })}` : ""}
-                      {m.state !== "active" && m.state !== "pending" ? ` · ${dyn(`mb.etat.${m.state}`)}` : ""}
-                    </span>
+                    <button type="button" className="membre-entete" aria-expanded={ouvert === m.membershipId} onClick={() => setOuvert((o) => (o === m.membershipId ? null : m.membershipId))}>
+                      <strong>
+                        {m.displayName}
+                        {m.isMe ? ` (${tx("mb.moi")})` : ""}
+                      </strong>
+                      <span className="aide-champ">
+                        {m.roles.filter((r) => r !== "member").map((r) => dyn(`role.${r}`)).join(" · ") || dyn("role.member")}
+                      </span>
+                      <Icone nom="chevron" taille={16} />
+                    </button>
+                    {ouvert === m.membershipId ? (
+                      <dl className="membre-detail">
+                        {m.login ? (
+                          <>
+                            <dt>{tx("mb.numero")}</dt>
+                            <dd>{m.login}</dd>
+                          </>
+                        ) : null}
+                        <dt>{tx("mb.nomsTenus")}</dt>
+                        <dd>
+                          {m.shares}
+                          {m.sharePartnerMembershipId ? ` · ${tx("mb.partageAvec", { nom: membres.find((x) => x.membershipId === m.sharePartnerMembershipId)?.displayName ?? "" })}` : ""}
+                        </dd>
+                        {m.offline ? (
+                          <>
+                            <dt>{tx("mb.acces")}</dt>
+                            <dd>{tx("mb.sansSmartphone")}</dd>
+                          </>
+                        ) : null}
+                        {m.state !== "active" && m.state !== "pending" ? (
+                          <>
+                            <dt>{tx("mb.etat")}</dt>
+                            <dd>{dyn(`mb.etat.${m.state}`)}</dd>
+                          </>
+                        ) : null}
+                      </dl>
+                    ) : null}
                     {m.state === "pending" ? <Pastille ton="attente">{tx("mb.attente")}</Pastille> : null}
                     {m.isMe && m.pendingRoles.length
                       ? m.pendingRoles.map((r) => (
@@ -89,7 +117,7 @@ export function Membres({ ctx }: { readonly ctx: ContexteGroupe }) {
                         </button>
                       </>
                     ) : null}
-                    {m.state === "active" && avantDemarrage && peut(ctx.roles, "group.manage") ? (
+                    {ouvert === m.membershipId && m.state === "active" && avantDemarrage && peut(ctx.roles, "group.manage") ? (
                       <>
                         {!m.sharePartnerMembershipId ? (
                           <label className="champ-inline">

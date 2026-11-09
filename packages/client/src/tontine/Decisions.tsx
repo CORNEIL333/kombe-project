@@ -12,6 +12,7 @@ import { Carte, Champ, Charge, Pastille, Retour, useAction, useDonnees } from ".
 import { Icone } from "../composants/Icones.js";
 import { useTextes } from "./textes.js";
 import type { ContexteGroupe } from "./Groupe.js";
+import { VotesLibres } from "./VotesLibres.js";
 
 type Genre = DecisionView["kind"];
 
@@ -48,6 +49,7 @@ export function Decisions({ ctx }: { readonly ctx: ContexteGroupe }) {
   };
   return (
     <div className="pile">
+      <VotesLibres ctx={ctx} />
       <Carte
         titre={tx("dc.titre")}
         actions={

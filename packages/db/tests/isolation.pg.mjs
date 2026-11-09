@@ -97,6 +97,7 @@ async function main() {
     // historiques ne sont pas tolérants à l'absence de leurs tables (X-07).
     const vierge = (await migrator.query(`SELECT to_regclass('public."group"') IS NULL AS v`)).rows[0].v === true;
     if (!vierge) {
+      await runSql(migrator, "migrations/0043_retours_membres.down.sql");
       await runSql(migrator, "migrations/0042_securite_residuelle.down.sql");
       await runSql(migrator, "migrations/0041_crm.down.sql");
       await runSql(migrator, "migrations/0040_performance_charge.down.sql");
@@ -184,7 +185,7 @@ async function main() {
     await runSql(migrator, "migrations/0029_ops_console.sql");
     await runSql(migrator, "migrations/0030_decisions.sql");
     await runSql(migrator, "migrations/0031_cycles_reserve.sql");
-    for (const m of ["0032_audit_indexes", "0033_custom_funds", "0034_echeances_notifications", "0034_group_photo", "0035_member_photo", "0036_securite_operateurs", "0037_rls_identite", "0038_notifications_livraison", "0039_role_api", "0040_performance_charge", "0041_crm", "0042_securite_residuelle"]) {
+    for (const m of ["0032_audit_indexes", "0033_custom_funds", "0034_echeances_notifications", "0034_group_photo", "0035_member_photo", "0036_securite_operateurs", "0037_rls_identite", "0038_notifications_livraison", "0039_role_api", "0040_performance_charge", "0041_crm", "0042_securite_residuelle", "0043_retours_membres"]) {
       await runSql(migrator, `migrations/${m}.sql`);
     }
     await runSql(migrator, "provision/roles.sql");

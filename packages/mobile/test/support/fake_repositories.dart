@@ -23,6 +23,7 @@ import 'package:kombe_mobile/domain/entities/cycle.dart';
 import 'package:kombe_mobile/domain/entities/dashboard.dart';
 import 'package:kombe_mobile/domain/entities/document.dart';
 import 'package:kombe_mobile/domain/entities/fine.dart';
+import 'package:kombe_mobile/domain/entities/meeting.dart';
 import 'package:kombe_mobile/domain/entities/governance.dart';
 import 'package:kombe_mobile/domain/entities/group.dart';
 import 'package:kombe_mobile/domain/entities/notification.dart';
@@ -33,6 +34,7 @@ import 'package:kombe_mobile/domain/repositories/contribution_repository.dart';
 import 'package:kombe_mobile/domain/repositories/dashboard_repository.dart';
 import 'package:kombe_mobile/domain/repositories/document_repository.dart';
 import 'package:kombe_mobile/domain/repositories/fine_repository.dart';
+import 'package:kombe_mobile/domain/repositories/meeting_repository.dart';
 import 'package:kombe_mobile/domain/repositories/governance_repository.dart';
 import 'package:kombe_mobile/domain/repositories/group_repository.dart';
 import 'package:kombe_mobile/domain/repositories/notification_repository.dart';
@@ -585,6 +587,61 @@ final class FakeFineRepository implements FineRepository {
     w.fines[w.fines.indexWhere((MyFine f) => f.fineId == fine.fineId)] = c;
     return OperationSuccess<MyFine>(c);
   }
+  @override
+  Future<Resource<List<MyFine>>> listGroupFines({required String groupId, required String groupName}) async {
+    await _lag();
+    return ResourceReady<List<MyFine>>(List<MyFine>.unmodifiable(w.fines.where((MyFine f) => f.groupId == groupId)));
+  }
+
+  @override
+  Future<OperationResult<MyFine>> cancelFine({required MyFine fine, required String reason}) async => OperationSuccess<MyFine>(fine);
+
+  @override
+  Future<OperationResult<MyFine>> refundFine({required MyFine fine, required String channel, String? reference}) async => OperationSuccess<MyFine>(fine);
+}
+
+final class FakeMeetingRepository implements MeetingRepository {
+  FakeMeetingRepository();
+
+  static MeetingDetail _detail(String groupId, int seq, MeetingState state) => MeetingDetail(
+        meetingId: 'essai-seance-$seq',
+        groupId: groupId,
+        seq: seq,
+        date: DateTime.utc(2026, 8 + seq, 15),
+        state: state,
+        minutesApproved: state == MeetingState.closed,
+        location: 'Chez Mme Ngo, Bonamoussadi',
+        hostName: 'Amina Tchoua',
+        roundSeq: seq,
+        attendance: const <MeetingAttendance>[
+          MeetingAttendance(membershipId: 'essai-membre-1', displayName: 'Amina Tchoua', status: AttendanceStatus.present),
+          MeetingAttendance(membershipId: 'essai-membre-2', displayName: 'Paul Abega', status: AttendanceStatus.late),
+          MeetingAttendance(membershipId: 'essai-membre-3', displayName: 'Serge Nkoué', status: AttendanceStatus.excused),
+        ],
+        minutes: state == MeetingState.closed ? const MeetingMinutes(text: 'La séance s’est tenue. Le tour a été remis à son bénéficiaire devant les membres présents.') : null,
+      );
+
+  @override
+  Future<Resource<List<MeetingSummary>>> listMeetings(String groupId) async {
+    await _lag();
+    return ResourceReady<List<MeetingSummary>>(<MeetingSummary>[_detail(groupId, 4, MeetingState.planned), _detail(groupId, 3, MeetingState.closed), _detail(groupId, 2, MeetingState.closed)]);
+  }
+
+  @override
+  Future<Resource<MeetingDetail>> getMeeting({required String groupId, required String meetingId}) async {
+    await _lag();
+    return ResourceReady<MeetingDetail>(_detail(groupId, 3, MeetingState.closed));
+  }
+
+  @override
+  Future<OperationResult<MeetingDetail>> updateMeeting({
+    required String groupId,
+    required String meetingId,
+    required MeetingFormat format,
+    String? onlineUrl,
+    String? location,
+  }) async =>
+      const OperationBlocked<MeetingDetail>('Indisponible');
 }
 
 final class FakeNotificationRepository implements NotificationRepository {
@@ -723,6 +780,7 @@ AppDependencies fakeDependencies({ContributionDraftRepository? drafts}) {
     contributionRepository: FakeContributionRepository(world),
     governanceRepository: FakeGovernanceRepository(world),
     fineRepository: FakeFineRepository(world),
+    meetingRepository: FakeMeetingRepository(),
     notificationRepository: FakeNotificationRepository(world),
     documentRepository: FakeDocumentRepository(),
     fundRepository: const FakeFundRepository(),

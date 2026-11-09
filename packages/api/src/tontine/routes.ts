@@ -7,7 +7,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type pg from "pg";
 import { z } from "zod";
 import type { CreateTontineInput, DeclareMovementInput, PayoutInput } from "@kombe/domain";
-import { AID_EVENTS, ATTENDANCE_STATUSES, BALLOT_CHOICES, DECISION_KINDS, FINE_KINDS, GROUP_ROLES, PAYMENT_CHANNELS } from "@kombe/domain";
+import { AID_EVENTS, ATTENDANCE_STATUSES, BALLOT_CHOICES, DECISION_KINDS, FINE_KINDS, GROUP_ROLES, MEETING_FORMATS, PAYMENT_CHANNELS } from "@kombe/domain";
 import type { EmailSender } from "../email/emailSender.js";
 import { TontineAuth, neonAuthFromEnv, type NeonAuthConfig } from "./auth.js";
 import { CycleService } from "./cycle.js";
@@ -23,6 +23,8 @@ import { MemberPhotoService, PhotoService } from "./photos.js";
 import { InsightService, type CycleSimulationInput } from "./insights.js";
 import { MeetingService } from "./meetings.js";
 import { MoneyService } from "./money.js";
+import { PollService } from "./polls.js";
+import { ExportService } from "./exportXlsx.js";
 import { cadenceSchema, settingsSchema } from "./settings.js";
 import { EmailCodeSender, codeSenderFromEnv, type CodeSender } from "./sms.js";
 import { NotificationDispatcher, afterResponse, createPiggyback, dispatcherOptionsFromEnv, piggybackInterval, type DispatcherOptions } from "./delivery.js";
@@ -183,6 +185,23 @@ const S = {
     mutedKinds: z.array(z.string().regex(/^[a-z_]{2,40}$/)).max(40),
   }),
   pushDevice: z.object({ platform: z.enum(["android", "ios", "web"]), token: z.string().min(16).max(4096) }),
+  meetingUpdate: z.object({
+    format: z.enum(MEETING_FORMATS).optional(),
+    onlineUrl: z.string().trim().max(500).nullable().optional(),
+    location: z.string().trim().max(120).nullable().optional(),
+  }),
+  pollCreate: z.object({
+    question: z.string().trim().min(3).max(300),
+    details: z.string().trim().max(2000).nullable().optional(),
+    options: z.array(z.string().trim().max(120)).max(10),
+    allowFreeAnswer: z.boolean().optional(),
+    multiple: z.boolean().optional(),
+    anonymous: z.boolean().optional(),
+    hours: z.number().int().min(1).max(720).optional(),
+  }),
+  pollBallot: z.object({ choices: z.array(z.number().int().min(0).max(9)).max(10), freeAnswer: z.string().trim().max(300).nullable().optional() }),
+  shareLabel: z.object({ label: z.string().trim().min(1).max(40) }),
+  fineRefund: z.object(channelFields),
   reason,
 };
 
@@ -243,6 +262,8 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   const decisions = new DecisionService(pool, now);
   const history = new HistoryService(pool, now);
   const insights = new InsightService(pool, now);
+  const polls = new PollService(pool, now);
+  const exporter = new ExportService(pool, now);
 
   const H = (r: FastifyRequest): Record<string, unknown> => r.headers as Record<string, unknown>;
   const seqOf = (raw: string | undefined): number => z.coerce.number().int().min(1).max(10_000).parse(raw);
@@ -423,6 +444,12 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     write(req, reply, 201, () => cycle.renew(H(req), (req.params as P).id as string, S.renewal.parse(req.body))),
   );
   app.get("/v1/tontines/:id/rounds", async (req) => cycle.rounds(H(req), (req.params as P).id as string));
+  /* Noms (0041) : chaque part est un nom à part entière. */
+  app.get("/v1/tontines/:id/names", async (req) => cycle.names(H(req), (req.params as P).id as string));
+  app.patch("/v1/tontines/:id/names/:sid", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => cycle.renameShare(H(req), p.id as string, p.sid as string, S.shareLabel.parse(req.body).label));
+  });
   app.get("/v1/tontines/:id/rounds/:seq/grid", async (req) => {
     const p = req.params as P;
     return cycle.grid(H(req), p.id as string, seqOf(p.seq));
@@ -465,6 +492,10 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   app.get("/v1/tontines/:id/meetings/:mid", async (req) => {
     const p = req.params as P;
     return meetings.detail(H(req), p.id as string, p.mid as string);
+  });
+  app.patch("/v1/tontines/:id/meetings/:mid", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => meetings.update(H(req), p.id as string, p.mid as string, S.meetingUpdate.parse(req.body ?? {})));
   });
   app.post("/v1/tontines/:id/meetings/:mid/open", async (req, reply) => {
     const p = req.params as P;
@@ -538,6 +569,10 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     const p = req.params as P;
     return write(req, reply, 200, () => discipline.decideFine(H(req), p.id as string, p.fid as string, "maintain", S.reason.parse(req.body).reason));
   });
+  app.post("/v1/tontines/:id/fines/:fid/refund", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 201, () => discipline.refundFine(H(req), p.id as string, p.fid as string, S.fineRefund.parse(req.body)));
+  });
   app.get("/v1/tontines/:id/aids", async (req) => discipline.aids(H(req), (req.params as P).id as string));
   app.post("/v1/tontines/:id/aids", async (req, reply) =>
     write(req, reply, 201, () => discipline.requestAid(H(req), (req.params as P).id as string, S.aid.parse(req.body))),
@@ -578,6 +613,33 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
     return write(req, reply, 200, () => decisions.lift(H(req), p.id as string, p.did as string, S.reason.parse(req.body).reason));
   });
   app.get("/v1/tontines/:id/sanctions", async (req) => decisions.sanctions(H(req), (req.params as P).id as string));
+
+  /* ── Votes libres (0041) : sans effet automatique ─────────────────── */
+  app.get("/v1/tontines/:id/polls", async (req) => polls.list(H(req), (req.params as P).id as string));
+  app.post("/v1/tontines/:id/polls", async (req, reply) => write(req, reply, 201, () => polls.create(H(req), (req.params as P).id as string, S.pollCreate.parse(req.body))));
+  app.put("/v1/tontines/:id/polls/:pid/ballot", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => polls.vote(H(req), p.id as string, p.pid as string, S.pollBallot.parse(req.body)));
+  });
+  app.post("/v1/tontines/:id/polls/:pid/close", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => polls.end(H(req), p.id as string, p.pid as string, "closed"));
+  });
+  app.post("/v1/tontines/:id/polls/:pid/cancel", async (req, reply) => {
+    const p = req.params as P;
+    return write(req, reply, 200, () => polls.end(H(req), p.id as string, p.pid as string, "cancelled"));
+  });
+
+  /* ── Export Excel (0041) : bureau seulement, en-tête Bearer, jamais de jeton en URL ── */
+  app.get("/v1/tontines/:id/export.xlsx", async (req, reply) => {
+    const out = await exporter.workbook(H(req), (req.params as P).id as string);
+    return reply
+      .header("cache-control", "no-store")
+      .header("x-content-type-options", "nosniff")
+      .header("content-disposition", `attachment; filename="${out.fileName}"`)
+      .type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+      .send(out.bytes);
+  });
 
   /* ── Reprise de l'historique (L-20) ─────────────────────────────── */
   app.get("/v1/tontines/:id/history", async (req) => history.summary(H(req), (req.params as P).id as string));

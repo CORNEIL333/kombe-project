@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/auth.dart';
+import '../../features/governance/poll_screens.dart';
+import '../../features/groups/share_names_screen.dart';
 import '../../features/auth/display_name_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/recovery_request_screen.dart';
@@ -13,6 +15,7 @@ import '../../features/contributions/contribution_history_screen.dart';
 import '../../features/contributions/contribution_start_screen.dart';
 import '../../features/documents/document_screens.dart';
 import '../../features/fines/fine_screens.dart';
+import '../../features/meetings/meeting_screens.dart';
 import '../../features/governance/vote_screens.dart';
 import '../../features/groups/beneficiaries_screen.dart';
 import '../../features/groups/create_group_screen.dart';
@@ -208,6 +211,29 @@ final class AppRouter {
           path: '/app/votes/:voteId',
           builder: (_, state) =>
               VoteDetailScreen(voteId: state.pathParameters['voteId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/names',
+          builder: (_, state) => ShareNamesScreen(groupId: state.pathParameters['groupId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/polls',
+          builder: (_, state) => PollsScreen(groupId: state.pathParameters['groupId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/fines',
+          builder: (_, state) => GroupFinesScreen(groupId: state.pathParameters['groupId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/meetings',
+          builder: (_, state) => MeetingsScreen(groupId: state.pathParameters['groupId']!),
+        ),
+        GoRoute(
+          path: '/app/groups/:groupId/meetings/:meetingId',
+          builder: (_, state) => MeetingDetailScreen(
+            groupId: state.pathParameters['groupId']!,
+            meetingId: state.pathParameters['meetingId']!,
+          ),
         ),
         GoRoute(
           path: '/app/fines',

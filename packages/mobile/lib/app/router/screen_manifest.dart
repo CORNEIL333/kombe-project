@@ -30,6 +30,8 @@ abstract final class ScreenManifest {
     'vote_detail',
     'notifications',
     'my_fines',
+    'meetings',
+    'meeting_detail',
     'profile',
     'edit_profile',
     'security',

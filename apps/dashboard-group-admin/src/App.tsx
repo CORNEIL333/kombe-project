@@ -9,7 +9,7 @@ import {
   CapabilityNotice, DashboardBoot, DashboardShell, DataTable, KeyValue, PageHeader, Panel, RemoteState, StatCard, StatusChip,
   formatServerDate, formatXaf, useHashRoute, useRemote, type DashboardContext,
 } from '@kombe/dashboard-core';
-import { GroupAdminApi, type DecisionView, downloadCsv, toCsv, type MeetingDetail, type MovementView, type TontineSummary } from './api';
+import { GroupAdminApi, type DecisionView, downloadBlob, downloadCsv, toCsv, type MeetingDetail, type MovementView, type TontineSummary } from './api';
 
 const messages = { app: { fr: 'Espace bureau', en: 'Board space' } } as const;
 const NAV = [
@@ -483,11 +483,33 @@ function Votes({ api, g }: P) {
   );
 }
 
+/** Classeur Excel complet du groupe (tours, membres, mouvements, amendes, séances, votes). */
+function ExportExcel({ api, g }: P) {
+  const [etat, setEtat] = useState<'repos' | 'encours' | 'erreur'>('repos');
+  const lancer = async () => {
+    setEtat('encours');
+    try {
+      const blob = await api.exportXlsx(g.groupId);
+      downloadBlob(`kombe-${g.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\W+/g, '-')}.xlsx`, blob);
+      setEtat('repos');
+    } catch {
+      setEtat('erreur');
+    }
+  };
+  return (
+    <div className="k-toolbar">
+      <button type="button" className="k-button" disabled={etat === 'encours'} onClick={() => void lancer()}>{etat === 'encours' ? 'Préparation du classeur…' : 'Exporter tout en Excel (.xlsx)'}</button>
+      {etat === 'erreur' ? <span role="alert">Export impossible pour le moment. Réessayez.</span> : null}
+    </div>
+  );
+}
+
 function Registre({ api, g }: P) {
   const q = useRemote((s) => api.journal(g.groupId, s), [api, g.groupId], { isEmpty: (d) => d.entries.length === 0 });
   return (
     <>
       <PageHeader title="Registre" description="Journal append-only chaîné par empreintes : un événement modifié ou supprimé casse la chaîne." />
+      <ExportExcel api={api} g={g} />
       <RemoteState state={q.state} onRetry={q.reload}>{(j) => (
         <Panel title={j.valid ? 'Chaîne vérifiée' : 'Chaîne NON vérifiée'} action={<button type="button" className="k-button k-button-secondary" onClick={() => downloadCsv(`kombe-registre-${g.name.replace(/\W+/g, '-')}.csv`, toCsv(['N°', 'Date', 'Événement', 'Auteur', 'Empreinte'], j.entries.map((e) => [e.seq, e.at, e.summary, e.actorName, e.hash])))}>Exporter en CSV</button>}>
           <StatusChip status={j.valid ? 'Aucun événement modifié ni supprimé' : 'Prévenez le commissaire aux comptes'} tone={j.valid ? 'ok' : 'danger'} />

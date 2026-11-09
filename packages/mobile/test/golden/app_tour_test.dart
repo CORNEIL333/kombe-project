@@ -69,6 +69,8 @@ const List<(String, String)> _routes = <(String, String)>[
   ('33_support', '/app/support'),
   ('34_a_propos', '/app/about'),
   ('35_modifier_profil', '/app/profile/edit'),
+  ('36_seances', '/app/groups/essai-etoiles/meetings'),
+  ('37_seance', '/app/groups/essai-etoiles/meetings/essai-seance-3'),
 ];
 
 void main() {

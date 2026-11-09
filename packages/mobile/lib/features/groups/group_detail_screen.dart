@@ -185,15 +185,17 @@ class _Body extends StatelessWidget {
           children: <Widget>[
             KombeMenuRow(icon: Icons.groups_2_outlined, title: 'Membres', value: '${g.memberCount}', onTap: () => context.push('/app/groups/$gid/members')),
             KombeMenuRow(icon: Icons.donut_large_rounded, tone: KombeTone.success, title: 'Cycle et ordre des tours', onTap: () => context.push('/app/groups/$gid/cycle')),
+            if (details.cycleStarted)
+              KombeMenuRow(icon: Icons.badge_outlined, tone: KombeTone.success, title: 'Les noms du cycle', onTap: () => context.push('/app/groups/$gid/names')),
             KombeMenuRow(icon: Icons.account_balance_wallet_outlined, tone: KombeTone.money, title: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
             KombeMenuRow(icon: Icons.menu_book_outlined, tone: KombeTone.neutral, title: 'Règles', onTap: () => context.push('/app/groups/$gid/rules')),
             KombeMenuRow(
               icon: Icons.event_outlined,
               tone: KombeTone.info,
               title: 'Séances et procès-verbaux',
-              external: true,
-              onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/seances', title: 'Séances'),
+              onTap: () => context.push('/app/groups/$gid/meetings'),
             ),
+            KombeMenuRow(icon: Icons.how_to_vote_outlined, tone: KombeTone.info, title: 'Votes libres', onTap: () => context.push('/app/groups/$gid/polls')),
             KombeMenuRow(icon: Icons.receipt_long_outlined, tone: KombeTone.warning, title: 'Mes amendes', onTap: () => context.push('/app/fines')),
             KombeMenuRow(
               icon: Icons.gavel_outlined,
@@ -209,6 +211,7 @@ class _Body extends StatelessWidget {
           KombeGroupedList(
             children: <Widget>[
               KombeMenuRow(icon: Icons.work_outline_rounded, tone: KombeTone.money, title: 'Outils du bureau', onTap: () => context.push('/app/groups/$gid/bureau')),
+              KombeMenuRow(icon: Icons.gavel_rounded, tone: KombeTone.warning, title: 'Amendes du groupe', onTap: () => context.push('/app/groups/$gid/fines')),
               KombeMenuRow(icon: Icons.tune_rounded, tone: KombeTone.neutral, title: 'Paramètres du groupe', onTap: () => context.push('/app/groups/$gid/settings')),
             ],
           ),

@@ -22,7 +22,10 @@ function joinUrl(baseUrl:string,path:string,query?:Query){
 async function decode(response:Response):Promise<unknown>{
   if(response.status===204)return null;
   const type=response.headers.get('content-type')??'';
-  return type.includes('application/json')?response.json():response.text();
+  if(type.includes('application/json'))return response.json();
+  // Fichier (classeur .xlsx, PDF…) : octets bruts, jamais relus en texte.
+  if(type.includes('spreadsheetml')||type.includes('application/octet-stream')||type.includes('application/pdf'))return response.blob();
+  return response.text();
 }
 function err(body:unknown){
   if(body&&typeof body==='object'){const r=body as Record<string,unknown>;return {message:typeof r.message==='string'?r.message:typeof r.error==='string'?r.error:'Requête refusée par le serveur.',code:typeof r.code==='string'?r.code:null};}

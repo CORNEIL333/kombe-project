@@ -9,15 +9,21 @@ import '../../domain/entities/cycle.dart';
 import '../../domain/entities/dashboard.dart';
 import '../../domain/entities/document.dart';
 import '../../domain/entities/fine.dart';
+import '../../domain/entities/meeting.dart';
 import '../../domain/entities/governance.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
 import '../../domain/entities/profile.dart';
+import '../../domain/entities/poll.dart';
+import '../../domain/entities/share_name.dart';
+import '../../domain/repositories/share_name_repository.dart';
+import '../../domain/repositories/poll_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../../domain/repositories/document_repository.dart';
 import '../../domain/repositories/fine_repository.dart';
+import '../../domain/repositories/meeting_repository.dart';
 import '../../domain/repositories/governance_repository.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
@@ -218,6 +224,52 @@ final class UnavailableFineRepository implements FineRepository {
   @override
   Future<OperationResult<MyFine>> contestFine({required MyFine fine, required String reason}) async =>
       const OperationBlocked<MyFine>(_reason);
+
+  @override
+  Future<Resource<List<MyFine>>> listGroupFines({required String groupId, required String groupName}) async => const ResourceUnavailable<List<MyFine>>();
+
+  @override
+  Future<OperationResult<MyFine>> cancelFine({required MyFine fine, required String reason}) async => const OperationBlocked<MyFine>(_reason);
+
+  @override
+  Future<OperationResult<MyFine>> refundFine({required MyFine fine, required String channel, String? reference}) async => const OperationBlocked<MyFine>(_reason);
+}
+
+final class UnavailablePollRepository implements PollRepository {
+  const UnavailablePollRepository();
+
+  @override
+  Future<Resource<List<Poll>>> listPolls(String groupId) async => const ResourceUnavailable<List<Poll>>();
+
+  @override
+  Future<OperationResult<Poll>> openPoll(String groupId, PollDraft draft) async => const OperationBlocked<Poll>(_reason);
+
+  @override
+  Future<OperationResult<Poll>> answer({required String groupId, required String pollId, required List<int> choices, String? freeAnswer}) async =>
+      const OperationBlocked<Poll>(_reason);
+
+  @override
+  Future<OperationResult<Poll>> end({required String groupId, required String pollId, required bool cancel}) async => const OperationBlocked<Poll>(_reason);
+}
+
+final class UnavailableMeetingRepository implements MeetingRepository {
+  const UnavailableMeetingRepository();
+
+  @override
+  Future<Resource<List<MeetingSummary>>> listMeetings(String groupId) async => const ResourceUnavailable<List<MeetingSummary>>();
+
+  @override
+  Future<Resource<MeetingDetail>> getMeeting({required String groupId, required String meetingId}) async => const ResourceUnavailable<MeetingDetail>();
+
+  @override
+  Future<OperationResult<MeetingDetail>> updateMeeting({
+    required String groupId,
+    required String meetingId,
+    required MeetingFormat format,
+    String? onlineUrl,
+    String? location,
+  }) async =>
+      const OperationBlocked<MeetingDetail>(_reason);
 }
 
 final class UnavailableNotificationRepository implements NotificationRepository {
@@ -250,4 +302,15 @@ final class UnavailableDashboardRepository implements DashboardRepository {
   @override
   Future<Resource<HomeData>> loadHome(GroupSummary group) async =>
       const ResourceUnavailable<HomeData>();
+}
+
+final class UnavailableShareNameRepository implements ShareNameRepository {
+  const UnavailableShareNameRepository();
+
+  @override
+  Future<Resource<List<ShareName>>> listNames(String groupId) async => const ResourceUnavailable<List<ShareName>>();
+
+  @override
+  Future<OperationResult<ShareName>> rename({required String groupId, required String shareId, required String label}) async =>
+      const OperationBlocked<ShareName>(_reason);
 }

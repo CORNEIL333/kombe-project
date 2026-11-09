@@ -383,7 +383,10 @@ export type NotificationKind =
   | "fund_created"
   | "movement_rejected"
   | "fine_contested"
-  | "support_reply";
+  | "support_reply"
+  | "poll_opened"
+  | "meeting_updated"
+  | "fine_refunded";
 
 /** Détail court d'une notification (lu après authentification, jamais en push). */
 export type NotificationParams = Readonly<Record<string, string | number | boolean | null>>;

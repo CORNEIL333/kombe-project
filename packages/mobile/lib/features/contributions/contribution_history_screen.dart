@@ -29,6 +29,9 @@ class ContributionHistoryScreen extends StatefulWidget {
 class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
   Resource<List<Contribution>> _remote = const ResourceLoading<List<Contribution>>();
   List<ContributionDraft> _drafts = const <ContributionDraft>[];
+  /// Historique allégé : les 12 derniers paiements, le reste sur demande.
+  bool _all = false;
+  static const int _recent = 12;
 
   @override
   void didChangeDependencies() {
@@ -97,7 +100,7 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
                 emptyBody: 'Vos paiements apparaîtront ici.',
                 builder: (BuildContext context, List<Contribution> contributions) => Column(
                   children: <Widget>[
-                    for (final MapEntry<String, List<Contribution>> month in _byMonth(context, contributions).entries) ...<Widget>[
+                    for (final MapEntry<String, List<Contribution>> month in _byMonth(context, _all ? contributions : contributions.take(_recent).toList()).entries) ...<Widget>[
                       Padding(
                         padding: const EdgeInsets.fromLTRB(24, 6, 24, 8),
                         child: Align(alignment: Alignment.centerLeft, child: Text(toBeginningOfSentenceCase(month.key), style: KombeType.eyebrow)),
@@ -107,6 +110,11 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
                       ),
                       const SizedBox(height: 14),
                     ],
+                    if (contributions.length > _recent)
+                      TextButton(
+                        onPressed: () => setState(() => _all = !_all),
+                        child: Text(_all ? 'Voir moins' : 'Tout voir (${contributions.length})'),
+                      ),
                   ],
                 ),
               ),

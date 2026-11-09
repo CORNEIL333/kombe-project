@@ -14,8 +14,11 @@ import {
   argent,
   lirePhotoGroupe,
   decisions,
+  cycle,
   tontines,
+  votes,
   type DecisionView,
+  type PollView,
   type NotificationView,
   type RoundView,
   type Session,
@@ -44,12 +47,17 @@ interface DonneesAccueil {
   readonly membres: number;
   readonly noms: readonly { readonly nom: string; readonly id: string; readonly version?: number | null | undefined }[];
   readonly recentes: readonly NotificationView[];
+  /** Votes libres ouverts auxquels je n'ai pas encore répondu (0041). */
+  readonly sondages: readonly PollView[];
+  /** Tous les tours du cycle (tableau de bord interactif). */
+  readonly tours: readonly RoundView[];
+  readonly seanceEnLigne: string | null;
 }
 
 async function chargerAccueil(session: Session, g: TontineSummary): Promise<DonneesAccueil> {
   const confirme = g.roles.some((r) => CONFIRME.includes(r));
   const controle = g.roles.includes("auditor");
-  const [moi, echeances, detail, miennes, scrutins, notifs, aTraiter, membres] = await Promise.all([
+  const [moi, echeances, detail, miennes, scrutins, notifs, aTraiter, membres, sondages, tours] = await Promise.all([
     acces.moi(session).catch(() => null),
     acces.mesEcheances(session, g.groupId),
     tontines.detail(session, g.groupId),
@@ -58,6 +66,8 @@ async function chargerAccueil(session: Session, g: TontineSummary): Promise<Donn
     acces.notifications(session),
     confirme || controle ? argent.mouvements(session, g.groupId, { state: controle ? "confirmed" : "declared" }) : Promise.resolve([]),
     tontines.membres(session, g.groupId).catch(() => []),
+    votes.liste(session, g.groupId).catch(() => [] as PollView[]),
+    cycle.tours(session, g.groupId).catch(() => [] as RoundView[]),
   ]);
   const ouvertes = echeances.filter((e) => BigInt(e.remaining) > 0n);
   const dates = ouvertes.map((e) => e.date).sort();
@@ -79,6 +89,9 @@ async function chargerAccueil(session: Session, g: TontineSummary): Promise<Donn
     membres: detail.memberCount,
     noms: membres.filter((m) => m.state === "active").map((m) => ({ nom: m.displayName, id: m.membershipId, version: m.photoVersion })),
     recentes: notifs.filter((n) => n.groupId === g.groupId).slice(0, 3),
+    sondages: sondages.filter((p) => p.state === "open" && p.myBallot === null),
+    tours,
+    seanceEnLigne: detail.nextMeeting && detail.nextMeeting.format !== "in_person" ? detail.nextMeeting.onlineUrl : null,
   };
 }
 
@@ -216,22 +229,24 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
                   ) : (
                     <Tuile icone="registre" libelle={tx("ho.tuileHistorique")} onClick={() => aller({ ecran: "cotisations" })} />
                   )}
-                  <Tuile icone="vote" libelle={tx("ho.tuileVoter")} badge={d.votes.length} onClick={vers("decisions")} />
+                  <Tuile icone="vote" libelle={tx("ho.tuileVoter")} badge={d.votes.length + d.sondages.length} onClick={vers("decisions")} />
                   <Tuile icone="seance" libelle={tx("ho.tuileSeances")} onClick={vers("seances")} />
                 </nav>
+
+                {d.tours.length > 0 ? <TableauDeBord tours={d.tours} courant={d.tour?.round.seq ?? null} ouvrirTours={vers("tours")} /> : null}
 
                 <div className="accueil-duo">
                   <Section
                     titre={tx("ho.aFaire")}
                     icone="alerte"
-                    compte={d.aValider + d.votes.length}
+                    compte={d.aValider + d.votes.length + d.sondages.length}
                     action={
                       <button type="button" className="bouton-texte" onClick={() => aller({ ecran: "notifications" })}>
                         {tx("ho.toutVoir")}
                       </button>
                     }
                   >
-                    {d.aValider > 0 || d.votes.length > 0 ? (
+                    {d.aValider > 0 || d.votes.length > 0 || d.sondages.length > 0 ? (
                       <ul className="lignes carte-liste">
                         {d.aValider > 0 ? (
                           <Ligne
@@ -250,6 +265,9 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
                             onClick={vers("decisions")}
                           />
                         ))}
+                        {d.sondages.map((p) => (
+                          <Ligne key={p.pollId} icone="vote" titre={p.question} sousTitre={tx("ho.sondage", { nom: p.createdByName })} onClick={vers("decisions")} />
+                        ))}
                       </ul>
                     ) : (
                       <p className="aide-champ carte-liste carte-liste--vide">{tx("ho.rienDeNeuf")}</p>
@@ -266,6 +284,12 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
                         <span className="carte-seance__texte">
                           <span className="carte-seance__sur">{tx("ho.seance")}</span>
                           <span className="carte-seance__date">{date(d.seance.date)}</span>
+                          {d.seanceEnLigne ? (
+                            <span className="carte-seance__lieu">
+                              <Icone nom="monde" taille={16} />
+                              {tx("se.enLigne")}
+                            </span>
+                          ) : null}
                           {d.seance.lieu ? (
                             <span className="carte-seance__lieu">
                               <Icone nom="monde" taille={16} />
@@ -366,6 +390,89 @@ function AccueilGroupe({ session, groupe, aller }: { readonly session: Session; 
         )}
       </Charge>
     </div>
+  );
+}
+
+/**
+ * Tableau de bord interactif : « Ce tour » (jauge de la collecte) ou « Tout le
+ * cycle » (une barre par tour, à toucher pour voir son détail). Les chiffres
+ * sont ceux du serveur ; rien n'est estimé.
+ */
+function TableauDeBord({ tours, courant, ouvrirTours }: { readonly tours: readonly RoundView[]; readonly courant: number | null; readonly ouvrirTours: () => void }) {
+  const { tx, xaf, date } = useTextes();
+  const [vue, setVue] = useState<"tour" | "cycle">("tour");
+  const [choisi, setChoisi] = useState<number | null>(courant ?? tours[tours.length - 1]?.seq ?? null);
+  const tour = tours.find((r) => r.seq === (vue === "tour" ? (courant ?? choisi) : choisi)) ?? tours[0];
+  if (!tour) return null;
+  const pct = (r: RoundView) => {
+    const e = BigInt(r.expectedPot);
+    return e > 0n ? Number((BigInt(r.collected) * 100n) / e) : 0;
+  };
+  const totalAttendu = tours.reduce((s, r) => s + BigInt(r.expectedPot), 0n);
+  const totalRecu = tours.reduce((s, r) => s + BigInt(r.collected), 0n);
+  const remis = tours.filter((r) => r.payoutState === "received" || r.state === "closed").length;
+  return (
+    <section className="tableau-bord section-accueil apparition" aria-labelledby="tb-titre">
+      <div className="titre-section titre-section--action">
+        <h2 id="tb-titre">
+          <Icone nom="cycle" taille={22} />
+          {tx("tb.titre")}
+        </h2>
+        <div className="segments" role="tablist" aria-label={tx("tb.titre")}>
+          {(["tour", "cycle"] as const).map((v) => (
+            <button key={v} type="button" role="tab" aria-selected={vue === v} className="segments__bouton" onClick={() => setVue(v)}>
+              {tx(v === "tour" ? "tb.ceTour" : "tb.cycle")}
+            </button>
+          ))}
+        </div>
+      </div>
+      {vue === "tour" ? (
+        <button type="button" className="tableau-bord__jauge" onClick={ouvrirTours}>
+          <span className="tableau-bord__chiffres">
+            <span className="tableau-bord__grand">{pct(tour)} %</span>
+            <span className="aide-champ">{tx("tb.collecte", { recu: xaf(tour.collected), attendu: xaf(tour.expectedPot) })}</span>
+          </span>
+          <span className="tableau-bord__barre" aria-hidden="true">
+            <span style={{ width: `${Math.min(100, pct(tour))}%` }} />
+          </span>
+          <span className="aide-champ">
+            {tx("tb.tourDe", { n: tour.seq, date: date(tour.date) })}
+            {tour.beneficiaryName ? ` · ${tour.shareLabel && tour.shareLabel !== tour.beneficiaryName ? `${tour.shareLabel} (${tour.beneficiaryName})` : tour.beneficiaryName}` : ""}
+          </span>
+        </button>
+      ) : (
+        <div className="pile">
+          <p className="aide-champ">{tx("tb.resumeCycle", { remis, total: tours.length, recu: xaf(totalRecu.toString()), attendu: xaf(totalAttendu.toString()) })}</p>
+          <div className="tableau-bord__histo" role="group" aria-label={tx("tb.cycle")}>
+            {tours.map((r) => (
+              <button
+                key={r.seq}
+                type="button"
+                className={["tableau-bord__colonne", r.seq === courant ? "is-courant" : "", r.seq === choisi ? "is-choisi" : ""].filter(Boolean).join(" ")}
+                aria-pressed={r.seq === choisi}
+                aria-label={tx("tb.colonne", { n: r.seq, pct: pct(r) })}
+                onClick={() => setChoisi(r.seq)}
+              >
+                <span style={{ height: `${Math.max(4, Math.min(100, pct(r)))}%` }} />
+              </button>
+            ))}
+          </div>
+          {choisi !== null ? (
+            <div className="tableau-bord__detail">
+              <span>
+                <strong>{tx("tb.tourDe", { n: tour.seq, date: date(tour.date) })}</strong>
+                <span className="aide-champ">
+                  {tour.shareLabel ?? tour.beneficiaryName ?? "—"} · {tx("tb.collecte", { recu: xaf(tour.collected), attendu: xaf(tour.expectedPot) })}
+                </span>
+              </span>
+              <button type="button" className="bouton-texte" onClick={ouvrirTours}>
+                {tx("ho.toutVoir")} →
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -499,7 +606,61 @@ const FAMILLE: Readonly<Record<string, Filtre>> = {
   reserve: "argent", fund: "argent", aid: "argent", aidDecision: "argent", aidPaid: "argent",
   decision: "votes", "decision-closed": "votes", "decision-lifted": "votes", swap: "votes", "swap-ready": "votes",
   meetingSoon: "seances", minutes: "seances", meetingOpen: "seances", voteSoon: "votes",
+  poll: "votes", meetingUpdate: "seances", fineRefunded: "argent", fineRefundDue: "argent",
 };
+
+/**
+ * Regroupe les notifications de même nature dans un même groupe (ex. trois
+ * rappels de cotisation) : une seule ligne, dépliable. L'ordre (la plus
+ * récente d'abord) est conservé ; une notification isolée reste seule.
+ */
+export function regrouperNotifications(liste: readonly NotificationView[]): readonly (readonly NotificationView[])[] {
+  const paquets = new Map<string, NotificationView[]>();
+  const ordre: string[] = [];
+  for (const n of liste) {
+    const cle = `${n.kind}|${n.topic ?? ""}|${n.groupId ?? ""}`;
+    if (!paquets.has(cle)) {
+      paquets.set(cle, []);
+      ordre.push(cle);
+    }
+    (paquets.get(cle) as NotificationView[]).push(n);
+  }
+  return ordre.map((c) => paquets.get(c) as NotificationView[]);
+}
+
+function PaquetNotifications({ items, session, aller }: { readonly items: readonly NotificationView[]; readonly session: Session; readonly aller: (r: Route) => void }) {
+  const { tx, date, dyn, instant, xaf } = useTextes();
+  const [ouvert, setOuvert] = useState(false);
+  const tete = items[0] as NotificationView;
+  if (items.length === 1) return <LigneNotification n={tete} session={session} aller={aller} />;
+  const e = entreeNotification(tete);
+  const t = texteNotification(tete, { dyn, instant, date, xaf });
+  const nonLues = items.filter((n) => !n.read).length;
+  return (
+    <li data-famille={familleNotification(tete)} className="paquet-notif">
+      <button type="button" className={nonLues ? "ligne ligne--nonlue" : "ligne"} aria-expanded={ouvert} onClick={() => setOuvert((o) => !o)}>
+        <span className="ligne__icone" aria-hidden="true">
+          <Icone nom={e.icone} taille={22} />
+          <span className="paquet-notif__compte">{items.length}</span>
+        </span>
+        <span className="ligne__texte">
+          <span className="ligne__titre">{t.titre}</span>
+          <span className="ligne__sous">
+            {[tete.groupName ?? "", tx("ac.paquet", { n: items.length }), nonLues ? tx("ac.nonLues", { n: nonLues }) : ""].filter(Boolean).join(" · ")}
+          </span>
+        </span>
+        <Icone nom="chevron" taille={18} />
+      </button>
+      {ouvert ? (
+        <ul className="lignes paquet-notif__detail">
+          {items.map((n) => (
+            <LigneNotification key={n.notificationId} n={n} session={session} aller={aller} />
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
 export const familleNotification = (n: Pick<NotificationView, "topic">): Filtre => FAMILLE[n.topic ?? ""] ?? "groupe";
 
 export function periodeNotification(iso: string, maintenant: Date): "aujourdhui" | "semaine" | "avant" {
@@ -560,8 +721,8 @@ export function Notifications({ session, aller }: { readonly session: Session; r
                       {tx(cle)}
                     </h2>
                     <ul className="lignes">
-                      {items.map((n) => (
-                        <LigneNotification key={n.notificationId} n={n} session={session} aller={aller} />
+                      {regrouperNotifications(items).map((paquet) => (
+                        <PaquetNotifications key={(paquet[0] as NotificationView).notificationId} items={paquet} session={session} aller={aller} />
                       ))}
                     </ul>
                   </section>
