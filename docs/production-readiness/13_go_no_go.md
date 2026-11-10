@@ -15,13 +15,24 @@ Le code de la branche `claude/continue-previous-a102rx` est prêt. La production
 - **décision d'achat Neon**, si la rafale de 5 000 arrivées en une minute doit rester rapide (voir 12) ;
 - **publication de l'application mobile** depuis le PC qui porte la clé de signature.
 
-### Faille corrigée le 07/11/2026 — **à déployer en priorité** (V-18, voir 02)
+### Production 0.9.1 — 10/11/2026
 
-- En production, tout membre connecté peut aujourd'hui obtenir la liste des identifiants de connexion de tous les comptes (`POST /v1/privacy/restore-points`). Il peut aussi écrire les mentions légales et le registre des traitements.
-- Aucune trace d'usage n'a été relevée (lecture seule du 07/11).
-- Le correctif (`c52f0c9`) réserve ces routes à l'admin avec second facteur. Elles ne renvoient plus que des comptes.
+- **En ligne :** déploiement `dpl_E7usZ2pak29Hh6FnLmAWXkNncJvr` (`master`, `0b7a965`), migrations jusqu'à 0043.
+  - Contenu : CRM `/crm/`, faille V-18 fermée, jetons de session hachés (R-01), RLS vie privée (R-02), relève des envois (R-05), retours des membres.
+- **Sauvegardes :**
+  - `sauvegarde-avant-0-9-0-20261109` ;
+  - `sauvegarde-avant-0-9-1-20261110`.
+- **Retour arrière :**
+  - `dpl_CgSFBHhi6tK8Caz3iFAxHEAWyEph` (0.9.0) ;
+  - `dpl_Ep4zuchZidiPzsvZJwQqrZE2npJn` (0.8.1).
+- **Contrôles :**
+  - smoke test réussi (SMOKE_PASS) ;
+  - 6 pages rendues sans erreur ;
+  - 0 jeton en clair, 42 sessions actives conservées ;
+  - RLS active ;
+  - 29/29 preuves PostgreSQL avant déploiement.
 
-### CRM de la plateforme (07/11/2026, ADR-0046) — code prêt, **non déployé**
+### CRM de la plateforme (ADR-0046) — **déployé le 09/11/2026**
 
 - Les consoles Opérations, Direction et Engineering sont réunies dans **`/crm/`** ; les anciennes adresses y redirigent.
 - **Avant de déployer :** sauvegarde Neon, puis migration **0041_crm** (additive). Le build l'exige : `/v1/health/ready` attend `0041_crm`.
@@ -58,8 +69,8 @@ Le code de la branche `claude/continue-previous-a102rx` est prêt. La production
 
 | Risque | Plan |
 |---|---|
-| R-01 : jetons de session en clair | Corrigé dans le code (0042, empreinte SHA-256), à déployer |
-| R-02 : tables « vie privée » sans RLS | Corrigé dans le code (0042), à déployer ; reste `"group"`, sans donnée personnelle |
+| R-01 : jetons de session en clair | Corrigé en production (0042, empreinte SHA-256) |
+| R-02 : tables « vie privée » sans RLS | Corrigé en production (0042) ; reste `"group"`, sans donnée personnelle |
 | R-03 : connexions directes | Code livré et prouvé (ADR-0045) ; bascule propriétaire |
 | R-04 : N+1 sur `/v1/me/tontines` | — |
 | R-05 : tâche planifiée quotidienne | — |
