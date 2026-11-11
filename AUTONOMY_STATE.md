@@ -81,7 +81,7 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 | A6 | Guide du back-office (artefact) | DONE (11/11) | Version 3 publiée. |
 | A7 | Parcours navigateur de bout en bout dans le dépôt | DONE (11/11) | `scripts/e2e/parcours-crm.mjs` (40 pages, axe-core en dépendance de développement) : PASS. |
 | A11 | ADR-0047 (sécurité résiduelle, alertes, lectures) | DONE (11/11) | |
-| A8 | PWA : tests de l'écran Aide (assistance) | READY | Jsdom, API simulée au niveau du client. |
+| A8 | PWA : tests de l'écran Aide (assistance) | DONE (11/11) | `aide.test.tsx` : 3 tests (liste, nouvelle demande, fil, réponse, note) ; client 38/38. |
 | A9 | Délais de service : alerte au responsable avant dépassement (P1/P2) | READY | Pendant la relève (R-05), sans nouvelle tâche planifiée. |
 | B1 | Relier Vercel à GitHub (déploiement automatique depuis `master`) | BLOCKED | Refusé par le classificateur (réglage du compte) : action du porteur (Vercel → Settings → Git). |
 | B2 | Premier opérateur en production | BLOCKED | Identité du porteur : `grant-operator.mjs`, puis second facteur. |
@@ -100,8 +100,8 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 
 ## Lot en cours
 
-A8 — tests de l'écran Aide (PWA).
+A9 — alertes de délai de service (P1/P2) avant dépassement.
 
 ## Prochaine action concrète
 
-Écrire `packages/client/src/test/aide.test.tsx` : liste, nouvelle demande, fil, réponse, note (fetch simulé).
+Migration 0046 : `kombe_crm_sla_scan()` (alerte unique par demande et par échéance, 30 min avant ou en retard) appelée pendant la relève (au plus toutes les 5 min) ; preuve CRM.
