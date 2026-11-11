@@ -12,6 +12,7 @@ import '../../data/remote/tontine_fund_repository.dart';
 import '../../data/remote/tontine_repositories.dart';
 import '../../data/repositories/unavailable_repositories.dart';
 import '../../domain/repositories/poll_repository.dart';
+import '../../domain/repositories/support_repository.dart';
 import '../../domain/repositories/share_name_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/contribution_repository.dart';
@@ -46,6 +47,7 @@ final class AppDependencies {
     this.fundRepository = const UnavailableFundRepository(),
     this.pollRepository = const UnavailablePollRepository(),
     this.shareNameRepository = const UnavailableShareNameRepository(),
+    this.supportRepository = const UnavailableSupportRepository(),
   });
 
   factory AppDependencies.unconfigured() {
@@ -108,6 +110,7 @@ final class AppDependencies {
       fundRepository: TontineFundRepository(api: api),
       pollRepository: TontinePollRepository(api: api),
       shareNameRepository: TontineShareNameRepository(api: api),
+      supportRepository: TontineSupportRepository(api: api),
       contributionRepository: TontineContributionRepository(api: api),
       governanceRepository: TontineGovernanceRepository(api: api),
       fineRepository: TontineFineRepository(api: api),
@@ -132,6 +135,7 @@ final class AppDependencies {
   final GovernanceRepository governanceRepository;
   final FineRepository fineRepository;
   final PollRepository pollRepository;
+  final SupportRepository supportRepository;
   final ShareNameRepository shareNameRepository;
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;

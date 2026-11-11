@@ -74,7 +74,7 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 | # | Lot | Statut | Note |
 |---|---|---|---|
 | A1 | `migrate.mjs` : modes `status` et `down` | DONE (11/11) | Testés en local (6 cas) ; `status` lancé sur la production : 46 jalons, rien en attente. |
-| A2 | Mobile : écran « Mes demandes au support » (parité avec la PWA, CRM) | READY | Flutter disponible (`/opt/flutter`). |
+| A2 | Mobile : écran « Mes demandes au support » | DONE (11/11) | Liste, nouvelle demande, fil, réponse, note ; notification → demande. `flutter analyze` sans erreur ; 75 tests mobiles verts, dont 4 nouveaux. À livrer avec la prochaine publication mobile (B3). |
 | A3 | R-04 : « mes tontines » en moins d'aller-retours (requêtes regroupées par groupe) | READY | Mesurer avant et après (pg_stat_statements). |
 | A4 | CRM : prévenir le support d'une nouvelle demande (notification aux opérateurs support) | READY | Délai de première réponse. |
 | A5 | RLS de `"group"` (résiduel R-02) | READY, risque élevé | Beaucoup de chemins (aperçu d'invitation) : preuves complètes obligatoires. |
@@ -94,8 +94,8 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 
 ## Lot en cours
 
-A2 — mobile : « Mes demandes au support ».
+A4 — CRM : prévenir le support d'une nouvelle demande.
 
 ## Prochaine action concrète
 
-Écran Flutter de l'assistance (liste, ouvrir, fil, répondre, noter), dépôt API et tests de widget.
+Notifier les opérateurs support (boîte de réception) à l'ouverture d'une demande par un membre et à sa réponse ; preuve CRM étendue.

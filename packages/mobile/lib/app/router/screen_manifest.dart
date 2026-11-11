@@ -41,6 +41,7 @@ abstract final class ScreenManifest {
     'documents',
     'help_center',
     'contact_support',
+    'support_ticket',
     'offline_status',
     'about',
   ];

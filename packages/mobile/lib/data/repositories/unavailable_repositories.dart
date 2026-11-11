@@ -16,6 +16,8 @@ import '../../domain/entities/notification.dart';
 import '../../domain/entities/profile.dart';
 import '../../domain/entities/poll.dart';
 import '../../domain/entities/share_name.dart';
+import '../../domain/entities/support_ticket.dart';
+import '../../domain/repositories/support_repository.dart';
 import '../../domain/repositories/share_name_repository.dart';
 import '../../domain/repositories/poll_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -313,4 +315,24 @@ final class UnavailableShareNameRepository implements ShareNameRepository {
   @override
   Future<OperationResult<ShareName>> rename({required String groupId, required String shareId, required String label}) async =>
       const OperationBlocked<ShareName>(_reason);
+}
+
+
+final class UnavailableSupportRepository implements SupportRepository {
+  const UnavailableSupportRepository();
+
+  @override
+  Future<Resource<List<SupportTicketSummary>>> myTickets() async => const ResourceUnavailable<List<SupportTicketSummary>>();
+
+  @override
+  Future<OperationResult<String>> open(SupportTicketDraft draft) async => const OperationBlocked<String>(_reason);
+
+  @override
+  Future<Resource<SupportTicket>> ticket(String ticketId) async => const ResourceUnavailable<SupportTicket>();
+
+  @override
+  Future<OperationResult<void>> reply(String ticketId, String body) async => const OperationBlocked<void>(_reason);
+
+  @override
+  Future<OperationResult<void>> rate(String ticketId, int score, {String? comment}) async => const OperationBlocked<void>(_reason);
 }

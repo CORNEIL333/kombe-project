@@ -22,6 +22,8 @@ import '../../domain/entities/notification.dart';
 import '../../domain/entities/profile.dart';
 import '../../domain/entities/poll.dart';
 import '../../domain/entities/share_name.dart';
+import '../../domain/entities/support_ticket.dart';
+import '../../domain/repositories/support_repository.dart';
 import '../../domain/repositories/share_name_repository.dart';
 import '../../domain/repositories/poll_repository.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -1421,5 +1423,44 @@ final class TontineShareNameRepository implements ShareNameRepository {
         (await _api.patch('/tontines/${Uri.encodeComponent(groupId)}/names/${Uri.encodeComponent(shareId)}', <String, dynamic>{'label': label.trim()},
                 headers: <String, String>{'idempotency-key': newIdempotencyKey()}))
             .body,
+      ));
+}
+
+
+/// Mes demandes au support KÓMBE (CRM de la plateforme, ADR-0046).
+final class TontineSupportRepository implements SupportRepository {
+  const TontineSupportRepository({required KombeApiClient api}) : _api = api;
+  final KombeApiClient _api;
+
+  static const String _base = '/me/support-tickets';
+  String _one(String id) => '$_base/${Uri.encodeComponent(id)}';
+
+  @override
+  Future<Resource<List<SupportTicketSummary>>> myTickets() =>
+      _read(() async => <SupportTicketSummary>[for (final Map<String, dynamic> t in _items(await _api.get(_base))) supportSummaryFrom(t)]);
+
+  @override
+  Future<OperationResult<String>> open(SupportTicketDraft d) => _write<String>(() async {
+        final ApiResponse r = await _api.postOnce(_base, <String, dynamic>{
+          'subject': d.subject.trim(),
+          'category': d.category,
+          'body': d.body.trim(),
+          if (d.groupId != null && d.groupId!.isNotEmpty) 'groupId': d.groupId,
+        });
+        return '${r.body['ref'] ?? ''}';
+      });
+
+  @override
+  Future<Resource<SupportTicket>> ticket(String ticketId) =>
+      _read(() async => supportTicketFrom((await _api.get(_one(ticketId))).body));
+
+  @override
+  Future<OperationResult<void>> reply(String ticketId, String body) =>
+      _write<void>(() async => _api.postOnce('${_one(ticketId)}/messages', <String, dynamic>{'body': body.trim()}));
+
+  @override
+  Future<OperationResult<void>> rate(String ticketId, int score, {String? comment}) => _write<void>(() async => _api.postOnce(
+        '${_one(ticketId)}/satisfaction',
+        <String, dynamic>{'score': score, if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim()},
       ));
 }

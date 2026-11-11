@@ -276,6 +276,10 @@ final class AppRouter {
           builder: (_, __) => const ContactSupportScreen(),
         ),
         GoRoute(
+          path: '/app/support/:ticketId',
+          builder: (_, state) => SupportTicketScreen(ticketId: state.pathParameters['ticketId']!),
+        ),
+        GoRoute(
           path: '/app/offline',
           builder: (_, __) => const OfflineStatusScreen(),
         ),

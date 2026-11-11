@@ -76,6 +76,9 @@ final class KombeNotification {
 String? notificationRoute({String? target, String? groupId, String? code}) {
   // Demande refusée, exclusion : le groupe n'est plus lisible pour moi.
   if (code == 'rejected' || code == 'statutes_excluded') return null;
+  // Réponse du support (CRM) : la demande, jamais un groupe.
+  final RegExpMatch? support = RegExp(r'^/aide/demandes/(tk_[0-9a-f]{20})$').firstMatch(target ?? '');
+  if (support != null) return '/app/support/${support.group(1)}';
   final List<String> parts = (target ?? '').split('/').where((String s) => s.isNotEmpty).toList();
   String? gid = groupId;
   String? section;
