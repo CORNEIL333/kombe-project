@@ -89,10 +89,9 @@ export class PgGovernanceStore {
     const requiredIndependentRoles = input.requiredIndependentRoles ?? 4;
     await withGroupTx(this.pool, input.groupId, async (client) => {
       if (input.parentGroupId !== undefined) {
-        const parent = await client.query(`SELECT 1 FROM "group" WHERE group_id = $1`, [
-          input.parentGroupId,
-        ]);
-        if (parent.rows.length === 0) {
+        // Le parent est un AUTRE groupe (RLS de "group", 0045) : fonction étroite.
+        const parent = await client.query(`SELECT kombe_group_exists($1) AS ok`, [input.parentGroupId]);
+        if (parent.rows[0]?.ok !== true) {
           throw new DomainError("GROUP_PARENT_UNKNOWN", "Groupe parent introuvable");
         }
         assertParentAssignable({
@@ -125,15 +124,9 @@ export class PgGovernanceStore {
 
   /** Chaîne d'ascendance (parents) du plus proche au plus lointain, anti-boucle. */
   private async ancestorChain(client: pg.PoolClient, groupId: string): Promise<string[]> {
-    const chain: string[] = [];
-    const res = await client.query(`SELECT parent_group_id FROM "group" WHERE group_id = $1`, [groupId]);
-    let cur = (res.rows[0]?.parent_group_id as string | null | undefined) ?? null;
-    while (cur && chain.length < 64) {
-      chain.push(cur);
-      const next = await client.query(`SELECT parent_group_id FROM "group" WHERE group_id = $1`, [cur]);
-      cur = (next.rows[0]?.parent_group_id as string | null | undefined) ?? null;
-    }
-    return chain;
+    // Groupes AUTRES que le contexte courant (RLS de "group", 0045) : fonction étroite.
+    const res = await client.query(`SELECT kombe_group_ancestors($1) AS chain`, [groupId]);
+    return ((res.rows[0]?.chain as string[] | null) ?? []).map(String);
   }
 
   /** Amorçage de test RÉEL (pas un seed en mémoire) : insère une adhésion

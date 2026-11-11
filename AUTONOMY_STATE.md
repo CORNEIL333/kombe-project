@@ -85,6 +85,7 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 | B4 | Notifications push (R-07) | BLOCKED | Projet Firebase et `google-services.json` du porteur. |
 | B5 | Plan Neon payant, branches de prévisualisation anciennes | BLOCKED | Décision d'achat et de suppression du porteur. |
 | B6 | Validations juridiques (loi 2024/017, CEMAC/COBAC) | BLOCKED | Juriste. |
+| B8 | CI GitHub Actions | BLOCKED | Tous les jobs s'arrêtent en 1 s sans démarrer (constaté le 11/11 sur 704 exécutions récentes) : compte ou limite de facturation GitHub, à lever par le porteur. Les preuves locales (`scripts/proofs-local.sh`) font foi en attendant. |
 | B7 | Déployer 0044 (et la suite) | BLOCKED | Sauvegarde Neon obligatoire, mais 10 branches sur 10 : il faut que le porteur supprime `sauvegarde-avant-0-8-1-20261106` (ou autorise sa suppression). |
 
 ## Décisions techniques importantes
