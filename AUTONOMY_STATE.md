@@ -75,7 +75,7 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 |---|---|---|---|
 | A1 | `migrate.mjs` : modes `status` et `down` | DONE (11/11) | Testés en local (6 cas) ; `status` lancé sur la production : 46 jalons, rien en attente. |
 | A2 | Mobile : écran « Mes demandes au support » | DONE (11/11) | Liste, nouvelle demande, fil, réponse, note ; notification → demande. `flutter analyze` sans erreur ; 75 tests mobiles verts, dont 4 nouveaux. À livrer avec la prochaine publication mobile (B3). |
-| A3 | R-04 : « mes tontines » en moins d'aller-retours (requêtes regroupées par groupe) | READY | Mesurer avant et après (pg_stat_statements). |
+| A3 | R-04 : « mes tontines » en moins d'allers-retours | DONE dans le code (11/11), déploiement BLOCKED (B7) | 32 → 20 instructions par appel (3 groupes), réponses identiques ; preuves tontineApi, tontineCycles, customFunds, echeances, retoursMembres, serverRealMode vertes. |
 | A4 | CRM : prévenir le support d'une nouvelle demande | DONE dans le code (11/11), déploiement BLOCKED (B7) | Migration 0044 : alerte aux opérateurs support, opérations et admin (référence seule), réponse du membre adressée au responsable. Preuve crm 45/45. |
 | A5 | RLS de `"group"` (résiduel R-02) | READY, risque élevé | Beaucoup de chemins (aperçu d'invitation) : preuves complètes obligatoires. |
 | A6 | Guide du back-office (artefact) : retours des membres, état 0.9.1 | READY | |
@@ -95,8 +95,8 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 
 ## Lot en cours
 
-A3 — R-04 : « mes tontines » en moins d'allers-retours.
+A6 — guide du back-office, puis A5 — RLS de `"group"`.
 
 ## Prochaine action concrète
 
-Mesurer les instructions SQL de /v1/me/tontines (pg_stat_statements) pour un membre de 3 groupes, puis regrouper les petites lectures par groupe.
+Mettre à jour l'artefact du guide (0.9.1, retours des membres, alertes support, mobile) ; puis analyser tous les accès à "group" (grep), politique de lecture par adhésion ou par contexte, aperçu d'invitation via fonction SECURITY DEFINER, preuves complètes.

@@ -23,6 +23,7 @@ import {
   type StatutesView,
   type TontineDetail,
   type TontineSettings,
+  type TontineState,
   type TontineSummary,
   type Cadence,
 } from "@kombe/domain";
@@ -201,18 +202,61 @@ export async function tontineDetail(db: Db, actor: Actor, nowMs: number): Promis
   };
 }
 
-/** Tour courant dans le cycle en cours (aucune valeur inventée hors cycle). */
-async function cyclePositionOf(db: Db, group: GroupRow): Promise<{ current: number; total: number } | null> {
-  const cy = await currentCycle(db, group.groupId);
-  if (!cy) return null;
-  const cr = currentRound(await loadRounds(db, group));
+/** Tour courant d'après la fiche (cycle déjà lu ; seuls les tours restent à lire). */
+async function cardCyclePosition(db: Db, card: GroupCard): Promise<{ current: number; total: number } | null> {
+  if (!card.cycle) return null;
+  const cr = currentRound(await loadRounds(db, card.group));
   if (!cr) return null;
-  return { current: cr.seq - cy.firstSeq + 1, total: cy.lastSeq - cy.firstSeq + 1 };
+  return { current: cr.seq - card.cycle.firstSeq + 1, total: card.cycle.lastSeq - card.cycle.firstSeq + 1 };
 }
 
-async function summaryFor(db: Db, group: GroupRow, membershipId: string, membershipState: "pending" | "active", roles: readonly GroupRole[], nowMs: number): Promise<TontineSummary> {
+
+/**
+ * R-04 : fiche d'un groupe pour « mes tontines » en UNE lecture (dans le
+ * contexte du groupe, RLS inchangée) : le groupe, le nombre de membres actifs,
+ * la version de la photo, ma prochaine remise et le cycle courant. Remplace cinq
+ * lectures séparées (32 → 20 instructions pour un membre de trois groupes).
+ */
+interface GroupCard {
+  readonly group: GroupRow;
+  readonly memberCount: number;
+  readonly photoVersion: number | null;
+  readonly myPayoutDate: string | null;
+  readonly cycle: { readonly firstSeq: number; readonly lastSeq: number } | null;
+}
+async function loadCard(db: Db, groupId: string, membershipId: string): Promise<GroupCard | null> {
+  const r = await db.query(
+    `SELECT g.group_id, g.display_name AS name, g.state, g.settings, g.created_by_identity_id, g.created_at,
+            (SELECT count(*) FROM membership m WHERE m.group_id = g.group_id AND m.state = 'active') AS member_count,
+            (SELECT p.version FROM group_photo p WHERE p.group_id = g.group_id AND p.bytes_512 IS NOT NULL) AS photo_version,
+            (SELECT r.due_date_business::text FROM round r WHERE r.group_id = g.group_id AND r.beneficiary_membership_id = $2 AND r.state = 'open' ORDER BY r.seq LIMIT 1) AS payout_date,
+            c.first_seq, c.last_seq
+       FROM "group" g
+       LEFT JOIN LATERAL (SELECT first_seq, last_seq FROM tontine_cycle t WHERE t.group_id = g.group_id ORDER BY cycle_no DESC LIMIT 1) c ON true
+      WHERE g.group_id = $1`,
+    [groupId, membershipId],
+  );
+  const row = r.rows[0];
+  if (!row || !row.settings || !row.settings.cadence) return null; // groupe du socle de laboratoire (sans règlement produit)
+  return {
+    group: {
+      groupId: String(row.group_id),
+      name: String(row.name ?? ""),
+      state: row.state as TontineState,
+      settings: row.settings as TontineSettings,
+      createdBy: row.created_by_identity_id ? String(row.created_by_identity_id) : null,
+      createdAt: isoInstant(row.created_at) as string,
+    },
+    memberCount: Number(row.member_count ?? 0),
+    photoVersion: row.photo_version === null || row.photo_version === undefined ? null : Number(row.photo_version),
+    myPayoutDate: row.payout_date ? String(row.payout_date) : null,
+    cycle: row.first_seq === null || row.first_seq === undefined ? null : { firstSeq: Number(row.first_seq), lastSeq: Number(row.last_seq) },
+  };
+}
+
+async function summaryFor(db: Db, card: GroupCard, membershipId: string, membershipState: "pending" | "active", roles: readonly GroupRole[], nowMs: number): Promise<TontineSummary> {
+  const group = card.group;
   const today = todayDouala(nowMs);
-  const counts = await db.query(`SELECT count(*) AS a FROM membership WHERE group_id = $1 AND state = 'active'`, [group.groupId]);
   const meetings = await meetingSummaries(db, group.groupId);
   const next = nextMeeting(meetings, today);
   let myOpenDue = 0n;
@@ -220,11 +264,7 @@ async function summaryFor(db: Db, group: GroupRow, membershipId: string, members
   if (membershipState === "active") {
     const dues = await computeDues(db, group, membershipId, today, { onlyOpen: true });
     for (const d of dues) if (d.date <= (next?.date ?? today)) myOpenDue += BigInt(d.remaining);
-    const pay = await db.query(
-      `SELECT due_date_business::text AS d FROM round WHERE group_id = $1 AND beneficiary_membership_id = $2 AND state = 'open' ORDER BY seq LIMIT 1`,
-      [group.groupId, membershipId],
-    );
-    myPayoutDate = pay.rows[0] ? String(pay.rows[0].d) : null;
+    myPayoutDate = card.myPayoutDate;
   }
   return {
     groupId: group.groupId,
@@ -233,11 +273,11 @@ async function summaryFor(db: Db, group: GroupRow, membershipId: string, members
     membershipId,
     membershipState,
     roles: roles.filter((r) => r !== "member").length ? roles.filter((r) => r !== "member") : membershipState === "active" ? ["member"] : [],
-    memberCount: Number(counts.rows[0]?.a ?? 0),
+    memberCount: card.memberCount,
     contributionPerShare: group.settings.contributionPerShare,
     nextMeetingDate: next?.date ?? null,
-    photoVersion: await photoVersionOf(db, group.groupId),
-    cyclePosition: await cyclePositionOf(db, group),
+    photoVersion: card.photoVersion,
+    cyclePosition: await cardCyclePosition(db, card),
     myOpenDue: m(myOpenDue),
     myPayoutDate,
   };
@@ -334,14 +374,10 @@ export class GroupService {
       const out: TontineSummary[] = [];
       for (const row of r.rows) {
         await scopeGroup(db, String(row.group_id));
-        let group: GroupRow;
-        try {
-          group = await loadGroup(db, String(row.group_id));
-        } catch {
-          continue; // groupe du socle de laboratoire (sans règlement produit)
-        }
+        const card = await loadCard(db, String(row.group_id), String(row.membership_id));
+        if (!card) continue; // groupe du socle de laboratoire (sans règlement produit)
         const roles = ((row.roles as string[] | null) ?? []).filter(isGroupRole);
-        out.push(await summaryFor(db, group, String(row.membership_id), row.membership_state as "pending" | "active", roles, nowMs));
+        out.push(await summaryFor(db, card, String(row.membership_id), row.membership_state as "pending" | "active", roles, nowMs));
       }
       return out.sort((a, b) => (a.nextMeetingDate ?? "9999").localeCompare(b.nextMeetingDate ?? "9999"));
     });
@@ -702,7 +738,9 @@ export class GroupService {
       await appendEvent(db, actor, "member.requested", { membershipId, invitationId: String(inv.invitation_id) }, nowMs);
       const admins = await identitiesWithRoles(db, groupId, ["animator", "vice_president"]);
       await notify(db, groupId, admins, "join_request", `/tontines/${groupId}/membres`, `join:${membershipId}`, { name: displayName });
-      return summaryFor(db, group, membershipId, "pending", [], nowMs);
+      const card = await loadCard(db, groupId, membershipId);
+      if (!card) throw new DomainError("OBJET_INTROUVABLE", "Objet hors portée");
+      return summaryFor(db, card, membershipId, "pending", [], nowMs);
     });
   }
 
