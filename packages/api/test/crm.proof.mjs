@@ -131,6 +131,17 @@ try {
     subject: "Ma cotisation n'apparaît pas", category: "cotisation", body: "J'ai versé 2000 XAF mardi, rien ne s'affiche.", groupId,
   });
   check("CRM-MEMBER-OPEN-REF", /^tk_[0-9a-f]{20}$/.test(opened.ticketId) && /^KMB-\d{6}$/.test(opened.ref), opened);
+  // 0044 : le support est prévenu (support, admin), pas la direction ; le
+  // message ne porte que la référence.
+  const alertes = async (who) => {
+    const r = await ok(who.token, "GET", "/v1/me/notifications");
+    return (r.items ?? r).filter((n) => n.kind === "support_request");
+  };
+  const [aS, aA, aD] = await Promise.all([alertes(S), alertes(A), alertes(D)]);
+  check("CRM-ALERT-NEW-TICKET",
+    aS.length === 1 && aA.length === 1 && aD.length === 0 && String(aS[0].target).endsWith(opened.ticketId) &&
+      !JSON.stringify(aS[0]).includes("2000 XAF"),
+    { S: aS.length, A: aA.length, D: aD.length, n: aS[0] });
   const otherGroup = await call(M2.token, "POST", "/v1/me/support-tickets", { subject: "Accès", category: "connexion", body: "Je veux voir ce groupe-là.", groupId });
   check("CRM-MEMBER-FOREIGN-GROUP-REFUSED", otherGroup.status === 403, otherGroup);
   const m2list = await ok(M2.token, "GET", "/v1/me/support-tickets");
@@ -170,6 +181,9 @@ try {
   const earlyRate = await call(M1.token, "POST", `/v1/me/support-tickets/${opened.ticketId}/satisfaction`, { score: 5 });
   check("CRM-RATE-ONLY-WHEN-RESOLVED", earlyRate.status === 409 && /résolue/.test(earlyRate.body?.message ?? ""), earlyRate);
   await ok(M1.token, "POST", `/v1/me/support-tickets/${opened.ticketId}/messages`, { body: "Merci, j'attends." });
+  // Réponse du membre : seul le responsable (S, assigné par sa réponse publique) est prévenu.
+  const [rS, rA] = await Promise.all([alertes(S), alertes(A)]);
+  check("CRM-ALERT-REPLY-ASSIGNEE-ONLY", rS.length === 2 && rA.length === 1, { S: rS.length, A: rA.length });
   const cur = await ok(S.token, "GET", `/v1/crm/tickets/${opened.ticketId}`);
   const resolved = await ok(S.token, "PATCH", `/v1/crm/tickets/${opened.ticketId}`, { status: "resolu" }, { "if-match-version": String(cur.version) });
   check("CRM-RESOLVED", resolved.status === "resolu" && resolved.resolvedAt, resolved);

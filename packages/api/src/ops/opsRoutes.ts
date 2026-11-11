@@ -13,7 +13,7 @@ import { inTx, sessionIdentity } from "../tontine/infra.js";
 import { activateMfa, assertOperator, enrollMfa, operatorStatus, verifyMfa, type OperatorRole } from "./operatorAccess.js";
 
 /** Dernier jalon de schéma attendu par CE build de l'API (test : = dernier fichier de migrations/). */
-export const EXPECTED_LATEST_MIGRATION = "migrations/0043_retours_membres.sql";
+export const EXPECTED_LATEST_MIGRATION = "migrations/0044_crm_alertes.sql";
 
 export interface OpsRoutesOptions {
   readonly pool: pg.Pool;

@@ -569,6 +569,11 @@ function Ligne({
 /** Ouvre la destination contrôlée et marque la notification lue. */
 export function ouvrirNotification(session: Session, n: NotificationView, aller: (r: Route) => void): void {
   if (!n.read) void acces.marquerLues(session, [n.notificationId]).catch(() => undefined);
+  // Demande d'assistance pour un opérateur : elle s'ouvre dans le CRM (même origine).
+  if (/^\/crm\/#\/demandes\/tk_[0-9a-f]{20}$/.test(n.target ?? "")) {
+    window.location.assign(n.target as string);
+    return;
+  }
   const d = destinationNotification(n);
   if (d) aller(d);
 }

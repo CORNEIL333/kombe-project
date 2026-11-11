@@ -76,7 +76,7 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 | A1 | `migrate.mjs` : modes `status` et `down` | DONE (11/11) | Testés en local (6 cas) ; `status` lancé sur la production : 46 jalons, rien en attente. |
 | A2 | Mobile : écran « Mes demandes au support » | DONE (11/11) | Liste, nouvelle demande, fil, réponse, note ; notification → demande. `flutter analyze` sans erreur ; 75 tests mobiles verts, dont 4 nouveaux. À livrer avec la prochaine publication mobile (B3). |
 | A3 | R-04 : « mes tontines » en moins d'aller-retours (requêtes regroupées par groupe) | READY | Mesurer avant et après (pg_stat_statements). |
-| A4 | CRM : prévenir le support d'une nouvelle demande (notification aux opérateurs support) | READY | Délai de première réponse. |
+| A4 | CRM : prévenir le support d'une nouvelle demande | DONE dans le code (11/11), déploiement BLOCKED (B7) | Migration 0044 : alerte aux opérateurs support, opérations et admin (référence seule), réponse du membre adressée au responsable. Preuve crm 45/45. |
 | A5 | RLS de `"group"` (résiduel R-02) | READY, risque élevé | Beaucoup de chemins (aperçu d'invitation) : preuves complètes obligatoires. |
 | A6 | Guide du back-office (artefact) : retours des membres, état 0.9.1 | READY | |
 | B1 | Relier Vercel à GitHub (déploiement automatique depuis `master`) | BLOCKED | Refusé par le classificateur (réglage du compte) : action du porteur (Vercel → Settings → Git). |
@@ -85,6 +85,7 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 | B4 | Notifications push (R-07) | BLOCKED | Projet Firebase et `google-services.json` du porteur. |
 | B5 | Plan Neon payant, branches de prévisualisation anciennes | BLOCKED | Décision d'achat et de suppression du porteur. |
 | B6 | Validations juridiques (loi 2024/017, CEMAC/COBAC) | BLOCKED | Juriste. |
+| B7 | Déployer 0044 (et la suite) | BLOCKED | Sauvegarde Neon obligatoire, mais 10 branches sur 10 : il faut que le porteur supprime `sauvegarde-avant-0-8-1-20261106` (ou autorise sa suppression). |
 
 ## Décisions techniques importantes
 
@@ -94,8 +95,8 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 
 ## Lot en cours
 
-A4 — CRM : prévenir le support d'une nouvelle demande.
+A3 — R-04 : « mes tontines » en moins d'allers-retours.
 
 ## Prochaine action concrète
 
-Notifier les opérateurs support (boîte de réception) à l'ouverture d'une demande par un membre et à sa réponse ; preuve CRM étendue.
+Mesurer les instructions SQL de /v1/me/tontines (pg_stat_statements) pour un membre de 3 groupes, puis regrouper les petites lectures par groupe.
