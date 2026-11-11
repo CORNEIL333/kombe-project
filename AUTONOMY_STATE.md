@@ -1,6 +1,6 @@
 # AUTONOMY_STATE — KÓMBE
 
-Mémoire de reprise du mode autonome continu (directive du 10/11/2026). À relire en début de session, avec `docs/production-readiness/` (runbook 11, verdict 13, registre 02).
+Mémoire de reprise du mode autonome continu. Actions du porteur, avec leurs étapes exactes : `ACTIONS_PROPRIETAIRE.md` (directive du 10/11/2026). À relire en début de session, avec `docs/production-readiness/` (runbook 11, verdict 13, registre 02).
 
 ## Objectif général
 
