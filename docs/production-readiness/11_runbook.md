@@ -49,6 +49,14 @@ Règle : la production est **la branche par défaut du projet**, jamais une base
 
 **Réglage.** Garder `KOMBE_PG_POOL_MAX=10`. Derrière le pooler, ce sont des connexions *clientes*, peu coûteuses ; le pooler partage un petit nombre de connexions serveur.
 
+## État du schéma et retour arrière d'une migration
+
+- **Lecture seule** : `KOMBE_DATABASE_URL=<URL migrateur> node packages/db/scripts/migrate.mjs status`. Le résultat liste les jalons appliqués, ceux en attente, les jalons inconnus et la dernière migration.
+- **Défaire une migration** : `migrate.mjs down migrations/00NN_nom.sql`.
+  - Une seule migration à la fois : la dernière appliquée, nommée explicitement.
+  - Le fichier `.down.sql` et la suppression du jalon s'exécutent dans une même transaction.
+  - En production, il faut en plus `KOMBE_CONFIRM_PROD_DOWN=<même nom>`, et une sauvegarde Neon d'abord. Certains retours arrière refusent de s'exécuter s'il existe des données (CRM) ou défont des empreintes (0042 : reconnexion de tous).
+
 ## Sauvegarde avant chaque mise à jour
 
 - **Une seule** branche de sauvegarde par version, créée juste avant le déploiement, depuis la branche par défaut :

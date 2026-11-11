@@ -1,0 +1,101 @@
+# AUTONOMY_STATE — KÓMBE
+
+Mémoire de reprise du mode autonome continu (directive du 10/11/2026). À relire en début de session, avec `docs/production-readiness/` (runbook 11, verdict 13, registre 02).
+
+## Objectif général
+
+KÓMBE est un registre partagé de tontines. Il ne détient, ne reçoit ni ne transfère jamais d'argent.
+
+Le but est de le mener à une production sûre, mesurée et documentée, avec :
+- la PWA des membres ;
+- l'application mobile Flutter ;
+- l'Espace bureau ;
+- le CRM de la plateforme (`/crm/`) ;
+- l'API Fastify et PostgreSQL (Neon).
+
+## Garde-fous permanents (rappel)
+
+**Base de données**
+- Aucune commande destructive sur la base de production sans autorisation explicite.
+- Sauvegarde Neon (`scripts/neon-sauvegarde.mjs`) avant toute migration en production.
+
+**Code et secrets**
+- Aucun secret dans le dépôt : ils vivent dans les fichiers du scratchpad (`.vercel_token`, `.neon_key`, `.prod_uri`).
+- Ne jamais désactiver une sécurité pour faire passer un test.
+- Ne jamais déclarer PASS sans exécution réelle.
+
+**Produit**
+- Montants en XAF entiers.
+- Mots interdits dans les textes (au sens financier) : épargne, solde, retrait, débité, sécurisé, garanti.
+- Modules fermés (prêts, enchères, tontinier) : ne pas activer.
+
+**Git**
+- Ne pas toucher à la PR #1 ni à la branche `design/orbite-v2`.
+- Ne pas modifier les fichiers de recette du harnais (`harness/run_h00.py`, `verify_gate.py`, `*.schema.json`, `verifier_coordination.py`).
+- Branche de travail : `claude/continue-previous-a102rx`.
+- Fusion dans `master` par PR, autorisée par le porteur le 09/11.
+
+## État au 11/11/2026
+
+- **Production 0.9.1 en ligne** : `dpl_E7usZ2pak29Hh6FnLmAWXkNncJvr`, `master` à `d21c816`, migrations jusqu'à 0043.
+  - Retour arrière : `dpl_CgSFBHhi6tK8Caz3iFAxHEAWyEph` (0.9.0).
+- **Sauvegardes Neon :**
+  - `sauvegarde-avant-0-9-1-20261110` ;
+  - `sauvegarde-avant-0-9-0-20261109` ;
+  - `sauvegarde-avant-0-8-1-20261106`.
+  - Le projet est à 10 branches sur 10 : une prochaine sauvegarde exige de supprimer la plus ancienne, avec l'accord du porteur.
+- **Vérifications :**
+  - 29/29 preuves PostgreSQL ;
+  - tests unitaires et vérification de types verts dans tous les paquets ;
+  - smoke test de production réussi ;
+  - `pnpm audit --prod` : 0 vulnérabilité.
+
+## Lots terminés (DONE)
+
+- Durcissement P0/P1 :
+  - idempotence ;
+  - opérateurs avec second facteur ;
+  - OTP poivrés ;
+  - limitation partagée ;
+  - outbox ;
+  - garde de build ;
+  - CI des preuves.
+- Charge 5 000 personnes simultanées ; rôle `kombe_api` et pooler (R-03).
+- CRM de la plateforme (ADR-0046) et assistance côté PWA.
+- Sécurité :
+  - V-18 (routes vie privée réservées à l'admin) ;
+  - R-01 (jetons de session hachés) ;
+  - R-02 (RLS des tables vie privée) ;
+  - R-05 (relève des envois différés).
+- Fusion de `lots/retours-membres` (0043) ; production 0.9.1 ; fusion dans `master` (PR #6 et #7).
+
+## Backlog priorisé
+
+| # | Lot | Statut | Note |
+|---|---|---|---|
+| A1 | `migrate.mjs` : modes `status` et `down` | DONE (11/11) | Testés en local (6 cas) ; `status` lancé sur la production : 46 jalons, rien en attente. |
+| A2 | Mobile : écran « Mes demandes au support » (parité avec la PWA, CRM) | READY | Flutter disponible (`/opt/flutter`). |
+| A3 | R-04 : « mes tontines » en moins d'aller-retours (requêtes regroupées par groupe) | READY | Mesurer avant et après (pg_stat_statements). |
+| A4 | CRM : prévenir le support d'une nouvelle demande (notification aux opérateurs support) | READY | Délai de première réponse. |
+| A5 | RLS de `"group"` (résiduel R-02) | READY, risque élevé | Beaucoup de chemins (aperçu d'invitation) : preuves complètes obligatoires. |
+| A6 | Guide du back-office (artefact) : retours des membres, état 0.9.1 | READY | |
+| B1 | Relier Vercel à GitHub (déploiement automatique depuis `master`) | BLOCKED | Refusé par le classificateur (réglage du compte) : action du porteur (Vercel → Settings → Git). |
+| B2 | Premier opérateur en production | BLOCKED | Identité du porteur : `grant-operator.mjs`, puis second facteur. |
+| B3 | Publication de l'application mobile | BLOCKED | Clé de signature sur le PC du porteur. |
+| B4 | Notifications push (R-07) | BLOCKED | Projet Firebase et `google-services.json` du porteur. |
+| B5 | Plan Neon payant, branches de prévisualisation anciennes | BLOCKED | Décision d'achat et de suppression du porteur. |
+| B6 | Validations juridiques (loi 2024/017, CEMAC/COBAC) | BLOCKED | Juriste. |
+
+## Décisions techniques importantes
+
+- La branche `claude/project-thread-tr7vq3` (13/10) n'est pas fusionnée : son contenu a été remplacé par des versions plus récentes, sauf `migrate.mjs status/down` (lot A1).
+- R-04 est reporté au palier 50 000 le 09/11, puis repris en A3 sous forme mesurée, sans réécrire le calcul des échéances.
+- La table `"group"` reste sans RLS tant que le lot A5 n'est pas prouvé : elle ne contient aucune donnée personnelle.
+
+## Lot en cours
+
+A2 — mobile : « Mes demandes au support ».
+
+## Prochaine action concrète
+
+Écran Flutter de l'assistance (liste, ouvrir, fil, répondre, noter), dépôt API et tests de widget.

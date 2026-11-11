@@ -10,6 +10,11 @@
 // Usage :
 //   node scripts/migrate.mjs migrate   # applique migrations/ puis provision/roles.sql
 //   node scripts/migrate.mjs seed       # charge fixtures/fictitious.sql (après migrate)
+//   node scripts/migrate.mjs status     # LECTURE SEULE : appliquées, en attente, inconnues
+//   node scripts/migrate.mjs down migrations/00NN_x.sql
+//                                       # défait UNE migration : la DERNIÈRE appliquée,
+//                                       # nommée explicitement ; en production, exige en
+//                                       # plus KOMBE_CONFIRM_PROD_DOWN=<même nom>
 //
 // Env : KOMBE_DATABASE_URL — chaîne de connexion PostgreSQL (rôle propriétaire).
 //
@@ -100,13 +105,13 @@ function blocked(reason) {
 
 // ── Mode : strict (un mode inconnu ne doit JAMAIS appliquer les migrations) ──
 const mode = process.argv[2] ?? "migrate";
-if (mode !== "migrate" && mode !== "seed") {
+if (mode !== "migrate" && mode !== "seed" && mode !== "status" && mode !== "down") {
   process.stderr.write(
     JSON.stringify(
       {
         target: "kombe.db.migrate",
         status: "FAIL",
-        reason: `mode inconnu : « ${mode} » (attendu : migrate | seed)`,
+        reason: `mode inconnu : « ${mode} » (attendu : migrate | seed | status | down)`,
         exitCode: 1,
       },
       null,
@@ -142,6 +147,72 @@ function stripTopLevelTxMarkers(sql) {
 
 const files = mode === "seed" ? FIXTURES : UP_MIGRATIONS;
 const client = new pg.Client({ connectionString: url });
+
+/* ── status : lecture seule (aucun verrou, aucune table créée) ─────────── */
+if (mode === "status") {
+  try {
+    await client.connect();
+    const exists = (await client.query("SELECT to_regclass('public.kombe_migration') IS NOT NULL AS ok")).rows[0].ok === true;
+    const rows = exists ? (await client.query("SELECT name, applied_at FROM kombe_migration ORDER BY applied_at, name")).rows : [];
+    const applied = new Set(rows.map((r) => r.name));
+    const pending = UP_MIGRATIONS.filter((f) => !applied.has(f));
+    const unknown = rows.map((r) => r.name).filter((n) => !UP_MIGRATIONS.includes(n) && !FIXTURES.includes(n));
+    const lastMigration = [...rows].reverse().find((r) => /^migrations\//.test(r.name));
+    emit({
+      target: "kombe.db.migrate", mode, status: "OK",
+      applied: rows.length, pending, unknown,
+      latest: lastMigration ? { name: lastMigration.name, appliedAt: new Date(lastMigration.applied_at).toISOString() } : null,
+      exitCode: 0,
+    });
+    await client.end();
+    process.exit(0);
+  } catch (err) {
+    emit({ target: "kombe.db.migrate", mode, status: "FAIL", error: String(err?.message ?? err), exitCode: 1 });
+    process.exit(1);
+  }
+}
+
+/* ── down : une seule migration, la dernière, nommée explicitement ───── */
+if (mode === "down") {
+  const target = process.argv[3];
+  const fail = (reason, code = 1) => {
+    emit({ target: "kombe.db.migrate", mode, status: code === 2 ? "BLOCKED" : "FAIL", reason, exitCode: code });
+    process.exit(code);
+  };
+  if (!target || !/^migrations\/\d{4}_[a-z0-9_]+\.sql$/.test(target) || !UP_MIGRATIONS.includes(target)) {
+    fail("Usage : migrate.mjs down migrations/00NN_nom.sql (une migration connue)");
+  }
+  const { isProdHost } = await import("./guard.mjs");
+  let host = "";
+  try { host = new URL(url).hostname; } catch { /* hôte illisible : traité comme inconnu */ }
+  if (isProdHost(host) && process.env.KOMBE_CONFIRM_PROD_DOWN !== target) {
+    fail(`Base de PRODUCTION : retour arrière refusé sans KOMBE_CONFIRM_PROD_DOWN=${target} (faire une sauvegarde Neon d'abord).`, 2);
+  }
+  try {
+    await client.connect();
+    await client.query("SELECT pg_advisory_lock($1)", [ADVISORY_LOCK_KEY]);
+    const last = (await client.query(
+      "SELECT name FROM kombe_migration WHERE name LIKE 'migrations/%' ORDER BY applied_at DESC, name DESC LIMIT 1",
+    )).rows[0]?.name;
+    if (last !== target) fail(`Seule la dernière migration appliquée peut être défaite : ${last ?? "aucune"} (demandé : ${target}).`);
+    const downSql = stripTopLevelTxMarkers(readFileSync(resolve(dbRoot, target.replace(/\.sql$/, ".down.sql")), "utf8"));
+    await client.query("BEGIN");
+    try {
+      await client.query(downSql);
+      await client.query("DELETE FROM kombe_migration WHERE name = $1", [target]);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    }
+    emit({ target: "kombe.db.migrate", mode, status: "OK", reverted: target, exitCode: 0 });
+    await client.end();
+    process.exit(0);
+  } catch (err) {
+    emit({ target: "kombe.db.migrate", mode, status: "FAIL", error: String(err?.message ?? err), exitCode: 1 });
+    process.exit(1);
+  }
+}
 
 try {
   await client.connect();
