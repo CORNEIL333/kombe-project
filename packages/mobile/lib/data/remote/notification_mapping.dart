@@ -66,6 +66,7 @@ String _meetingStage(String stage) => switch (stage) {
       'fine_contested' => (kind: NotificationKind.dispute, title: 'Une amende est contestée'),
       'support_reply' => (kind: NotificationKind.system, title: 'Le support KÓMBE vous a répondu'),
       'support_request' => (kind: NotificationKind.system, title: 'Demande d’assistance à traiter'),
+      'support_sla' => (kind: NotificationKind.system, title: 'Délai de service : échéance proche'),
       'fine_refunded' => (kind: NotificationKind.dispute, title: 'Remboursement d\'amende enregistré'),
       'poll_opened' => (kind: NotificationKind.vote, title: 'Nouveau vote ouvert'),
       'meeting_updated' => (kind: NotificationKind.system, title: 'Séance modifiée'),

@@ -387,7 +387,8 @@ export type NotificationKind =
   | "poll_opened"
   | "meeting_updated"
   | "fine_refunded"
-  | "support_request";
+  | "support_request"
+  | "support_sla";
 
 /** Détail court d'une notification (lu après authentification, jamais en push). */
 export type NotificationParams = Readonly<Record<string, string | number | boolean | null>>;

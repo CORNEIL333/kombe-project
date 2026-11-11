@@ -254,8 +254,13 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   };
   // R-05 : relève des envois différés au passage d'un membre connecté.
   const releve = createPiggyback(piggybackInterval(), () => Date.now(), kick);
+  // A9 : délais de service du CRM, au plus toutes les 5 minutes (même principe).
+  const scanDelais = () => afterResponse(() => inTx(pool, (db) => db.query("SELECT kombe_crm_sla_scan($1)", [new Date(now())])));
+  const delais = createPiggyback(piggybackInterval() > 0 ? 5 * piggybackInterval() : 0, () => Date.now(), scanDelais);
   app.addHook("onResponse", async (req) => {
-    releve(req.method, typeof req.headers.authorization === "string");
+    const session = typeof req.headers.authorization === "string";
+    releve(req.method, session);
+    delais(req.method, session);
   });
   const photos = new PhotoService(pool, now);
   const memberPhotos = new MemberPhotoService(pool, now);
@@ -335,6 +340,8 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   app.get("/v1/internal/cron/notifications", async (req, reply) => {
     const secret = process.env.CRON_SECRET;
     if (!secret || req.headers.authorization !== `Bearer ${secret}`) return reply.code(404).send({ code: "OBJET_INTROUVABLE", message: "Introuvable" });
+    // Tâche quotidienne : alertes de délai du CRM, puis envoi de la file.
+    await inTx(pool, (db) => db.query("SELECT kombe_crm_sla_scan($1)", [new Date(now())])).catch(() => undefined);
     return dispatcher.drain({ rounds: 20, batch: 100, budgetMs: 20_000 });
   });
   app.get("/v1/me/notification-preferences", async (req) => prefs.get(H(req)));

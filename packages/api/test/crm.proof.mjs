@@ -161,6 +161,14 @@ try {
   check("CRM-ITIL-PRIORITY-SLA",
     triaged.priority === 1 && Math.abs(hours(triaged.firstResponseDue, triaged.createdAt) - 1) < 0.01 && Math.abs(hours(triaged.resolutionDue, triaged.createdAt) - 8) < 0.01,
     triaged);
+  // 0046 : P1 sans réponse, 45 min plus tard (échéance à 1 h) → alerte unique au support.
+  const scan1 = Number((await admin.query("SELECT kombe_crm_sla_scan(now() + interval '45 minutes') AS n")).rows[0].n);
+  const scan2 = Number((await admin.query("SELECT kombe_crm_sla_scan(now() + interval '50 minutes') AS n")).rows[0].n);
+  const delai = async (who) => { const r = await ok(who.token, "GET", "/v1/me/notifications"); return (r.items ?? r).filter((n) => n.kind === "support_sla"); };
+  const [dS, dD] = [await delai(S), await delai(D)];
+  check("CRM-SLA-ALERT-ONCE",
+    scan1 >= 2 && scan2 === 0 && dS.length === 1 && dD.length === 0 && String(dS[0].target).endsWith(opened.ticketId),
+    { scan1, scan2, S: dS.length, D: dD.length });
   const conflict = await call(S.token, "PATCH", `/v1/crm/tickets/${opened.ticketId}`, { urgency: 2 }, { "if-match-version": String(stale) });
   check("CRM-OPTIMISTIC-409", conflict.status === 409, conflict);
   const noVersion = await call(S.token, "PATCH", `/v1/crm/tickets/${opened.ticketId}`, { urgency: 2 });
