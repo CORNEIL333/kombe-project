@@ -77,8 +77,12 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 | A2 | Mobile : écran « Mes demandes au support » | DONE (11/11) | Liste, nouvelle demande, fil, réponse, note ; notification → demande. `flutter analyze` sans erreur ; 75 tests mobiles verts, dont 4 nouveaux. À livrer avec la prochaine publication mobile (B3). |
 | A3 | R-04 : « mes tontines » en moins d'allers-retours | DONE dans le code (11/11), déploiement BLOCKED (B7) | 32 → 20 instructions par appel (3 groupes), réponses identiques ; preuves tontineApi, tontineCycles, customFunds, echeances, retoursMembres, serverRealMode vertes. |
 | A4 | CRM : prévenir le support d'une nouvelle demande | DONE dans le code (11/11), déploiement BLOCKED (B7) | Migration 0044 : alerte aux opérateurs support, opérations et admin (référence seule), réponse du membre adressée au responsable. Preuve crm 45/45. |
-| A5 | RLS de `"group"` (résiduel R-02) | READY, risque élevé | Beaucoup de chemins (aperçu d'invitation) : preuves complètes obligatoires. |
-| A6 | Guide du back-office (artefact) : retours des membres, état 0.9.1 | READY | |
+| A5 | RLS de `"group"` (résiduel R-02) | DONE dans le code (11/11), déploiement BLOCKED (B7) | Migration 0045 ; 29/29 preuves ; parcours navigateur 40 pages sans erreur. |
+| A6 | Guide du back-office (artefact) | DONE (11/11) | Version 3 publiée. |
+| A7 | Parcours navigateur de bout en bout dans le dépôt | DONE (11/11) | `scripts/e2e/parcours-crm.mjs` (40 pages, axe-core en dépendance de développement) : PASS. |
+| A11 | ADR-0047 (sécurité résiduelle, alertes, lectures) | DONE (11/11) | |
+| A8 | PWA : tests de l'écran Aide (assistance) | READY | Jsdom, API simulée au niveau du client. |
+| A9 | Délais de service : alerte au responsable avant dépassement (P1/P2) | READY | Pendant la relève (R-05), sans nouvelle tâche planifiée. |
 | B1 | Relier Vercel à GitHub (déploiement automatique depuis `master`) | BLOCKED | Refusé par le classificateur (réglage du compte) : action du porteur (Vercel → Settings → Git). |
 | B2 | Premier opérateur en production | BLOCKED | Identité du porteur : `grant-operator.mjs`, puis second facteur. |
 | B3 | Publication de l'application mobile | BLOCKED | Clé de signature sur le PC du porteur. |
@@ -96,8 +100,8 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 
 ## Lot en cours
 
-A6 — guide du back-office, puis A5 — RLS de `"group"`.
+A8 — tests de l'écran Aide (PWA).
 
 ## Prochaine action concrète
 
-Mettre à jour l'artefact du guide (0.9.1, retours des membres, alertes support, mobile) ; puis analyser tous les accès à "group" (grep), politique de lecture par adhésion ou par contexte, aperçu d'invitation via fonction SECURITY DEFINER, preuves complètes.
+Écrire `packages/client/src/test/aide.test.tsx` : liste, nouvelle demande, fil, réponse, note (fetch simulé).

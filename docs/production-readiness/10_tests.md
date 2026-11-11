@@ -1,5 +1,22 @@
 # 10 — Tests et matrice adverse
 
+## Suites exécutées le 11/11/2026 (toutes vertes)
+
+- **Unitaires :**
+  - domain 451 ;
+  - api 261 ;
+  - dashboard-core 35 ;
+  - client 35 ;
+  - CRM 16 ;
+  - bureau 3 ;
+  - mobile 75 (3 ignorés).
+- **PostgreSQL 16 réel :** 29/29 (`scripts/proofs-local.sh`, migrations jusqu'à 0045).
+- **Parcours navigateur de bout en bout** : `scripts/e2e/parcours-crm.mjs`, **PASS**, 40 pages (CRM et PWA, 1280 et 390 px).
+  - Contrôles par page : aucune erreur JavaScript, aucune erreur `/v1`, aucun défilement horizontal, aucune violation axe (WCAG 2.2 AA).
+  - Le script refuse de viser la production.
+  - Lancement : API locale sur une base jetable avec `KOMBE_WEB_ROOT=dist-web`, puis `KOMBE_DATABASE_URL=<rôle propriétaire> node scripts/e2e/parcours-crm.mjs`.
+- **CI GitHub Actions :** bloquée côté compte (jobs arrêtés en 1 s, voir `AUTONOMY_STATE.md`, B8). Les exécutions locales font foi.
+
 ## Suites exécutées le 04/11/2026 (toutes vertes)
 
 **Tests unitaires**
