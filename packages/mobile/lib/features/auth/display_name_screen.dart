@@ -8,6 +8,7 @@ import '../../core/widgets/operation_feedback.dart';
 import '../../domain/entities/profile.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Première entrée d'un compte sans nom : « Comment vous appelle-t-on ? ».
 /// Le nom est enregistré par le serveur (`PATCH /v1/me {displayName}`) ; c'est
@@ -56,10 +57,10 @@ class _DisplayNameScreenState extends State<DisplayNameScreen> {
               const SizedBox(height: 24),
               const Center(child: KombeLogo(size: 52)),
               const SizedBox(height: 36),
-              Text('Comment vous appelle-t-on ?', style: t.headlineLarge),
+              Text(AppLocalizations.of(context).dnCommentVousAppelleOn, style: t.headlineLarge),
               const SizedBox(height: 10),
               Text(
-                'C’est le nom que les membres de vos groupes verront (ex. Awa Mballa). Vous pourrez le modifier dans « Mon profil ».',
+                AppLocalizations.of(context).dnCestLeNomQueLes,
                 style: t.bodyLarge,
               ),
               const SizedBox(height: 24),
@@ -70,21 +71,21 @@ class _DisplayNameScreenState extends State<DisplayNameScreen> {
                 maxLength: 80,
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _save(),
-                decoration: const InputDecoration(labelText: 'Prénom et nom'),
-                validator: (String? v) => (v ?? '').trim().length < 2 ? 'Indiquez au moins 2 caractères.' : null,
+                decoration: InputDecoration(labelText: AppLocalizations.of(context).dnPrenomEtNom),
+                validator: (String? v) => (v ?? '').trim().length < 2 ? AppLocalizations.of(context).dnIndiquezAuMoinsCaracteres : null,
               ),
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: _saving ? null : _save,
                 child: _saving
                     ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Continuer'),
+                    : Text(AppLocalizations.of(context).continueLabel),
               ),
               const SizedBox(height: 12),
               Center(
                 child: TextButton(
                   onPressed: _saving ? null : () => context.read<AuthRepository>().signOut(),
-                  child: const Text('Se déconnecter'),
+                  child: Text(AppLocalizations.of(context).signOut),
                 ),
               ),
             ],

@@ -30,7 +30,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     final String code = _code.text.trim();
     if (_sending) return;
     if (code.isEmpty) {
-      setState(() => _error = 'Saisissez le code reçu du bureau.');
+      setState(() => _error = AppLocalizations.of(context).jgSaisissezLeCodeRecuDu);
       return;
     }
     setState(() {
@@ -47,7 +47,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
     if (problem == null) {
       showKombeMessage(
         context,
-        'Demande envoyée. Le président ou le vice-président doit vous admettre ; vous serez prévenu dans vos notifications.',
+        AppLocalizations.of(context).jgDemandeEnvoyeeLePresidentOu,
       );
       Navigator.of(context).pop();
     }
@@ -60,12 +60,11 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
             children: <Widget>[
-              const KombeFormHeader(
+              KombeFormHeader(
                 icon: Icons.key_outlined,
                 tone: KombeTone.money,
-                title: 'Code d’invitation',
-                body: 'Saisissez le code de 8 caractères reçu du bureau du groupe (ou ouvrez le lien d’invitation). '
-                    'Votre demande est ensuite examinée par le président ou le vice-président.',
+                title: AppLocalizations.of(context).jgCodeDinvitation,
+                body: AppLocalizations.of(context).jgSaisissezLeCodeDeCaracteres,
               ),
               TextField(
                 controller: _code,
@@ -76,7 +75,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                 textInputAction: TextInputAction.go,
                 onSubmitted: (_) => _join(),
                 style: KombeType.amount(size: 26),
-                decoration: const InputDecoration(labelText: 'Code', hintText: 'Ex. K7P2MNQX'),
+                decoration: InputDecoration(labelText: AppLocalizations.of(context).inCode, hintText: AppLocalizations.of(context).jgExK7p2mnqx),
               ),
               if (_error != null) ...<Widget>[const SizedBox(height: 12), KombeInlineError(_error!)],
               const SizedBox(height: 20),
@@ -84,7 +83,7 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                 onPressed: _sending ? null : _join,
                 child: _sending
                     ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
-                    : const Text('Demander à rejoindre'),
+                    : Text(AppLocalizations.of(context).jgDemanderRejoindre),
               ),
             ],
           ),

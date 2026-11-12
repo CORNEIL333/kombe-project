@@ -10,6 +10,7 @@ import '../../core/widgets/operation_feedback.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/share_name.dart';
 import '../../domain/repositories/share_name_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Les « noms » du cycle (0041) : chaque nom est une part à part entière,
 /// avec sa cotisation et son tour. Le titulaire ou le bureau le renomme.
@@ -40,11 +41,11 @@ class _ShareNamesScreenState extends State<ShareNamesScreen> {
     final String? label = await showDialog<String>(
       context: context,
       builder: (BuildContext d) => AlertDialog(
-        title: const Text('Renommer ce nom'),
-        content: TextField(controller: c, autofocus: true, maxLength: 40, decoration: const InputDecoration(labelText: 'Nom affiché')),
+        title: Text(AppLocalizations.of(context).snRenommerCeNom),
+        content: TextField(controller: c, autofocus: true, maxLength: 40, decoration: InputDecoration(labelText: AppLocalizations.of(context).snNomAffiche)),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.of(d).pop(), child: const Text('Annuler')),
-          FilledButton(onPressed: () => Navigator.of(d).pop(c.text.trim()), child: const Text('Enregistrer')),
+          TextButton(onPressed: () => Navigator.of(d).pop(), child: Text(AppLocalizations.of(context).cancel)),
+          FilledButton(onPressed: () => Navigator.of(d).pop(c.text.trim()), child: Text(AppLocalizations.of(context).save)),
         ],
       ),
     );
@@ -57,19 +58,19 @@ class _ShareNamesScreenState extends State<ShareNamesScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Les noms du cycle')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).gdLesNomsDuCycle)),
         body: RefreshIndicator(
           onRefresh: _load,
           child: ResourceView<List<ShareName>>(
             resource: _state,
             emptyWhen: (List<ShareName> items) => items.isEmpty,
-            emptyTitle: 'Aucun nom',
-            emptyBody: 'Les noms apparaissent au démarrage du cycle.',
+            emptyTitle: AppLocalizations.of(context).snAucunNom,
+            emptyBody: AppLocalizations.of(context).snLesNomsApparaissentAuDemarrage,
             builder: (BuildContext context, List<ShareName> items) => ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: <Widget>[
                 Text(
-                  'Chaque nom est une part à part entière : il a sa cotisation et son tour. Un membre peut tenir plusieurs noms.',
+                  AppLocalizations.of(context).snChaqueNomEstUnePart,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 12),
@@ -82,9 +83,9 @@ class _ShareNamesScreenState extends State<ShareNamesScreen> {
                         subtitle: Text(<String>[
                           n.holders.join(' & '),
                           Xaf.format(n.contributionXaf),
-                          if (n.roundSeq != null) 'tour ${n.roundSeq}${n.roundDate != null ? ' le ${DoualaTime.date(n.roundDate!)}' : ''}',
+                          if (n.roundSeq != null) n.roundDate != null ? AppLocalizations.of(context).snTurnOn(n.roundSeq!, DoualaTime.date(n.roundDate!)) : AppLocalizations.of(context).snTurn(n.roundSeq!),
                         ].join(' · ')),
-                        trailing: n.canRename ? IconButton(tooltip: 'Renommer', onPressed: () => _rename(n), icon: const Icon(Icons.edit_outlined)) : null,
+                        trailing: n.canRename ? IconButton(tooltip: AppLocalizations.of(context).snRenommer, onPressed: () => _rename(n), icon: const Icon(Icons.edit_outlined)) : null,
                       ),
                   ],
                 ),

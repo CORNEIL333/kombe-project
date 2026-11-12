@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/widgets/list_row.dart';
 import '../../core/widgets/section_card.dart';
+import '../../l10n/app_localizations.dart';
 
 class GroupSettingsScreen extends StatelessWidget {
   const GroupSettingsScreen({required this.groupId, super.key});
@@ -10,7 +11,7 @@ class GroupSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Paramètres du groupe')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).gdParametresDuGroupe)),
         body: ListView(
           padding: const EdgeInsets.all(20),
           children: <Widget>[
@@ -19,21 +20,21 @@ class GroupSettingsScreen extends StatelessWidget {
                 children: <Widget>[
                   KombeListRow(
                     icon: Icons.people_outline,
-                    title: 'Membres et demandes d’adhésion',
+                    title: AppLocalizations.of(context).gsMembresEtDemandesDadhesion,
                     onTap: () => context.push('/app/groups/$groupId/members'),
                   ),
                   const Divider(),
                   KombeListRow(
                     icon: Icons.rule_outlined,
-                    title: 'Statuts',
-                    subtitle: 'Lire, accepter ; publier et relancer pour le bureau',
+                    title: AppLocalizations.of(context).catStatuts,
+                    subtitle: AppLocalizations.of(context).gsLireAccepterPublierEtRelancer,
                     onTap: () => context.push('/app/groups/$groupId/rules'),
                   ),
                   const Divider(),
                   KombeListRow(
                     icon: Icons.manage_accounts_outlined,
-                    title: 'Rôles et responsabilités',
-                    subtitle: 'Touchez un membre pour lui proposer une fonction ; la personne doit l’accepter',
+                    title: AppLocalizations.of(context).gsRolesEtResponsabilites,
+                    subtitle: AppLocalizations.of(context).gsTouchezUnMembrePourLui,
                     onTap: () => context.push('/app/groups/$groupId/members'),
                   ),
                 ],

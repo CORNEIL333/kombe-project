@@ -35,21 +35,21 @@ class LoginScreen extends StatelessWidget {
                       const Center(child: KombeLogo(size: 60)),
                       const SizedBox(height: 36),
                       Text(
-                        'Connexion',
+                        AppLocalizations.of(context).catConnexion,
                         style: Theme.of(context).textTheme.displaySmall?.copyWith(color: KombeColors.ink),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Indiquez où recevoir votre code : vous retrouvez vos groupes juste après.',
+                        AppLocalizations.of(context).loIndiquezOuRecevoirVotreCode,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: KombeColors.slate),
                       ),
                       const SizedBox(height: 28),
-                      const CodeRequestForm(purpose: VerifyCodePurpose.login, submitLabel: 'Recevoir mon code'),
+                      CodeRequestForm(purpose: VerifyCodePurpose.login, submitLabel: AppLocalizations.of(context).loRecevoirMonCode),
                       const SizedBox(height: 10),
                       Center(
                         child: TextButton(
                           onPressed: () => context.go('/register'),
-                          child: const Text('Première fois ? Votre premier code crée votre compte.', textAlign: TextAlign.center),
+                          child: Text(AppLocalizations.of(context).loPremiereFoisVotrePremierCode, textAlign: TextAlign.center),
                         ),
                       ),
                       Center(
@@ -72,10 +72,10 @@ class LoginScreen extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: <Widget>[
-                                  Text('Connexion sans mot de passe', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: KombeColors.forest)),
+                                  Text(AppLocalizations.of(context).loConnexionSansMotDePasse, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: KombeColors.forest)),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Un code à 6 chiffres vous est envoyé à chaque connexion. Il n’est valable qu’une fois et pendant 10 minutes.',
+                                    AppLocalizations.of(context).loUnCodeChiffresVousEst,
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(color: KombeColors.ink),
                                   ),
                                 ],

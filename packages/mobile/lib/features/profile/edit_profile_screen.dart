@@ -6,6 +6,7 @@ import '../../core/state/resource.dart';
 import '../../core/widgets/operation_feedback.dart';
 import '../../domain/entities/profile.dart';
 import '../../domain/repositories/profile_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -41,7 +42,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _save() async {
     final String name = _name.text.trim();
     if (name.length < 2) {
-      showKombeMessage(context, 'Indiquez au moins 2 caractères.');
+      showKombeMessage(context, AppLocalizations.of(context).dnIndiquezAuMoinsCaracteres);
       return;
     }
     setState(() => _saving = true);
@@ -56,7 +57,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Modifier le profil')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).editProfile)),
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(20),
@@ -65,9 +66,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 controller: _name,
                 maxLength: 80,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Nom affiché',
-                  helperText: 'C’est le nom que les membres de vos groupes voient.',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context).snNomAffiche,
+                  helperText: AppLocalizations.of(context).epCestLeNomQueLes,
                 ),
               ),
               const SizedBox(height: 20),
@@ -75,7 +76,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 onPressed: _saving ? null : _save,
                 child: _saving
                     ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Enregistrer'),
+                    : Text(AppLocalizations.of(context).save),
               ),
             ],
           ),

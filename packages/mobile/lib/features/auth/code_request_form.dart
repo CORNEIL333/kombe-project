@@ -10,6 +10,7 @@ import '../../core/state/resource.dart';
 import '../../core/widgets/operation_feedback.dart';
 import '../../domain/entities/auth.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../l10n/app_localizations.dart';
 import 'auth_validators.dart';
 import 'verify_code_screen.dart';
 
@@ -80,12 +81,12 @@ class _CodeRequestFormState extends State<CodeRequestForm> {
           child: Center(child: CircularProgressIndicator()),
         ),
       ResourceUnavailable<AuthChannels>() => _Problem(
-          message: 'Cette version de l’application n’est reliée à aucun serveur KÓMBE. Installez la version officielle pour vous connecter.',
+          message: AppLocalizations.of(context).crCetteVersionDeLapplicationNest,
           onRetry: null,
         ),
       ResourceFailure<AuthChannels>(:final Object error) => _Problem(message: failureMessage(error), onRetry: _loadChannels),
       ResourceReady<AuthChannels>(:final AuthChannels data) when data.open.isEmpty || _channel == null => _Problem(
-          message: 'La connexion est momentanément fermée sur le serveur KÓMBE. Réessayez un peu plus tard.',
+          message: AppLocalizations.of(context).crLaConnexionEstMomentanementFermee,
           onRetry: _loadChannels,
         ),
       ResourceReady<AuthChannels>(:final AuthChannels data) => Form(
@@ -94,7 +95,7 @@ class _CodeRequestFormState extends State<CodeRequestForm> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               if (data.open.length > 1) ...<Widget>[
-                Text('Recevoir le code par', style: t.titleSmall),
+                Text(AppLocalizations.of(context).crRecevoirLeCodePar, style: t.titleSmall),
                 const SizedBox(height: 8),
                 SegmentedButton<LoginChannel>(
                   showSelectedIcon: false,
@@ -121,18 +122,18 @@ class _CodeRequestFormState extends State<CodeRequestForm> {
                 autofillHints: <String>[_channel!.isPhone ? AutofillHints.telephoneNumber : AutofillHints.email],
                 decoration: InputDecoration(
                   labelText: _channel!.fieldLabel,
-                  hintText: _channel!.isPhone ? '6 77 12 34 56' : 'nom@exemple.com',
+                  hintText: _channel!.isPhone ? '6 77 12 34 56' : AppLocalizations.of(context).crNomExempleCom,
                   prefixIcon: Icon(_channel!.isPhone ? Icons.phone_android_rounded : Icons.alternate_email_rounded),
                 ),
                 validator: (String? value) => AuthValidators.isLoginFor(_channel!, value ?? '')
                     ? null
                     : _channel!.isPhone
-                        ? 'Saisissez un numéro camerounais (ex. 6 77 12 34 56)'
-                        : 'Saisissez une adresse e-mail valide',
+                        ? AppLocalizations.of(context).crSaisissezUnNumeroCamerounaisEx
+                        : AppLocalizations.of(context).crSaisissezUneAdresseMailValide,
               ),
               const SizedBox(height: 8),
               Text(
-                'Un code à 6 chiffres vous est envoyé ${_channel!.viaLabel}. Aucun mot de passe.',
+                AppLocalizations.of(context).crUnCodeChiffresVousEst(_channel!.viaLabel),
                 style: t.bodySmall?.copyWith(color: KombeColors.slate),
               ),
               const SizedBox(height: 20),
@@ -180,7 +181,7 @@ class _Problem extends StatelessWidget {
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerRight,
-                child: OutlinedButton(onPressed: onRetry, child: const Text('Réessayer')),
+                child: OutlinedButton(onPressed: onRetry, child: Text(AppLocalizations.of(context).csReessayer)),
               ),
             ],
           ],

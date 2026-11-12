@@ -8,6 +8,7 @@ import '../../core/web/kombe_web.dart';
 import '../../core/widgets/operation_feedback.dart';
 import '../../domain/entities/notification.dart';
 import '../../domain/repositories/notification_repository.dart';
+import '../../l10n/kombe_l10n.dart';
 import 'notification_catalog.dart';
 
 /// Toucher une notification : elle est marquée lue
@@ -42,12 +43,12 @@ IconData notificationIcon(NotificationKind kind) => switch (kind) {
 String relativeTime(DateTime utc, {DateTime? now}) {
   final DateTime n = now ?? DateTime.now().toUtc();
   final Duration d = n.difference(utc);
-  if (d.inMinutes < 1) return 'à l’instant';
-  if (d.inMinutes < 60) return 'il y a ${d.inMinutes} min';
-  if (d.inHours < 24) return 'il y a ${d.inHours} h';
-  if (d.inDays < 2) return 'hier';
-  if (d.inDays < 7) return 'il y a ${d.inDays} jours';
-  const List<String> mois = <String>['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  if (d.inMinutes < 1) return KombeL10n.current.relJustNow;
+  if (d.inMinutes < 60) return KombeL10n.current.relMinutes(d.inMinutes);
+  if (d.inHours < 24) return KombeL10n.current.relHours(d.inHours);
+  if (d.inDays < 2) return KombeL10n.current.relYesterday;
+  if (d.inDays < 7) return KombeL10n.current.relDays(d.inDays);
+  final List<String> mois = KombeL10n.current.relMonths.split('|');
   final DateTime l = utc.toLocal();
   return '${l.day} ${mois[l.month - 1]}';
 }

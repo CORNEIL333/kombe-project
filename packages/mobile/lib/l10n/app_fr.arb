@@ -1779,5 +1779,112 @@
         "type": "Object"
       }
     }
-  }
+  },
+  "snRenommerCeNom": "Renommer ce nom",
+  "snNomAffiche": "Nom affiché",
+  "snAucunNom": "Aucun nom",
+  "snLesNomsApparaissentAuDemarrage": "Les noms apparaissent au démarrage du cycle.",
+  "snChaqueNomEstUnePart": "Chaque nom est une part à part entière : il a sa cotisation et son tour. Un membre peut tenir plusieurs noms.",
+  "snRenommer": "Renommer",
+  "pvPrincipesAppliquesParLeClient": "Principes appliqués par le client mobile",
+  "pvMinimisationLocale": "Minimisation locale",
+  "pvSeulsVosBrouillonsDeDeclaration": "Seuls vos brouillons de déclaration sont gardés sur ce téléphone ; le reste est lu depuis KÓMBE à chaque ouverture.",
+  "pvSecrets": "Secrets",
+  "pvLesSecretsDeSessionRestent": "Les secrets de session restent dans le coffre de l’appareil (Keychain, Keystore), jamais dans SQLite ni dans les journaux.",
+  "pvDecisionsEnregistreesEnLigne": "Décisions enregistrées en ligne",
+  "pvConfirmationsVotesFonctionsEtRegles": "Confirmations, votes, fonctions et règles ne comptent qu’une fois enregistrés au registre du groupe.",
+  "jgSaisissezLeCodeRecuDu": "Saisissez le code reçu du bureau.",
+  "jgDemandeEnvoyeeLePresidentOu": "Demande envoyée. Le président ou le vice-président doit vous admettre ; vous serez prévenu dans vos notifications.",
+  "jgCodeDinvitation": "Code d’invitation",
+  "jgSaisissezLeCodeDeCaracteres": "Saisissez le code de 8 caractères reçu du bureau du groupe (ou ouvrez le lien d’invitation). Votre demande est ensuite examinée par le président ou le vice-président.",
+  "jgExK7p2mnqx": "Ex. K7P2MNQX",
+  "jgDemanderRejoindre": "Demander à rejoindre",
+  "weTontineNumerique": "TONTINE NUMÉRIQUE",
+  "weVotreTontine": "Votre tontine,",
+  "wePlusClaire": "plus claire.",
+  "weCotisationsToursCaissesEtSeances": "Cotisations, tours, caisses et séances de votre tontine ou association, dans un registre que chaque membre vérifie. L’argent reste entre vos mains.",
+  "weCotisationsEtToursAuRegistre": "Cotisations et tours au registre",
+  "weVosCaissesAvecVosPropres": "Vos caisses, avec vos propres règles",
+  "weSeancesVotesEtProcesVerbaux": "Séances, votes et procès-verbaux",
+  "crCetteVersionDeLapplicationNest": "Cette version de l’application n’est reliée à aucun serveur KÓMBE. Installez la version officielle pour vous connecter.",
+  "crLaConnexionEstMomentanementFermee": "La connexion est momentanément fermée sur le serveur KÓMBE. Réessayez un peu plus tard.",
+  "crRecevoirLeCodePar": "Recevoir le code par",
+  "crNomExempleCom": "nom@exemple.com",
+  "crSaisissezUnNumeroCamerounaisEx": "Saisissez un numéro camerounais (ex. 6 77 12 34 56)",
+  "crSaisissezUneAdresseMailValide": "Saisissez une adresse e-mail valide",
+  "crUnCodeChiffresVousEst": "Un code à 6 chiffres vous est envoyé {viaLabel}. Aucun mot de passe.",
+  "@crUnCodeChiffresVousEst": {
+    "placeholders": {
+      "viaLabel": {
+        "type": "Object"
+      }
+    }
+  },
+  "seConnexionParCodeUsageUnique": "Connexion par code à usage unique",
+  "sePasDeMotDePasse": "Pas de mot de passe : un code reçu par e-mail, valable une seule fois.",
+  "seSessionGardeeSurCeTelephone": "Session gardée sur ce téléphone",
+  "seGardeeDansLeTrousseauProtege": "Gardée dans le trousseau protégé du téléphone. Une session expirée demande un nouveau code.",
+  "seControlesCroises": "Contrôles croisés",
+  "sePersonneNeConfirmeNiNe": "Personne ne confirme ni ne contrôle ses propres paiements : KÓMBE l’interdit.",
+  "gsMembresEtDemandesDadhesion": "Membres et demandes d’adhésion",
+  "gsLireAccepterPublierEtRelancer": "Lire, accepter ; publier et relancer pour le bureau",
+  "gsRolesEtResponsabilites": "Rôles et responsabilités",
+  "gsTouchezUnMembrePourLui": "Touchez un membre pour lui proposer une fonction ; la personne doit l’accepter",
+  "loIndiquezOuRecevoirVotreCode": "Indiquez où recevoir votre code : vous retrouvez vos groupes juste après.",
+  "loRecevoirMonCode": "Recevoir mon code",
+  "loPremiereFoisVotrePremierCode": "Première fois ? Votre premier code crée votre compte.",
+  "loConnexionSansMotDePasse": "Connexion sans mot de passe",
+  "loUnCodeChiffresVousEst": "Un code à 6 chiffres vous est envoyé à chaque connexion. Il n’est valable qu’une fois et pendant 10 minutes.",
+  "dnCommentVousAppelleOn": "Comment vous appelle-t-on ?",
+  "dnCestLeNomQueLes": "C’est le nom que les membres de vos groupes verront (ex. Awa Mballa). Vous pourrez le modifier dans « Mon profil ».",
+  "dnPrenomEtNom": "Prénom et nom",
+  "dnIndiquezAuMoinsCaracteres": "Indiquez au moins 2 caractères.",
+  "epCestLeNomQueLes": "C’est le nom que les membres de vos groupes voient.",
+  "snTurn": "tour {round}",
+  "@snTurn": {
+    "placeholders": {
+      "round": {
+        "type": "Object"
+      }
+    }
+  },
+  "snTurnOn": "tour {round} le {date}",
+  "@snTurnOn": {
+    "placeholders": {
+      "round": {
+        "type": "Object"
+      },
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "relJustNow": "à l’instant",
+  "relMinutes": "il y a {n} min",
+  "@relMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "Object"
+      }
+    }
+  },
+  "relHours": "il y a {n} h",
+  "@relHours": {
+    "placeholders": {
+      "n": {
+        "type": "Object"
+      }
+    }
+  },
+  "relYesterday": "hier",
+  "relDays": "il y a {n} jours",
+  "@relDays": {
+    "placeholders": {
+      "n": {
+        "type": "Object"
+      }
+    }
+  },
+  "relMonths": "janv.|févr.|mars|avr.|mai|juin|juil.|août|sept.|oct.|nov.|déc.",
+  "langServerNote": "Certains messages envoyés par le serveur restent en français pour l’instant."
 }
