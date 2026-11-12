@@ -13,6 +13,7 @@ import '../../domain/entities/fine.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/fine_repository.dart';
 import '../../domain/repositories/group_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 /// « Mes amendes » : les amendes notifiées dans mes groupes, et la
 /// contestation d'une amende qui semble injuste (la présidence tranche).
@@ -44,21 +45,21 @@ class _MyFinesScreenState extends State<MyFinesScreen> {
     final OperationResult<MyFine> r = await context.read<FineRepository>().contestFine(fine: fine, reason: reason);
     if (!mounted) return;
     if (reportOutcome(context, r)) {
-      showKombeMessage(context, 'Contestation envoyée : la présidence va trancher.');
+      showKombeMessage(context, AppLocalizations.of(context).fiContestationEnvoyeeLaPresidenceVa);
       await _load();
     }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Mes amendes')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).myFines)),
         body: RefreshIndicator(
           onRefresh: _load,
           child: ResourceView<List<MyFine>>(
             resource: _state,
             emptyWhen: (List<MyFine> items) => items.isEmpty,
-            emptyTitle: 'Aucune amende',
-            emptyBody: 'Aucune amende ne vous a été notifiée dans vos groupes.',
+            emptyTitle: AppLocalizations.of(context).fiAucuneAmende,
+            emptyBody: AppLocalizations.of(context).fiAucuneAmendeNeVousEte,
             builder: (BuildContext context, List<MyFine> items) => ListView.separated(
               padding: const EdgeInsets.all(20),
               itemCount: items.length + 1,
@@ -66,8 +67,7 @@ class _MyFinesScreenState extends State<MyFinesScreen> {
               itemBuilder: (BuildContext context, int index) {
                 if (index == 0) {
                   return Text(
-                    'Une amende se règle auprès du trésorier, hors de l’application. Si elle vous semble injuste, contestez-la : '
-                    'le président ou le vice-président l’annule ou la maintient.',
+                    AppLocalizations.of(context).fiSettleIntro + AppLocalizations.of(context).fiLePresidentOuLeVice,
                     style: Theme.of(context).textTheme.bodyMedium,
                   );
                 }
@@ -85,14 +85,14 @@ class _MyFinesScreenState extends State<MyFinesScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text('${f.groupName} · ${DoualaTime.date(f.issuedAtUtc)}', style: t.bodySmall),
-                      if (f.reason.isNotEmpty) ...<Widget>[const SizedBox(height: 6), Text('Motif : ${f.reason}')],
-                      if (f.issuedByName != null) Text('Constatée par ${f.issuedByName}', style: t.bodySmall),
+                      if (f.reason.isNotEmpty) ...<Widget>[const SizedBox(height: 6), Text(AppLocalizations.of(context).fiMotif(f.reason))],
+                      if (f.issuedByName != null) Text(AppLocalizations.of(context).fiConstateePar(f.issuedByName!), style: t.bodySmall),
                       const SizedBox(height: 8),
                       Text(
                         f.refundDue
-                            ? 'Annulée après paiement — la trésorerie vous rembourse'
+                            ? AppLocalizations.of(context).fiAnnuleeApresPaiementLaTresorerie
                             : f.refundedAtUtc != null
-                                ? 'Annulée — remboursée le ${DoualaTime.date(f.refundedAtUtc!)}'
+                                ? AppLocalizations.of(context).fiAnnuleeRembourseeLe(DoualaTime.date(f.refundedAtUtc!))
                                 : fineStateLabel(f.state),
                         style: t.labelLarge?.copyWith(color: f.state == FineState.issued || f.refundDue ? KombeColors.goldDark : KombeColors.forest),
                       ),
@@ -103,7 +103,7 @@ class _MyFinesScreenState extends State<MyFinesScreen> {
                           child: OutlinedButton.icon(
                             onPressed: () => _contest(f),
                             icon: const Icon(Icons.gavel_outlined),
-                            label: const Text('Contester cette amende'),
+                            label: Text(AppLocalizations.of(context).fiContesterCetteAmende),
                           ),
                         ),
                       ],
@@ -137,7 +137,7 @@ class _ContestDialogState extends State<_ContestDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Contester une amende'),
+        title: Text(AppLocalizations.of(context).helpFineTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +151,7 @@ class _ContestDialogState extends State<_ContestDialog> {
               minLines: 2,
               maxLines: 5,
               decoration: InputDecoration(
-                labelText: 'Pourquoi la contestez-vous ?',
+                labelText: AppLocalizations.of(context).fiPourquoiLaContestezVous,
                 errorText: _error,
                 border: const OutlineInputBorder(),
               ),
@@ -159,17 +159,17 @@ class _ContestDialogState extends State<_ContestDialog> {
           ],
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(AppLocalizations.of(context).cancel)),
           FilledButton(
             onPressed: () {
               final String r = _reason.text.trim();
               if (r.length < 3) {
-                setState(() => _error = 'Expliquez en quelques mots (3 caractères au moins).');
+                setState(() => _error = AppLocalizations.of(context).fiExpliquezEnQuelquesMotsCaracteres);
                 return;
               }
               Navigator.of(context).pop(r);
             },
-            child: const Text('Envoyer'),
+            child: Text(AppLocalizations.of(context).send),
           ),
         ],
       );
@@ -217,7 +217,7 @@ class _GroupFinesScreenState extends State<GroupFinesScreen> {
     final OperationResult<MyFine> r = await context.read<FineRepository>().cancelFine(fine: f, reason: reason);
     if (!mounted) return;
     if (reportOutcome(context, r)) {
-      showKombeMessage(context, f.state == FineState.paid ? 'Amende annulée : le remboursement est à faire par la trésorerie.' : 'Amende annulée.');
+      showKombeMessage(context, f.state == FineState.paid ? AppLocalizations.of(context).fiAmendeAnnuleeLeRemboursementEst : AppLocalizations.of(context).fiAmendeAnnulee);
       await _load();
     }
   }
@@ -229,8 +229,8 @@ class _GroupFinesScreenState extends State<GroupFinesScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            ListTile(title: Text('Rembourser ${Xaf.format(f.amountXaf)} à ${f.memberName}', style: Theme.of(c).textTheme.titleMedium)),
-            for (final (String id, String label) in const <(String, String)>[('cash', 'Espèces'), ('orange_money', 'Orange Money'), ('mtn_momo', 'MTN MoMo')])
+            ListTile(title: Text(AppLocalizations.of(context).fiRembourser(Xaf.format(f.amountXaf), f.memberName), style: Theme.of(c).textTheme.titleMedium)),
+            for (final (String id, String label) in <(String, String)>[('cash', AppLocalizations.of(context).cash), ('orange_money', 'Orange Money'), ('mtn_momo', 'MTN MoMo')])
               ListTile(leading: const Icon(Icons.payments_outlined), title: Text(label), onTap: () => Navigator.of(c).pop(id)),
           ],
         ),
@@ -240,11 +240,11 @@ class _GroupFinesScreenState extends State<GroupFinesScreen> {
     final OperationResult<MyFine> r = await context.read<FineRepository>().refundFine(
           fine: f,
           channel: channel,
-          reference: channel == 'cash' ? null : 'Remboursement amende',
+          reference: channel == 'cash' ? null : AppLocalizations.of(context).fiRemboursementAmende,
         );
     if (!mounted) return;
     if (reportOutcome(context, r)) {
-      showKombeMessage(context, 'Remboursement enregistré : le membre confirmera la réception.');
+      showKombeMessage(context, AppLocalizations.of(context).fiRemboursementEnregistreLeMembreConfirmera);
       await _load();
     }
   }
@@ -255,14 +255,14 @@ class _GroupFinesScreenState extends State<GroupFinesScreen> {
     final bool presidency = g?.can(TontineAct.admit) ?? false;
     final bool treasury = g?.can(TontineAct.confirmMovement) ?? false;
     return Scaffold(
-      appBar: AppBar(title: const Text('Amendes du groupe')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).gdAmendesDuGroupe)),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ResourceView<List<MyFine>>(
           resource: _state,
           emptyWhen: (List<MyFine> items) => items.isEmpty,
-          emptyTitle: 'Aucune amende',
-          emptyBody: 'Aucune amende n’a été notifiée dans ce groupe.',
+          emptyTitle: AppLocalizations.of(context).fiAucuneAmende,
+          emptyBody: AppLocalizations.of(context).fiAucuneAmendeNaEteNotifiee,
           builder: (BuildContext context, List<MyFine> items) {
             final TextTheme t = Theme.of(context).textTheme;
             // Historique allégé : ce qui attend une action, puis les plus récentes.
@@ -286,13 +286,13 @@ class _GroupFinesScreenState extends State<GroupFinesScreen> {
                             ],
                           ),
                           Text('${fineKindLabel(f.kind)} · ${DoualaTime.date(f.issuedAtUtc)}', style: t.bodySmall),
-                          if (f.reason.isNotEmpty) Text('Motif : ${f.reason}'),
+                          if (f.reason.isNotEmpty) Text(AppLocalizations.of(context).fiMotif(f.reason)),
                           const SizedBox(height: 6),
                           Text(
                             f.refundDue
-                                ? 'Annulée après paiement — à rembourser'
+                                ? AppLocalizations.of(context).fiAnnuleeApresPaiementRembourser
                                 : f.refundedAtUtc != null
-                                    ? 'Annulée — remboursée le ${DoualaTime.date(f.refundedAtUtc!)}'
+                                    ? AppLocalizations.of(context).fiAnnuleeRembourseeLe(DoualaTime.date(f.refundedAtUtc!))
                                     : fineStateLabel(f.state),
                             style: t.labelLarge?.copyWith(color: f.refundDue || f.state == FineState.issued ? KombeColors.goldDark : KombeColors.forest),
                           ),
@@ -301,9 +301,9 @@ class _GroupFinesScreenState extends State<GroupFinesScreen> {
                             alignment: WrapAlignment.end,
                             children: <Widget>[
                               if (treasury && f.refundDue)
-                                FilledButton.icon(onPressed: () => _refund(f), icon: const Icon(Icons.payments_outlined), label: const Text('Rembourser')),
+                                FilledButton.icon(onPressed: () => _refund(f), icon: const Icon(Icons.payments_outlined), label: Text(AppLocalizations.of(context).fiRembourser2)),
                               if (presidency && f.state != FineState.cancelled)
-                                OutlinedButton(onPressed: () => _cancel(f), child: const Text('Annuler l’amende')),
+                                OutlinedButton(onPressed: () => _cancel(f), child: Text(AppLocalizations.of(context).fiAnnulerLamende)),
                             ],
                           ),
                         ],
@@ -311,7 +311,7 @@ class _GroupFinesScreenState extends State<GroupFinesScreen> {
                     ),
                   ),
                 if (items.length > shown.length || _all)
-                  TextButton(onPressed: () => setState(() => _all = !_all), child: Text(_all ? 'Voir moins' : 'Tout voir (${items.length})')),
+                  TextButton(onPressed: () => setState(() => _all = !_all), child: Text(_all ? AppLocalizations.of(context).fiVoirMoins : AppLocalizations.of(context).fiToutVoir(items.length))),
               ],
             );
           },
@@ -340,7 +340,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Annuler une amende'),
+        title: Text(AppLocalizations.of(context).fiAnnulerUneAmende),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,7 +348,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
             Text('${widget.fine.memberName} · ${Xaf.format(widget.fine.amountXaf)}'),
             if (widget.fine.state == FineState.paid) ...<Widget>[
               const SizedBox(height: 8),
-              const Text('Cette amende est déjà payée : l’annuler ouvre un remboursement que la trésorerie remettra au membre.'),
+              Text(AppLocalizations.of(context).fiCetteAmendeEstDejaPayee),
             ],
             const SizedBox(height: 12),
             TextField(
@@ -356,15 +356,15 @@ class _ReasonDialogState extends State<_ReasonDialog> {
               autofocus: true,
               maxLength: 500,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(labelText: 'Motif', border: OutlineInputBorder()),
+              decoration: InputDecoration(labelText: AppLocalizations.of(context).fiMotif2, border: OutlineInputBorder()),
             ),
           ],
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Retour')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(AppLocalizations.of(context).back)),
           FilledButton(
             onPressed: _reason.text.trim().length < 3 ? null : () => Navigator.of(context).pop(_reason.text.trim()),
-            child: const Text('Annuler l’amende'),
+            child: Text(AppLocalizations.of(context).fiAnnulerLamende),
           ),
         ],
       );

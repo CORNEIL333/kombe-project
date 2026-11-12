@@ -13,13 +13,15 @@ import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/section_card.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
+import '../../l10n/app_localizations.dart';
+import '../../l10n/kombe_l10n.dart';
 
 /// Phrase d'échéance montrée aux membres qui n'ont pas encore accepté.
 String statutesDeadlineSentence(DateTime deadlineUtc, StatutesOnExpiry onExpiry) {
   final String when = DoualaTime.dateTime(deadlineUtc);
   return onExpiry == StatutesOnExpiry.exclude
-      ? 'Acceptez avant le $when. Passé ce délai, les membres qui n’ont pas accepté sont exclus (avant le démarrage du cycle).'
-      : 'Acceptez avant le $when. Passé ce délai, le bureau est prévenu des retards ; personne n’est exclu automatiquement.';
+      ? KombeL10n.current.ruAcceptezAvantLePasseCe(when)
+      : KombeL10n.current.ruAcceptezAvantLePasseCe2(when);
 }
 
 /// Statuts du groupe : lecture et acceptation de la dernière version ; pour
@@ -71,18 +73,18 @@ class _RulesScreenState extends State<RulesScreen> {
     final ({int days, StatutesOnExpiry onExpiry})? choice = await showDialog<({int days, StatutesOnExpiry onExpiry})>(
       context: context,
       builder: (_) => _DeadlineDialog(
-        title: first ? 'Publier les statuts' : 'Publier une nouvelle version',
-        intro: 'Les statuts sont rédigés à partir du règlement du groupe. Chaque membre doit les accepter avant le démarrage du cycle.',
-        daysLabel: 'Délai pour accepter',
+        title: first ? AppLocalizations.of(context).ruPublierLesStatuts : AppLocalizations.of(context).ruPublierUneNouvelleVersion,
+        intro: AppLocalizations.of(context).ruLesStatutsSontRedigesPartir,
+        daysLabel: AppLocalizations.of(context).ruDelaiPourAccepter,
         minDays: 1,
         initialDays: 7,
-        confirm: 'Publier',
+        confirm: AppLocalizations.of(context).ruPublier,
       ),
     );
     if (choice == null || !mounted) return;
     await _run<TontineStatutes>(
       (GroupRepository repo) => repo.publishStatutes(groupId: widget.groupId, acceptanceDays: choice.days, onExpiry: choice.onExpiry),
-      (TontineStatutes s) => 'Statuts version ${s.version} publiés : les membres sont prévenus.',
+      (TontineStatutes s) => AppLocalizations.of(context).ruStatutsVersionPubliesLesMembres(s.version),
     );
   }
 
@@ -90,15 +92,15 @@ class _RulesScreenState extends State<RulesScreen> {
     final ({int days, StatutesOnExpiry onExpiry})? choice = await showDialog<({int days, StatutesOnExpiry onExpiry})>(
       context: context,
       builder: (_) => _DeadlineDialog(
-        title: 'Repousser l’échéance',
+        title: AppLocalizations.of(context).ruRepousserLecheance,
         intro: s.deadline == null
-            ? 'Aucune échéance n’est fixée : choisissez-en une.'
-            : 'Échéance actuelle : ${DoualaTime.dateTime(s.deadline!.deadlineAtUtc)}.',
-        daysLabel: 'Jours en plus',
+            ? AppLocalizations.of(context).ruAucuneEcheanceNestFixeeChoisissez
+            : AppLocalizations.of(context).ruEcheanceActuelle(DoualaTime.dateTime(s.deadline!.deadlineAtUtc)),
+        daysLabel: AppLocalizations.of(context).ruJoursEnPlus,
         minDays: 1,
         initialDays: 7,
         initialOnExpiry: s.deadline?.onExpiry ?? StatutesOnExpiry.exclude,
-        confirm: 'Repousser',
+        confirm: AppLocalizations.of(context).ruRepousser,
       ),
     );
     if (choice == null || !mounted) return;
@@ -106,8 +108,8 @@ class _RulesScreenState extends State<RulesScreen> {
       (GroupRepository repo) =>
           repo.extendStatutesDeadline(groupId: widget.groupId, extendDays: choice.days, onExpiry: choice.onExpiry),
       (TontineStatutes v) => v.deadline == null
-          ? 'Échéance mise à jour.'
-          : 'Nouvelle échéance : ${DoualaTime.dateTime(v.deadline!.deadlineAtUtc)}. Les retardataires sont prévenus.',
+          ? AppLocalizations.of(context).ruEcheanceMiseJour
+          : AppLocalizations.of(context).ruNouvelleEcheanceLesRetardatairesSont(DoualaTime.dateTime(v.deadline!.deadlineAtUtc)),
     );
   }
 
@@ -115,7 +117,7 @@ class _RulesScreenState extends State<RulesScreen> {
   Widget build(BuildContext context) {
     final bool bureau = _group?.can(TontineAct.publishStatutes) ?? false;
     return Scaffold(
-      appBar: AppBar(title: const Text('Statuts du groupe')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).ruStatutsDuGroupe)),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ResourceView<TontineStatutes?>(
@@ -129,16 +131,16 @@ class _RulesScreenState extends State<RulesScreen> {
                   KombeFormHeader(
                     icon: Icons.menu_book_outlined,
                     tone: KombeTone.info,
-                    title: 'Pas encore de statuts',
+                    title: AppLocalizations.of(context).ruPasEncoreDeStatuts,
                     body: bureau
-                        ? 'Publiez les statuts dès que le bureau est en place (trésorier désigné) : chaque membre devra les accepter avant le démarrage du cycle.'
-                        : 'Le bureau n’a pas encore publié les statuts. Vous serez prévenu pour les lire et les accepter.',
+                        ? AppLocalizations.of(context).ruPubliezLesStatutsDesQue
+                        : AppLocalizations.of(context).ruLeBureauNaPasEncore,
                   ),
                   if (bureau) ...<Widget>[
                     FilledButton.icon(
                       onPressed: _busy ? null : () => _publish(first: true),
                       icon: const Icon(Icons.publish_rounded),
-                      label: const Text('Publier les statuts'),
+                      label: Text(AppLocalizations.of(context).ruPublierLesStatuts),
                     ),
                   ],
                 ],
@@ -147,20 +149,20 @@ class _RulesScreenState extends State<RulesScreen> {
             return ListView(
               padding: const EdgeInsets.all(20),
               children: <Widget>[
-                Semantics(header: true, child: Text(s.title.isEmpty ? 'Statuts' : s.title, style: KombeType.display(size: 26))),
+                Semantics(header: true, child: Text(s.title.isEmpty ? AppLocalizations.of(context).catStatuts : s.title, style: KombeType.display(size: 26))),
                 const SizedBox(height: 4),
-                Text('Version ${s.version} · publiée le ${DoualaTime.date(s.publishedAtUtc)}', style: t.bodySmall),
+                Text(AppLocalizations.of(context).ruVersionPublieeLe(s.version, DoualaTime.date(s.publishedAtUtc)), style: t.bodySmall),
                 const SizedBox(height: 16),
                 _MyAcceptance(
                   statutes: s,
                   busy: _busy,
                   onAccept: () => _run<TontineStatutes>(
                     (GroupRepository repo) => repo.acceptStatutes(groupId: widget.groupId, hash: s.hash),
-                    (_) => 'Merci : votre acceptation est enregistrée.',
+                    (_) => AppLocalizations.of(context).ruMerciVotreAcceptationEstEnregistree,
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text('${s.acceptedCount} sur ${s.expectedCount} ont accepté', style: t.titleSmall),
+                Text(AppLocalizations.of(context).ruSurOntAccepte(s.acceptedCount, s.expectedCount), style: t.titleSmall),
                 const SizedBox(height: 6),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(99),
@@ -176,13 +178,13 @@ class _RulesScreenState extends State<RulesScreen> {
                     busy: _busy,
                     onRemind: () => _run<int>(
                       (GroupRepository repo) => repo.remindStatutes(widget.groupId),
-                      (int n) => n == 0 ? 'Personne à relancer pour le moment.' : 'Relance envoyée à $n personne(s).',
+                      (int n) => n == 0 ? AppLocalizations.of(context).ruPersonneRelancerPourLeMoment : AppLocalizations.of(context).ruRelanceEnvoyeePersonne(n),
                     ),
                     onExtend: () => _extend(s),
                     onRepublish: () => _publish(first: false),
                   ),
                 ],
-                const KombeSection('Texte des statuts', padding: EdgeInsets.fromLTRB(0, 24, 0, 8)),
+                KombeSection(AppLocalizations.of(context).ruTexteDesStatuts, padding: EdgeInsets.fromLTRB(0, 24, 0, 8)),
                 SectionCard(child: SelectableText(s.body, style: t.bodyMedium)),
               ],
             );
@@ -210,7 +212,7 @@ class _MyAcceptance extends StatelessWidget {
         child: Row(children: <Widget>[
           const Icon(Icons.check_circle_rounded, color: KombeColors.forest),
           const SizedBox(width: 10),
-          Expanded(child: Text('Vous avez accepté cette version.', style: t.titleSmall?.copyWith(color: KombeColors.forest))),
+          Expanded(child: Text(AppLocalizations.of(context).ruVousAvezAccepteCetteVersion, style: t.titleSmall?.copyWith(color: KombeColors.forest))),
         ]),
       );
     }
@@ -221,17 +223,17 @@ class _MyAcceptance extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text('À accepter', style: t.titleMedium),
+          Text(AppLocalizations.of(context).ruAccepter, style: t.titleMedium),
           const SizedBox(height: 6),
           Text(
             deadline == null
-                ? 'Lisez les statuts ci-dessous puis acceptez-les : le cycle ne démarre que lorsque chaque membre les a acceptés.'
+                ? AppLocalizations.of(context).ruLisezLesStatutsCiDessous
                 : statutesDeadlineSentence(deadline, s.deadline?.onExpiry ?? StatutesOnExpiry.exclude),
           ),
           const SizedBox(height: 12),
           FilledButton(
             onPressed: busy ? null : onAccept,
-            child: const Text('J’ai lu et j’accepte ces statuts'),
+            child: Text(AppLocalizations.of(context).ruJaiLuEtJaccepteCes),
           ),
         ],
       ),
@@ -262,29 +264,30 @@ class _BureauPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text('Pour le bureau', style: t.titleMedium),
+          Text(AppLocalizations.of(context).ruPourLeBureau, style: t.titleMedium),
           const SizedBox(height: 4),
           Text(
             s.deadline == null
-                ? 'Aucune échéance fixée.'
-                : 'Échéance : ${DoualaTime.dateTime(s.deadline!.deadlineAtUtc)} · '
-                    '${s.deadline!.onExpiry == StatutesOnExpiry.exclude ? 'les retardataires seront exclus (avant le démarrage du cycle)' : 'personne n’est exclu, le bureau est prévenu'}',
+                ? AppLocalizations.of(context).ruAucuneEcheanceFixee
+                : (s.deadline!.onExpiry == StatutesOnExpiry.exclude
+                    ? AppLocalizations.of(context).ruDeadlineExclude(DoualaTime.dateTime(s.deadline!.deadlineAtUtc))
+                    : AppLocalizations.of(context).ruDeadlineNotify(DoualaTime.dateTime(s.deadline!.deadlineAtUtc))),
             style: t.bodySmall,
           ),
           const SizedBox(height: 10),
           if (s.pending.isEmpty)
-            const Text('Tout le monde a accepté : le cycle peut démarrer.')
+            Text(AppLocalizations.of(context).ruToutLeMondeAccepteLe)
           else ...<Widget>[
-            Text('Pas encore accepté (${s.pending.length})', style: t.titleSmall),
+            Text(AppLocalizations.of(context).ruPasEncoreAccepte(s.pending.length), style: t.titleSmall),
             for (final StatutesPendingSigner p in s.pending)
               ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.hourglass_empty_rounded, size: 20),
-                title: Text(p.name.isEmpty ? 'Membre' : p.name),
+                title: Text(p.name.isEmpty ? AppLocalizations.of(context).roleMemberLabel : p.name),
                 subtitle: Text(<String>[
-                  if (p.state == 'pending') 'candidat(e) pas encore admis(e)',
-                  if (p.deadlineAtUtc != null) 'avant le ${DoualaTime.dateTime(p.deadlineAtUtc)}',
+                  if (p.state == 'pending') AppLocalizations.of(context).ruCandidatPasEncoreAdmis,
+                  if (p.deadlineAtUtc != null) AppLocalizations.of(context).ruAvantLe(DoualaTime.dateTime(p.deadlineAtUtc)),
                 ].join(' · ')),
               ),
           ],
@@ -297,16 +300,16 @@ class _BureauPanel extends StatelessWidget {
                 FilledButton.tonalIcon(
                   onPressed: busy ? null : onRemind,
                   icon: const Icon(Icons.notifications_active_outlined),
-                  label: const Text('Relancer'),
+                  label: Text(AppLocalizations.of(context).ruRelancer),
                 ),
               OutlinedButton.icon(
                 onPressed: busy ? null : onExtend,
                 icon: const Icon(Icons.update_rounded),
-                label: const Text('Repousser l’échéance'),
+                label: Text(AppLocalizations.of(context).ruRepousserLecheance),
               ),
               TextButton(
                 onPressed: busy ? null : onRepublish,
-                child: const Text('Republier après un changement du bureau'),
+                child: Text(AppLocalizations.of(context).ruRepublierApresUnChangementDu),
               ),
             ],
           ),
@@ -354,7 +357,7 @@ class _DeadlineDialogState extends State<_DeadlineDialog> {
             children: <Widget>[
               Text(widget.intro),
               const SizedBox(height: 14),
-              Text('${widget.daysLabel} : $_days jour${_days > 1 ? 's' : ''}'),
+              Text(AppLocalizations.of(context).ruDaysCount(widget.daysLabel, _days)),
               Slider(
                 value: _days.toDouble(),
                 min: widget.minDays.toDouble(),
@@ -363,21 +366,21 @@ class _DeadlineDialogState extends State<_DeadlineDialog> {
                 label: '$_days',
                 onChanged: (double v) => setState(() => _days = v.round()),
               ),
-              const Text('À l’échéance, ceux qui n’ont pas accepté :'),
+              Text(AppLocalizations.of(context).ruLecheanceCeuxQuiNontPas),
               RadioGroup<StatutesOnExpiry>(
                 groupValue: _onExpiry,
                 onChanged: (StatutesOnExpiry? v) => setState(() => _onExpiry = v ?? _onExpiry),
-                child: const Column(
+                child: Column(
                   children: <Widget>[
                     RadioListTile<StatutesOnExpiry>(
                       contentPadding: EdgeInsets.zero,
                       value: StatutesOnExpiry.exclude,
-                      title: Text('sont exclus (avant le démarrage du cycle)'),
+                      title: Text(AppLocalizations.of(context).ruSontExclusAvantLeDemarrage),
                     ),
                     RadioListTile<StatutesOnExpiry>(
                       contentPadding: EdgeInsets.zero,
                       value: StatutesOnExpiry.keep,
-                      title: Text('restent membres ; le bureau est prévenu'),
+                      title: Text(AppLocalizations.of(context).ruRestentMembresLeBureauEst),
                     ),
                   ],
                 ),
@@ -386,7 +389,7 @@ class _DeadlineDialogState extends State<_DeadlineDialog> {
           ),
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(AppLocalizations.of(context).cancel)),
           FilledButton(
             onPressed: () => Navigator.of(context).pop((days: _days, onExpiry: _onExpiry)),
             child: Text(widget.confirm),

@@ -671,5 +671,212 @@
         "type": "Object"
       }
     }
+  },
+  "fiContestationEnvoyeeLaPresidenceVa": "Contestation envoyée : la présidence va trancher.",
+  "fiAucuneAmende": "Aucune amende",
+  "fiAucuneAmendeNeVousEte": "Aucune amende ne vous a été notifiée dans vos groupes.",
+  "fiLePresidentOuLeVice": "le président ou le vice-président l’annule ou la maintient.",
+  "fiMotif": "Motif : {reason}",
+  "@fiMotif": {
+    "placeholders": {
+      "reason": {
+        "type": "Object"
+      }
+    }
+  },
+  "fiConstateePar": "Constatée par {issuedByName}",
+  "@fiConstateePar": {
+    "placeholders": {
+      "issuedByName": {
+        "type": "Object"
+      }
+    }
+  },
+  "fiAnnuleeApresPaiementLaTresorerie": "Annulée après paiement — la trésorerie vous rembourse",
+  "fiAnnuleeRembourseeLe": "Annulée — remboursée le {refundedAtUtc}",
+  "@fiAnnuleeRembourseeLe": {
+    "placeholders": {
+      "refundedAtUtc": {
+        "type": "Object"
+      }
+    }
+  },
+  "fiContesterCetteAmende": "Contester cette amende",
+  "fiPourquoiLaContestezVous": "Pourquoi la contestez-vous ?",
+  "fiExpliquezEnQuelquesMotsCaracteres": "Expliquez en quelques mots (3 caractères au moins).",
+  "fiAmendeAnnuleeLeRemboursementEst": "Amende annulée : le remboursement est à faire par la trésorerie.",
+  "fiAmendeAnnulee": "Amende annulée.",
+  "fiRembourser": "Rembourser {amountXaf} à {memberName}",
+  "@fiRembourser": {
+    "placeholders": {
+      "amountXaf": {
+        "type": "Object"
+      },
+      "memberName": {
+        "type": "Object"
+      }
+    }
+  },
+  "fiRemboursementAmende": "Remboursement amende",
+  "fiRemboursementEnregistreLeMembreConfirmera": "Remboursement enregistré : le membre confirmera la réception.",
+  "fiAucuneAmendeNaEteNotifiee": "Aucune amende n’a été notifiée dans ce groupe.",
+  "fiAnnuleeApresPaiementRembourser": "Annulée après paiement — à rembourser",
+  "fiRembourser2": "Rembourser",
+  "fiAnnulerLamende": "Annuler l’amende",
+  "fiVoirMoins": "Voir moins",
+  "fiToutVoir": "Tout voir ({length})",
+  "@fiToutVoir": {
+    "placeholders": {
+      "length": {
+        "type": "Object"
+      }
+    }
+  },
+  "fiAnnulerUneAmende": "Annuler une amende",
+  "fiCetteAmendeEstDejaPayee": "Cette amende est déjà payée : l’annuler ouvre un remboursement que la trésorerie remettra au membre.",
+  "fiMotif2": "Motif",
+  "ruAcceptezAvantLePasseCe": "Acceptez avant le {when}. Passé ce délai, les membres qui n’ont pas accepté sont exclus (avant le démarrage du cycle).",
+  "@ruAcceptezAvantLePasseCe": {
+    "placeholders": {
+      "when": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruAcceptezAvantLePasseCe2": "Acceptez avant le {when}. Passé ce délai, le bureau est prévenu des retards ; personne n’est exclu automatiquement.",
+  "@ruAcceptezAvantLePasseCe2": {
+    "placeholders": {
+      "when": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruPublierLesStatuts": "Publier les statuts",
+  "ruPublierUneNouvelleVersion": "Publier une nouvelle version",
+  "ruLesStatutsSontRedigesPartir": "Les statuts sont rédigés à partir du règlement du groupe. Chaque membre doit les accepter avant le démarrage du cycle.",
+  "ruDelaiPourAccepter": "Délai pour accepter",
+  "ruPublier": "Publier",
+  "ruStatutsVersionPubliesLesMembres": "Statuts version {version} publiés : les membres sont prévenus.",
+  "@ruStatutsVersionPubliesLesMembres": {
+    "placeholders": {
+      "version": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruRepousserLecheance": "Repousser l’échéance",
+  "ruAucuneEcheanceNestFixeeChoisissez": "Aucune échéance n’est fixée : choisissez-en une.",
+  "ruEcheanceActuelle": "Échéance actuelle : {deadlineAtUtc}.",
+  "@ruEcheanceActuelle": {
+    "placeholders": {
+      "deadlineAtUtc": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruJoursEnPlus": "Jours en plus",
+  "ruRepousser": "Repousser",
+  "ruEcheanceMiseJour": "Échéance mise à jour.",
+  "ruNouvelleEcheanceLesRetardatairesSont": "Nouvelle échéance : {deadlineAtUtc}. Les retardataires sont prévenus.",
+  "@ruNouvelleEcheanceLesRetardatairesSont": {
+    "placeholders": {
+      "deadlineAtUtc": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruStatutsDuGroupe": "Statuts du groupe",
+  "ruPasEncoreDeStatuts": "Pas encore de statuts",
+  "ruPubliezLesStatutsDesQue": "Publiez les statuts dès que le bureau est en place (trésorier désigné) : chaque membre devra les accepter avant le démarrage du cycle.",
+  "ruLeBureauNaPasEncore": "Le bureau n’a pas encore publié les statuts. Vous serez prévenu pour les lire et les accepter.",
+  "ruVersionPublieeLe": "Version {version} · publiée le {publishedAtUtc}",
+  "@ruVersionPublieeLe": {
+    "placeholders": {
+      "version": {
+        "type": "Object"
+      },
+      "publishedAtUtc": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruMerciVotreAcceptationEstEnregistree": "Merci : votre acceptation est enregistrée.",
+  "ruSurOntAccepte": "{acceptedCount} sur {expectedCount} ont accepté",
+  "@ruSurOntAccepte": {
+    "placeholders": {
+      "acceptedCount": {
+        "type": "Object"
+      },
+      "expectedCount": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruPersonneRelancerPourLeMoment": "Personne à relancer pour le moment.",
+  "ruRelanceEnvoyeePersonne": "Relance envoyée à {n} personne(s).",
+  "@ruRelanceEnvoyeePersonne": {
+    "placeholders": {
+      "n": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruTexteDesStatuts": "Texte des statuts",
+  "ruVousAvezAccepteCetteVersion": "Vous avez accepté cette version.",
+  "ruAccepter": "À accepter",
+  "ruLisezLesStatutsCiDessous": "Lisez les statuts ci-dessous puis acceptez-les : le cycle ne démarre que lorsque chaque membre les a acceptés.",
+  "ruJaiLuEtJaccepteCes": "J’ai lu et j’accepte ces statuts",
+  "ruPourLeBureau": "Pour le bureau",
+  "ruAucuneEcheanceFixee": "Aucune échéance fixée.",
+  "ruToutLeMondeAccepteLe": "Tout le monde a accepté : le cycle peut démarrer.",
+  "ruPasEncoreAccepte": "Pas encore accepté ({length})",
+  "@ruPasEncoreAccepte": {
+    "placeholders": {
+      "length": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruCandidatPasEncoreAdmis": "candidat(e) pas encore admis(e)",
+  "ruAvantLe": "avant le {deadlineAtUtc}",
+  "@ruAvantLe": {
+    "placeholders": {
+      "deadlineAtUtc": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruRelancer": "Relancer",
+  "ruRepublierApresUnChangementDu": "Republier après un changement du bureau",
+  "ruLecheanceCeuxQuiNontPas": "À l’échéance, ceux qui n’ont pas accepté :",
+  "ruSontExclusAvantLeDemarrage": "sont exclus (avant le démarrage du cycle)",
+  "ruRestentMembresLeBureauEst": "restent membres ; le bureau est prévenu",
+  "fiSettleIntro": "Une amende se règle auprès du trésorier, hors de l’application. Si elle vous semble injuste, contestez-la : ",
+  "ruDeadlineExclude": "Échéance : {date} · les retardataires seront exclus (avant le démarrage du cycle)",
+  "@ruDeadlineExclude": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruDeadlineNotify": "Échéance : {date} · personne n’est exclu, le bureau est prévenu",
+  "@ruDeadlineNotify": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "ruDaysCount": "{label} : {days, plural, =1{1 jour} other{{days} jours}}",
+  "@ruDaysCount": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
   }
 }
