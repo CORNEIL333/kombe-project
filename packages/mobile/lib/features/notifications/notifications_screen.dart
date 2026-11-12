@@ -11,6 +11,7 @@ import '../../core/widgets/kombe_screen_header.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/notification.dart';
 import '../../domain/repositories/notification_repository.dart';
+import '../../l10n/app_localizations.dart';
 import 'notification_actions.dart';
 
 /// Familles de filtre (planche) : Tout, Cotisations, Votes, Décisions.
@@ -101,13 +102,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final DateTime now = widget.now ?? DateTime.now();
     return Scaffold(
       backgroundColor: KombeColors.cream,
-      appBar: KombeShellScope.of(context) == null ? AppBar(title: const Text('Activité')) : const KombeTopBar(),
+      appBar: KombeShellScope.of(context) == null ? AppBar(title: Text(AppLocalizations.of(context).activity)) : const KombeTopBar(),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
           padding: const EdgeInsets.only(bottom: 24),
           children: <Widget>[
-            const KombeScreenHeader(title: 'Activité'),
+            KombeScreenHeader(title: AppLocalizations.of(context).activity),
             SizedBox(
               height: 48,
               child: ListView(
@@ -115,10 +116,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: <Widget>[
                   for (final (_Filter f, String label) in <(_Filter, String)>[
-                    (_Filter.all, 'Tout'),
-                    (_Filter.money, 'Cotisations'),
-                    (_Filter.votes, 'Votes'),
-                    (_Filter.decisions, 'Décisions'),
+                    (_Filter.all, AppLocalizations.of(context).filterAll),
+                    (_Filter.money, AppLocalizations.of(context).filterContributions),
+                    (_Filter.votes, AppLocalizations.of(context).filterVotes),
+                    (_Filter.decisions, AppLocalizations.of(context).filterDecisions),
                   ])
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -134,7 +135,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                     ),
                   if (anyUnread)
-                    TextButton(onPressed: _readAll, child: const Text('Tout marquer comme lu')),
+                    TextButton(onPressed: _readAll, child: Text(AppLocalizations.of(context).markAllRead)),
                 ],
               ),
             ),
@@ -142,17 +143,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               resource: _state,
               onRetry: _load,
               emptyWhen: (List<KombeNotification> items) => items.isEmpty,
-              emptyTitle: 'Aucune activité',
-              emptyBody: 'Les paiements, votes et séances de vos groupes apparaîtront ici.',
+              emptyTitle: AppLocalizations.of(context).noActivity,
+              emptyBody: AppLocalizations.of(context).noActivityBody,
               builder: (BuildContext context, List<KombeNotification> items) {
                 final List<KombeNotification> visible = items.where((KombeNotification n) => _matches(_filter, n)).toList();
                 if (visible.isEmpty) {
-                  return const Padding(padding: EdgeInsets.all(24), child: Text('Rien dans cette catégorie pour le moment.'));
+                  return Padding(padding: const EdgeInsets.all(24), child: Text(AppLocalizations.of(context).nothingInCategory));
                 }
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    for (final (int p, String label) in <(int, String)>[(0, 'Aujourd’hui'), (1, 'Cette semaine'), (2, 'Plus tôt')])
+                    for (final (int p, String label) in <(int, String)>[(0, AppLocalizations.of(context).today), (1, AppLocalizations.of(context).thisWeek), (2, AppLocalizations.of(context).earlier)])
                       if (visible.any((KombeNotification n) => _period(n.createdAtUtc, now) == p)) ...<Widget>[
                         _Header(label),
                         Stack(
@@ -210,7 +211,7 @@ class NotificationTile extends StatelessWidget {
             ? KombeTone.brand
             : KombeTone.neutral;
     return Semantics(
-      label: n.read ? null : 'non lue',
+      label: n.read ? null : AppLocalizations.of(context).unread,
       child: Material(
         type: MaterialType.transparency,
         child: ListTile(
@@ -223,7 +224,7 @@ class NotificationTile extends StatelessWidget {
           ),
           title: Text(n.title, style: TextStyle(fontWeight: n.read ? FontWeight.w600 : FontWeight.w800, fontSize: 15.5)),
           subtitle: Text(<String>[if (n.body.isNotEmpty) n.body, relativeTime(n.createdAtUtc, now: now)].join(' · ')),
-          trailing: n.read ? null : const Icon(Icons.circle, size: 11, color: KombeColors.goldWarm, semanticLabel: 'non lue'),
+          trailing: n.read ? null : Icon(Icons.circle, size: 11, color: KombeColors.goldWarm, semanticLabel: AppLocalizations.of(context).unread),
           onTap: onTap,
         ),
       ),

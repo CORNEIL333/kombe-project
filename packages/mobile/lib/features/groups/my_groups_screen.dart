@@ -17,6 +17,7 @@ import '../../core/widgets/kombe_screen_header.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Onglet « Groupes » (planche de référence) : toutes mes tontines, leur photo
 /// ou couverture, ma fonction, la progression RÉELLE du cycle, la prochaine
@@ -62,7 +63,7 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
     final bool loading = (active == null || active.groups is ResourceLoading<List<GroupSummary>>) && _memberships is ResourceLoading<List<MemberGroup>>;
     return Scaffold(
       backgroundColor: KombeColors.cream,
-      appBar: KombeShellScope.of(context) == null ? AppBar(title: const Text('Mes tontines')) : const KombeTopBar(),
+      appBar: KombeShellScope.of(context) == null ? AppBar(title: Text(AppLocalizations.of(context).myTontines)) : const KombeTopBar(),
       body: RefreshIndicator(
         onRefresh: () async {
           await active?.refresh();
@@ -72,16 +73,16 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
           padding: const EdgeInsets.only(bottom: 28),
           children: <Widget>[
             KombeScreenHeader(
-              title: 'Mes groupes',
+              title: AppLocalizations.of(context).myGroups,
               trailing: IconButton.filledTonal(
-                tooltip: 'Créer ou rejoindre',
+                tooltip: AppLocalizations.of(context).createOrJoin,
                 onPressed: () => _addGroup(context),
                 icon: const Icon(Icons.add_rounded),
               ),
             ),
             if (loading) const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator())),
             if (!loading && groups.isEmpty && pending.isEmpty)
-              const EmptyState(title: 'Aucune tontine', body: 'Rejoignez une tontine avec le code reçu du bureau, ou créez la vôtre.'),
+              EmptyState(title: AppLocalizations.of(context).noTontine, body: AppLocalizations.of(context).noTontineBody),
             for (final GroupSummary g in _byUrgency(groups))
               _GroupCard(
                 group: g,
@@ -106,7 +107,7 @@ class _MyGroupsScreenState extends State<MyGroupsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(m.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: KombeType.display(size: 20, color: KombeColors.ink)),
-                            const Text('En attente', style: TextStyle(color: KombeColors.slate, fontSize: 14, fontWeight: FontWeight.w600)),
+                            Text(AppLocalizations.of(context).pendingState, style: TextStyle(color: KombeColors.slate, fontSize: 14, fontWeight: FontWeight.w600)),
                           ],
                         ),
                       ),
@@ -133,12 +134,12 @@ List<GroupSummary> _byUrgency(List<GroupSummary> all) {
 
 Future<void> _addGroup(BuildContext context) => showKombeSheet<void>(
       context,
-      title: 'Ajouter un groupe',
+      title: AppLocalizations.of(context).addGroup,
       builder: (BuildContext sheet) => KombeGroupedList(
         children: <Widget>[
           KombeMenuRow(
             icon: Icons.group_add_outlined,
-            title: 'Rejoindre avec un code',
+            title: AppLocalizations.of(context).joinWithCode,
             onTap: () {
               Navigator.of(sheet).pop();
               context.push('/app/groups/join');
@@ -146,7 +147,7 @@ Future<void> _addGroup(BuildContext context) => showKombeSheet<void>(
           ),
           KombeMenuRow(
             icon: Icons.add_rounded,
-            title: 'Créer une tontine',
+            title: AppLocalizations.of(context).createTontine,
             onTap: () {
               Navigator.of(sheet).pop();
               context.push('/app/groups/create');
@@ -203,7 +204,7 @@ class _GroupCard extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[
                                     Text(g.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: KombeType.display(size: 20, color: KombeColors.ink)),
-                                    Text(g.role == GroupRole.member ? 'Membre' : roleLabel(g.role), style: const TextStyle(color: KombeColors.slate, fontSize: 14, fontWeight: FontWeight.w600)),
+                                    Text(g.role == GroupRole.member ? AppLocalizations.of(context).roleMemberLabel : roleLabel(g.role), style: const TextStyle(color: KombeColors.slate, fontSize: 14, fontWeight: FontWeight.w600)),
                                   ],
                                 ),
                               ),
@@ -212,16 +213,16 @@ class _GroupCard extends StatelessWidget {
                           ),
                           if (due) ...<Widget>[
                             const SizedBox(height: 12),
-                            const Text('À payer', style: TextStyle(color: KombeColors.ink, fontSize: 14, fontWeight: FontWeight.w700)),
+                            Text(AppLocalizations.of(context).toPay, style: TextStyle(color: KombeColors.ink, fontSize: 14, fontWeight: FontWeight.w700)),
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: <Widget>[
                                 Expanded(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(g.openDueXaf, size: 30, color: KombeColors.ink))),
                                 const SizedBox(width: 8),
                                 if (late)
-                                  const StatusPill('En retard', tone: KombeTone.danger)
+                                  StatusPill(AppLocalizations.of(context).lateState, tone: KombeTone.danger)
                                 else
-                                  Text('avant le $date', style: const TextStyle(color: KombeColors.ink, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  Text(AppLocalizations.of(context).dueBefore(date), style: const TextStyle(color: KombeColors.ink, fontSize: 14, fontWeight: FontWeight.w600)),
                               ],
                             ),
                           ],
@@ -231,7 +232,7 @@ class _GroupCard extends StatelessWidget {
                             Row(
                               children: <Widget>[
                                 Expanded(child: KombeCycleBand(index: g.cycleIndex, total: g.cycleTotal)),
-                                Text('Cycle ${g.cycleIndex}/${g.cycleTotal}', style: const TextStyle(color: KombeColors.slate, fontSize: 14)),
+                                Text(AppLocalizations.of(context).cycleOf(g.cycleIndex, g.cycleTotal), style: const TextStyle(color: KombeColors.slate, fontSize: 14)),
                               ],
                             ),
                           ],

@@ -318,5 +318,67 @@
         "type": "int"
       }
     }
-  }
+  },
+  "myTontines": "Mes tontines",
+  "createOrJoin": "Créer ou rejoindre",
+  "noTontine": "Aucune tontine",
+  "noTontineBody": "Rejoignez une tontine avec le code reçu du bureau, ou créez la vôtre.",
+  "pendingState": "En attente",
+  "addGroup": "Ajouter un groupe",
+  "joinWithCode": "Rejoindre avec un code",
+  "roleMemberLabel": "Membre",
+  "toPay": "À payer",
+  "lateState": "En retard",
+  "dueBefore": "avant le {date}",
+  "@dueBefore": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "cycleOf": "Cycle {index}/{total}",
+  "@cycleOf": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "activity": "Activité",
+  "filterAll": "Tout",
+  "filterContributions": "Cotisations",
+  "filterVotes": "Votes",
+  "filterDecisions": "Décisions",
+  "markAllRead": "Tout marquer comme lu",
+  "noActivity": "Aucune activité",
+  "noActivityBody": "Les paiements, votes et séances de vos groupes apparaîtront ici.",
+  "nothingInCategory": "Rien dans cette catégorie pour le moment.",
+  "today": "Aujourd’hui",
+  "thisWeek": "Cette semaine",
+  "earlier": "Plus tôt",
+  "unread": "non lue",
+  "myRole": "Mon rôle",
+  "accountSecurity": "Sécurité du compte",
+  "loginAndSession": "Connexion et session",
+  "loginAndSessionSub": "Code à usage unique, session sur ce téléphone",
+  "securityPrivacy": "Sécurité et confidentialité",
+  "manageMyInfo": "Gérer mes informations",
+  "preferences": "Préférences",
+  "notificationsSub": "Ce que KÓMBE vous rappelle",
+  "helpAndSupport": "Aide & support",
+  "helpCenterSub": "FAQ et guides d’utilisation",
+  "assistance": "Assistance",
+  "offlineTitle": "Hors connexion",
+  "offlineSub": "Ce qui reste possible sans réseau",
+  "aboutAndUpdate": "À propos et mise à jour",
+  "aboutAndUpdateSub": "Version installée, rechercher une mise à jour",
+  "recentNotifications": "Notifications récentes",
+  "seeAll": "Voir tout",
+  "addMyPhoto": "Ajouter ma photo",
+  "changeMyPhoto": "Changer ma photo",
+  "editProfile": "Modifier le profil"
 }

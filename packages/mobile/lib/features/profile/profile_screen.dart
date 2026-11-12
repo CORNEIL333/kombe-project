@@ -7,6 +7,7 @@ import '../../core/formatters/labels.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/kombe_sign_out.dart';
 import '../../core/widgets/group_avatar.dart';
+import '../../l10n/app_localizations.dart';
 import '../groups/group_photo_sheet.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
@@ -49,7 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Mon profil')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).profile)),
         body: ListenableBuilder(
           listenable: _vm!,
           builder: (BuildContext context, Widget? child) => ResourceView<UserProfile>(
@@ -72,7 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: _StatTile(
                             icon: Icons.groups_rounded,
                             iconColor: KombeColors.emerald,
-                            label: 'Mon rôle',
+                            label: AppLocalizations.of(context).myRole,
                             value: groups == null || groups.isEmpty ? '—' : _roleOf(groups.first),
                           ),
                         ),
@@ -81,7 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: _StatTile(
                             icon: Icons.bar_chart_rounded,
                             iconColor: KombeColors.goldDark,
-                            label: 'Mes groupes',
+                            label: AppLocalizations.of(context).myGroups,
                             value: groups == null ? '—' : '${groups.length}',
                           ),
                         ),
@@ -89,26 +90,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     );
                   },
                 ),
-                const _SectionTitle('Sécurité du compte'),
+                _SectionTitle(AppLocalizations.of(context).accountSecurity),
                 _Card(children: <Widget>[
-                  _Row(icon: Icons.password_rounded, title: 'Connexion et session', subtitle: 'Code à usage unique, session sur ce téléphone',
+                  _Row(icon: Icons.password_rounded, title: AppLocalizations.of(context).loginAndSession, subtitle: AppLocalizations.of(context).loginAndSessionSub,
                       onTap: () => context.push('/app/settings/security')),
-                  _Row(icon: Icons.shield_rounded, iconColor: KombeColors.goldDark, title: 'Sécurité et confidentialité', subtitle: 'Gérer mes informations',
+                  _Row(icon: Icons.shield_rounded, iconColor: KombeColors.goldDark, title: AppLocalizations.of(context).securityPrivacy, subtitle: AppLocalizations.of(context).manageMyInfo,
                       onTap: () => context.push('/app/settings/privacy'), last: true),
                 ]),
-                const _SectionTitle('Préférences'),
+                _SectionTitle(AppLocalizations.of(context).preferences),
                 _Card(children: <Widget>[
-                  _Row(icon: Icons.language_rounded, title: 'Langue', trailing: profile.localeCode == 'en' ? 'English' : 'Français',
+                  _Row(icon: Icons.language_rounded, title: AppLocalizations.of(context).language, trailing: profile.localeCode == 'en' ? 'English' : 'Français',
                       onTap: () => context.push('/app/settings/language')),
-                  _Row(icon: Icons.notifications_none_rounded, title: 'Notifications', subtitle: 'Ce que KÓMBE vous rappelle',
+                  _Row(icon: Icons.notifications_none_rounded, title: AppLocalizations.of(context).notifications, subtitle: AppLocalizations.of(context).notificationsSub,
                       onTap: () => context.push('/app/settings/notifications'), last: true),
                 ]),
-                const _SectionTitle('Aide & support'),
+                _SectionTitle(AppLocalizations.of(context).helpAndSupport),
                 _Card(children: <Widget>[
-                  _Row(icon: Icons.help_outline_rounded, title: 'Centre d’aide', subtitle: 'FAQ et guides d’utilisation', onTap: () => context.push('/app/help')),
-                  _Row(icon: Icons.headset_mic_outlined, title: 'Nous contacter', subtitle: 'Assistance', onTap: () => context.push('/app/support')),
-                  _Row(icon: Icons.cloud_off_outlined, title: 'Hors connexion', subtitle: 'Ce qui reste possible sans réseau', onTap: () => context.push('/app/offline')),
-                  _Row(icon: Icons.info_outline_rounded, title: 'À propos et mise à jour', subtitle: 'Version installée, rechercher une mise à jour',
+                  _Row(icon: Icons.help_outline_rounded, title: AppLocalizations.of(context).helpCenterTitle, subtitle: AppLocalizations.of(context).helpCenterSub, onTap: () => context.push('/app/help')),
+                  _Row(icon: Icons.headset_mic_outlined, title: AppLocalizations.of(context).contactSupport, subtitle: AppLocalizations.of(context).assistance, onTap: () => context.push('/app/support')),
+                  _Row(icon: Icons.cloud_off_outlined, title: AppLocalizations.of(context).offlineTitle, subtitle: AppLocalizations.of(context).offlineSub, onTap: () => context.push('/app/offline')),
+                  _Row(icon: Icons.info_outline_rounded, title: AppLocalizations.of(context).aboutAndUpdate, subtitle: AppLocalizations.of(context).aboutAndUpdateSub,
                       onTap: () => context.push('/app/about'), last: true),
                 ]),
                 const SizedBox(height: 22),
@@ -125,9 +126,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Row(children: <Widget>[
-                          const Expanded(child: _SectionTitle('Notifications récentes')),
+                          Expanded(child: _SectionTitle(AppLocalizations.of(context).recentNotifications)),
                           IconButton(
-                            tooltip: 'Voir tout',
+                            tooltip: AppLocalizations.of(context).seeAll,
                             onPressed: () => context.go('/app/notifications'),
                             icon: const Icon(Icons.arrow_forward_rounded, color: KombeColors.goldDark),
                           ),
@@ -189,7 +190,7 @@ class _Header extends StatelessWidget {
                 color: KombeColors.goldWarm,
                 shape: const CircleBorder(side: BorderSide(color: KombeColors.cream, width: 2)),
                 child: IconButton(
-                  tooltip: profile.photoVersion == null ? 'Ajouter ma photo' : 'Changer ma photo',
+                  tooltip: profile.photoVersion == null ? AppLocalizations.of(context).addMyPhoto : AppLocalizations.of(context).changeMyPhoto,
                   visualDensity: VisualDensity.compact,
                   onPressed: () => showMyPhotoSheet(context, name: profile.displayName, photoVersion: profile.photoVersion, afterChange: onPhotoChanged),
                   icon: const Icon(Icons.photo_camera_outlined, size: 18, color: KombeColors.ink),
@@ -203,7 +204,7 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text('Bonjour $first', style: t.headlineSmall),
+              Text(AppLocalizations.of(context).dashHelloName(first), style: t.headlineSmall),
               const SizedBox(height: 4),
               Text(profile.displayName, style: t.bodyMedium),
               Text(profile.phoneE164, style: t.bodyMedium),
@@ -214,7 +215,7 @@ class _Header extends StatelessWidget {
           color: Colors.white,
           shape: const CircleBorder(),
           child: IconButton(
-            tooltip: 'Modifier le profil',
+            tooltip: AppLocalizations.of(context).editProfile,
             onPressed: () => context.push('/app/profile/edit'),
             icon: const Icon(Icons.edit_outlined, color: KombeColors.ink),
           ),
