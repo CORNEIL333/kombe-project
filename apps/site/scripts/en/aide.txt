@@ -1,0 +1,80 @@
+0|Help centre — KÓMBE
+1|Guides to get started with KÓMBE, frequently asked questions, support and contact.
+2|Help centre — KÓMBE
+3|Guides to get started with KÓMBE, frequently asked questions, support and contact.
+4|=
+5|Breadcrumb
+6|Home
+7|Help centre
+8|Help centre.
+9|Step by step.
+10|Everything to get started: create your account, start or join a tontine, declare and confirm contributions.
+11|See the guides
+12|Support &amp; assistance
+13|Getting started
+14|Six guides
+15|to begin.
+16|Create your account
+17|No password to remember.
+18|Open
+19|kombe.vercel.app
+20|or the Android app.
+21|Enter your email address (or your number, if SMS is open).
+22|Type in the 6-digit code you received: your account is created.
+23|Give the name the members of your groups know you by.
+24|Create a tontine
+25|For the president or the founder of the group.
+26|From “My tontines”, tap “Create a tontine”.
+27|Follow the steps: name, frequency, contribution, order of turns, committee, rules, review.
+28|Then share the invitation link (on WhatsApp, for example).
+29|Join a group
+30|With the code or the link received from the committee.
+31|Tap “Join with a code”, or open the link you received.
+32|Check the group name shown, then send your request.
+33|The committee approves your membership: the group then appears in “My tontines”.
+34|Declare a contribution
+35|Cash, Orange Money, MTN MoMo, bank…
+36|Open the group, then your dues.
+37|Tap “Declare”, choose the payment method and add the reference if you have one.
+38|Your declaration awaits the treasurer’s confirmation: you can see its status at any time.
+39|Confirm as treasurer
+40|Confirmation is done by another person.
+41|Open the group’s “Contributions” tab (or the committee space on a computer).
+42|Check each declaration, then confirm it or reject it with a reason.
+43|You can never confirm your own declaration.
+44|Working without a network
+45|During a meeting with no connection.
+46|Take the roll call and enter declarations as usual.
+47|They stay on the phone, marked “not sent yet”.
+48|They go out automatically when the network returns; nothing is shown as confirmed before that.
+49|Coming soon
+50|Support
+51|and assistance.
+52|Direct support is being prepared to answer members and group committees. It is not open yet: we prefer to say so clearly rather than promise an answer nobody would give.
+53|Meanwhile, the guides and the questions below cover the essentials, and your group’s committee remains your first point of contact.
+54|What is planned
+55|Reporting a problem from the app
+56|Following your request, with its status
+57|Helping committees set up a group
+58|Frequently asked questions
+59|Answers
+60|to common questions.
+61|Does KÓMBE hold the group’s money?
+62|No. Money moves between members as before (cash, Mobile Money, bank transfer). KÓMBE keeps the register: who declared, who confirmed, whose turn it is.
+63|I did not receive my code.
+64|Check the address you entered and your spam folder, then ask for a new code. The code is only valid for a few minutes.
+65|My membership is “pending”.
+66|That is normal: a committee member must approve each new membership. Let them know if the wait drags on.
+67|Can a contribution already confirmed be corrected?
+68|Yes, through a correction added to the history. The original entry stays visible: nothing is erased silently.
+69|Can I use KÓMBE on an iPhone or a computer?
+70|Yes, with the web app in the browser. The committee also has the committee space, designed for a big screen.
+71|Who sees my phone number?
+72|Your group’s committee. Other members see your number masked.
+73|Contact
+74|Write
+75|to us.
+76|For a question about your group (contribution, turn, membership), first contact the committee: it sees the register and can act. For any other subject (partnership, press, personal data):
+77|Contact address:
+78|to be completed by the publisher
+79|. It will be published here as soon as KÓMBE’s email domain is open.

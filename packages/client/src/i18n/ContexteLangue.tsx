@@ -37,6 +37,16 @@ export function FournisseurLangue({
   // La langue choisie est gardée sur ce téléphone (sinon chaque ouverture
   // repartait en français).
   const [langue, setLangue] = useState<Langue>(() => {
+    // Arrivée depuis le site en anglais (`/?lang=en`, A16) : la langue demandée est retenue.
+    const demandee = new URLSearchParams(window.location.search).get("lang");
+    if (demandee === "fr" || demandee === "en" || demandee === "pcm") {
+      try {
+        window.localStorage.setItem("kombe.langue", demandee);
+      } catch {
+        /* stockage indisponible : la langue vaut pour cette visite */
+      }
+      return demandee;
+    }
     try {
       const l = window.localStorage.getItem("kombe.langue");
       return l === "fr" || l === "en" || l === "pcm" ? l : langueInitiale;

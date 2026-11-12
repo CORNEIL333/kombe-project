@@ -1,0 +1,22 @@
+0|Legal centre — KÓMBE
+1|KÓMBE’s terms of use, privacy policy, cookie policy and legal notice.
+2|Legal centre — KÓMBE
+3|KÓMBE’s terms of use, privacy policy, cookie policy and legal notice.
+4|=
+5|Breadcrumb
+6|Home
+7|Legal centre
+8|Legal
+9|centre.
+10|Short, readable texts that say what KÓMBE does — and what it does not do.
+11|Pilot version — updated on 15 October 2026
+12|Pilot version.
+13|These texts faithfully describe how the service currently works. Publisher identity details still missing are marked “to be completed” and will be filled in before the public launch. This English translation is provided for information; the French version prevails.
+14|Terms of use
+15|The rules for using KÓMBE
+16|Privacy policy
+17|The data processed and your rights
+18|Cookie policy
+19|No tracking cookies, and what we store
+20|Legal notice
+21|Publisher and hosting of the service

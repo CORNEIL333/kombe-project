@@ -12,6 +12,11 @@ import { initChrome, initReveals } from './chrome';
 
 const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const P = '/brand/photos/';
+/* Textes dynamiques dans la langue de la page (A16). */
+const EN = document.documentElement.lang === 'en';
+const TX = EN
+  ? { tour: 'Turn', membre: 'Member', collecte: 'Collection in progress', complet: 'Cycle complete', remis: 'Paid out to the beneficiary' }
+  : { tour: 'Tour', membre: 'Membre', collecte: 'Collecte en cours', complet: 'Cycle complet', remis: 'Remis au bénéficiaire' };
 document.documentElement.classList.add('js');
 initChrome();
 
@@ -65,7 +70,7 @@ if (heroHost) {
       t = (t + 1) % n;
       majOrbite(svg, t);
       if (tour) tour.textContent = String(t + 1);
-      if (benef) benef.textContent = `Tour ${t + 1} · ${noms[t] ?? ''}`;
+      if (benef) benef.textContent = `${TX.tour} ${t + 1} · ${noms[t] ?? ''}`;
     }, 2800);
   }
 }
@@ -100,14 +105,14 @@ const rendreCycle = (step: number, frac: number): void => {
   const set = (id: string, v: string): void => { const e = el(id); if (e) e.textContent = v; };
   set('cy-grand', tour);
   set('cy-tour', `${tour} / ${N}`);
-  set('cy-benef', `Membre ${tour}`);
+  set('cy-benef', `${TX.membre} ${tour}`);
   set('cy-conf', `${String(conf).padStart(2, '0')} / ${N - 1}`);
   const jauge = el('cy-jauge');
   if (jauge) jauge.style.width = `${((conf / (N - 1)) * 100).toFixed(0)}%`;
   const etat = el('cy-etat');
   if (etat) etat.innerHTML = conf < N - 1
-    ? '<span class="k-statut k-statut--attente">Collecte en cours</span>'
-    : step === N - 1 ? '<span class="k-statut k-statut--ok">Cycle complet</span>' : '<span class="k-statut k-statut--ok">Remis au bénéficiaire</span>';
+    ? `<span class="k-statut k-statut--attente">${TX.collecte}</span>`
+    : step === N - 1 ? `<span class="k-statut k-statut--ok">${TX.complet}</span>` : `<span class="k-statut k-statut--ok">${TX.remis}</span>`;
 };
 const onCycle = (): void => {
   if (!cycle || !cycleSvg) return;

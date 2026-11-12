@@ -15,7 +15,7 @@
 .crumbs span { margin: 0 10px; }
 .crumbs [aria-current] { margin: 0; color: var(--c-attention); }
 .phero__titre { margin: 0 0 22px; font-family: var(--f-titre); font-weight: 800; font-size: 46px; font-size: clamp(42px, 5.6vw, 88px); line-height: 1; letter-spacing: -0.032em; color: var(--c-foret); max-width: 12em; }
-.phero__titre em { font-style: normal; color: var(--c-olive); }
+.phero__titre em { font-style: normal; color: #767a24; }
 .phero__lead { font-size: 18px; font-size: clamp(17px, 1.4vw, 21px); line-height: 1.55; color: var(--c-encre); max-width: 30em; }
 .phero__meta { margin-top: 22px; font-size: 13.5px; color: var(--c-texte-2); }
 .phero .ctas, .phero .dlx { margin-top: 30px; }
@@ -112,7 +112,7 @@ ul.lede li + li { margin-top: 8px; }
 .legal-list a:hover span[aria-hidden] { transform: translateX(5px); }
 
 /* ── Textes longs avec sommaire ───────────────────────────────────── */
-.doc { display: grid; grid-template-columns: 1fr; grid-gap: 40px 24px; }
+.doc { display: grid; grid-template-columns: minmax(0, 1fr); grid-gap: 40px 24px; } /* minmax : un tableau large défile dans son cadre au lieu d'élargir la page */
 @media (min-width: 1000px) { .doc { grid-template-columns: repeat(12, minmax(0, 1fr)); } .toc { grid-column: 1 / span 3; } .prose { grid-column: 5 / -1; } }
 .toc { align-self: start; padding: 18px; border-radius: var(--r-l); background: var(--c-blanc); box-shadow: var(--ombre-1); }
 @media (min-width: 1000px) { .toc { position: -webkit-sticky; position: sticky; top: 96px; } }

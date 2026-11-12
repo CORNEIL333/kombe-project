@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!--@head-->
+  <title>Security and trust — KÓMBE</title>
+  <meta name="description" content="How KÓMBE protects your tontine’s register: sign-in by code, checks by several people, chained log, separation between groups." />
+  <meta property="og:title" content="Security and trust — KÓMBE" />
+  <meta property="og:description" content="How KÓMBE protects your tontine’s register: sign-in by code, checks by several people, chained log, separation between groups." />
+</head>
+<body class="page">
+  <!--@header-->
+  <main id="contenu">
+    <section class="phero">
+      <div class="phero__photo" aria-hidden="true"><img src="/brand/photos/tresoriere.webp" alt="" decoding="async" /></div>
+      <div class="hero__deco" aria-hidden="true"><span></span><span></span></div>
+      <div class="wrap">
+        <nav class="crumbs" aria-label="Breadcrumb"><a href="/site/en/">Home</a><span aria-hidden="true">/</span><span aria-current="page">Security</span></nav>
+        <h1 class="phero__titre">Trust <em>is built.</em></h1>
+        <p class="phero__lead">KÓMBE does not hold your money: it keeps the group’s truth. Here is how that truth is protected.</p>
+
+      </div>
+    </section>
+    <section class="sec" aria-labelledby="h-sec">
+      <div class="wrap">
+        <p class="sect"><span>01</span>Our safeguards</p>
+        <h2 id="h-sec" class="titre">Eight principles, <em>enforced by the server.</em></h2>
+        <div class="principles">
+          <div class="revele"><b>Sign-in <em>without a password.</em></b><p>A 6-digit code, single-use and valid for a few minutes, is sent to your address (or your number). Nothing to remember, nothing to steal over your shoulder. Sessions expire on their own.</p></div>
+          <div class="revele"><b>Checked <em>by several people.</em></b><p>A contribution is declared by one person and confirmed by another. Nobody confirms their own declaration: the server refuses it, whatever screen is used.</p></div>
+          <div class="revele"><b>A register <em>that is never erased.</em></b><p>Every event is added to the group’s log and chained by a SHA-256 fingerprint: changing or deleting a line breaks the chain, which shows. A mistake is corrected by a new entry.</p></div>
+          <div class="revele"><b>Each group <em>within its own boundary.</em></b><p>A group’s data can only be read by its members, according to their roles. The separation is enforced down to the database, not just on screen.</p></div>
+          <div class="revele"><b>Masked <em>numbers.</em></b><p>Full numbers are only visible to the group’s committee. Other members see a masked number.</p></div>
+          <div class="revele"><b>Offline, <em>in full clarity.</em></b><p>Without a network, what you enter stays on the phone and is marked “not sent yet”. Nothing is shown as confirmed before the server answers.</p></div>
+          <div class="revele"><b>Protected <em>in transit.</em></b><p>Exchanges go over HTTPS, with strict security headers (HSTS, content policy) that block foreign scripts.</p></div>
+          <div class="revele"><b>Verifiable <em>minutes.</em></b><p>The minutes of a meeting are generated from the recorded events and carry a fingerprint: they are approved at the next meeting.</p></div>
+        </div>
+      </div>
+    </section>
+    <section class="sec sec--foret" aria-labelledby="h-not">
+      <div class="wrap split-photo">
+        <div class="revele">
+          <p class="sect sect--clair"><span>02</span>What we do not do</p>
+          <h2 id="h-not" class="titre titre--clair">What KÓMBE <em>will never do.</em></h2>
+          <ul class="lede lede--clair">
+            <li>Hold, move or block the group’s money.</li>
+            <li>Access your Mobile Money or bank accounts.</li>
+            <li>Sell your data or show advertising.</li>
+            <li>Set tracking cookies.</li>
+            <li>Give financial advice.</li>
+          </ul>
+        </div>
+        <figure class="revele"><img src="/brand/photos/tresoriere.webp" alt="" loading="lazy" /><figcaption>Illustrative photo.</figcaption></figure>
+      </div>
+    </section>
+    <section class="sec" aria-labelledby="h-faille">
+      <div class="wrap narrow">
+        <p class="sect"><span>03</span>Report a vulnerability</p>
+        <h2 id="h-faille" class="titre">Found <em>a weakness?</em></h2>
+        <p class="lede">Please report it to us before any public disclosure, with the steps to reproduce it. Do not access other people’s data beyond what is strictly necessary to demonstrate the problem.</p>
+        <div class="notice"><p>Reporting address: <span class="todo">to be completed by the publisher</span>.</p></div>
+      </div>
+    </section>
+  </main>
+  <!--@footer-->
+  <script type="module" src="/src/page.ts"></script>
+</body>
+</html>

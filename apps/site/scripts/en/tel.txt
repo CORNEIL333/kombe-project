@@ -1,0 +1,38 @@
+0|Download the app — KÓMBE
+1|Download KÓMBE for Android or use the web app on iPhone and computer.
+2|Download the app — KÓMBE
+3|Download KÓMBE for Android or use the web app on iPhone and computer.
+4|=
+5|Breadcrumb
+6|Home
+7|Download
+8|KÓMBE in your pocket,
+9|even without a network.
+10|The Android app installs directly from this site. On iPhone or computer, the web app does everything in the browser.
+11|Android — recommended
+12|Most phones · version 0.7.0
+13|Android — older phones
+14|32-bit or entry-level devices
+15|Web app
+16|iPhone, computer, any recent browser
+17|Committee space
+18|For the group’s committee, on a computer
+19|Install on Android
+20|Three steps,
+21|two minutes.
+22|Download the file
+23|Tap “Android — recommended”, then open the downloaded file.
+24|Allow the installation
+25|If the phone asks, allow “Install unknown apps” for your browser.
+26|Sign in
+27|Enter your email address and the code you receive. The first code creates your account.
+28|“App not compatible”? Take the “older phones” version, or use the web app.
+29|=
+30|Illustrative photo.
+31|iPhone and computer
+32|The web app,
+33|no installation.
+34|Open
+35|kombe.vercel.app
+36|in Safari, Chrome or any recent browser. To find it again like an app, use “Share → Add to Home Screen” (iPhone) or “Install app” (Chrome).
+37|Open the web app

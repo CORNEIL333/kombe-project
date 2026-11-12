@@ -1,0 +1,179 @@
+0|KÓMBE — The digital tontine, kept in a register
+1|KÓMBE is the digital tontine app: contributions, turns, funds and meetings of your tontine or association, in a register every member can check. It does not hold your money.
+2|KÓMBE — The digital tontine, kept in a register
+3|The digital tontine: the shared register for tontines, njangi and associations. KÓMBE does not hold your money.
+4|=
+5|Digital tontine · njangi · associations
+6|Your tontine,
+7|made clearer.
+8|KÓMBE is the
+9|digital tontine
+10|app for tontines, njangi and associations: contributions, turns, funds and meetings kept in a register every member can check. It does not hold your money — it keeps the group’s truth.
+11|Create an account
+12|Sign in
+13|Android app
+14|Committee space
+15|=
+16|Pending
+17|Contribution declared
+18|Amina · 25,000 FCFA
+19|Confirmed by the treasurer
+20|Added to the register
+21|Turn 4 · Marie A.
+22|Beneficiary of the month
+23|Illustrative scene — sample photos and data.
+24|The principle
+25|KÓMBE does not hold your money. It keeps the group’s truth: who contributed, who confirmed, whose turn it is. Money moves between you, as before — cash, Orange Money, MTN MoMo. The register becomes clear to everyone.
+26|Organise
+27|Contribute
+28|Confirm
+29|Receive
+30|Decide together
+31|Organise
+32|Contribute
+33|Confirm
+34|Receive
+35|Decide together
+36|=
+37|The cycle
+38|Each turn, one beneficiary.
+39|Everyone knows it.
+40|Turn
+41|Beneficiary
+42|Member 01
+43|Confirmed contributions
+44|Status
+45|Collection in progress
+46|Sample data — a group of 12 members, one contribution per turn.
+47|Current turn
+48|The three actions
+49|Declare, confirm, receive.
+50|Checked by several people.
+51|Declare
+52|The member declares their contribution: amount, payment method, reference. It appears straight away.
+53|Pending
+54|Confirm
+55|The treasurer confirms — never the person who declared. The server enforces it, on every screen.
+56|Paid
+57|Receive
+58|The beneficiary of the turn confirms the payout. The turn closes, fair and visible to all.
+59|Received
+60|=
+61|The app
+62|In every member’s pocket.
+63|Even without a network.
+64|Hello Amina
+65|My tontines
+66|Les Étoiles
+67|12 members · Monthly
+68|Cycle in progress
+69|turns
+70|To pay
+71|Before 20 October
+72|Next meeting
+73|At Amina’s, Bastos
+74|Home
+75|Declare
+76|Contribution amount
+77|FCFA
+78|Payment method
+79|Orange Money
+80|MTN MoMo
+81|Cash
+82|Reference
+83|OM-48213
+84|Send the declaration
+85|Declare
+86|To confirm
+87|PA
+88|Paul A.
+89|Orange Money
+90|Pending
+91|ML
+92|Marie L.
+93|Cash
+94|Pending
+95|SN
+96|Serge N.
+97|MTN MoMo
+98|Paid
+99|Confirm both
+100|Batch confirmation
+101|Sample screens — fictitious data.
+102|The committee
+103|On a big screen,
+104|the committee sees everything.
+105|kombe.vercel.app/bureau
+106|Overview
+107|Collection
+108|Movements
+109|Members
+110|Meetings
+111|Les Étoiles de Yaoundé
+112|Members
+113|Closed turns
+114|To confirm
+115|Tracked debts
+116|Member
+117|Due
+118|Confirmed
+119|Status
+120|Amina N.
+121|Paid
+122|Paul A.
+123|Paid
+124|Joëlle B.
+125|Pending
+126|Didier F.
+127|Late
+128|Batch collection
+129|Who contributed, who declared, who still has to pay; confirmation in one go.
+130|Minutes
+131|Generated from the meeting, with a fingerprint, approved at the next meeting.
+132|Votes &amp; sanctions
+133|Majority decisions, secret ballot until the count.
+134|Chained register
+135|Every entry sealed by a fingerprint: nothing is erased silently.
+136|Open the committee space
+137|For whom
+138|Wherever people contribute
+139|together.
+140|A group gathered in a circle around a table
+141|Neighbourhood tontines
+142|The meeting, in a circle, every month.
+143|A treasurer checks her phone
+144|Treasurers
+145|Fewer notebooks, more clarity.
+146|Several generations together
+147|Family njangi
+148|From one generation to the next.
+149|A group voting by show of hands
+150|Associations
+151|Decisions taken together.
+152|Illustrative photographs.
+153|Safeguards
+154|Trust,
+155|built into the server.
+156|No password
+157|A one-time code, valid for a few minutes.
+158|Checked by several people
+159|Nobody confirms their own declaration.
+160|Nothing is erased
+161|A mistake is corrected by a new entry.
+162|Offline
+163|Nothing is shown as confirmed without the server.
+164|All the safeguards
+165|Questions
+166|What we are often
+167|asked.
+168|Does KÓMBE hold the group’s money?
+169|No. Money moves between members as before (cash, Mobile Money, bank transfer). KÓMBE keeps the register: who declared, who confirmed, whose turn it is.
+170|Who can confirm a contribution?
+171|An authorised member of the group, never the person who declared it. The group’s rules set who confirms and who checks.
+172|What if the network drops during the meeting?
+173|Declarations and the roll call stay on the phone, clearly marked “not sent yet”, then go out when the network returns.
+174|Can a confirmed contribution be changed?
+175|It is never erased: a correction is added to the history and the original stays visible.
+176|How do I join a group?
+177|The committee invites you with a code or a link. Create your account with your email address, then send your request: the committee approves it.
+178|Help centre

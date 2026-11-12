@@ -1,0 +1,53 @@
+0|Cookie policy — KÓMBE
+1|Short, because there is little to say: KÓMBE sets no tracking cookies.
+2|Cookie policy — KÓMBE
+3|Short, because there is little to say: KÓMBE sets no tracking cookies.
+4|=
+5|Breadcrumb
+6|Home
+7|Legal centre
+8|Cookie policy
+9|Cookie
+10|policy.
+11|Short, because there is little to say: KÓMBE sets no tracking cookies. This English translation is provided for information; the French version prevails.
+12|Pilot version — updated on 12 November 2026
+13|Contents
+14|Contents
+15|In short
+16|What we keep on your device
+17|How to delete it
+18|If this changes
+19|In short
+20|No cookies
+21|are set by KÓMBE: no advertising, no audience measurement, no social network.
+22|No third-party tracking tool is loaded: the site’s security policy only allows our own scripts.
+23|That is why no consent banner is shown to you.
+24|What we keep on your device
+25|To work, the web app keeps a little information in your browser’s local storage. It does not leave your device, except what you enter offline, which is sent to the server when the network returns.
+26|Name
+27|Use
+28|Duration
+29|kombe.session
+30|Keep you signed in to the web app
+31|Until expiry or sign-out
+32|kombe.langue
+33|Remember the chosen language
+34|Until deleted
+35|kombe.fileAttente
+36|Entries made offline, waiting to be sent
+37|Until they are sent
+38|kombe.dashboard.session
+39|Sign-in to the committee space (current tab)
+40|Tab closed
+41|kombe.bureau.groupe
+42|Group chosen in the committee space
+43|Until deleted
+44|kombe.pushWeb.appareil
+45|Device registered for notifications on this browser, if you turn them on
+46|Until you turn them off
+47|If you turn on notifications on this browser, it installs a small KÓMBE program that displays them and opens the app when tapped; it keeps no data. “Turn off” in your preferences removes it.
+48|The Android app likewise keeps your session in the phone’s protected keychain and your offline drafts in a local database.
+49|How to delete it
+50|Sign out from the app, or clear the site data in your browser settings. On Android, “Clear data” for the KÓMBE app deletes everything it keeps on the phone. Warning: offline entries not yet sent would then be lost.
+51|If this changes
+52|If we ever had to use a non-essential cookie, it would only be set after your explicit consent, and this page would be updated.

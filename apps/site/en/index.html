@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!--@head-->
+  <title>KÓMBE — The digital tontine, kept in a register</title>
+  <meta name="description" content="KÓMBE is the digital tontine app: contributions, turns, funds and meetings of your tontine or association, in a register every member can check. It does not hold your money." />
+  <meta property="og:title" content="KÓMBE — The digital tontine, kept in a register" />
+  <meta property="og:description" content="The digital tontine: the shared register for tontines, njangi and associations. KÓMBE does not hold your money." />
+  <link rel="preload" as="image" href="/brand/photos/hero-cercle.webp" type="image/webp" />
+</head>
+<body class="page-home">
+  <!--@header-->
+
+  <main id="contenu">
+    <!-- 00 · HÉROS : photo lumineuse + orbite des membres -->
+    <section class="hero" id="hero" aria-labelledby="h-hero">
+      <div class="hero__photo" aria-hidden="true"><img src="/brand/photos/hero-cercle.webp" alt="" width="764" height="407" fetchpriority="high" decoding="async" /></div>
+      <div class="hero__deco" aria-hidden="true"><span></span><span></span></div>
+      <div class="wrap hero__grid">
+        <div class="hero__texte">
+          <p class="sect"><span>01</span>Digital tontine · njangi · associations</p>
+          <h1 id="h-hero" class="hero__titre" data-mots>Your tontine, <em>made clearer.</em></h1>
+          <p class="hero__lead">KÓMBE is the <strong>digital tontine</strong> app for tontines, njangi and associations: contributions, turns, funds and meetings kept in a register every member can check. It does not hold your money — it keeps the group’s truth.</p>
+          <div class="hero__ctas">
+            <a class="btn btn--primaire" href="/?lang=en#/inscription">Create an account<!--@i:fleche--></a>
+            <a class="btn btn--secondaire" href="/?lang=en">Sign in</a>
+          </div>
+          <ul class="hero__liens">
+            <li><a href="/site/en/download/"><span class="k-pastille"><!--@i:telecharger--></span>Android app</a></li>
+            <li><a href="/bureau/"><span class="k-pastille"><!--@i:grille--></span>Committee space</a></li>
+          </ul>
+        </div>
+        <div class="hero__scene" aria-hidden="true">
+          <div class="hero__centre"><img src="/brand/photos/cercle-vue-dessus.webp" alt="" decoding="async" /></div>
+          <div class="hero__orbite" id="hero-orbite"></div>
+          <div class="puce puce--a"><span class="k-statut k-statut--attente">Pending</span><span><b>Contribution declared</b><small>Amina · 25,000 FCFA</small></span></div>
+          <div class="puce puce--b"><span class="puce__ok"><!--@i:coche--></span><span><b>Confirmed by the treasurer</b><small>Added to the register</small></span></div>
+          <div class="puce puce--c"><span class="puce__tour" id="hero-tour">4</span><span><b id="hero-benef">Turn 4 · Marie A.</b><small>Beneficiary of the month</small></span></div>
+        </div>
+      </div>
+      <p class="hero__note wrap">Illustrative scene — sample photos and data.</p>
+    </section>
+
+    <!-- 01 · MANIFESTE -->
+    <section class="sec sec--doux manifeste" id="manifeste" aria-labelledby="h-manif">
+      <div class="wrap g">
+        <p class="sect c-side"><span>02</span>The principle</p>
+        <h2 id="h-manif" class="manifeste__texte c-main" data-defile>KÓMBE does not hold your money. It keeps the group’s truth: who contributed, who confirmed, whose turn it is. Money moves between you, as before — cash, Orange Money, MTN MoMo. The register becomes clear to everyone.</h2>
+      </div>
+    </section>
+
+    <div class="bande" aria-hidden="true">
+      <div class="bande__piste"><span>Organise</span><i></i><span>Contribute</span><i></i><span>Confirm</span><i></i><span>Receive</span><i></i><span>Decide together</span><i></i><span>Organise</span><i></i><span>Contribute</span><i></i><span>Confirm</span><i></i><span>Receive</span><i></i><span>Decide together</span><i></i></div>
+    </div>
+
+    <!-- 02 · LE CYCLE (défilement piloté) -->
+    <section class="cycle" id="cycle" aria-labelledby="h-cycle">
+      <div class="cycle__colle">
+        <div class="cycle__fond" aria-hidden="true"><img src="/brand/photos/tour-beneficiaire.webp" alt="" loading="lazy" /></div>
+        <div class="wrap g cycle__grille">
+          <div class="c-texte">
+            <p class="sect"><span>03</span>The cycle</p>
+            <h2 id="h-cycle" class="titre">Each turn, one beneficiary. <em>Everyone knows it.</em></h2>
+            <div class="registre carte" aria-live="polite">
+              <div class="registre__ligne"><span>Turn</span><b id="cy-tour">01 / 12</b></div>
+              <div class="registre__ligne"><span>Beneficiary</span><b id="cy-benef">Member 01</b></div>
+              <div class="registre__ligne"><span>Confirmed contributions</span><b id="cy-conf">00 / 11</b></div>
+              <div class="registre__barre"><span id="cy-jauge"></span></div>
+              <div class="registre__ligne"><span>Status</span><b id="cy-etat"><span class="k-statut k-statut--attente">Collection in progress</span></b></div>
+            </div>
+            <p class="note">Sample data — a group of 12 members, one contribution per turn.</p>
+          </div>
+          <div class="c-viz cycle__viz" aria-hidden="true">
+            <div class="cycle__orbite" id="cycle-orbite"><!--@orbite:12:0:--></div>
+            <div class="cycle__centre"><span class="cycle__num" id="cy-grand">01</span><span class="cycle__lib">Current turn</span></div>
+          </div>
+        </div>
+        <div class="cycle__progression" aria-hidden="true"><span id="cy-barre"></span></div>
+      </div>
+    </section>
+
+    <!-- 03 · LES TROIS GESTES -->
+    <section class="sec" id="gestes" aria-labelledby="h-gestes">
+      <div class="wrap">
+        <div class="g entete-sec">
+          <p class="sect c-side"><span>04</span>The three actions</p>
+          <h2 id="h-gestes" class="titre c-main">Declare, confirm, receive. <em>Checked by several people.</em></h2>
+        </div>
+        <ol class="gestes">
+          <li class="geste carte revele">
+            <span class="geste__num">01</span>
+            <span class="k-pastille"><!--@i:declarer--></span>
+            <h3>Declare</h3>
+            <p>The member declares their contribution: amount, payment method, reference. It appears straight away.</p>
+            <span class="k-statut k-statut--attente">Pending</span>
+          </li>
+          <li class="geste carte revele">
+            <span class="geste__num">02</span>
+            <span class="k-pastille k-pastille--vert"><!--@i:confirmer--></span>
+            <h3>Confirm</h3>
+            <p>The treasurer confirms — never the person who declared. The server enforces it, on every screen.</p>
+            <span class="k-statut k-statut--ok">Paid</span>
+          </li>
+          <li class="geste carte revele">
+            <span class="geste__num">03</span>
+            <span class="k-pastille k-pastille--or"><!--@i:cagnotte--></span>
+            <h3>Receive</h3>
+            <p>The beneficiary of the turn confirms the payout. The turn closes, fair and visible to all.</p>
+            <span class="k-statut k-statut--ok">Received</span>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- 04 · L'APPLICATION -->
+    <section class="sec sec--photo poche" id="app" aria-labelledby="h-app">
+      <div class="sec__photo" aria-hidden="true"><img src="/brand/photos/mains-telephone.webp" alt="" loading="lazy" /></div>
+      <div class="wrap">
+        <div class="g entete-sec">
+          <p class="sect c-side"><span>05</span>The app</p>
+          <h2 id="h-app" class="titre c-main">In every member’s pocket. <em>Even without a network.</em></h2>
+        </div>
+        <div class="telephones">
+          <figure class="telephone revele" data-profondeur="0.6">
+            <div class="telephone__ecran">
+              <div class="ui">
+                <div class="ui__barre"><span class="ui__logo"><!--@symbole--></span><span class="ui__cloche"><!--@i:cloche--><i></i></span></div>
+                <p class="ui__petit">Hello Amina</p>
+                <p class="ui__grand">My tontines</p>
+                <div class="ui__carte ui__carte--vert">
+                  <div class="ui__tete"><span><b>Les Étoiles</b><small>12 members · Monthly</small></span><span class="ui__orbite"><!--@orbite:12:3:k-orbite--nuit--></span></div>
+                  <div class="ui__jauge"><span style="width:33%"></span></div>
+                  <div class="ui__pied"><small>Cycle in progress</small><small><b>4 / 12</b> turns</small></div>
+                </div>
+                <div class="ui__ligne"><span class="k-pastille k-pastille--or"><!--@i:attente--></span><span><b>To pay</b><small>Before 20 October</small></span><em>25 000</em></div>
+                <div class="ui__ligne"><span class="k-pastille"><!--@i:seance--></span><span><b>Next meeting</b><small>At Amina’s, Bastos</small></span><em>20.10</em></div>
+              </div>
+            </div>
+            <figcaption>Home</figcaption>
+          </figure>
+          <figure class="telephone telephone--milieu revele" data-profondeur="1.1">
+            <div class="telephone__ecran">
+              <div class="ui">
+                <div class="ui__barre"><span class="ui__retour"><!--@i:retour--></span><span class="ui__titre-barre">Declare</span><span></span></div>
+                <p class="ui__etiquette">Contribution amount</p>
+                <p class="ui__montant">25 000 <small>FCFA</small></p>
+                <p class="ui__etiquette">Payment method</p>
+                <div class="ui__choix"><span class="is-on"><!--@i:mobile-money-->Orange Money</span><span><!--@i:mobile-money-->MTN MoMo</span><span><!--@i:especes-->Cash</span></div>
+                <p class="ui__etiquette">Reference</p>
+                <p class="ui__champ">OM-48213</p>
+                <span class="ui__bouton">Send the declaration<!--@i:fleche--></span>
+              </div>
+            </div>
+            <figcaption>Declare</figcaption>
+          </figure>
+          <figure class="telephone revele" data-profondeur="0.8">
+            <div class="telephone__ecran">
+              <div class="ui">
+                <div class="ui__barre"><span class="ui__retour"><!--@i:retour--></span><span class="ui__titre-barre">To confirm</span><span></span></div>
+                <div class="ui__personne"><span class="ui__avatar">PA</span><span><b>Paul A.</b><small>Orange Money</small></span><span class="k-statut k-statut--attente">Pending</span></div>
+                <div class="ui__personne"><span class="ui__avatar">ML</span><span><b>Marie L.</b><small>Cash</small></span><span class="k-statut k-statut--attente">Pending</span></div>
+                <div class="ui__personne"><span class="ui__avatar">SN</span><span><b>Serge N.</b><small>MTN MoMo</small></span><span class="k-statut k-statut--ok">Paid</span></div>
+                <span class="ui__bouton"><!--@i:confirmer-->Confirm both</span>
+              </div>
+            </div>
+            <figcaption>Batch confirmation</figcaption>
+          </figure>
+        </div>
+        <p class="note center">Sample screens — fictitious data.</p>
+      </div>
+    </section>
+
+    <!-- 05 · LE BUREAU -->
+    <section class="sec" id="bureau" aria-labelledby="h-bureau">
+      <div class="wrap">
+        <div class="g entete-sec">
+          <p class="sect c-side"><span>06</span>The committee</p>
+          <h2 id="h-bureau" class="titre c-main">On a big screen, <em>the committee sees everything.</em></h2>
+        </div>
+        <div class="bureau revele">
+          <div class="bureau__barre"><i></i><i></i><i></i><span>kombe.vercel.app/bureau</span></div>
+          <div class="bureau__corps">
+            <aside class="bureau__cote"><span class="bureau__logo"><!--@logo:inverse:bureau__marque--></span><span class="is-on"><!--@i:accueil-->Overview</span><span><!--@i:especes-->Collection</span><span><!--@i:registre-->Movements</span><span><!--@i:groupes-->Members</span><span><!--@i:seance-->Meetings</span></aside>
+            <div class="bureau__main">
+              <p class="bureau__titre">Les Étoiles de Yaoundé</p>
+              <div class="bureau__chiffres"><div><small>Members</small><b>12</b></div><div><small>Closed turns</small><b>3 / 12</b></div><div><small>To confirm</small><b>9</b></div><div><small>Tracked debts</small><b>15 000</b></div></div>
+              <div class="bureau__table">
+                <div class="bureau__tr bureau__th"><span>Member</span><span>Due</span><span>Confirmed</span><span>Status</span></div>
+                <div class="bureau__tr"><span>Amina N.</span><span>25 000</span><span>25 000</span><span><span class="k-statut k-statut--ok">Paid</span></span></div>
+                <div class="bureau__tr"><span>Paul A.</span><span>25 000</span><span>25 000</span><span><span class="k-statut k-statut--ok">Paid</span></span></div>
+                <div class="bureau__tr"><span>Joëlle B.</span><span>25 000</span><span>10 000</span><span><span class="k-statut k-statut--attente">Pending</span></span></div>
+                <div class="bureau__tr"><span>Didier F.</span><span>25 000</span><span>0</span><span><span class="k-statut k-statut--erreur">Late</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ul class="atouts">
+          <li class="revele"><span class="k-pastille"><!--@i:especes--></span><b>Batch collection</b><p>Who contributed, who declared, who still has to pay; confirmation in one go.</p></li>
+          <li class="revele"><span class="k-pastille"><!--@i:document--></span><b>Minutes</b><p>Generated from the meeting, with a fingerprint, approved at the next meeting.</p></li>
+          <li class="revele"><span class="k-pastille"><!--@i:vote--></span><b>Votes &amp; sanctions</b><p>Majority decisions, secret ballot until the count.</p></li>
+          <li class="revele"><span class="k-pastille"><!--@i:registre--></span><b>Chained register</b><p>Every entry sealed by a fingerprint: nothing is erased silently.</p></li>
+        </ul>
+        <p class="center"><a class="btn btn--primaire" href="/bureau/"><!--@i:grille-->Open the committee space</a></p>
+      </div>
+    </section>
+
+    <!-- 06 · POUR QUI (photos) -->
+    <section class="sec sec--doux" aria-labelledby="h-qui">
+      <div class="wrap">
+        <div class="g entete-sec">
+          <p class="sect c-side"><span>07</span>For whom</p>
+          <h2 id="h-qui" class="titre c-main">Wherever people contribute <em>together.</em></h2>
+        </div>
+        <div class="mosaique">
+          <figure class="mosaique__a revele"><img src="/brand/photos/cercle-vue-dessus.webp" alt="A group gathered in a circle around a table" loading="lazy" /><figcaption><b>Neighbourhood tontines</b><span>The meeting, in a circle, every month.</span></figcaption></figure>
+          <figure class="mosaique__b revele"><img src="/brand/photos/tresoriere.webp" alt="A treasurer checks her phone" loading="lazy" /><figcaption><b>Treasurers</b><span>Fewer notebooks, more clarity.</span></figcaption></figure>
+          <figure class="mosaique__c revele"><img src="/brand/photos/generations.webp" alt="Several generations together" loading="lazy" /><figcaption><b>Family njangi</b><span>From one generation to the next.</span></figcaption></figure>
+          <figure class="mosaique__d revele"><img src="/brand/photos/decision.webp" alt="A group voting by show of hands" loading="lazy" /><figcaption><b>Associations</b><span>Decisions taken together.</span></figcaption></figure>
+        </div>
+        <p class="note">Illustrative photographs.</p>
+      </div>
+    </section>
+
+    <!-- 07 · GARDE-FOUS -->
+    <section class="sec" id="preuve" aria-labelledby="h-preuve">
+      <div class="wrap">
+        <div class="g entete-sec">
+          <p class="sect c-side"><span>08</span>Safeguards</p>
+          <h2 id="h-preuve" class="titre c-main">Trust, <em>built into the server.</em></h2>
+        </div>
+        <div class="garde-fous">
+          <div class="carte revele"><span class="k-pastille"><!--@i:cadenas--></span><b>No password</b><p>A one-time code, valid for a few minutes.</p></div>
+          <div class="carte revele"><span class="k-pastille k-pastille--vert"><!--@i:confirmer--></span><b>Checked by several people</b><p>Nobody confirms their own declaration.</p></div>
+          <div class="carte revele"><span class="k-pastille"><!--@i:registre--></span><b>Nothing is erased</b><p>A mistake is corrected by a new entry.</p></div>
+          <div class="carte revele"><span class="k-pastille k-pastille--or"><!--@i:hors-ligne--></span><b>Offline</b><p>Nothing is shown as confirmed without the server.</p></div>
+        </div>
+        <p><a class="lien" href="/site/en/security/">All the safeguards<!--@i:fleche--></a></p>
+      </div>
+    </section>
+
+    <!-- 08 · QUESTIONS -->
+    <section class="sec sec--doux" id="questions" aria-labelledby="h-faq">
+      <div class="wrap g">
+        <p class="sect c-side"><span>09</span>Questions</p>
+        <div class="c-main">
+          <h2 id="h-faq" class="titre">What we are often <em>asked.</em></h2>
+          <div class="faq">
+            <details><summary>Does KÓMBE hold the group’s money?<!--@i:plus--></summary><p>No. Money moves between members as before (cash, Mobile Money, bank transfer). KÓMBE keeps the register: who declared, who confirmed, whose turn it is.</p></details>
+            <details><summary>Who can confirm a contribution?<!--@i:plus--></summary><p>An authorised member of the group, never the person who declared it. The group’s rules set who confirms and who checks.</p></details>
+            <details><summary>What if the network drops during the meeting?<!--@i:plus--></summary><p>Declarations and the roll call stay on the phone, clearly marked “not sent yet”, then go out when the network returns.</p></details>
+            <details><summary>Can a confirmed contribution be changed?<!--@i:plus--></summary><p>It is never erased: a correction is added to the history and the original stays visible.</p></details>
+            <details><summary>How do I join a group?<!--@i:plus--></summary><p>The committee invites you with a code or a link. Create your account with your email address, then send your request: the committee approves it.</p></details>
+          </div>
+          <p><a class="lien" href="/site/en/help/">Help centre<!--@i:fleche--></a></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!--@footer-->
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

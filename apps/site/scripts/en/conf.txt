@@ -1,0 +1,78 @@
+0|Privacy policy — KÓMBE
+1|What data KÓMBE processes, why, with whom, for how long — and how to exercise your rights.
+2|Privacy policy — KÓMBE
+3|What data KÓMBE processes, why, with whom, for how long — and how to exercise your rights.
+4|=
+5|Breadcrumb
+6|Home
+7|Legal centre
+8|Privacy policy
+9|Privacy
+10|policy.
+11|What data KÓMBE processes, why, with whom, for how long — and how to exercise your rights. This English translation is provided for information; the French version prevails.
+12|Pilot version — updated on 12 November 2026
+13|Contents
+14|Contents
+15|Data controller
+16|Data processed
+17|Why we process it
+18|Who has access
+19|Where it is hosted
+20|How long
+21|Your rights
+22|Security
+23|Changes
+24|Data controller
+25|Data controller:
+26|to be completed by the publisher
+27|. Contact for questions about personal data:
+28|to be completed by the publisher
+29|Data processed
+30|Category
+31|Examples
+32|Source
+33|Identification
+34|Email address or phone number, displayed name
+35|You, when you sign up
+36|Membership
+37|Groups, roles (president, treasurer…), date of joining
+38|You and the committee
+39|Group register
+40|Declared and confirmed contributions, payment method, reference, turns, meetings, attendance, fines, assistance, votes
+41|The members of the group
+42|Support
+43|Requests to support: subject, category, messages exchanged, satisfaction rating
+44|You, when you write to support
+45|Technical
+46|Session identifier, timestamps, technical logs
+47|The service
+48|KÓMBE collects neither your Mobile Money or bank credentials, nor your location, nor your contacts.
+49|Why we process it
+50|To sign you in and protect your account.
+51|To keep your groups’ register and show it to members according to their roles.
+52|To send sign-in codes and group notifications.
+53|To ensure security, detect abuse and correct errors.
+54|This processing is necessary for the service you and your group have asked for. Your data is neither sold nor used for advertising.
+55|Who has access
+56|The members of your group
+57|, according to the transparency chosen by the group and their roles. Only the committee sees full numbers.
+58|Authorised KÓMBE operators
+59|, only for the requests you send to support.
+60|Our technical providers
+61|, only to run the service: Vercel (hosting of the application), Neon (database and sending of codes by email), Africa’s Talking (sending of SMS, when this channel is open). If you turn on notifications in your browser, its notification service (Google, Mozilla, Apple…) carries a generic message, with no amount or name.
+62|Where it is hosted
+63|The service is hosted by Vercel, with functions running in Europe (Frankfurt), and the database by Neon. These providers may be located outside your country; they act only on our instructions.
+64|How long
+65|A group’s register is kept as long as the group exists, because it underpins trust between its members.
+66|Your identity can be erased on request: the group’s entries remain (so that the accounts stay accurate) but no longer designate you.
+67|Requests to support are anonymised more than 730 days after they are closed.
+68|Sessions expire automatically; sign-in codes are only valid for a few minutes.
+69|Your rights
+70|You can ask for access to your data, its correction, its export, the erasure of your identity, or object to a processing. A proportionate identity check may be requested before acting. Send your request to:
+71|to be completed by the publisher
+72|. You can also contact the competent data protection authority.
+73|Security
+74|One-time code for sign-in, exchanges over HTTPS, separation between groups down to the database, log chained by fingerprints. Details are on the page
+75|Security and trust
+76|Changes
+77|This policy may change with the service; the update date appears at the top of the page.

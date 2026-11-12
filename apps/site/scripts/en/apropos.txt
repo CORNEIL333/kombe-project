@@ -1,0 +1,45 @@
+0|About — KÓMBE
+1|KÓMBE makes tontines, njangi and associations clearer: a shared register, checked by several people, that does not hold the money.
+2|About — KÓMBE
+3|KÓMBE makes tontines, njangi and associations clearer: a shared register, checked by several people, that does not hold the money.
+4|=
+5|Breadcrumb
+6|Home
+7|About
+8|Making every tontine
+9|clearer.
+10|The tontine is one of the finest inventions of collective trust. KÓMBE gives it a register worthy of it.
+11|Why KÓMBE
+12|A notebook, messages,
+13|doubts.
+14|In many groups, the accounts live in a notebook, a spreadsheet and dozens of messages. When a doubt arises — who paid, when, how much — it weighs on the treasurer and on everyone’s trust.
+15|KÓMBE replaces this fog with a single register: each contribution is declared, confirmed by another person, and stays visible. The money itself moves as before.
+16|=
+17|Illustrative photo.
+18|Our principles
+19|What guides
+20|every decision.
+21|The group
+22|decides.
+23|The rules, the order of turns and the committee belong to the group. KÓMBE applies them; it does not invent them.
+24|No money
+25|with us.
+26|KÓMBE is neither a bank nor a payment institution. It keeps the register and never touches the funds.
+27|Nothing is erased
+28|silently.
+29|A mistake is corrected by a new entry; the original stays visible to all.
+30|Designed for
+31|real life.
+32|Patchy network, modest phones, in-person meetings: the app works offline and stays light.
+33|Real
+34|figures.
+35|No made-up testimonials, figures or users: everything you see in KÓMBE comes from your group.
+36|In
+37|your languages.
+38|French, English and Pidgin in the web app; French and English in the Android app; more languages will follow.
+39|Where we are
+40|A pilot
+41|phase.
+42|KÓMBE is currently a pilot version: the web app, the Android app and the committee space are open, and they improve with the first groups. Direct support is in preparation.
+43|Create an account
+44|Help centre

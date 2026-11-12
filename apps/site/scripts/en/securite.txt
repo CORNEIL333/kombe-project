@@ -1,0 +1,54 @@
+0|Security and trust — KÓMBE
+1|How KÓMBE protects your tontine’s register: sign-in by code, checks by several people, chained log, separation between groups.
+2|Security and trust — KÓMBE
+3|How KÓMBE protects your tontine’s register: sign-in by code, checks by several people, chained log, separation between groups.
+4|=
+5|Breadcrumb
+6|Home
+7|Security
+8|Trust
+9|is built.
+10|KÓMBE does not hold your money: it keeps the group’s truth. Here is how that truth is protected.
+11|Our safeguards
+12|Eight principles,
+13|enforced by the server.
+14|Sign-in
+15|without a password.
+16|A 6-digit code, single-use and valid for a few minutes, is sent to your address (or your number). Nothing to remember, nothing to steal over your shoulder. Sessions expire on their own.
+17|Checked
+18|by several people.
+19|A contribution is declared by one person and confirmed by another. Nobody confirms their own declaration: the server refuses it, whatever screen is used.
+20|A register
+21|that is never erased.
+22|Every event is added to the group’s log and chained by a SHA-256 fingerprint: changing or deleting a line breaks the chain, which shows. A mistake is corrected by a new entry.
+23|Each group
+24|within its own boundary.
+25|A group’s data can only be read by its members, according to their roles. The separation is enforced down to the database, not just on screen.
+26|Masked
+27|numbers.
+28|Full numbers are only visible to the group’s committee. Other members see a masked number.
+29|Offline,
+30|in full clarity.
+31|Without a network, what you enter stays on the phone and is marked “not sent yet”. Nothing is shown as confirmed before the server answers.
+32|Protected
+33|in transit.
+34|Exchanges go over HTTPS, with strict security headers (HSTS, content policy) that block foreign scripts.
+35|Verifiable
+36|minutes.
+37|The minutes of a meeting are generated from the recorded events and carry a fingerprint: they are approved at the next meeting.
+38|What we do not do
+39|What KÓMBE
+40|will never do.
+41|Hold, move or block the group’s money.
+42|Access your Mobile Money or bank accounts.
+43|Sell your data or show advertising.
+44|Set tracking cookies.
+45|Give financial advice.
+46|=
+47|Illustrative photo.
+48|Report a vulnerability
+49|Found
+50|a weakness?
+51|Please report it to us before any public disclosure, with the steps to reproduce it. Do not access other people’s data beyond what is strictly necessary to demonstrate the problem.
+52|Reporting address:
+53|to be completed by the publisher

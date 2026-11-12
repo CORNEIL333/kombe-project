@@ -30,7 +30,8 @@ export function initChrome(): void {
     nav?.classList.toggle('is-open', open);
     document.documentElement.classList.toggle('nav-open', open);
     burger?.setAttribute('aria-expanded', String(open));
-    burger?.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+    const en = document.documentElement.lang === 'en';
+    burger?.setAttribute('aria-label', open ? (en ? 'Close the menu' : 'Fermer le menu') : (en ? 'Open the menu' : 'Ouvrir le menu'));
   };
   burger?.addEventListener('click', () => setNav(!nav?.classList.contains('is-open')));
   nav?.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => { setNav(false); closeMenus(); }));

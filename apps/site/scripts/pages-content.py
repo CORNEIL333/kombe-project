@@ -68,11 +68,11 @@ def hero(crumbs, title, lead, extra=''):
     </section>'''
 
 
-def legal(path, crumb, title, lead, sections, photo):
+def legal(path, crumb, title, lead, sections, photo, maj=MAJ):
     toc = '\n'.join(f'          <li><a href="#{i}">{t}</a></li>' for i, t, _ in sections)
     secs = '\n'.join(f'        <h2 id="{i}">{t}</h2>\n{c}' for i, t, c in sections)
     body = hero([('Accueil', '/site/'), ('Centre juridique', '/site/legal/'), (crumb, '')], title, lead,
-                f'        <p class="phero__meta">{MAJ}</p>') + f'''
+                f'        <p class="phero__meta">{maj}</p>') + f'''
     <section class="sec">
       <div class="wrap doc">
         <nav class="toc" aria-label="Sommaire"><p>Sommaire</p><ol>
@@ -235,7 +235,7 @@ page('a-propos', 'À propos', 'KÓMBE rend les tontines, njangi et associations 
           <div class="reveal"><b>Rien ne s’efface <em>en silence.</em></b><p>Une erreur se corrige par une nouvelle écriture&nbsp;; l’originale reste visible de tous.</p></div>
           <div class="reveal"><b>Pensé pour <em>le terrain.</em></b><p>Réseau irrégulier, téléphones modestes, séances en présentiel&nbsp;: l’application fonctionne hors connexion et reste légère.</p></div>
           <div class="reveal"><b>Des chiffres <em>vrais.</em></b><p>Aucun témoignage, aucun chiffre ni aucun utilisateur inventé&nbsp;: tout ce que vous voyez dans KÓMBE vient de votre groupe.</p></div>
-          <div class="reveal"><b>Dans <em>vos langues.</em></b><p>Français, anglais et pidgin dans l’application web&nbsp;; d’autres langues suivront.</p></div>
+          <div class="reveal"><b>Dans <em>vos langues.</em></b><p>Français, anglais et pidgin dans l’application web&nbsp;; français et anglais dans l’application Android&nbsp;; d’autres langues suivront.</p></div>
         </div>
       </div>
     </section>
@@ -327,37 +327,40 @@ legal('legal/conditions', 'Conditions d’utilisation', 'Conditions <em>d’util
 legal('legal/confidentialite', 'Politique de confidentialité', 'Politique de <em>confidentialité.</em>',
       'Quelles données KÓMBE traite, pourquoi, avec qui, combien de temps — et comment exercer vos droits.', [
     ('responsable', 'Responsable du traitement', f'<p>Responsable du traitement&nbsp;: {TODO}. Contact pour les questions relatives aux données personnelles&nbsp;: {TODO}.</p>'),
-    ('donnees', 'Données traitées', '''<div class="table-wrap"><table><thead><tr><th>Catégorie</th><th>Exemples</th><th>Origine</th></tr></thead><tbody>
+    ('donnees', 'Données traitées', '''<div class="table-wrap" tabindex="0" role="region" aria-labelledby="donnees"><table><thead><tr><th>Catégorie</th><th>Exemples</th><th>Origine</th></tr></thead><tbody>
 <tr><td>Identification</td><td>Adresse e-mail ou numéro de téléphone, nom affiché</td><td>Vous, à l’inscription</td></tr>
 <tr><td>Appartenance</td><td>Groupes, fonctions (président, trésorier…), date d’adhésion</td><td>Vous et le bureau</td></tr>
 <tr><td>Registre du groupe</td><td>Cotisations déclarées et confirmées, moyen de paiement, référence, tours, séances, présences, amendes, secours, votes</td><td>Les membres du groupe</td></tr>
+<tr><td>Assistance</td><td>Demandes au support&nbsp;: objet, catégorie, messages échangés, note de satisfaction</td><td>Vous, quand vous écrivez au support</td></tr>
 <tr><td>Technique</td><td>Identifiant de session, horodatages, journaux techniques</td><td>Le service</td></tr>
 </tbody></table></div><p>KÓMBE ne collecte ni vos identifiants Mobile Money ou bancaires, ni votre position, ni vos contacts.</p>'''),
     ('finalites', 'Pourquoi nous les traitons', '<ul><li>Vous connecter et sécuriser votre compte.</li><li>Tenir le registre de vos groupes et l’afficher aux membres selon leurs fonctions.</li><li>Envoyer les codes de connexion et les notifications du groupe.</li><li>Assurer la sécurité, détecter les abus et corriger les erreurs.</li></ul><p>Ces traitements sont nécessaires au service que vous et votre groupe avez demandé. Vos données ne sont ni vendues, ni utilisées pour de la publicité.</p>'),
-    ('destinataires', 'Qui y a accès', '<ul><li><strong>Les membres de votre groupe</strong>, selon la transparence choisie par le groupe et leurs fonctions. Seul le bureau voit les numéros complets.</li><li><strong>Nos prestataires techniques</strong>, uniquement pour faire fonctionner le service&nbsp;: Vercel (hébergement de l’application), Neon (base de données et envoi des codes par e-mail), Africa’s Talking (envoi des SMS, lorsque ce canal est ouvert).</li></ul>'),
+    ('destinataires', 'Qui y a accès', '<ul><li><strong>Les membres de votre groupe</strong>, selon la transparence choisie par le groupe et leurs fonctions. Seul le bureau voit les numéros complets.</li><li><strong>Les opérateurs KÓMBE habilités</strong>, pour les seules demandes que vous adressez au support.</li><li><strong>Nos prestataires techniques</strong>, uniquement pour faire fonctionner le service&nbsp;: Vercel (hébergement de l’application), Neon (base de données et envoi des codes par e-mail), Africa’s Talking (envoi des SMS, lorsque ce canal est ouvert). Si vous activez les notifications sur votre navigateur, son service de notification (Google, Mozilla, Apple…) achemine un message générique, sans montant ni nom.</li></ul>'),
     ('transferts', 'Où sont-elles hébergées', '<p>Le service est hébergé par Vercel, avec des fonctions exécutées en Europe (Francfort), et la base de données par Neon. Ces prestataires peuvent être situés hors de votre pays&nbsp;; ils n’agissent que sur nos instructions.</p>'),
-    ('conservation', 'Combien de temps', '<ul><li>Le registre d’un groupe est conservé tant que le groupe existe, car il fonde la confiance entre ses membres.</li><li>Votre identité peut être effacée sur demande&nbsp;: les écritures du groupe restent (pour que les comptes demeurent justes), mais ne vous désignent plus.</li><li>Les sessions expirent automatiquement&nbsp;; les codes de connexion ne sont valables que quelques minutes.</li></ul>'),
+    ('conservation', 'Combien de temps', '<ul><li>Le registre d’un groupe est conservé tant que le groupe existe, car il fonde la confiance entre ses membres.</li><li>Votre identité peut être effacée sur demande&nbsp;: les écritures du groupe restent (pour que les comptes demeurent justes), mais ne vous désignent plus.</li><li>Les demandes au support sont anonymisées au-delà de 730 jours après leur clôture.</li><li>Les sessions expirent automatiquement&nbsp;; les codes de connexion ne sont valables que quelques minutes.</li></ul>'),
     ('droits', 'Vos droits', f'<p>Vous pouvez demander l’accès à vos données, leur rectification, leur export, l’effacement de votre identité ou vous opposer à un traitement. Une vérification d’identité proportionnée peut être demandée avant d’agir. Adressez votre demande à&nbsp;: {TODO}. Vous pouvez aussi saisir l’autorité de protection des données compétente.</p>'),
     ('securite', 'Sécurité', '<p>Code à usage unique pour la connexion, échanges sous HTTPS, cloisonnement des groupes jusque dans la base de données, journal chaîné par empreintes. Le détail est sur la page <a href="/site/securite/">Sécurité et confiance</a>.</p>'),
     ('modifications', 'Modifications', '<p>Cette politique peut évoluer avec le service&nbsp;; la date de mise à jour figure en tête de page.</p>'),
-], 'tresoriere')
+], 'tresoriere', 'Version pilote — mise à jour le 12 novembre 2026')
 
 # Cookies
 legal('legal/cookies', 'Politique de cookies', 'Politique <em>de cookies.</em>',
       'Courte, parce qu’il y a peu à dire&nbsp;: KÓMBE ne dépose aucun cookie de suivi.', [
     ('resume', 'En bref', '<ul><li><strong>Aucun cookie</strong> n’est déposé par KÓMBE&nbsp;: ni publicité, ni mesure d’audience, ni réseau social.</li><li>Aucun outil de suivi tiers n’est chargé&nbsp;: la politique de sécurité du site n’autorise que nos propres scripts.</li><li>C’est pourquoi aucune bannière de consentement ne vous est présentée.</li></ul>'),
     ('stockage', 'Ce que nous gardons sur votre appareil', '''<p>Pour fonctionner, l’application web garde quelques informations dans le stockage local de votre navigateur. Elles ne quittent pas votre appareil, sauf vos saisies hors connexion, envoyées au serveur au retour du réseau.</p>
-<div class="table-wrap"><table><thead><tr><th>Nom</th><th>Usage</th><th>Durée</th></tr></thead><tbody>
+<div class="table-wrap" tabindex="0" role="region" aria-labelledby="stockage"><table><thead><tr><th>Nom</th><th>Usage</th><th>Durée</th></tr></thead><tbody>
 <tr><td><code>kombe.session</code></td><td>Garder votre connexion à l’application web</td><td>Jusqu’à expiration ou déconnexion</td></tr>
 <tr><td><code>kombe.langue</code></td><td>Retenir la langue choisie</td><td>Jusqu’à effacement</td></tr>
 <tr><td><code>kombe.fileAttente</code></td><td>Saisies faites hors connexion, en attente d’envoi</td><td>Jusqu’à leur envoi</td></tr>
 <tr><td><code>kombe.dashboard.session</code></td><td>Connexion à l’Espace bureau (onglet en cours)</td><td>Fermeture de l’onglet</td></tr>
 <tr><td><code>kombe.bureau.groupe</code></td><td>Groupe choisi dans l’Espace bureau</td><td>Jusqu’à effacement</td></tr>
+<tr><td><code>kombe.pushWeb.appareil</code></td><td>Appareil enregistré pour les notifications sur ce navigateur, si vous les activez</td><td>Jusqu’à leur désactivation</td></tr>
 </tbody></table></div>
-<p>L’application Android garde de même votre session dans le stockage sécurisé du téléphone et vos brouillons hors connexion dans une base locale.</p>'''),
+<p>Si vous activez les notifications sur ce navigateur, celui-ci installe un petit programme de KÓMBE qui les affiche et ouvre l’application au toucher&nbsp;; il ne garde aucune donnée. «&nbsp;Désactiver&nbsp;» dans vos préférences le retire.</p>
+<p>L’application Android garde de même votre session dans le trousseau protégé du téléphone et vos brouillons hors connexion dans une base locale.</p>'''),
     ('effacer', 'Comment les effacer', '<p>Déconnectez-vous depuis l’application, ou effacez les données du site dans les réglages de votre navigateur. Sur Android, «&nbsp;Effacer les données&nbsp;» de l’application KÓMBE supprime tout ce qu’elle garde sur le téléphone. Attention&nbsp;: des saisies hors connexion non encore envoyées seraient alors perdues.</p>'),
     ('evolution', 'Si cela change', '<p>Si nous devions un jour utiliser un cookie non indispensable, il ne serait déposé qu’après votre accord explicite, et cette page serait mise à jour.</p>'),
-], 'cercle-vue-dessus')
+], 'cercle-vue-dessus', 'Version pilote — mise à jour le 12 novembre 2026')
 
 # Mentions légales
 legal('legal/mentions-legales', 'Mentions légales', 'Mentions <em>légales.</em>',

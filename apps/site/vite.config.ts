@@ -26,16 +26,46 @@ function pages(dir: string): Record<string, string> {
 }
 
 const partial = (n: string): string => readFileSync(resolve(root, 'partials', `${n}.html`), 'utf8');
+
+/* Version anglaise (A16) : chaque page française a sa jumelle sous /site/en/.
+   Le sélecteur de langue et les balises hreflang pointent vers la jumelle. */
+const JUMELLES: ReadonlyArray<readonly [string, string]> = [
+  ['', 'en'],
+  ['a-propos', 'en/about'],
+  ['aide', 'en/help'],
+  ['securite', 'en/security'],
+  ['telecharger', 'en/download'],
+  ['legal', 'en/legal'],
+  ['legal/conditions', 'en/legal/terms'],
+  ['legal/mentions-legales', 'en/legal/notice'],
+  ['legal/cookies', 'en/legal/cookies'],
+  ['legal/confidentialite', 'en/legal/privacy'],
+];
+const url = (dir: string): string => `/site/${dir ? `${dir}/` : ''}`;
+export function jumelle(dir: string): { readonly fr: string; readonly en: string; readonly anglais: boolean } | null {
+  for (const [fr, en] of JUMELLES) {
+    if (dir === fr) return { fr: url(fr), en: url(en), anglais: false };
+    if (dir === en) return { fr: url(fr), en: url(en), anglais: true };
+  }
+  return null;
+}
 const variante = (v?: string): Variante => (v === 'inverse' || v === 'mono' ? v : 'couleur');
 
 function chrome(): Plugin {
   return {
     name: 'kombe-site-chrome',
-    transformIndexHtml(html) {
+    transformIndexHtml(html, ctx) {
+      const dir = relative(root, dirname(ctx.filename)).replace(/\\/g, '/');
+      const j = jumelle(dir);
+      const anglais = j?.anglais ?? false;
+      const alternates = j
+        ? `<link rel="alternate" hreflang="fr" href="${j.fr}" />\n  <link rel="alternate" hreflang="en" href="${j.en}" />\n  <link rel="alternate" hreflang="x-default" href="${j.fr}" />`
+        : '';
       return html
-        .replace('<!--@head-->', partial('head'))
-        .replace('<!--@header-->', partial('header'))
-        .replace('<!--@footer-->', partial('footer'))
+        .replace('<!--@head-->', partial('head') + (alternates ? `\n  ${alternates}` : ''))
+        .replace('<!--@header-->', partial(anglais ? 'header.en' : 'header'))
+        .replace('<!--@footer-->', partial(anglais ? 'footer.en' : 'footer'))
+        .replace(/<!--@jumelle-->/g, j ? (anglais ? j.fr : j.en) : (anglais ? '/site/' : '/site/en/'))
         .replace(/<!--@logo-signe(?::([a-z]+))?(?::([a-z_ -]+))?-->/g, (_m, v?: string, c?: string) => logoSvg({ variante: variante(v), classe: c ?? '' }))
         .replace(/<!--@logo(?::([a-z]+))?(?::([a-z_ -]+))?-->/g, (_m, v?: string, c?: string) => logoSvg({ variante: variante(v), signature: false, classe: c ?? '' }))
         .replace(/<!--@symbole(?::([a-z]+))?(?::([a-z_ -]+))?-->/g, (_m, v?: string, c?: string) => symboleSvg({ variante: variante(v), classe: c ?? '' }))

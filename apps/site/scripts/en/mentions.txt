@@ -1,0 +1,41 @@
+0|Legal notice — KÓMBE
+1|Who publishes KÓMBE and who hosts it.
+2|Legal notice — KÓMBE
+3|Who publishes KÓMBE and who hosts it.
+4|=
+5|Breadcrumb
+6|Home
+7|Legal centre
+8|Legal notice
+9|Legal
+10|notice.
+11|Who publishes KÓMBE and who hosts it. This English translation is provided for information; the French version prevails.
+12|Pilot version — updated on 15 October 2026
+13|Contents
+14|Contents
+15|Publisher
+16|Publication director
+17|Hosting
+18|Nature of the service
+19|Credits
+20|Publisher
+21|Name:
+22|to be completed by the publisher
+23|Legal form and registration:
+24|to be completed by the publisher
+25|Address:
+26|to be completed by the publisher
+27|Contact:
+28|to be completed by the publisher
+29|Publication director
+30|to be completed by the publisher
+31|Hosting
+32|Vercel Inc.
+33|— 440 N Barranca Ave #4133, Covina, CA 91723, United States — vercel.com
+34|Neon
+35|(managed PostgreSQL database) — neon.tech
+36|Nature of the service
+37|KÓMBE is a shared register; it neither receives nor holds funds and provides no payment service or financial advice. See the
+38|terms of use
+39|Credits
+40|Manrope and Newsreader fonts, under the SIL Open Font License. The photographs on the site are mood illustrations: they show neither real users nor real KÓMBE groups.

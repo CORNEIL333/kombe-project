@@ -1,0 +1,66 @@
+0|Terms of use — KÓMBE
+1|The rules that apply to everyone using KÓMBE.
+2|Terms of use — KÓMBE
+3|The rules that apply to everyone using KÓMBE.
+4|=
+5|Breadcrumb
+6|Home
+7|Legal centre
+8|Terms of use
+9|Terms
+10|of use.
+11|The rules that apply to everyone using KÓMBE. This English translation is provided for information; the French version prevails.
+12|Pilot version — updated on 15 October 2026
+13|Contents
+14|Contents
+15|1. Purpose of the service
+16|2. What KÓMBE is not
+17|3. Account and sign-in
+18|4. Groups, committee and rules
+19|5. Declarations and confirmations
+20|6. Acceptable use
+21|7. Availability
+22|8. Liability
+23|9. Personal data
+24|10. Intellectual property
+25|11. Suspension and closure
+26|12. Changes
+27|13. Applicable law and contact
+28|1. Purpose of the service
+29|KÓMBE is a shared register for tontines, njangi and associations: it lets a group record its members, its rules, its meetings, the declared and confirmed contributions, the turns and the decisions. These terms govern the use of the web app, the Android app and the committee space.
+30|2. What KÓMBE is not
+31|KÓMBE
+32|does not receive, hold or transfer any funds
+33|. Payments are made between members, outside the app.
+34|KÓMBE is neither a bank, nor a payment institution, nor a microfinance institution.
+35|KÓMBE gives no financial advice and promises no return.
+36|A document produced by KÓMBE (minutes, statement, export) does not, on its own, have legal value.
+37|3. Account and sign-in
+38|Sign-in uses a one-time code sent to your email address or your number. The first verified code creates your account. You are responsible for access to your mailbox and your phone; report without delay any use you do not recognise.
+39|Give a name by which the members of your groups know you. Do not use another person’s identity.
+40|4. Groups, committee and rules
+41|Each group sets its own rules (contribution, frequency, order of turns, fines, assistance) and appoints its committee. KÓMBE applies these rules as they were recorded; they are never retroactive. The committee approves memberships and answers for the decisions taken on behalf of the group.
+42|5. Declarations and confirmations
+43|Each member declares in good faith the contributions they have paid. A declaration is confirmed by another authorised person; nobody confirms their own declaration. Entries are not deleted: a mistake is corrected by a correcting entry, the original remaining visible.
+44|6. Acceptable use
+45|It is forbidden to use KÓMBE to deceive a group, declare a fictitious payment, harass a member, collect other people’s data without right, disrupt the service or try to access data not intended for you.
+46|7. Availability
+47|KÓMBE is a pilot version. We do our best to provide a continuous service, without being able to promise that there will be no interruption. Entries made offline are kept on your phone and sent when the network returns; they are only considered recorded after the server’s response.
+48|8. Liability
+49|KÓMBE is responsible for the proper functioning of the register. It is not a party to the commitments between members and does not answer for payments made or not made between them, nor for decisions taken by a group or its committee.
+50|9. Personal data
+51|The processing of your data is described in the
+52|privacy policy
+53|. KÓMBE sets no tracking cookies (see the
+54|cookie policy
+55|10. Intellectual property
+56|The KÓMBE brand, its logo, its interfaces and its content are protected. The data entered by a group remains its own; KÓMBE uses it only to provide the service.
+57|11. Suspension and closure
+58|You can stop using KÓMBE at any time and ask for your identity to be erased (see the privacy policy). Access may be suspended in the event of a serious breach of these terms, after informing the person concerned where possible.
+59|12. Changes
+60|These terms may change with the service. The update date appears at the top of the page; a significant change will be announced in the app.
+61|13. Applicable law and contact
+62|Applicable law and competent jurisdiction:
+63|to be completed by the publisher
+64|. Contact:
+65|to be completed by the publisher

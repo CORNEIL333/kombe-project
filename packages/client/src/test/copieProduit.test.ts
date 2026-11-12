@@ -3,6 +3,8 @@
    laisserait croire (épargne, solde, retrait, débité, sécurisé, garanti),
    en français comme en anglais (savings, balance, withdrawal, debited,
    secured, guaranteed). */
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { en, fr } from "../tontine/textes.js";
 import * as dico from "../i18n/dictionnaires.js";
@@ -29,5 +31,23 @@ describe("vocabulaire des textes affichés", () => {
   it("aucun mot bancaire trompeur dans les dictionnaires de l'application", () => {
     const tous = valeurs(dico);
     expect(tous.filter((t) => INTERDITS_FR.test(t) || INTERDITS_EN.test(t))).toEqual([]);
+  });
+  it("aucun mot bancaire trompeur sur le site public, en français comme en anglais (A16)", () => {
+    const site = resolve(__dirname, "../../../../apps/site");
+    const pages = (dir: string): string[] =>
+      readdirSync(dir).flatMap((n) => {
+        const p = join(dir, n);
+        if (["node_modules", "dist", "public", "src", "scripts"].includes(n)) return [];
+        return statSync(p).isDirectory() ? pages(p) : n.endsWith(".html") ? [p] : [];
+      });
+    const fichiers = pages(site);
+    expect(fichiers.length).toBeGreaterThan(20);
+    const fautes = fichiers.flatMap((f) => {
+      const texte = readFileSync(f, "utf8").replace(/<[^>]*>/g, " ");
+      const anglais = f.includes("/en/") || f.endsWith(".en.html");
+      const m = texte.match(anglais ? INTERDITS_EN : INTERDITS_FR);
+      return m ? [`${f.slice(site.length)} : ${m[0]}`] : [];
+    });
+    expect(fautes).toEqual([]);
   });
 });
