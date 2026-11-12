@@ -235,5 +235,88 @@
   },
   "dashSeeCycle": "Voir le cycle",
   "dashRecentActivity": "Activité récente",
-  "dashHistory": "Historique"
+  "dashHistory": "Historique",
+  "helpCenterTitle": "Centre d’aide",
+  "helpHeading": "Aide KÓMBE",
+  "helpContributionTitle": "Comprendre une cotisation",
+  "helpContributionBody": "Vous payez le trésorier comme d’habitude (espèces, Mobile Money…), puis vous déclarez le versement. Il compte quand le trésorier l’a confirmé. KÓMBE ne garde jamais l’argent.",
+  "helpFineTitle": "Contester une amende",
+  "helpFineBody": "Depuis le menu, ouvrez « Mes amendes » et contestez une amende avec un motif ; la présidence l’annule ou la maintient.",
+  "helpOfflineTitle": "Sans réseau",
+  "helpOfflineBody": "Vos brouillons restent sur ce téléphone. Envoyez-les quand le réseau revient : rien ne part deux fois.",
+  "supportSent": "Demande envoyée.",
+  "supportContactCta": "Contacter le support",
+  "supportGroupQuestion": "Une question sur votre groupe ?",
+  "supportGroupAnswer": "Le bureau de votre tontine est le premier à pouvoir vous répondre.",
+  "supportOtherwise": "Pour tout le reste, l’équipe KÓMBE vous répond ici, en général sous 24 h ouvrées.",
+  "supportMyRequests": "Mes demandes",
+  "supportNoRequest": "Aucune demande pour l’instant.",
+  "supportTopic": "Sujet",
+  "supportGroupConcerned": "Tontine concernée",
+  "supportNoGroup": "Aucune en particulier",
+  "supportSubject": "Objet",
+  "supportMessage": "Votre message",
+  "supportMessageHelp": "Décrivez ce qui se passe (10 caractères au moins). N’écrivez jamais de code de connexion.",
+  "send": "Envoyer",
+  "supportMyRequest": "Ma demande",
+  "supportYou": "Vous",
+  "supportTeam": "Support KÓMBE",
+  "supportReply": "Répondre",
+  "supportMessageSent": "Message envoyé.",
+  "supportClosed": "Cette demande est close. Ouvrez-en une nouvelle si besoin.",
+  "supportDidItHelp": "La réponse vous a-t-elle aidé ?",
+  "supportThanks": "Merci pour votre avis.",
+  "supportRate": "Noter la réponse",
+  "stReceived": "Reçue",
+  "stInProgress": "En cours",
+  "stAwaitingMe": "Attend votre réponse",
+  "stResolved": "Résolue",
+  "stClosed": "Close",
+  "catConnexion": "Connexion",
+  "catCotisation": "Cotisation",
+  "catRemise": "Remise de la cagnotte",
+  "catAmende": "Amende",
+  "catStatuts": "Statuts",
+  "catApplication": "Utilisation de l’application",
+  "catDonnees": "Mes données personnelles (accès, rectification, effacement)",
+  "catReclamation": "Réclamation",
+  "catAutre": "Autre",
+  "supportSentRef": "Demande {ref} envoyée : le support vous répond ici.",
+  "@supportSentRef": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      }
+    }
+  },
+  "supportRequestLine": "Demande {ref} · {category} · {status}",
+  "@supportRequestLine": {
+    "placeholders": {
+      "ref": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "supportYourRating": "Votre note : {score} sur 5",
+  "@supportYourRating": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "supportScoreOf": "{score} sur 5",
+  "@supportScoreOf": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  }
 }

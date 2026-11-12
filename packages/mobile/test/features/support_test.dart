@@ -57,11 +57,11 @@ final class _FakeSupport implements SupportRepository {
   }
 }
 
-Widget _app(SupportRepository repo, Widget child) =>
+Widget _app(SupportRepository repo, Widget child, {String lang = 'fr'}) =>
     Provider<SupportRepository>.value(
       value: repo,
       child: MaterialApp(
-        locale: const Locale('fr'),
+        locale: Locale(lang),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: child,
@@ -103,6 +103,15 @@ void main() {
     expect(find.textContaining('KMB-000001'), findsOneWidget);
     expect(find.text('En cours'), findsOneWidget);
     expect(find.text('Contacter le support'), findsOneWidget);
+  });
+
+  testWidgets('en anglais : mêmes écrans, textes traduits', (WidgetTester tester) async {
+    await tester.pumpWidget(_app(_FakeSupport(), const ContactSupportScreen(), lang: 'en'));
+    await tester.pumpAndSettle();
+    expect(find.text('My requests'), findsOneWidget);
+    expect(find.text('In progress'), findsOneWidget);
+    expect(find.text('Contact support'), findsWidgets);
+    expect(find.textContaining('Contribution'), findsOneWidget);
   });
 
   testWidgets('une demande résolue : fil, réponse puis note', (WidgetTester tester) async {

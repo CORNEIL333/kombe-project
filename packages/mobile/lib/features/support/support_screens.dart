@@ -14,55 +14,58 @@ import '../../core/widgets/section_card.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/entities/support_ticket.dart';
 import '../../domain/repositories/support_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 class HelpCenterScreen extends StatelessWidget {
   const HelpCenterScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Centre d’aide')),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
-          children: <Widget>[
-            Text(
-              'Aide KÓMBE',
-              style: Theme.of(context).textTheme.headlineMedium,
+  Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(l.helpCenterTitle)),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: <Widget>[
+          Text(l.helpHeading, style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 12),
+          SectionCard(
+            child: Column(
+              children: <Widget>[
+                ListTile(leading: const Icon(Icons.info_outline), title: Text(l.helpContributionTitle), subtitle: Text(l.helpContributionBody)),
+                const Divider(),
+                ListTile(leading: const Icon(Icons.gavel_outlined), title: Text(l.helpFineTitle), subtitle: Text(l.helpFineBody)),
+                const Divider(),
+                ListTile(leading: const Icon(Icons.offline_bolt_outlined), title: Text(l.helpOfflineTitle), subtitle: Text(l.helpOfflineBody)),
+              ],
             ),
-            const SizedBox(height: 12),
-            const SectionCard(
-              child: Column(
-                children: <Widget>[
-                  ListTile(
-                    leading: Icon(Icons.info_outline),
-                    title: Text('Comprendre une cotisation'),
-                    subtitle: Text(
-                      'Vous payez le trésorier comme d’habitude (espèces, Mobile Money…), puis vous déclarez le versement. '
-                      'Il compte quand le trésorier l’a confirmé. KÓMBE ne garde jamais l’argent.',
-                    ),
-                  ),
-                  Divider(),
-                  ListTile(
-                    leading: Icon(Icons.gavel_outlined),
-                    title: Text('Contester une amende'),
-                    subtitle: Text(
-                      'Depuis le menu, ouvrez « Mes amendes » et contestez une amende avec un motif ; la présidence l’annule ou la maintient.',
-                    ),
-                  ),
-                  Divider(),
-                  ListTile(
-                    leading: Icon(Icons.offline_bolt_outlined),
-                    title: Text('Sans réseau'),
-                    subtitle: Text(
-                      'Vos brouillons restent sur ce téléphone. Envoyez-les quand le réseau revient : rien ne part deux fois.',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+/// Libellés traduits des états et sujets d'une demande.
+String supportStatusText(AppLocalizations l, SupportStatus s) => switch (s) {
+      SupportStatus.received => l.stReceived,
+      SupportStatus.inProgress => l.stInProgress,
+      SupportStatus.awaitingMe => l.stAwaitingMe,
+      SupportStatus.resolved => l.stResolved,
+      SupportStatus.closed => l.stClosed,
+    };
+
+String supportCategoryText(AppLocalizations l, String c) => switch (c) {
+      'connexion' => l.catConnexion,
+      'cotisation' => l.catCotisation,
+      'remise' => l.catRemise,
+      'amende' => l.catAmende,
+      'statuts' => l.catStatuts,
+      'application' => l.catApplication,
+      'donnees_personnelles' => l.catDonnees,
+      'reclamation' => l.catReclamation,
+      _ => l.catAutre,
+    };
 
 /// « Nous contacter » : mes demandes au support KÓMBE (CRM, ADR-0046).
 /// Une demande reçoit une référence (accusé de réception), son état est suivi
@@ -96,7 +99,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
     final OperationResult<String> r = await context.read<SupportRepository>().open(draft);
     if (!mounted) return;
     if (r case OperationSuccess<String>(:final String value)) {
-      showKombeMessage(context, value.isEmpty ? 'Demande envoyée.' : 'Demande $value envoyée : le support vous répond ici.');
+      showKombeMessage(context, value.isEmpty ? AppLocalizations.of(context).supportSent : AppLocalizations.of(context).supportSentRef(value));
       await _load();
     } else {
       reportOutcome(context, r);
@@ -105,37 +108,37 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Nous contacter')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).contactSupport)),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: _create,
           icon: const Icon(Icons.support_agent_outlined),
-          label: const Text('Contacter le support'),
+          label: Text(AppLocalizations.of(context).supportContactCta),
         ),
         body: RefreshIndicator(
           onRefresh: _load,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
             children: <Widget>[
-              const ListTile(
+              ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.groups_outlined),
-                title: Text('Une question sur votre groupe ?'),
-                subtitle: Text('Le bureau de votre tontine est le premier à pouvoir vous répondre.'),
+                leading: const Icon(Icons.groups_outlined),
+                title: Text(AppLocalizations.of(context).supportGroupQuestion),
+                subtitle: Text(AppLocalizations.of(context).supportGroupAnswer),
               ),
-              const Text('Pour tout le reste, l’équipe KÓMBE vous répond ici, en général sous 24 h ouvrées.'),
-              const KombeSection('Mes demandes', padding: EdgeInsets.fromLTRB(0, 24, 0, 6)),
+              Text(AppLocalizations.of(context).supportOtherwise),
+              KombeSection(AppLocalizations.of(context).supportMyRequests, padding: const EdgeInsets.fromLTRB(0, 24, 0, 6)),
               ResourceView<List<SupportTicketSummary>>(
                 resource: _state,
                 builder: (BuildContext context, List<SupportTicketSummary> items) => items.isEmpty
-                    ? const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('Aucune demande pour l’instant.'))
+                    ? Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(AppLocalizations.of(context).supportNoRequest))
                     : Column(
                         children: <Widget>[
                           for (final SupportTicketSummary t in items)
                             Card(
                               child: ListTile(
                                 title: Text(t.subject),
-                                subtitle: Text('${t.ref} · ${supportCategoryLabel(t.category)}${t.groupName == null ? '' : ' · ${t.groupName}'} · ${DoualaTime.dateTime(t.updatedAtUtc)}'),
-                                trailing: Chip(label: Text(supportStatusLabel(t.status))),
+                                subtitle: Text('${t.ref} · ${supportCategoryText(AppLocalizations.of(context), t.category)}${t.groupName == null ? '' : ' · ${t.groupName}'} · ${DoualaTime.dateTime(t.updatedAtUtc)}'),
+                                trailing: Chip(label: Text(supportStatusText(AppLocalizations.of(context), t.status))),
                                 onTap: () async {
                                   await context.push('/app/support/${Uri.encodeComponent(t.ticketId)}');
                                   if (mounted) await _load();
@@ -177,15 +180,15 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
   Widget build(BuildContext context) {
     final List<GroupSummary> groups = context.watch<ActiveGroupController>().list;
     return Scaffold(
-      appBar: AppBar(title: const Text('Contacter le support')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).supportContactCta)),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: <Widget>[
           DropdownButtonFormField<String>(
             initialValue: _category,
-            decoration: const InputDecoration(labelText: 'Sujet'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context).supportTopic),
             items: <DropdownMenuItem<String>>[
-              for (final MapEntry<String, String> c in supportCategories.entries) DropdownMenuItem<String>(value: c.key, child: Text(c.value, overflow: TextOverflow.ellipsis)),
+              for (final String c in supportCategories.keys) DropdownMenuItem<String>(value: c, child: Text(supportCategoryText(AppLocalizations.of(context), c), overflow: TextOverflow.ellipsis)),
             ],
             onChanged: (String? v) => setState(() => _category = v ?? 'autre'),
             isExpanded: true,
@@ -194,9 +197,9 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String?>(
               initialValue: _groupId,
-              decoration: const InputDecoration(labelText: 'Tontine concernée'),
+              decoration: InputDecoration(labelText: AppLocalizations.of(context).supportGroupConcerned),
               items: <DropdownMenuItem<String?>>[
-                const DropdownMenuItem<String?>(value: null, child: Text('Aucune en particulier')),
+                DropdownMenuItem<String?>(value: null, child: Text(AppLocalizations.of(context).supportNoGroup)),
                 for (final GroupSummary g in groups) DropdownMenuItem<String?>(value: g.id, child: Text(g.name, overflow: TextOverflow.ellipsis)),
               ],
               onChanged: (String? v) => setState(() => _groupId = v),
@@ -207,7 +210,7 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
           TextField(
             controller: _subject,
             maxLength: 140,
-            decoration: const InputDecoration(labelText: 'Objet'),
+            decoration: InputDecoration(labelText: AppLocalizations.of(context).supportSubject),
             onChanged: (_) => setState(() {}),
           ),
           TextField(
@@ -215,9 +218,9 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
             maxLength: 4000,
             minLines: 4,
             maxLines: 10,
-            decoration: const InputDecoration(
-              labelText: 'Votre message',
-              helperText: 'Décrivez ce qui se passe (10 caractères au moins). N’écrivez jamais de code de connexion.',
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context).supportMessage,
+              helperText: AppLocalizations.of(context).supportMessageHelp,
               helperMaxLines: 3,
             ),
             onChanged: (_) => setState(() {}),
@@ -227,7 +230,7 @@ class _NewSupportTicketScreenState extends State<NewSupportTicketScreen> {
             onPressed: _valid
                 ? () => Navigator.of(context).pop(SupportTicketDraft(subject: _subject.text, category: _category, body: _body.text, groupId: _groupId))
                 : null,
-            child: const Text('Envoyer'),
+            child: Text(AppLocalizations.of(context).send),
           ),
         ],
       ),
@@ -281,7 +284,7 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Ma demande')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).supportMyRequest)),
         body: RefreshIndicator(
           onRefresh: _load,
           child: ResourceView<SupportTicket>(
@@ -291,7 +294,7 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
               children: <Widget>[
                 Text(t.subject, style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 4),
-                Text('Demande ${t.ref} · ${supportCategoryLabel(t.category)} · ${supportStatusLabel(t.status)}'),
+                Text(AppLocalizations.of(context).supportRequestLine(t.ref, supportCategoryText(AppLocalizations.of(context), t.category), supportStatusText(AppLocalizations.of(context), t.status))),
                 const SizedBox(height: 16),
                 for (final SupportMessage m in t.messages)
                   Align(
@@ -308,7 +311,7 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            '${m.fromMe ? 'Vous' : 'Support KÓMBE'} · ${DoualaTime.dateTime(m.createdAtUtc)}',
+                            '${m.fromMe ? AppLocalizations.of(context).supportYou : AppLocalizations.of(context).supportTeam} · ${DoualaTime.dateTime(m.createdAtUtc)}',
                             style: TextStyle(fontSize: 12, color: m.fromMe ? Colors.white70 : null),
                           ),
                           const SizedBox(height: 4),
@@ -318,29 +321,29 @@ class _SupportTicketScreenState extends State<SupportTicketScreen> {
                     ),
                   ),
                 if (t.canReply) ...<Widget>[
-                  TextField(controller: _reply, maxLength: 4000, minLines: 2, maxLines: 6, decoration: const InputDecoration(labelText: 'Répondre')),
+                  TextField(controller: _reply, maxLength: 4000, minLines: 2, maxLines: 6, decoration: InputDecoration(labelText: AppLocalizations.of(context).supportReply)),
                   FilledButton(
-                    onPressed: _busy ? null : () => _reply.text.trim().isEmpty ? null : _run((SupportRepository r) => r.reply(t.ticketId, _reply.text), 'Message envoyé.'),
-                    child: const Text('Envoyer'),
+                    onPressed: _busy ? null : () => _reply.text.trim().isEmpty ? null : _run((SupportRepository r) => r.reply(t.ticketId, _reply.text), AppLocalizations.of(context).supportMessageSent),
+                    child: Text(AppLocalizations.of(context).send),
                   ),
                 ] else
-                  const Text('Cette demande est close. Ouvrez-en une nouvelle si besoin.'),
+                  Text(AppLocalizations.of(context).supportClosed),
                 if (t.canRate) ...<Widget>[
-                  const KombeSection('La réponse vous a-t-elle aidé ?', padding: EdgeInsets.fromLTRB(0, 24, 0, 6)),
+                  KombeSection(AppLocalizations.of(context).supportDidItHelp, padding: const EdgeInsets.fromLTRB(0, 24, 0, 6)),
                   Wrap(
                     spacing: 8,
                     children: <Widget>[
                       for (int n = 1; n <= 5; n++)
-                        ChoiceChip(label: Text('$n'), selected: _score == n, onSelected: (_) => setState(() => _score = n), tooltip: '$n sur 5'),
+                        ChoiceChip(label: Text('$n'), selected: _score == n, onSelected: (_) => setState(() => _score = n), tooltip: AppLocalizations.of(context).supportScoreOf(n)),
                     ],
                   ),
                   const SizedBox(height: 8),
                   FilledButton.tonal(
-                    onPressed: _score < 1 || _busy ? null : () => _run((SupportRepository r) => r.rate(t.ticketId, _score), 'Merci pour votre avis.'),
-                    child: const Text('Noter la réponse'),
+                    onPressed: _score < 1 || _busy ? null : () => _run((SupportRepository r) => r.rate(t.ticketId, _score), AppLocalizations.of(context).supportThanks),
+                    child: Text(AppLocalizations.of(context).supportRate),
                   ),
                 ] else if (t.satisfaction != null)
-                  Padding(padding: const EdgeInsets.only(top: 16), child: Text('Votre note : ${t.satisfaction} sur 5')),
+                  Padding(padding: const EdgeInsets.only(top: 16), child: Text(AppLocalizations.of(context).supportYourRating(t.satisfaction!))),
               ],
             ),
           ),
