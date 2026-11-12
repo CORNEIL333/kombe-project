@@ -1417,5 +1417,152 @@
   "fieldPhone": "Numéro de téléphone",
   "viaEmail": "par e-mail",
   "viaSms": "par SMS",
-  "viaWhatsapp": "sur WhatsApp"
+  "viaWhatsapp": "sur WhatsApp",
+  "ntPauseDesSeances": "Pause des séances",
+  "ntDestitution": "Destitution",
+  "ntExclusion": "Exclusion",
+  "ntSuspensionDuDroitDeBouffer": "Suspension du droit de bouffer",
+  "ntRepriseDePlace": "Reprise de place",
+  "ntCotisationVerserDansJours": "Cotisation à verser dans 2 jours",
+  "ntCotisationVerserDemain": "Cotisation à verser demain",
+  "ntCotisationVerserAujourdhui": "Cotisation à verser aujourd’hui",
+  "ntCotisationEnRetard": "Cotisation en retard",
+  "ntCotisationEnRetardDelaiDe": "Cotisation en retard (délai de grâce)",
+  "ntCotisationVerser": "Cotisation à verser",
+  "ntSeanceDemain": "Séance demain",
+  "ntSeanceAujourdhui": "Séance aujourd’hui",
+  "ntSeanceVenir": "Séance à venir",
+  "ntNouvelleDemandeDadhesion": "Nouvelle demande d’adhésion",
+  "ntVousEtesAdmisDansLe": "Vous êtes admis dans le groupe",
+  "ntVotreDemandeDadhesionNaPas": "Votre demande d’adhésion n’a pas été retenue",
+  "ntDuNouveauSurVotreAdhesion": "Du nouveau sur votre adhésion",
+  "ntUneFonctionVousEstProposee": "Une fonction vous est proposée",
+  "ntUneFonctionAttendVotreReponse": "Une fonction attend votre réponse",
+  "ntNouveauxStatutsAccepter": "Nouveaux statuts à accepter",
+  "ntStatutsNouvelleEcheance": "Statuts : nouvelle échéance",
+  "ntRappelStatutsAccepter": "Rappel : statuts à accepter",
+  "ntVousAvezEteRetireDu": "Vous avez été retiré du groupe (statuts non acceptés)",
+  "ntEcheanceDesStatutsPassee": "Échéance des statuts passée",
+  "ntLeCycleDemarre": "Le cycle a démarré",
+  "ntLaSeanceEstOuverte": "La séance est ouverte",
+  "ntProcesVerbalDisponible": "Procès-verbal disponible",
+  "ntTirageAuSortScelle": "Tirage au sort scellé",
+  "ntChangementDansLordreDesTours": "Changement dans l’ordre des tours",
+  "ntDesVersementsAttendentVotreControle": "Des versements attendent votre contrôle",
+  "ntUnVersementEteRejete": "Un versement a été rejeté",
+  "ntConfirmezLaReceptionDeVotre": "Confirmez la réception de votre remise",
+  "ntRemiseEnregistree": "Remise enregistrée",
+  "ntUneAmendeVousEteNotifiee": "Une amende vous a été notifiée",
+  "ntAmendeAnnulee": "Amende annulée",
+  "ntUneAmendeEstContestee": "Une amende est contestée",
+  "ntLeSupportKombeVousRepondu": "Le support KÓMBE vous a répondu",
+  "ntDemandeDassistanceTraiter": "Demande d’assistance à traiter",
+  "ntDelaiDeServiceEcheanceProche": "Délai de service : échéance proche",
+  "ntRemboursementAmendeEnregistre": "Remboursement d'amende enregistré",
+  "ntNouveauVoteOuvert": "Nouveau vote ouvert",
+  "ntSeanceModifiee": "Séance modifiée",
+  "ntDemandeDeSecoursExaminer": "Demande de secours à examiner",
+  "ntDecisionSurUneDemandeDe": "Décision sur une demande de secours",
+  "ntVoteDernierDelai": "Vote : dernier délai",
+  "ntDemandeRejoindre": "{name} demande à rejoindre",
+  "@ntDemandeRejoindre": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "ntAccepterAvantLe": "À accepter avant le {dateTime}",
+  "@ntAccepterAvantLe": {
+    "placeholders": {
+      "dateTime": {
+        "type": "Object"
+      }
+    }
+  },
+  "ntSinonExclusionAvantLeDemarrage": "sinon exclusion avant le démarrage du cycle",
+  "ntRetireDuGroupe": "{name} : retiré(e) du groupe",
+  "@ntRetireDuGroupe": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "ntNaPasAccepte": "{name} n’a pas accepté",
+  "@ntNaPasAccepte": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "ntTour": "Tour {round}",
+  "@ntTour": {
+    "placeholders": {
+      "round": {
+        "type": "Object"
+      }
+    }
+  },
+  "ntRestants": "{format} restants",
+  "@ntRestants": {
+    "placeholders": {
+      "format": {
+        "type": "Object"
+      }
+    }
+  },
+  "ntPremiereSeanceLe": "Première séance le {date}",
+  "@ntPremiereSeanceLe": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "ntTours": "{rounds} tours",
+  "@ntTours": {
+    "placeholders": {
+      "rounds": {
+        "type": "Object"
+      }
+    }
+  },
+  "ntClotureLe": "clôture le {dateTime}",
+  "@ntClotureLe": {
+    "placeholders": {
+      "dateTime": {
+        "type": "Object"
+      }
+    }
+  },
+  "ntAvantLe": "avant le {dateTime}",
+  "@ntAvantLe": {
+    "placeholders": {
+      "dateTime": {
+        "type": "Object"
+      }
+    }
+  },
+  "ntInformationDuGroupe": "Information du groupe",
+  "ntBeforeDate": "avant le {date}",
+  "@ntBeforeDate": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "ntBeforeDateAt": "avant le {date} à {time}",
+  "@ntBeforeDateAt": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      },
+      "time": {
+        "type": "Object"
+      }
+    }
+  }
 }
