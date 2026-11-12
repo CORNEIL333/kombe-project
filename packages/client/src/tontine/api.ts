@@ -137,6 +137,17 @@ interface HorsLigne {
   readonly libelle: string;
 }
 
+/** Langue des motifs d'erreur renvoyés par le serveur (A13) : celle de
+ *  l'interface, gardée sur ce téléphone ; le pidgin lit l'anglais. */
+export function langueDemandee(): "fr" | "en" {
+  try {
+    const l = globalThis.localStorage?.getItem("kombe.langue");
+    return l === "en" || l === "pcm" ? "en" : "fr";
+  } catch {
+    return "fr";
+  }
+}
+
 async function appel<T>(
   session: Session | null,
   methode: Methode,
@@ -146,7 +157,7 @@ async function appel<T>(
   horsLigne?: HorsLigne,
 ): Promise<T> {
   const api = await client();
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { "accept-language": langueDemandee() };
   if (session) headers.authorization = `Bearer ${session.sessionId}`;
   const cle = methode !== "GET" ? cleIdempotence() : "";
   if (cle) headers["idempotency-key"] = cle;
@@ -198,7 +209,7 @@ export async function envoyerEnAttente(session: Session): Promise<{ envoyees: nu
     async (op) => {
       await api.request<unknown>(op.chemin, {
         method: op.methode,
-        headers: { authorization: `Bearer ${session.sessionId}`, "idempotency-key": op.cle },
+        headers: { authorization: `Bearer ${session.sessionId}`, "idempotency-key": op.cle, "accept-language": langueDemandee() },
         body: JSON.stringify(op.corps),
       });
     },
