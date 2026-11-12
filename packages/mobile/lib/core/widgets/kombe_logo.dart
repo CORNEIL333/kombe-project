@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../design/kombe_colors.dart';
 import '../design/kombe_tokens.g.dart';
 
@@ -137,7 +138,7 @@ class KombeLogo extends StatelessWidget {
     final double sig = Curves.easeOutCubic.transform(((progression - .7) / .3).clamp(0, 1));
     final double fs = size * .5;
     return Semantics(
-      label: tagline ? 'KÓMBE — Votre tontine, plus claire.' : 'KÓMBE',
+      label: tagline ? AppLocalizations.of(context).klKombeVotreTontinePlusClaire : 'KÓMBE',
       header: true,
       excludeSemantics: true,
       child: Row(
@@ -163,7 +164,7 @@ class KombeLogo extends StatelessWidget {
                     Opacity(
                       opacity: sig,
                       child: Text(
-                        'Votre tontine, plus claire.',
+                        AppLocalizations.of(context).tagline,
                         maxLines: 1,
                         softWrap: false,
                         style: TextStyle(fontFamily: KombeTokens.fontUi, fontSize: (fs * .42).clamp(11, 18), height: 1.3, fontWeight: FontWeight.w500, color: pal.signature),

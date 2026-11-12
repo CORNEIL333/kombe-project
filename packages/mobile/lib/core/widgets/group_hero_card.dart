@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/group.dart';
+import '../../l10n/app_localizations.dart';
 import '../design/kombe_colors.dart';
 import '../design/kombe_theme.dart';
 import '../formatters/xaf.dart';
@@ -21,8 +22,7 @@ class GroupHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: onTap != null,
-      label: '${group.name}, tour ${group.cycleIndex} sur ${group.cycleTotal}, '
-          '${group.memberCount} membres, cotisation ${Xaf.format(group.contributionAmountXaf)}',
+      label: AppLocalizations.of(context).hcTourSurMembresCotisation(group.name, group.cycleIndex, group.cycleTotal, group.memberCount, Xaf.format(group.contributionAmountXaf)),
       child: ExcludeSemantics(
         child: KombeCard(
           onTap: onTap,
@@ -39,7 +39,7 @@ class GroupHeroCard extends StatelessWidget {
                       children: <Widget>[
                         if (eyebrow != null) Text(eyebrow!, style: Theme.of(context).textTheme.bodySmall),
                         Text(group.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: KombeType.display(size: 22, color: KombeColors.ink)),
-                        Text('${group.memberCount} membres', style: Theme.of(context).textTheme.bodySmall),
+                        Text(AppLocalizations.of(context).hcMembres(group.memberCount), style: Theme.of(context).textTheme.bodySmall),
                       ],
                     ),
                   ),
@@ -47,7 +47,7 @@ class GroupHeroCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 14),
-              Text('Part de cotisation', style: Theme.of(context).textTheme.bodySmall),
+              Text(AppLocalizations.of(context).hcPartDeCotisation, style: Theme.of(context).textTheme.bodySmall),
               FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(group.contributionAmountXaf, size: 28, color: KombeColors.ink)),
             ],
           ),

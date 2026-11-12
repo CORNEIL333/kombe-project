@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../widgets/kombe_sheet.dart';
 
 const String _api = String.fromEnvironment('KOMBE_API_BASE_URL');
@@ -23,9 +24,8 @@ Future<void> openInKombeWeb(BuildContext context, {required String fragment, req
     builder: (BuildContext sheet) => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const Text(
-          'Cette partie se fait dans KÓMBE Web, ouvert dans votre navigateur. '
-          'Si vous n’y êtes pas encore connecté, un code vous sera demandé.',
+        Text(
+          AppLocalizations.of(context).kwCettePartieSeFaitDans,
         ),
         const SizedBox(height: 16),
         FilledButton.icon(
@@ -36,7 +36,7 @@ Future<void> openInKombeWeb(BuildContext context, {required String fragment, req
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
                 },
           icon: const Icon(Icons.open_in_new_rounded),
-          label: const Text('Ouvrir KÓMBE Web'),
+          label: Text(AppLocalizations.of(context).kwOuvrirKombeWeb),
         ),
       ],
     ),

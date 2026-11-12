@@ -10,6 +10,7 @@ import '../../core/widgets/screen_states.dart';
 import '../../core/widgets/kombe_components.dart';
 import '../../domain/entities/document.dart';
 import '../../domain/repositories/document_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({super.key});
@@ -36,13 +37,13 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Documents')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).documentsMenu)),
         body: ResourceView<List<KombeDocument>>(
           resource: _state,
           onRetry: _load,
           emptyWhen: (List<KombeDocument> items) => items.isEmpty,
-          emptyTitle: 'Aucun document',
-          emptyBody: 'Relevés, rapports de cycle et règles publiés par le bureau apparaîtront ici.',
+          emptyTitle: AppLocalizations.of(context).dcAucunDocument,
+          emptyBody: AppLocalizations.of(context).dcRelevesRapportsDeCycleEt,
           builder: (BuildContext context, List<KombeDocument> items) => ListView(
             padding: const EdgeInsets.only(top: 8, bottom: 32),
             children: <Widget>[
@@ -59,7 +60,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         // Lien non sécurisé : on ne l'ouvre pas, et on le dit.
                         if (item.downloadUri.scheme != 'https') {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Ce document n’est pas disponible au téléchargement pour le moment.')),
+                            SnackBar(content: Text(AppLocalizations.of(context).dcCeDocumentNestPasDisponible)),
                           );
                           return;
                         }

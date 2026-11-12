@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../domain/repositories/auth_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../design/kombe_colors.dart';
 
 /// Déconnexion : toujours visible en bas du profil, toujours confirmée.
@@ -21,17 +22,16 @@ class KombeBoutonDeconnexionState extends State<KombeBoutonDeconnexion> {
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
         icon: const Icon(Icons.logout_rounded, color: KombeColors.danger, size: 30),
-        title: const Text('Se déconnecter de KÓMBE ?'),
-        content: const Text(
-          'Vous quittez votre session sur ce téléphone. Vos tontines, vos versements et le registre restent enregistrés ; '
-          'un nouveau code vous reconnectera.',
+        title: Text(AppLocalizations.of(context).soSeDeconnecterDeKombe),
+        content: Text(
+          AppLocalizations.of(context).soVousQuittezVotreSessionSur,
         ),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(AppLocalizations.of(context).cancel)),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: KombeColors.danger),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Se déconnecter'),
+            child: Text(AppLocalizations.of(context).signOut),
           ),
         ],
       ),
@@ -51,7 +51,7 @@ class KombeBoutonDeconnexionState extends State<KombeBoutonDeconnexion> {
           icon: _enCours
               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.logout_rounded),
-          label: const Text('Se déconnecter'),
+          label: Text(AppLocalizations.of(context).signOut),
           style: OutlinedButton.styleFrom(
             foregroundColor: KombeColors.danger,
             side: const BorderSide(color: KombeColors.danger),

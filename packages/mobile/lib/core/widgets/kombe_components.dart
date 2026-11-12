@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../design/kombe_colors.dart';
 import '../design/kombe_spacing.dart';
 import '../design/kombe_theme.dart';
@@ -47,7 +48,7 @@ class KombeAmount extends StatelessWidget {
   Widget build(BuildContext context) {
     final String sign = signed ? (xaf < 0 ? '− ' : '+ ') : (xaf < 0 ? '− ' : '');
     return Semantics(
-      label: '$sign${_f.format(xaf.abs())} francs CFA',
+      label: AppLocalizations.of(context).kcFrancsCfa(sign, _f.format(xaf.abs())),
       excludeSemantics: true,
       child: Text.rich(
         TextSpan(
@@ -322,7 +323,7 @@ class KombeListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-        label: 'Chargement',
+        label: AppLocalizations.of(context).loading,
         // Borné : vue non défilante découpée ; non borné (dans une liste) : colonne.
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints c) {
@@ -382,7 +383,7 @@ class KombeCycleRing extends StatelessWidget {
     final bool known = total > 0 && index > 0;
     final Color text = onDark ? KombeColors.cream : KombeColors.forest;
     return Semantics(
-      label: known ? 'Tour $index sur $total' : 'Cycle non démarré',
+      label: known ? AppLocalizations.of(context).kcTourSur(index, total) : AppLocalizations.of(context).kcCycleNonDemarre,
       excludeSemantics: true,
       child: SizedBox.square(
         dimension: size,
@@ -504,7 +505,7 @@ class KombeMenuRow extends StatelessWidget {
               external ? Icons.open_in_new_rounded : Icons.chevron_right_rounded,
               size: external ? 18 : 24,
               color: KombeColors.slate,
-              semanticLabel: external ? 'ouvre KÓMBE Web' : null,
+              semanticLabel: external ? AppLocalizations.of(context).kcOuvreKombeWeb : null,
             ),
           ],
         ),
@@ -592,7 +593,7 @@ class KombeCycleBand extends StatelessWidget {
   Widget build(BuildContext context) {
     if (total <= 0) return const SizedBox.shrink();
     return Semantics(
-      label: 'Tour $index sur $total',
+      label: AppLocalizations.of(context).kcTourSur(index, total),
       excludeSemantics: true,
       child: TweenAnimationBuilder<double>(
         tween: Tween<double>(begin: (MediaQuery.maybeDisableAnimationsOf(context) ?? false) ? 1 : 0, end: 1),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../design/kombe_colors.dart';
 import '../design/kombe_tokens.g.dart';
 
@@ -20,7 +21,7 @@ class StepIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextTheme t = Theme.of(context).textTheme;
     return Semantics(
-      label: 'Étape ${current + 1} sur ${labels.length}: ${labels[current]}',
+      label: AppLocalizations.of(context).siEtapeSur(current + 1, labels.length, labels[current]),
       child: ExcludeSemantics(
         child: Column(
           children: <Widget>[

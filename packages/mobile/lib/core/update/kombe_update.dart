@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
+import '../../l10n/kombe_l10n.dart';
+
 /// Mise à jour directe de l'application installée.
 ///
 /// Le pipeline GitHub (`.github/workflows/mobile-release.yml`) publie à chaque
@@ -124,19 +126,19 @@ class KombeUpdater {
   }
 
   Future<UpdateCheck> check() async {
-    if (!supported) return const UpdateUnavailable('Mise à jour directe disponible sur Android uniquement.');
+    if (!supported) return UpdateUnavailable(KombeL10n.current.usMiseJourDirecteDisponibleSur);
     try {
       final InstalledVersion me = await installed();
       final http.Response res = await _client.get(Uri.parse(kombeUpdateManifestUrl)).timeout(const Duration(seconds: 15));
-      if (res.statusCode != 200) return const UpdateUnavailable('Aucune version publiée pour le moment.');
+      if (res.statusCode != 200) return UpdateUnavailable(KombeL10n.current.kuAucuneVersionPublieePourLe);
       final KombeRelease? rel = KombeRelease.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
-      if (rel == null) return const UpdateUnavailable('Fichier de version illisible.');
+      if (rel == null) return UpdateUnavailable(KombeL10n.current.kuFichierDeVersionIllisible);
       if (rel.build <= me.build) return UpToDate(me);
       final KombeApk? apk = rel.apks[abi()] ?? rel.apks['universal'];
-      if (apk == null) return const UpdateUnavailable('Pas de version pour ce téléphone.');
+      if (apk == null) return UpdateUnavailable(KombeL10n.current.kuPasDeVersionPourCe);
       return UpdateAvailable(me, rel, apk);
     } on Object {
-      return const UpdateUnavailable('Vérification impossible : pas de réseau ?');
+      return UpdateUnavailable(KombeL10n.current.kuVerificationImpossiblePasDeReseau);
     }
   }
 
@@ -149,7 +151,7 @@ class KombeUpdater {
     dir.createSync(recursive: true);
     final File file = File('${dir.path}/kombe.apk');
     final http.StreamedResponse res = await _client.send(http.Request('GET', apk.url));
-    if (res.statusCode != 200) throw HttpException('Téléchargement refusé (${res.statusCode})');
+    if (res.statusCode != 200) throw HttpException(KombeL10n.current.kuTelechargementRefuse(res.statusCode));
     final int total = res.contentLength ?? apk.size;
     final IOSink sink = file.openWrite();
     final List<Digest> out = <Digest>[];
@@ -165,7 +167,7 @@ class KombeUpdater {
     hasher.close();
     if (out.isEmpty || out.first.toString() != apk.sha256) {
       file.deleteSync();
-      throw const FormatException('Empreinte du fichier invalide : téléchargement corrompu ou modifié.');
+      throw FormatException(KombeL10n.current.kuEmpreinteDuFichierInvalideTelechargement);
     }
     if (!(await _channel.invokeMethod<bool>('peutInstaller') ?? false)) {
       await _channel.invokeMethod<void>('autoriserInstallation');
@@ -185,5 +187,5 @@ final class InstallPermissionNeeded implements Exception {
   const InstallPermissionNeeded();
   @override
   String toString() =>
-      'Autorisez KÓMBE à installer ses mises à jour (réglage Android ouvert), puis revenez et touchez « Installer ».';
+      KombeL10n.current.kuAutorisezKombeInstallerSesMises;
 }

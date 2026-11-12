@@ -1,11 +1,10 @@
+import '../../l10n/kombe_l10n.dart';
+
 /// Dates affichées à l'heure de Douala (Africa/Douala = UTC+1 toute l'année,
-/// pas d'heure d'été au Cameroun), en français, sans dépendre de la langue de
-/// l'appareil ni des données de localisation d'intl.
+/// pas d'heure d'été au Cameroun), dans la langue choisie (français par
+/// défaut), sans dépendre des données de localisation d'intl.
 abstract final class DoualaTime {
-  static const List<String> _months = <String>[
-    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
-  ];
+  static List<String> get _months => KombeL10n.current.monthsLong.split('|');
 
   static String _two(int n) => n.toString().padLeft(2, '0');
 

@@ -27,12 +27,12 @@ class RegisterScreen extends StatelessWidget {
             const SizedBox(height: 10),
             Text(l10n.registerIntro, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: KombeColors.slate)),
             const SizedBox(height: 28),
-            const CodeRequestForm(purpose: VerifyCodePurpose.registration, submitLabel: 'Recevoir mon code'),
+            CodeRequestForm(purpose: VerifyCodePurpose.registration, submitLabel: AppLocalizations.of(context).loRecevoirMonCode),
             const SizedBox(height: 12),
             Center(
               child: TextButton(
                 onPressed: () => context.go('/login'),
-                child: const Text('Déjà un compte ? Se connecter'),
+                child: Text(AppLocalizations.of(context).rgDejaUnCompteSeConnecter),
               ),
             ),
           ],

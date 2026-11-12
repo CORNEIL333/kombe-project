@@ -100,10 +100,10 @@ class HomeContent extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(12, 18, 12, 0),
           child: Row(
             children: <Widget>[
-              _Shortcut(tone: KombeTone.success, icon: Icons.donut_large_rounded, label: 'Cycle', onTap: () => context.push('/app/groups/$gid/cycle')),
-              _Shortcut(tone: KombeTone.brand, icon: Icons.groups_2_outlined, label: 'Membres', onTap: () => context.push('/app/groups/$gid/members')),
-              _Shortcut(tone: KombeTone.money, icon: Icons.account_balance_wallet_outlined, label: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
-              _Shortcut(tone: KombeTone.info, icon: Icons.menu_book_outlined, label: 'Règles', onTap: () => context.push('/app/groups/$gid/rules')),
+              _Shortcut(tone: KombeTone.success, icon: Icons.donut_large_rounded, label: AppLocalizations.of(context).cycle, onTap: () => context.push('/app/groups/$gid/cycle')),
+              _Shortcut(tone: KombeTone.brand, icon: Icons.groups_2_outlined, label: AppLocalizations.of(context).members, onTap: () => context.push('/app/groups/$gid/members')),
+              _Shortcut(tone: KombeTone.money, icon: Icons.account_balance_wallet_outlined, label: AppLocalizations.of(context).gdCaisses, onTap: () => context.push('/app/groups/$gid/funds')),
+              _Shortcut(tone: KombeTone.info, icon: Icons.menu_book_outlined, label: AppLocalizations.of(context).rules, onTap: () => context.push('/app/groups/$gid/rules')),
             ],
           ),
         ),
@@ -115,14 +115,14 @@ class HomeContent extends StatelessWidget {
           ),
         ],
         if (todo.isNotEmpty) ...<Widget>[
-          KombeSection('À faire', action: 'Tout voir', onAction: () => context.go('/app/notifications')),
+          KombeSection(AppLocalizations.of(context).daFaire, action: AppLocalizations.of(context).daToutVoir, onAction: () => context.go('/app/notifications')),
           KombeGroupedList(children: todo),
         ],
         if (data.nextMeetingDate != null) ...<Widget>[
           KombeSection(AppLocalizations.of(context).dashNextMeeting),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _MeetingCard(date: data.nextMeetingDate!, place: data.nextMeetingOnline ? <String>[if (data.nextMeetingPlace != null) data.nextMeetingPlace!, 'en ligne'].join(' · ') : data.nextMeetingPlace, group: g.name, onTap: () => context.push('/app/groups/$gid')),
+            child: _MeetingCard(date: data.nextMeetingDate!, place: data.nextMeetingOnline ? <String>[if (data.nextMeetingPlace != null) data.nextMeetingPlace!, AppLocalizations.of(context).daEnLigne].join(' · ') : data.nextMeetingPlace, group: g.name, onTap: () => context.push('/app/groups/$gid')),
           ),
         ],
         KombeSection(AppLocalizations.of(context).dashRecentActivity, action: data.recent.isEmpty ? null : AppLocalizations.of(context).dashHistory, onAction: () => context.go('/app/notifications')),
@@ -214,7 +214,7 @@ class _Hero extends StatelessWidget {
                           children: <Widget>[
                             const Icon(Icons.hourglass_top_rounded, size: 18, color: Colors.white),
                             const SizedBox(width: 8),
-                            Expanded(child: Text('${Xaf.format(data.pendingDeclaredXaf)} à confirmer', style: soft)),
+                            Expanded(child: Text(AppLocalizations.of(context).daConfirmer(Xaf.format(data.pendingDeclaredXaf)), style: soft)),
                             const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.white),
                           ],
                         ),
@@ -444,7 +444,7 @@ class _RoundsDashboardState extends State<RoundsDashboard> {
           const SizedBox(height: 14),
           if (!_cycle) ...<Widget>[
             Text('${(current.ratio * 100).round()} %', style: KombeType.display(size: 30).copyWith(color: KombeColors.brand)),
-            Text('${Xaf.format(current.collectedXaf)} reçus sur ${Xaf.format(current.expectedXaf)}', style: t.bodyMedium),
+            Text(AppLocalizations.of(context).daRecusSur(Xaf.format(current.collectedXaf), Xaf.format(current.expectedXaf)), style: t.bodyMedium),
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(99),
@@ -453,7 +453,7 @@ class _RoundsDashboardState extends State<RoundsDashboard> {
             const SizedBox(height: 8),
             Text('${AppLocalizations.of(context).dashRoundDate(current.seq, _day(context, current.date))}${current.label != null ? ' · ${current.label}' : ''}', style: t.bodySmall),
           ] else ...<Widget>[
-            Text('${Xaf.format(collected)} reçus sur ${Xaf.format(expected)} pour le cycle', style: t.bodyMedium),
+            Text(AppLocalizations.of(context).daCycleReceived(Xaf.format(collected), Xaf.format(expected)), style: t.bodyMedium),
             const SizedBox(height: 12),
             SizedBox(
               height: 110,
@@ -490,7 +490,7 @@ class _RoundsDashboardState extends State<RoundsDashboard> {
             ),
             const SizedBox(height: 10),
             Text('${AppLocalizations.of(context).dashRoundDate(shown.seq, _day(context, shown.date))}${shown.label != null ? ' · ${shown.label}' : ''}', style: t.titleSmall),
-            Text('${Xaf.format(shown.collectedXaf)} reçus sur ${Xaf.format(shown.expectedXaf)}', style: t.bodySmall),
+            Text(AppLocalizations.of(context).daRecusSur2(Xaf.format(shown.collectedXaf), Xaf.format(shown.expectedXaf)), style: t.bodySmall),
           ],
           Align(alignment: Alignment.centerRight, child: TextButton(onPressed: widget.onOpen, child: Text(AppLocalizations.of(context).dashSeeCycle))),
         ],

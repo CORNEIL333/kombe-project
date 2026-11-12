@@ -148,7 +148,7 @@ class _StateCard extends StatelessWidget {
                           onPressed: onRetry,
                           style: OutlinedButton.styleFrom(minimumSize: const Size(160, 48)),
                           icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Réessayer'),
+                          label: Text(AppLocalizations.of(context).csReessayer),
                         ),
                       ],
                     ],

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../design/kombe_tokens.g.dart';
 
 /// KÓMBE CYCLE ORBIT — composant signature.
@@ -118,8 +119,7 @@ class _KombeCycleOrbitState extends State<KombeCycleOrbit> with SingleTickerProv
                     child: Semantics(
                       button: true,
                       selected: widget.selected == i + 1,
-                      label: 'Tour ${i + 1} sur $total, '
-                          '${i + 1 < current ? 'passé' : i + 1 == current ? 'en cours' : 'à venir'}',
+                      label: AppLocalizations.of(context).orbitTurn(i + 1, total, i + 1 < current ? AppLocalizations.of(context).orbitPast : i + 1 == current ? AppLocalizations.of(context).orbitCurrent : AppLocalizations.of(context).orbitUpcoming),
                       onTap: () {
                         HapticFeedback.selectionClick();
                         widget.onSelect!(i + 1);

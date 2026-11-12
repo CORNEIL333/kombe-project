@@ -21,7 +21,7 @@ class RecoveryRequestScreen extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           children: <Widget>[
             KombeFormHeader(icon: Icons.lock_reset_rounded, title: l10n.recoverAccount, body: l10n.recoverAccountIntro),
-            const CodeRequestForm(purpose: VerifyCodePurpose.recovery, submitLabel: 'Recevoir un nouveau code'),
+            CodeRequestForm(purpose: VerifyCodePurpose.recovery, submitLabel: AppLocalizations.of(context).rrRecevoirUnNouveauCode),
           ],
         ),
       ),

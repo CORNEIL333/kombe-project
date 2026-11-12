@@ -1886,5 +1886,203 @@
     }
   },
   "relMonths": "janv.|févr.|mars|avr.|mai|juin|juil.|août|sept.|oct.|nov.|déc.",
-  "langServerNote": "Certains messages envoyés par le serveur restent en français pour l’instant."
+  "langServerNote": "Certains messages envoyés par le serveur restent en français pour l’instant.",
+  "kvCycle": "Cycle {index}/{total}",
+  "@kvCycle": {
+    "placeholders": {
+      "index": {
+        "type": "Object"
+      },
+      "total": {
+        "type": "Object"
+      }
+    }
+  },
+  "kcFrancsCfa": "{sign}{abs} francs CFA",
+  "@kcFrancsCfa": {
+    "placeholders": {
+      "sign": {
+        "type": "Object"
+      },
+      "abs": {
+        "type": "Object"
+      }
+    }
+  },
+  "kcTourSur": "Tour {index} sur {total}",
+  "@kcTourSur": {
+    "placeholders": {
+      "index": {
+        "type": "Object"
+      },
+      "total": {
+        "type": "Object"
+      }
+    }
+  },
+  "kcCycleNonDemarre": "Cycle non démarré",
+  "kcOuvreKombeWeb": "ouvre KÓMBE Web",
+  "soSeDeconnecterDeKombe": "Se déconnecter de KÓMBE ?",
+  "soVousQuittezVotreSessionSur": "Vous quittez votre session sur ce téléphone. Vos tontines, vos versements et le registre restent enregistrés ; un nouveau code vous reconnectera.",
+  "hcTourSurMembresCotisation": "{name}, tour {cycleIndex} sur {cycleTotal}, {memberCount} membres, cotisation {contributionAmountXaf}",
+  "@hcTourSurMembresCotisation": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      },
+      "cycleIndex": {
+        "type": "Object"
+      },
+      "cycleTotal": {
+        "type": "Object"
+      },
+      "memberCount": {
+        "type": "Object"
+      },
+      "contributionAmountXaf": {
+        "type": "Object"
+      }
+    }
+  },
+  "hcMembres": "{memberCount} membres",
+  "@hcMembres": {
+    "placeholders": {
+      "memberCount": {
+        "type": "Object"
+      }
+    }
+  },
+  "hcPartDeCotisation": "Part de cotisation",
+  "srVersionNonRelieeKombe": "Version non reliée à KÓMBE",
+  "srRetourLaConnexion": "Retour à la connexion",
+  "beOrdrePasEncoreFixe": "Ordre pas encore fixé",
+  "beLordreApparaitraAuDemarrageDu": "L’ordre apparaîtra au démarrage du cycle.",
+  "dcAucunDocument": "Aucun document",
+  "dcRelevesRapportsDeCycleEt": "Relevés, rapports de cycle et règles publiés par le bureau apparaîtront ici.",
+  "dcCeDocumentNestPasDisponible": "Ce document n’est pas disponible au téléchargement pour le moment.",
+  "ssPaiementEnvoye": "Paiement envoyé",
+  "ssLaTresorerieVaLeConfirmer": "La trésorerie va le confirmer.",
+  "ssRetourLaccueil": "Retour à l’accueil",
+  "rgDejaUnCompteSeConnecter": "Déjà un compte ? Se connecter",
+  "rrRecevoirUnNouveauCode": "Recevoir un nouveau code",
+  "daFaire": "À faire",
+  "daToutVoir": "Tout voir",
+  "daEnLigne": "en ligne",
+  "daConfirmer": "{pendingDeclaredXaf} à confirmer",
+  "@daConfirmer": {
+    "placeholders": {
+      "pendingDeclaredXaf": {
+        "type": "Object"
+      }
+    }
+  },
+  "daRecusSur": "{collectedXaf} reçus sur {expectedXaf}",
+  "@daRecusSur": {
+    "placeholders": {
+      "collectedXaf": {
+        "type": "Object"
+      },
+      "expectedXaf": {
+        "type": "Object"
+      }
+    }
+  },
+  "daRecusSur2": "{collectedXaf} reçus sur {expectedXaf}",
+  "@daRecusSur2": {
+    "placeholders": {
+      "collectedXaf": {
+        "type": "Object"
+      },
+      "expectedXaf": {
+        "type": "Object"
+      }
+    }
+  },
+  "kuAucuneVersionPublieePourLe": "Aucune version publiée pour le moment.",
+  "kuFichierDeVersionIllisible": "Fichier de version illisible.",
+  "kuPasDeVersionPourCe": "Pas de version pour ce téléphone.",
+  "kuVerificationImpossiblePasDeReseau": "Vérification impossible : pas de réseau ?",
+  "kuTelechargementRefuse": "Téléchargement refusé ({statusCode})",
+  "@kuTelechargementRefuse": {
+    "placeholders": {
+      "statusCode": {
+        "type": "Object"
+      }
+    }
+  },
+  "kuEmpreinteDuFichierInvalideTelechargement": "Empreinte du fichier invalide : téléchargement corrompu ou modifié.",
+  "kuAutorisezKombeInstallerSesMises": "Autorisez KÓMBE à installer ses mises à jour (réglage Android ouvert), puis revenez et touchez « Installer ».",
+  "msGroupeActifChangerDeGroupe": "Groupe actif : {name}. Changer de groupe",
+  "@msGroupeActifChangerDeGroupe": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "msGroupe": "Groupe : {name}",
+  "@msGroupe": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "msNonLues": "{p0}, {p1} non lues",
+  "@msNonLues": {
+    "placeholders": {
+      "p0": {
+        "type": "Object"
+      },
+      "p1": {
+        "type": "Object"
+      }
+    }
+  },
+  "kwCettePartieSeFaitDans": "Cette partie se fait dans KÓMBE Web, ouvert dans votre navigateur. Si vous n’y êtes pas encore connecté, un code vous sera demandé.",
+  "kwOuvrirKombeWeb": "Ouvrir KÓMBE Web",
+  "siEtapeSur": "Étape {current1} sur {length}: {labelscurrent}",
+  "@siEtapeSur": {
+    "placeholders": {
+      "current1": {
+        "type": "Object"
+      },
+      "length": {
+        "type": "Object"
+      },
+      "labelscurrent": {
+        "type": "Object"
+      }
+    }
+  },
+  "klKombeVotreTontinePlusClaire": "KÓMBE — Votre tontine, plus claire.",
+  "daCycleReceived": "{collected} reçus sur {expected} pour le cycle",
+  "@daCycleReceived": {
+    "placeholders": {
+      "collected": {
+        "type": "Object"
+      },
+      "expected": {
+        "type": "Object"
+      }
+    }
+  },
+  "orbitTurn": "Tour {n} sur {total}, {state}",
+  "@orbitTurn": {
+    "placeholders": {
+      "n": {
+        "type": "Object"
+      },
+      "total": {
+        "type": "Object"
+      },
+      "state": {
+        "type": "Object"
+      }
+    }
+  },
+  "orbitPast": "passé",
+  "orbitCurrent": "en cours",
+  "orbitUpcoming": "à venir",
+  "monthsLong": "janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre"
 }

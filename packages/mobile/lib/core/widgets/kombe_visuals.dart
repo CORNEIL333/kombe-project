@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/group.dart';
+import '../../l10n/app_localizations.dart';
 import '../design/kombe_colors.dart';
 import '../formatters/labels.dart';
 
@@ -185,6 +186,6 @@ class CycleBadge extends StatelessWidget {
           borderRadius: BorderRadius.circular(99),
           border: Border.all(color: Colors.white.withValues(alpha: .35)),
         ),
-        child: Text('Cycle $index/$total', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+        child: Text(AppLocalizations.of(context).kvCycle(index, total), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
       );
 }

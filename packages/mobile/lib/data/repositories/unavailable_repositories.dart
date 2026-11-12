@@ -30,11 +30,11 @@ import '../../domain/repositories/governance_repository.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
+import '../../l10n/kombe_l10n.dart';
 
 /// Motif affiché quand l'application a été construite sans adresse de
 /// serveur (`--dart-define=KOMBE_API_BASE_URL` absent) : rien n'est simulé.
-const String _reason =
-    'Cette version de l’application n’est reliée à aucun serveur KÓMBE. Installez la version officielle pour vous connecter.';
+String get _reason => KombeL10n.current.crCetteVersionDeLapplicationNest;
 
 final class UnavailableAuthRepository implements AuthRepository {
   const UnavailableAuthRepository();
@@ -48,11 +48,11 @@ final class UnavailableAuthRepository implements AuthRepository {
 
   @override
   Future<OperationResult<void>> requestCode({required String login, required LoginChannel channel}) async =>
-      const OperationBlocked<void>(_reason);
+      OperationBlocked<void>(_reason);
 
   @override
   Future<OperationResult<AuthSession>> verifyCode({required String login, required String code}) async =>
-      const OperationBlocked<AuthSession>(_reason);
+      OperationBlocked<AuthSession>(_reason);
 
   @override
   Future<OperationResult<void>> signOut() async => const OperationSuccess<void>(null);
@@ -65,17 +65,17 @@ final class UnavailableProfileRepository implements ProfileRepository {
   Future<Uint8List?> loadPhoto(int version, int size) async => null;
 
   @override
-  Future<OperationResult<int>> setPhoto(Uint8List jpeg512, Uint8List jpeg256) async => const OperationBlocked<int>(_reason);
+  Future<OperationResult<int>> setPhoto(Uint8List jpeg512, Uint8List jpeg256) async => OperationBlocked<int>(_reason);
 
   @override
-  Future<OperationResult<void>> removePhoto() async => const OperationBlocked<void>(_reason);
+  Future<OperationResult<void>> removePhoto() async => OperationBlocked<void>(_reason);
 
   @override
   Future<Resource<UserProfile>> loadProfile() async => const ResourceUnavailable<UserProfile>();
 
   @override
   Future<OperationResult<UserProfile>> updateProfile({required String displayName, required String localeCode}) async =>
-      const OperationBlocked<UserProfile>(_reason);
+      OperationBlocked<UserProfile>(_reason);
 }
 
 final class UnavailableGroupRepository implements GroupRepository {
@@ -100,42 +100,42 @@ final class UnavailableGroupRepository implements GroupRepository {
   Future<Resource<List<String>>> getRules(String groupId) async => const ResourceUnavailable<List<String>>();
 
   @override
-  Future<OperationResult<void>> joinGroup(String invitationCode) async => const OperationBlocked<void>(_reason);
+  Future<OperationResult<void>> joinGroup(String invitationCode) async => OperationBlocked<void>(_reason);
 
   @override
   Future<OperationResult<GroupInvitation>> createInvitation(String groupId) async =>
-      const OperationBlocked<GroupInvitation>(_reason);
+      OperationBlocked<GroupInvitation>(_reason);
 
   @override
-  Future<OperationResult<String>> createGroup(TontineCreation draft) async => const OperationBlocked<String>(_reason);
+  Future<OperationResult<String>> createGroup(TontineCreation draft) async => OperationBlocked<String>(_reason);
 
   @override
-  Future<OperationResult<void>> startCycle(String groupId, CycleOrderKind order) async => const OperationBlocked<void>(_reason);
+  Future<OperationResult<void>> startCycle(String groupId, CycleOrderKind order) async => OperationBlocked<void>(_reason);
 
   @override
-  Future<OperationResult<void>> renewCycle(String groupId, CycleOrderKind order) async => const OperationBlocked<void>(_reason);
+  Future<OperationResult<void>> renewCycle(String groupId, CycleOrderKind order) async => OperationBlocked<void>(_reason);
 
   @override
   Future<Resource<List<MemberGroup>>> listMyGroups() async => const ResourceUnavailable<List<MemberGroup>>();
 
   @override
   Future<OperationResult<void>> decideAdmission({required String groupId, required String membershipId, required bool admit}) async =>
-      const OperationBlocked<void>(_reason);
+      OperationBlocked<void>(_reason);
 
   @override
   Future<OperationResult<void>> proposeRole({required String groupId, required String membershipId, required String role}) async =>
-      const OperationBlocked<void>(_reason);
+      OperationBlocked<void>(_reason);
 
   @override
   Future<OperationResult<void>> acceptRole({required String groupId, required String role}) async =>
-      const OperationBlocked<void>(_reason);
+      OperationBlocked<void>(_reason);
 
   @override
   Future<Resource<TontineStatutes?>> getStatutes(String groupId) async => const ResourceUnavailable<TontineStatutes?>();
 
   @override
   Future<OperationResult<TontineStatutes>> acceptStatutes({required String groupId, required String hash}) async =>
-      const OperationBlocked<TontineStatutes>(_reason);
+      OperationBlocked<TontineStatutes>(_reason);
 
   @override
   Future<OperationResult<TontineStatutes>> publishStatutes({
@@ -143,7 +143,7 @@ final class UnavailableGroupRepository implements GroupRepository {
     required int acceptanceDays,
     required StatutesOnExpiry onExpiry,
   }) async =>
-      const OperationBlocked<TontineStatutes>(_reason);
+      OperationBlocked<TontineStatutes>(_reason);
 
   @override
   Future<Uint8List?> loadPhoto(String groupId, int version, int size) async => null;
@@ -153,10 +153,10 @@ final class UnavailableGroupRepository implements GroupRepository {
 
   @override
   Future<OperationResult<int>> setPhoto(String groupId, Uint8List jpeg512, Uint8List jpeg256) async =>
-      const OperationBlocked<int>(_reason);
+      OperationBlocked<int>(_reason);
 
   @override
-  Future<OperationResult<void>> removePhoto(String groupId) async => const OperationBlocked<void>(_reason);
+  Future<OperationResult<void>> removePhoto(String groupId) async => OperationBlocked<void>(_reason);
 
   @override
   Future<OperationResult<TontineStatutes>> extendStatutesDeadline({
@@ -164,10 +164,10 @@ final class UnavailableGroupRepository implements GroupRepository {
     required int extendDays,
     StatutesOnExpiry? onExpiry,
   }) async =>
-      const OperationBlocked<TontineStatutes>(_reason);
+      OperationBlocked<TontineStatutes>(_reason);
 
   @override
-  Future<OperationResult<int>> remindStatutes(String groupId) async => const OperationBlocked<int>(_reason);
+  Future<OperationResult<int>> remindStatutes(String groupId) async => OperationBlocked<int>(_reason);
 }
 
 final class UnavailableContributionRepository implements ContributionRepository {
@@ -185,7 +185,7 @@ final class UnavailableContributionRepository implements ContributionRepository 
 
   @override
   Future<DeclarationReceipt> sendDeclaration(ContributionDraft draft) async =>
-      DeclarationReceipt(lines: draft.plan, error: const ApiFailure(statusCode: 0, code: 'UNCONFIGURED', message: _reason));
+      DeclarationReceipt(lines: draft.plan, error: ApiFailure(statusCode: 0, code: 'UNCONFIGURED', message: _reason));
 }
 
 final class UnavailableGovernanceRepository implements GovernanceRepository {
@@ -204,7 +204,7 @@ final class UnavailableGovernanceRepository implements GovernanceRepository {
     required ValidationDecision decision,
     String? reason,
   }) async =>
-      const OperationBlocked<void>(_reason);
+      OperationBlocked<void>(_reason);
 
   @override
   Future<Resource<List<VoteSummary>>> listVotes() async => const ResourceUnavailable<List<VoteSummary>>();
@@ -214,7 +214,7 @@ final class UnavailableGovernanceRepository implements GovernanceRepository {
 
   @override
   Future<OperationResult<void>> castVote({required String voteId, required VoteChoice choice}) async =>
-      const OperationBlocked<void>(_reason);
+      OperationBlocked<void>(_reason);
 }
 
 final class UnavailableFineRepository implements FineRepository {
@@ -225,16 +225,16 @@ final class UnavailableFineRepository implements FineRepository {
 
   @override
   Future<OperationResult<MyFine>> contestFine({required MyFine fine, required String reason}) async =>
-      const OperationBlocked<MyFine>(_reason);
+      OperationBlocked<MyFine>(_reason);
 
   @override
   Future<Resource<List<MyFine>>> listGroupFines({required String groupId, required String groupName}) async => const ResourceUnavailable<List<MyFine>>();
 
   @override
-  Future<OperationResult<MyFine>> cancelFine({required MyFine fine, required String reason}) async => const OperationBlocked<MyFine>(_reason);
+  Future<OperationResult<MyFine>> cancelFine({required MyFine fine, required String reason}) async => OperationBlocked<MyFine>(_reason);
 
   @override
-  Future<OperationResult<MyFine>> refundFine({required MyFine fine, required String channel, String? reference}) async => const OperationBlocked<MyFine>(_reason);
+  Future<OperationResult<MyFine>> refundFine({required MyFine fine, required String channel, String? reference}) async => OperationBlocked<MyFine>(_reason);
 }
 
 final class UnavailablePollRepository implements PollRepository {
@@ -244,14 +244,14 @@ final class UnavailablePollRepository implements PollRepository {
   Future<Resource<List<Poll>>> listPolls(String groupId) async => const ResourceUnavailable<List<Poll>>();
 
   @override
-  Future<OperationResult<Poll>> openPoll(String groupId, PollDraft draft) async => const OperationBlocked<Poll>(_reason);
+  Future<OperationResult<Poll>> openPoll(String groupId, PollDraft draft) async => OperationBlocked<Poll>(_reason);
 
   @override
   Future<OperationResult<Poll>> answer({required String groupId, required String pollId, required List<int> choices, String? freeAnswer}) async =>
-      const OperationBlocked<Poll>(_reason);
+      OperationBlocked<Poll>(_reason);
 
   @override
-  Future<OperationResult<Poll>> end({required String groupId, required String pollId, required bool cancel}) async => const OperationBlocked<Poll>(_reason);
+  Future<OperationResult<Poll>> end({required String groupId, required String pollId, required bool cancel}) async => OperationBlocked<Poll>(_reason);
 }
 
 final class UnavailableMeetingRepository implements MeetingRepository {
@@ -271,7 +271,7 @@ final class UnavailableMeetingRepository implements MeetingRepository {
     String? onlineUrl,
     String? location,
   }) async =>
-      const OperationBlocked<MeetingDetail>(_reason);
+      OperationBlocked<MeetingDetail>(_reason);
 }
 
 final class UnavailableNotificationRepository implements NotificationRepository {
@@ -282,13 +282,13 @@ final class UnavailableNotificationRepository implements NotificationRepository 
 
   @override
   Future<OperationResult<void>> markRead(String notificationId) async =>
-      const OperationBlocked<void>(_reason);
+      OperationBlocked<void>(_reason);
 
   @override
   Future<int> unreadCount() async => 0;
 
   @override
-  Future<OperationResult<void>> markAllRead() async => const OperationBlocked<void>(_reason);
+  Future<OperationResult<void>> markAllRead() async => OperationBlocked<void>(_reason);
 }
 
 final class UnavailableDocumentRepository implements DocumentRepository {
@@ -314,7 +314,7 @@ final class UnavailableShareNameRepository implements ShareNameRepository {
 
   @override
   Future<OperationResult<ShareName>> rename({required String groupId, required String shareId, required String label}) async =>
-      const OperationBlocked<ShareName>(_reason);
+      OperationBlocked<ShareName>(_reason);
 }
 
 
@@ -325,14 +325,14 @@ final class UnavailableSupportRepository implements SupportRepository {
   Future<Resource<List<SupportTicketSummary>>> myTickets() async => const ResourceUnavailable<List<SupportTicketSummary>>();
 
   @override
-  Future<OperationResult<String>> open(SupportTicketDraft draft) async => const OperationBlocked<String>(_reason);
+  Future<OperationResult<String>> open(SupportTicketDraft draft) async => OperationBlocked<String>(_reason);
 
   @override
   Future<Resource<SupportTicket>> ticket(String ticketId) async => const ResourceUnavailable<SupportTicket>();
 
   @override
-  Future<OperationResult<void>> reply(String ticketId, String body) async => const OperationBlocked<void>(_reason);
+  Future<OperationResult<void>> reply(String ticketId, String body) async => OperationBlocked<void>(_reason);
 
   @override
-  Future<OperationResult<void>> rate(String ticketId, int score, {String? comment}) async => const OperationBlocked<void>(_reason);
+  Future<OperationResult<void>> rate(String ticketId, int score, {String? comment}) async => OperationBlocked<void>(_reason);
 }

@@ -10,6 +10,7 @@ import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/cycle.dart';
 import '../../domain/repositories/group_repository.dart';
+import '../../l10n/app_localizations.dart';
 import 'groups_view_models.dart';
 
 class BeneficiariesScreen extends StatefulWidget {
@@ -37,7 +38,7 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Qui reçoit, et quand')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).cyQuiRecoitEtQuand)),
         body: ListenableBuilder(
           listenable: _vm!,
           builder: (BuildContext context, Widget? child) =>
@@ -45,8 +46,8 @@ class _BeneficiariesScreenState extends State<BeneficiariesScreen> {
             resource: _vm!.state,
             onRetry: _vm!.load,
             emptyWhen: (CycleDetails c) => c.beneficiaries.isEmpty,
-            emptyTitle: 'Ordre pas encore fixé',
-            emptyBody: 'L’ordre apparaîtra au démarrage du cycle.',
+            emptyTitle: AppLocalizations.of(context).beOrdrePasEncoreFixe,
+            emptyBody: AppLocalizations.of(context).beLordreApparaitraAuDemarrageDu,
             builder: (BuildContext context, CycleDetails cycle) => ListView(
               padding: const EdgeInsets.only(top: 8, bottom: 32),
               children: <Widget>[

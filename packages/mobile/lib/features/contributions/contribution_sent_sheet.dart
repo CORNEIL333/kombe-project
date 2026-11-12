@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_tokens.g.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Moment de confirmation après une déclaration ACCEPTÉE par le serveur.
 /// L'arc se trace mais reste OUVERT : la cotisation est envoyée, pas validée.
@@ -39,18 +40,18 @@ class ContributionSentView extends StatelessWidget {
             const SizedBox(height: 18),
             Semantics(
               liveRegion: true,
-              child: Text('Paiement envoyé', style: t.headlineSmall, textAlign: TextAlign.center),
+              child: Text(AppLocalizations.of(context).ssPaiementEnvoye, style: t.headlineSmall, textAlign: TextAlign.center),
             ),
             const SizedBox(height: 6),
             Text(
-              'La trésorerie va le confirmer.',
+              AppLocalizations.of(context).ssLaTresorerieVaLeConfirmer,
               style: t.bodyMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 22),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Retour à l’accueil'),
+              child: Text(AppLocalizations.of(context).ssRetourLaccueil),
             ),
           ],
         ),

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/kombe_logo.dart';
+import '../../l10n/app_localizations.dart';
 
 class ServerRequiredScreen extends StatelessWidget {
   const ServerRequiredScreen({super.key});
@@ -23,20 +24,19 @@ class ServerRequiredScreen extends StatelessWidget {
                     const KombeEmptyArt(icon: Icons.cloud_off_outlined, tone: KombeTone.warning),
                     const SizedBox(height: 18),
                     Text(
-                      'Version non reliée à KÓMBE',
+                      AppLocalizations.of(context).srVersionNonRelieeKombe,
                       style: Theme.of(context).textTheme.headlineMedium,
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'Cette version de l’application n’est reliée à aucun serveur KÓMBE : rien ne peut s’afficher. '
-                      'Installez la version officielle depuis kombe.vercel.app/telecharger.',
+                      'Cette version de l’application n’est reliée à aucun serveur KÓMBE : rien ne peut s’afficher. Installez la version officielle depuis kombe.vercel.app/telecharger.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
                     OutlinedButton(
                       onPressed: () => context.go('/login'),
-                      child: const Text('Retour à la connexion'),
+                      child: Text(AppLocalizations.of(context).srRetourLaConnexion),
                     ),
                   ],
                 ),

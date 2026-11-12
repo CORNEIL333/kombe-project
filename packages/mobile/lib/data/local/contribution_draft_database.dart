@@ -35,17 +35,7 @@ final class ContributionDraftDatabase implements ContributionDraftRepository {
         version: 2,
         onCreate: (sqflite.Database database, int version) async {
           await database.execute(
-            'CREATE TABLE contribution_draft ('
-            'local_id TEXT PRIMARY KEY,'
-            'group_id TEXT NOT NULL,'
-            'amount_xaf INTEGER NOT NULL CHECK(amount_xaf >= 0),'
-            'payment_channel TEXT NOT NULL,'
-            'note TEXT,'
-            'evidence_path TEXT,'
-            'updated_at_utc TEXT NOT NULL,'
-            'reference TEXT,'
-            'plan_json TEXT'
-            ')',
+            'CREATE TABLE contribution_draft (local_id TEXT PRIMARY KEY,group_id TEXT NOT NULL,amount_xaf INTEGER NOT NULL CHECK(amount_xaf >= 0),payment_channel TEXT NOT NULL,note TEXT,evidence_path TEXT,updated_at_utc TEXT NOT NULL,reference TEXT,plan_json TEXT)',
           );
         },
         // v2 : référence distincte du motif, plan d'envoi figé (reprise sans

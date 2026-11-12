@@ -104,7 +104,7 @@ class ActiveGroupTitle extends StatelessWidget {
     const Color fg = KombeColors.forest;
     return Semantics(
       button: several,
-      label: several ? 'Groupe actif : ${g.name}. Changer de groupe' : 'Groupe : ${g.name}',
+      label: several ? AppLocalizations.of(context).msGroupeActifChangerDeGroupe(g.name) : AppLocalizations.of(context).msGroupe(g.name),
       excludeSemantics: true,
       child: Material(
         color: dark ? Colors.white : KombeColors.mint,
@@ -387,7 +387,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                       icon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.slate)),
                       selectedIcon: _badge(i, KombeIcon(items[i].$1, size: 24, color: KombeColors.forest)),
                       label: items[i].$2,
-                      tooltip: i == ShellBranch.activity && _unread > 0 ? '${items[i].$2}, $_unread non lues' : items[i].$2,
+                      tooltip: i == ShellBranch.activity && _unread > 0 ? AppLocalizations.of(context).msNonLues(items[i].$2, _unread) : items[i].$2,
                     ),
                 ],
               ),
