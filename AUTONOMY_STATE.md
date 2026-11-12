@@ -88,6 +88,7 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 | A13 | Motifs d'erreur de l'API en anglais | DONE dans le code (12/11), déploiement avec B7 | `packages/api/src/i18n/errorsEn.ts` : 343 motifs fixes et 15 gabarits des routes produit ; `Accept-Language: en` en premier choix → anglais, sinon français inchangé. Le mobile et la PWA envoient leur langue (le pidgin lit l'anglais). Garde `test/errorsEn.test.ts` (relit les sources : tout nouveau motif sans anglais fait échouer) ; API 268/268, client 43/43, 29/29 preuves PostgreSQL, mobile 81/81. |
 | A14 | Push Web pour la PWA (moitié Web de R-07) | DONE dans le code (12/11), déploiement avec B7 | ADR-0048. Sans migration (`push_device` accepte `web`). API : `WebPushProvider`, `CombinedPushProvider`, `GET /v1/push/web-key` ; PWA : `sw-notifications.js` (sans cache), « Sur ce navigateur » dans les préférences. Fermé sans clés VAPID, et rien ne part sans `KOMBE_NOTIFY_EXTERNAL=on` (porteur). API 273/273, client 47/47, preuves notificationDelivery, serverRealMode, tontineApi vertes. |
 | A15 | Notifications hors application dans la langue du profil | DONE dans le code (12/11), déploiement avec B7 (migration 0048) | `kombe_notification_locale` lit `identity_profile.language` ; titres anglais pour chaque type, SMS et e-mail compris ; le mobile synchronise la langue du profil à la connexion et à chaque changement (la PWA le faisait déjà). Preuves : API 277/277, notificationDelivery LOCALE-*, 29/29 preuves PostgreSQL, mobile 82/82 dont `langue_profil_test.dart`. |
+| A16 | Site public en anglais, contrastes WCAG AA du site | DONE (12/11) | 10 pages `/site/en/` régénérables (`apps/site/scripts/en/build-en.sh`), sélecteur FR/EN et hreflang, PWA ouverte en anglais via `/?lang=en`. Pages françaises et générateur à jour (langues, assistance, notifications du navigateur, stockage local). `scripts/e2e/parcours-site.mjs` PASS (80 chargements, axe sans violation) ; client 49/49. Le site garde « SAV bientôt » tant qu'aucun opérateur ne répond (B2). |
 | B1 | Relier Vercel à GitHub (déploiement automatique depuis `master`) | BLOCKED | Refusé par le classificateur (réglage du compte) : action du porteur (Vercel → Settings → Git). |
 | B2 | Premier opérateur en production | BLOCKED | Identité du porteur : `grant-operator.mjs`, puis second facteur. |
 | B3 | Publication de l'application mobile | BLOCKED | Clé de signature sur le PC du porteur. |
@@ -107,7 +108,7 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 
 ## Lot en cours
 
-Aucun : A12 à A15 terminés le 12/11.
+Aucun : A12 à A16 terminés le 12/11.
 
 ## Prochaine action concrète
 
