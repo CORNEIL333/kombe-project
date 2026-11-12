@@ -11,6 +11,7 @@ import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
+import '../../l10n/app_localizations.dart';
 import 'invite_member_screen.dart';
 
 /// Onglet « Bureau » : les outils du groupe actif selon la fonction tenue.
@@ -21,12 +22,12 @@ class ActiveBureauScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final GroupSummary? g = context.watch<ActiveGroupController>().active;
     return Scaffold(
-      appBar: const KombeTopBar(title: Text('Bureau')),
+      appBar: KombeTopBar(title: Text(AppLocalizations.of(context).dashBureau)),
       body: g == null || g.role == GroupRole.member
-          ? const EmptyState(
+          ? EmptyState(
               icon: Icons.work_outline_rounded,
-              title: 'Pas de fonction au bureau',
-              body: 'Les outils du bureau apparaissent ici quand vous tenez une fonction dans ce groupe.',
+              title: AppLocalizations.of(context).buPasDeFonctionAuBureau,
+              body: AppLocalizations.of(context).buLesOutilsDuBureauApparaissent,
             )
           : BureauTools(group: g),
     );
@@ -43,12 +44,12 @@ class BureauScreen extends StatelessWidget {
     final GroupSummary? g =
         context.watch<ActiveGroupController>().list.where((GroupSummary x) => x.id == groupId).firstOrNull;
     return Scaffold(
-      appBar: AppBar(title: Text(g == null ? 'Bureau' : 'Bureau · ${g.name}')),
+      appBar: AppBar(title: Text(g == null ? AppLocalizations.of(context).dashBureau : AppLocalizations.of(context).buBureau2(g.name))),
       // Groupe absent de la liste : squelette pendant le chargement, puis état explicite.
       body: g == null
           ? (context.watch<ActiveGroupController>().list.isEmpty
               ? const KombeListSkeleton()
-              : const EmptyState(icon: Icons.lock_outline_rounded, title: 'Bureau indisponible', body: 'Ce groupe ne figure pas parmi les vôtres.'))
+              : EmptyState(icon: Icons.lock_outline_rounded, title: AppLocalizations.of(context).buBureauIndisponible, body: AppLocalizations.of(context).buCeGroupeNeFigurePas))
           : BureauTools(group: g),
     );
   }
@@ -97,53 +98,53 @@ class BureauTools extends StatelessWidget {
             ],
           ),
         ),
-        const KombeSection('Argent'),
+        KombeSection(AppLocalizations.of(context).buArgent),
         KombeGroupedList(
           children: <Widget>[
             if (money)
               KombeMenuRow(
                 icon: Icons.fact_check_outlined,
                 tone: KombeTone.money,
-                title: group.role == GroupRole.controller ? 'Paiements à contrôler' : 'Paiements à confirmer',
+                title: group.role == GroupRole.controller ? AppLocalizations.of(context).buPaiementsControler : AppLocalizations.of(context).buPaiementsConfirmer,
                 onTap: () => context.push('/app/validations'),
               ),
-            KombeMenuRow(icon: Icons.account_balance_wallet_outlined, tone: KombeTone.money, title: 'Caisses', onTap: () => context.push('/app/groups/$gid/funds')),
+            KombeMenuRow(icon: Icons.account_balance_wallet_outlined, tone: KombeTone.money, title: AppLocalizations.of(context).gdCaisses, onTap: () => context.push('/app/groups/$gid/funds')),
           ],
         ),
-        const KombeSection('Membres'),
+        KombeSection(AppLocalizations.of(context).members),
         KombeGroupedList(
           children: <Widget>[
             if (group.can(TontineAct.invite))
-              KombeMenuRow(icon: Icons.person_add_alt_1_outlined, title: 'Inviter un membre', onTap: () => showInviteSheet(context, id)),
-            KombeMenuRow(icon: Icons.groups_2_outlined, title: 'Membres et fonctions', onTap: () => context.push('/app/groups/$gid/members')),
+              KombeMenuRow(icon: Icons.person_add_alt_1_outlined, title: AppLocalizations.of(context).gdInviterUnMembre, onTap: () => showInviteSheet(context, id)),
+            KombeMenuRow(icon: Icons.groups_2_outlined, title: AppLocalizations.of(context).buMembresEtFonctions, onTap: () => context.push('/app/groups/$gid/members')),
           ],
         ),
-        const KombeSection('Tours et séances'),
+        KombeSection(AppLocalizations.of(context).buToursEtSeances),
         KombeGroupedList(
           children: <Widget>[
-            KombeMenuRow(icon: Icons.donut_large_rounded, tone: KombeTone.success, title: 'Cycle et ordre des tours', onTap: () => context.push('/app/groups/$gid/cycle')),
-            KombeMenuRow(icon: Icons.emoji_events_outlined, tone: KombeTone.money, title: 'Qui reçoit', onTap: () => context.push('/app/groups/$gid/beneficiaries')),
+            KombeMenuRow(icon: Icons.donut_large_rounded, tone: KombeTone.success, title: AppLocalizations.of(context).gdCycleEtOrdreDesTours, onTap: () => context.push('/app/groups/$gid/cycle')),
+            KombeMenuRow(icon: Icons.emoji_events_outlined, tone: KombeTone.money, title: AppLocalizations.of(context).buQuiRecoit, onTap: () => context.push('/app/groups/$gid/beneficiaries')),
             KombeMenuRow(
               icon: Icons.event_outlined,
               tone: KombeTone.info,
-              title: 'Séances et présences',
+              title: AppLocalizations.of(context).buSeancesEtPresences,
               external: true,
-              onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/seances', title: 'Séances'),
+              onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/seances', title: AppLocalizations.of(context).meSeances),
             ),
             KombeMenuRow(
               icon: Icons.gavel_outlined,
               tone: KombeTone.warning,
-              title: 'Amendes et secours',
+              title: AppLocalizations.of(context).gdAmendesEtSecours,
               external: true,
-              onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/discipline', title: 'Amendes et secours'),
+              onTap: () => openInKombeWeb(context, fragment: '/groupe/$gid/discipline', title: AppLocalizations.of(context).gdAmendesEtSecours),
             ),
           ],
         ),
-        const KombeSection('Règles'),
+        KombeSection(AppLocalizations.of(context).rules),
         KombeGroupedList(
           children: <Widget>[
-            KombeMenuRow(icon: Icons.menu_book_outlined, tone: KombeTone.neutral, title: 'Règles', onTap: () => context.push('/app/groups/$gid/rules')),
-            KombeMenuRow(icon: Icons.tune_rounded, tone: KombeTone.neutral, title: 'Paramètres du groupe', onTap: () => context.push('/app/groups/$gid/settings')),
+            KombeMenuRow(icon: Icons.menu_book_outlined, tone: KombeTone.neutral, title: AppLocalizations.of(context).rules, onTap: () => context.push('/app/groups/$gid/rules')),
+            KombeMenuRow(icon: Icons.tune_rounded, tone: KombeTone.neutral, title: AppLocalizations.of(context).gdParametresDuGroupe, onTap: () => context.push('/app/groups/$gid/settings')),
           ],
         ),
         if (web != null) ...<Widget>[
@@ -152,8 +153,8 @@ class BureauTools extends StatelessWidget {
             children: <Widget>[
               KombeMenuRow(
                 icon: Icons.dashboard_outlined,
-                title: 'Tableau de bord complet du bureau',
-                subtitle: 'Sur ordinateur, dans le navigateur',
+                title: AppLocalizations.of(context).buTableauDeBordCompletDu,
+                subtitle: AppLocalizations.of(context).buSurOrdinateurDansLeNavigateur,
                 external: true,
                 onTap: () => launchUrl(web, mode: LaunchMode.externalApplication),
               ),

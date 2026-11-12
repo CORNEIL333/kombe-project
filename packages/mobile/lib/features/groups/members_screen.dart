@@ -15,6 +15,7 @@ import '../../core/widgets/operation_feedback.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Libellé des fonctions d'un membre (fonctions API si connues).
 String memberRolesLabel(GroupMember m) =>
@@ -67,13 +68,13 @@ class _MembersScreenState extends State<MembersScreen> {
   void _admit(GroupMember m, bool admit) => _run(
         m.identityId,
         (GroupRepository repo) => repo.decideAdmission(groupId: widget.groupId, membershipId: m.identityId, admit: admit),
-        admit ? '${m.displayName} est admis(e) dans le groupe.' : 'Demande de ${m.displayName} refusée.',
+        admit ? AppLocalizations.of(context).mbEstAdmisDansLeGroupe(m.displayName) : AppLocalizations.of(context).mbDemandeDeRefusee(m.displayName),
       );
 
   void _acceptRole(String role) => _run(
         'role:$role',
         (GroupRepository repo) => repo.acceptRole(groupId: widget.groupId, role: role),
-        'Vous êtes désormais ${apiRoleLabel(role)}.',
+        AppLocalizations.of(context).mbVousEtesDesormais(apiRoleLabel(role)),
       );
 
   Future<void> _open(GroupMember m) async {
@@ -83,15 +84,15 @@ class _MembersScreenState extends State<MembersScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Membres')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).members)),
         body: RefreshIndicator(
           onRefresh: _load,
           child: ResourceView<List<GroupMember>>(
             resource: _members,
             onRetry: _load,
             emptyWhen: (List<GroupMember> data) => data.isEmpty,
-            emptyTitle: 'Aucun membre',
-            emptyBody: 'Les membres apparaîtront ici dès leur adhésion.',
+            emptyTitle: AppLocalizations.of(context).mbAucunMembre,
+            emptyBody: AppLocalizations.of(context).mbLesMembresApparaitrontIciDes,
             builder: (BuildContext context, List<GroupMember> members) {
               final TextTheme t = Theme.of(context).textTheme;
               final List<GroupMember> pending = members.where((GroupMember m) => m.pending).toList();
@@ -116,7 +117,7 @@ class _MembersScreenState extends State<MembersScreen> {
                         children: <InlineSpan>[
                           TextSpan(text: '${active.length}', style: KombeType.amount(size: 30)),
                           TextSpan(
-                            text: '  membre${active.length > 1 ? 's' : ''} · $officeCount au bureau',
+                            text: AppLocalizations.of(context).mbCountSuffix(active.length, officeCount),
                             style: t.bodyLarge?.copyWith(color: KombeColors.slate),
                           ),
                         ],
@@ -133,26 +134,26 @@ class _MembersScreenState extends State<MembersScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
-                              Text('On vous propose la fonction de ${apiRoleLabel(role)}', style: t.titleMedium),
+                              Text(AppLocalizations.of(context).mbOnVousProposeLaFonction(apiRoleLabel(role)), style: t.titleMedium),
                               const SizedBox(height: 6),
-                              const Text('Vous n’exercez cette fonction qu’après l’avoir acceptée.'),
+                              Text(AppLocalizations.of(context).mbVousNexercezCetteFonctionQuapres),
                               const SizedBox(height: 10),
                               FilledButton(
                                 onPressed: _busy.contains('role:$role') ? null : () => _acceptRole(role),
-                                child: const Text('Accepter la fonction'),
+                                child: Text(AppLocalizations.of(context).mbAccepterLaFonction),
                               ),
                             ],
                           ),
                         ),
                       ),
                   if (pending.isNotEmpty) ...<Widget>[
-                    KombeSection('Demandes d’adhésion (${pending.length})'),
+                    KombeSection(AppLocalizations.of(context).mbDemandesDadhesion(pending.length)),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
                       child: Text(
                         canAdmit
-                            ? 'Admettez les personnes que vous connaissez ; refusez les autres.'
-                            : 'Le président ou le vice-président examine ces demandes.',
+                            ? AppLocalizations.of(context).mbAdmettezLesPersonnesQueVous
+                            : AppLocalizations.of(context).mbLePresidentOuLeVice,
                         style: t.bodySmall,
                       ),
                     ),
@@ -167,12 +168,12 @@ class _MembersScreenState extends State<MembersScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(child: Text(m.displayName, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.titleSmall)),
                                 if (canAdmit && !_busy.contains(m.identityId)) ...<Widget>[
-                                  TextButton(onPressed: () => _admit(m, false), child: const Text('Refuser')),
-                                  FilledButton(onPressed: () => _admit(m, true), child: const Text('Admettre')),
+                                  TextButton(onPressed: () => _admit(m, false), child: Text(AppLocalizations.of(context).mbRefuser)),
+                                  FilledButton(onPressed: () => _admit(m, true), child: Text(AppLocalizations.of(context).mbAdmettre)),
                                 ] else if (_busy.contains(m.identityId))
                                   const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
                                 else
-                                  const StatusPill('En attente'),
+                                  StatusPill(AppLocalizations.of(context).pendingState),
                               ],
                             ),
                           ),
@@ -185,28 +186,28 @@ class _MembersScreenState extends State<MembersScreen> {
                       child: TextField(
                         onChanged: (String v) => setState(() => _query = v),
                         textInputAction: TextInputAction.search,
-                        decoration: const InputDecoration(
-                          hintText: 'Rechercher un membre',
+                        decoration: InputDecoration(
+                          hintText: AppLocalizations.of(context).mbRechercherUnMembre,
                           prefixIcon: Icon(Icons.search_rounded),
                         ),
                       ),
                     ),
                   if (office.isNotEmpty) ...<Widget>[
-                    const KombeSection('Bureau'),
+                    KombeSection(AppLocalizations.of(context).dashBureau),
                     KombeGroupedList(
                       children: <Widget>[for (final GroupMember m in office) _MemberRow(member: m, groupId: widget.groupId, onTap: () => _open(m))],
                     ),
                   ],
                   if (others.isNotEmpty) ...<Widget>[
-                    const KombeSection('Membres'),
+                    KombeSection(AppLocalizations.of(context).members),
                     KombeGroupedList(
                       children: <Widget>[for (final GroupMember m in others) _MemberRow(member: m, groupId: widget.groupId, onTap: () => _open(m))],
                     ),
                   ],
                   if (office.isEmpty && others.isEmpty && q.isNotEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.all(24),
-                      child: Text('Aucun membre ne correspond à cette recherche.', textAlign: TextAlign.center),
+                      child: Text(AppLocalizations.of(context).mbAucunMembreNeCorrespondCette, textAlign: TextAlign.center),
                     ),
                 ],
               );
@@ -228,15 +229,15 @@ class _MemberRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool office = _inOffice(member);
-    final String? proposed = member.pendingRoles.isEmpty ? null : 'proposé(e) ${member.pendingRoles.map(apiRoleLabel).join(', ')}';
+    final String? proposed = member.pendingRoles.isEmpty ? null : AppLocalizations.of(context).mbProposed(member.pendingRoles.map(apiRoleLabel).join(', '));
     final String? since = office
         ? null
-        : 'Depuis ${DateFormat('MMMM y', Localizations.localeOf(context).toLanguageTag()).format(member.joinedAtUtc.toLocal())}';
+        : AppLocalizations.of(context).mbSince(DateFormat('MMMM y', Localizations.localeOf(context).toLanguageTag()).format(member.joinedAtUtc.toLocal()));
     final String subtitle = <String?>[since, proposed].whereType<String>().join(' · ');
     return ListTile(
       minTileHeight: 66,
       leading: MemberAvatar(groupId: groupId, memberId: member.identityId, name: member.displayName, photoVersion: member.photoVersion, size: 42),
-      title: Text(member.isMe ? '${member.displayName} (vous)' : member.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: Text(member.isMe ? AppLocalizations.of(context).mbVous(member.displayName) : member.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: subtitle.isEmpty ? null : Text(subtitle),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

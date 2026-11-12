@@ -1124,5 +1124,156 @@
         "type": "int"
       }
     }
+  },
+  "mbEstAdmisDansLeGroupe": "{displayName} est admis(e) dans le groupe.",
+  "@mbEstAdmisDansLeGroupe": {
+    "placeholders": {
+      "displayName": {
+        "type": "Object"
+      }
+    }
+  },
+  "mbDemandeDeRefusee": "Demande de {displayName} refusée.",
+  "@mbDemandeDeRefusee": {
+    "placeholders": {
+      "displayName": {
+        "type": "Object"
+      }
+    }
+  },
+  "mbVousEtesDesormais": "Vous êtes désormais {apiRoleLabel}.",
+  "@mbVousEtesDesormais": {
+    "placeholders": {
+      "apiRoleLabel": {
+        "type": "Object"
+      }
+    }
+  },
+  "mbAucunMembre": "Aucun membre",
+  "mbLesMembresApparaitrontIciDes": "Les membres apparaîtront ici dès leur adhésion.",
+  "mbOnVousProposeLaFonction": "On vous propose la fonction de {apiRoleLabel}",
+  "@mbOnVousProposeLaFonction": {
+    "placeholders": {
+      "apiRoleLabel": {
+        "type": "Object"
+      }
+    }
+  },
+  "mbVousNexercezCetteFonctionQuapres": "Vous n’exercez cette fonction qu’après l’avoir acceptée.",
+  "mbAccepterLaFonction": "Accepter la fonction",
+  "mbDemandesDadhesion": "Demandes d’adhésion ({length})",
+  "@mbDemandesDadhesion": {
+    "placeholders": {
+      "length": {
+        "type": "Object"
+      }
+    }
+  },
+  "mbAdmettezLesPersonnesQueVous": "Admettez les personnes que vous connaissez ; refusez les autres.",
+  "mbLePresidentOuLeVice": "Le président ou le vice-président examine ces demandes.",
+  "mbRefuser": "Refuser",
+  "mbAdmettre": "Admettre",
+  "mbRechercherUnMembre": "Rechercher un membre",
+  "mbAucunMembreNeCorrespondCette": "Aucun membre ne correspond à cette recherche.",
+  "mbVous": "{displayName} (vous)",
+  "@mbVous": {
+    "placeholders": {
+      "displayName": {
+        "type": "Object"
+      }
+    }
+  },
+  "buPasDeFonctionAuBureau": "Pas de fonction au bureau",
+  "buLesOutilsDuBureauApparaissent": "Les outils du bureau apparaissent ici quand vous tenez une fonction dans ce groupe.",
+  "buBureau2": "Bureau · {name}",
+  "@buBureau2": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "buBureauIndisponible": "Bureau indisponible",
+  "buCeGroupeNeFigurePas": "Ce groupe ne figure pas parmi les vôtres.",
+  "buArgent": "Argent",
+  "buPaiementsControler": "Paiements à contrôler",
+  "buPaiementsConfirmer": "Paiements à confirmer",
+  "buMembresEtFonctions": "Membres et fonctions",
+  "buToursEtSeances": "Tours et séances",
+  "buQuiRecoit": "Qui reçoit",
+  "buSeancesEtPresences": "Séances et présences",
+  "buTableauDeBordCompletDu": "Tableau de bord complet du bureau",
+  "buSurOrdinateurDansLeNavigateur": "Sur ordinateur, dans le navigateur",
+  "mdProposerUneFonction": "Proposer une fonction à {displayName}",
+  "@mdProposerUneFonction": {
+    "placeholders": {
+      "displayName": {
+        "type": "Object"
+      }
+    }
+  },
+  "mdLaPersonneLaRecoitEn": "La personne la reçoit en notification et doit l’accepter.",
+  "mdDejaProposee": "déjà proposée",
+  "mdFonctionDeProposee": "Fonction de {apiRoleLabel} proposée à {displayName}.",
+  "@mdFonctionDeProposee": {
+    "placeholders": {
+      "apiRoleLabel": {
+        "type": "Object"
+      },
+      "displayName": {
+        "type": "Object"
+      }
+    }
+  },
+  "mdDemandeEnAttente": "Demande en attente",
+  "mdFonctions": "Fonctions",
+  "mdProposeePasEncoreAcceptee": "Proposée, pas encore acceptée",
+  "mdDemandeDadhesion": "Demande d’adhésion",
+  "mdMembreDepuis": "Membre depuis",
+  "mdEnAttente": "en attente",
+  "mdVousEtesDesormais": "Vous êtes désormais {apiRoleLabel}.",
+  "@mdVousEtesDesormais": {
+    "placeholders": {
+      "apiRoleLabel": {
+        "type": "Object"
+      }
+    }
+  },
+  "mdAccepterLaFonctionDe": "Accepter la fonction de {apiRoleLabel}",
+  "@mdAccepterLaFonctionDe": {
+    "placeholders": {
+      "apiRoleLabel": {
+        "type": "Object"
+      }
+    }
+  },
+  "mdProposerUneFonction2": "Proposer une fonction",
+  "mdMembreSansTelephoneRepresentePar": "Membre sans téléphone, représenté par un proche : il ne tient pas de fonction du bureau.",
+  "mbCountSuffix": "  {count, plural, =1{membre} other{membres}} · {office} au bureau",
+  "@mbCountSuffix": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "office": {
+        "type": "Object"
+      }
+    }
+  },
+  "mbProposed": "proposé(e) {roles}",
+  "@mbProposed": {
+    "placeholders": {
+      "roles": {
+        "type": "Object"
+      }
+    }
+  },
+  "mbSince": "Depuis {date}",
+  "@mbSince": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      }
+    }
   }
 }

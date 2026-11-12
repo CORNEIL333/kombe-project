@@ -11,6 +11,7 @@ import '../../core/widgets/operation_feedback.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
+import '../../l10n/app_localizations.dart';
 import 'members_screen.dart';
 
 /// Fiche d'un membre : ses fonctions ; la présidence peut lui proposer une
@@ -74,13 +75,13 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
           shrinkWrap: true,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: <Widget>[
-            Text('Proposer une fonction à ${m.displayName}', style: Theme.of(context).textTheme.titleMedium),
+            Text(AppLocalizations.of(context).mdProposerUneFonction(m.displayName), style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
-            const Text('La personne la reçoit en notification et doit l’accepter.'),
+            Text(AppLocalizations.of(context).mdLaPersonneLaRecoitEn),
             for (final String r in bureauRoles.where((String r) => !m.apiRoles.contains(r)))
               ListTile(
                 title: Text(apiRoleLabel(r)),
-                trailing: m.pendingRoles.contains(r) ? const Text('déjà proposée') : null,
+                trailing: m.pendingRoles.contains(r) ? Text(AppLocalizations.of(context).mdDejaProposee) : null,
                 onTap: () => Navigator.of(context).pop(r),
               ),
           ],
@@ -90,13 +91,13 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
     if (role == null || !mounted) return;
     await _run(
       (GroupRepository repo) => repo.proposeRole(groupId: widget.groupId, membershipId: m.identityId, role: role),
-      'Fonction de ${apiRoleLabel(role)} proposée à ${m.displayName}.',
+      AppLocalizations.of(context).mdFonctionDeProposee(apiRoleLabel(role), m.displayName),
     );
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Membre')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).roleMemberLabel)),
         body: ResourceView<GroupMember>(
           resource: _member,
           onRetry: _load,
@@ -125,7 +126,7 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                 const SizedBox(height: 8),
                 Center(
                   child: StatusPill(
-                    member.pending ? 'Demande en attente' : memberRolesLabel(member),
+                    member.pending ? AppLocalizations.of(context).mdDemandeEnAttente : memberRolesLabel(member),
                     tone: bureau ? KombeTone.money : KombeTone.brand,
                     icon: bureau ? Icons.star_rounded : Icons.person_outline_rounded,
                   ),
@@ -133,18 +134,18 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                 const SizedBox(height: 24),
                 KombeGroupedList(
                   children: <Widget>[
-                    KombeFact(icon: Icons.badge_outlined, label: 'Fonctions', value: memberRolesLabel(member)),
+                    KombeFact(icon: Icons.badge_outlined, label: AppLocalizations.of(context).mdFonctions, value: memberRolesLabel(member)),
                     if (member.pendingRoles.isNotEmpty)
                       KombeFact(
                         icon: Icons.hourglass_top_rounded,
-                        label: 'Proposée, pas encore acceptée',
+                        label: AppLocalizations.of(context).mdProposeePasEncoreAcceptee,
                         value: member.pendingRoles.map(apiRoleLabel).join(', '),
                       ),
                     KombeFact(
                       icon: Icons.event_available_outlined,
-                      label: member.pending ? 'Demande d’adhésion' : 'Membre depuis',
+                      label: member.pending ? AppLocalizations.of(context).mdDemandeDadhesion : AppLocalizations.of(context).mdMembreDepuis,
                       value: member.pending
-                          ? 'en attente'
+                          ? AppLocalizations.of(context).mdEnAttente
                           : DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag()).format(member.joinedAtUtc.toLocal()),
                     ),
                   ],
@@ -162,9 +163,9 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                                 ? null
                                 : () => _run(
                                       (GroupRepository repo) => repo.acceptRole(groupId: widget.groupId, role: role),
-                                      'Vous êtes désormais ${apiRoleLabel(role)}.',
+                                      AppLocalizations.of(context).mdVousEtesDesormais(apiRoleLabel(role)),
                                     ),
-                            child: Text('Accepter la fonction de ${apiRoleLabel(role)}'),
+                            child: Text(AppLocalizations.of(context).mdAccepterLaFonctionDe(apiRoleLabel(role))),
                           ),
                         ],
                       if (canAssign) ...<Widget>[
@@ -172,12 +173,12 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                         OutlinedButton.icon(
                           onPressed: _busy ? null : () => _propose(member),
                           icon: const Icon(Icons.manage_accounts_outlined),
-                          label: const Text('Proposer une fonction'),
+                          label: Text(AppLocalizations.of(context).mdProposerUneFonction2),
                         ),
                       ],
                       if (member.offline) ...<Widget>[
                         const SizedBox(height: 12),
-                        Text('Membre sans téléphone, représenté par un proche : il ne tient pas de fonction du bureau.', style: t.bodySmall),
+                        Text(AppLocalizations.of(context).mdMembreSansTelephoneRepresentePar, style: t.bodySmall),
                       ],
                     ],
                   ),
