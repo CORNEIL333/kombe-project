@@ -36,6 +36,8 @@ export interface DeliveryMessage {
   readonly title: string;
   readonly body: string;
   readonly link: string;
+  /** Langue du message (A15) : celle du profil. */
+  readonly locale: Locale;
 }
 
 export interface DeliveryResult {
@@ -97,7 +99,50 @@ const TITRES: Readonly<Record<string, string>> = {
   general: "Nouvelle notification",
 };
 
-export function genericText(kind: string): { title: string; body: string } {
+const TITRES_EN: Readonly<Record<string, string>> = {
+  meeting_reminder: "Upcoming meeting",
+  meeting_opened: "The meeting is open",
+  due_reminder: "Contribution to declare",
+  validation_waiting: "A declaration awaits your check",
+  payout_recorded: "Pot payout recorded",
+  payout_to_confirm: "A payout awaits your confirmation",
+  fine_issued: "New fine in your group",
+  fine_cancelled: "A fine was cancelled",
+  fine_contested: "A fine is being disputed",
+  support_reply: "KÓMBE support has replied to you",
+  support_request: "New support request to handle",
+  support_sla: "Service deadline: a request is nearly due",
+  fine_refunded: "A fine refund has been recorded",
+  poll_opened: "New vote in your group",
+  meeting_updated: "A meeting has been changed",
+  aid_requested: "New assistance request",
+  aid_decided: "An assistance request has been decided",
+  order_change: "The payout order has changed",
+  membership: "News among the members",
+  join_request: "New membership request",
+  admitted: "Your membership has been accepted",
+  rejected: "Answer to your membership request",
+  role_proposed: "A role has been offered to you",
+  role_reminder: "A role awaits your answer",
+  minutes_ready: "The minutes are available",
+  decision: "A vote is open",
+  vote_reminder: "A vote is ending soon",
+  statutes_published: "New rules have been published",
+  statutes_reminder: "The rules await your agreement",
+  statutes_excluded: "Rules not accepted by the deadline",
+  statutes_expired: "The rules deadline has passed",
+  cycle_started: "A new cycle is starting",
+  draw_committed: "The draw has been committed",
+  fund_created: "New fund in your group",
+  movement_rejected: "A declaration was refused",
+  general: "New notification",
+};
+
+export type Locale = "fr" | "en";
+
+/** Texte générique dans la langue de la personne (A15) ; français par défaut. */
+export function genericText(kind: string, locale: Locale = "fr"): { title: string; body: string } {
+  if (locale === "en") return { title: TITRES_EN[kind] ?? TITRES_EN.general!, body: "Open KÓMBE to see the details." };
   return { title: TITRES[kind] ?? TITRES.general!, body: "Ouvrez KÓMBE pour voir le détail." };
 }
 
@@ -124,7 +169,7 @@ export class SmsProvider implements ChannelProvider {
   async send(m: DeliveryMessage): Promise<DeliveryResult> {
     if (!this.sender.channels.includes("sms")) return { outcome: "suppressed", code: "CHANNEL_NOT_CONFIGURED" };
     try {
-      await this.sender.send({ to: m.identityId, text: `KÓMBE : ${m.title}. ${m.link}`, channel: "sms" });
+      await this.sender.send({ to: m.identityId, text: m.locale === "en" ? `KÓMBE: ${m.title}. ${m.link}` : `KÓMBE : ${m.title}. ${m.link}`, channel: "sms" });
       return { outcome: "sent", code: this.sender.simulated ? "SIMULATED" : "OK" };
     } catch {
       return { outcome: "retry", code: "PROVIDER_ERROR" };
@@ -138,7 +183,8 @@ export class EmailProvider implements ChannelProvider {
   async send(m: DeliveryMessage): Promise<DeliveryResult> {
     if (!this.available) return { outcome: "suppressed", code: "CHANNEL_NOT_CONFIGURED" };
     try {
-      await this.sender.send({ to: m.identityId, subject: `KÓMBE — ${m.title}`, text: `${m.title}.\n\n${m.body}\n${m.link}\n\nVous recevez ce message parce que vous l'avez demandé dans vos préférences KÓMBE.` });
+      const why = m.locale === "en" ? "You receive this message because you asked for it in your KÓMBE preferences." : "Vous recevez ce message parce que vous l'avez demandé dans vos préférences KÓMBE.";
+      await this.sender.send({ to: m.identityId, subject: `KÓMBE — ${m.title}`, text: `${m.title}.\n\n${m.body}\n${m.link}\n\n${why}` });
       return { outcome: "sent", code: this.simulated ? "SIMULATED" : "OK" };
     } catch {
       return { outcome: "retry", code: "PROVIDER_ERROR" };
@@ -405,7 +451,10 @@ export class NotificationDispatcher {
     const provider = this.opts.providers[channel];
     if (!provider) return { outcome: "suppressed", code: "CHANNEL_NOT_CONFIGURED" };
     const kind = String(row.kind);
-    const t = genericText(kind);
+    const locale: Locale = await inTx(this.pool, async (db) =>
+      String((await db.query("SELECT kombe_notification_locale($1) AS l", [String(row.identity_id)])).rows[0]?.l) === "en" ? "en" : "fr",
+    ).catch(() => "fr" as const);
+    const t = genericText(kind, locale);
     const m: DeliveryMessage = {
       outboxId: Number(row.outbox_id),
       notificationId: Number(row.notification_id),
@@ -418,6 +467,7 @@ export class NotificationDispatcher {
       title: t.title,
       body: t.body,
       link: this.linkFor(Number(row.notification_id)),
+      locale,
     };
     try {
       return await provider.send(m, {

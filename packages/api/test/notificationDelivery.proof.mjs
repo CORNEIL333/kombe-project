@@ -134,6 +134,16 @@ try {
   check("GENERIC-TEXT-NO-NAMES", m && !JSON.stringify([m.title, m.body]).includes("Chantal") && !JSON.stringify([m.title, m.body]).includes(groupName) && /\d/.test(m.link) === true, m && { title: m.title, body: m.body });
   check("DEEP-LINK", m?.link === `https://kombe.test/#/notifications/${m?.notificationId}`, m?.link);
 
+  // ── A15 : messages hors application dans la langue du profil ───────────
+  check("LOCALE-DEFAULT-FR", m?.locale === "fr" && m?.title === "Nouvelle demande d'adhésion" && m?.body === "Ouvrez KÓMBE pour voir le détail.", m && { locale: m.locale, title: m.title });
+  await ok(A.token, "PATCH", "/v1/me", { language: "en" });
+  await join(9, "Ines Member");
+  const rI = (await rowsOf(A.login)).at(-1);
+  await waitState(rI?.outbox_id, ["sent"]);
+  const mEn = push.sent.at(-1);
+  check("LOCALE-EN-DELIVERED", mEn?.locale === "en" && mEn?.title === "New membership request" && mEn?.body === "Open KÓMBE to see the details.", mEn && { locale: mEn.locale, title: mEn.title });
+  await ok(A.token, "PATCH", "/v1/me", { language: "fr" });
+
   // ── Heures de silence : différé, jamais perdu ──────────────────────────
   const douala = new Date(Date.now() + 3_600_000); // UTC+1, sans heure d'été
   const hh = (d) => String(d.getUTCHours()).padStart(2, "0") + ":00";

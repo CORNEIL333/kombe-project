@@ -14,7 +14,7 @@ import {
 
 const msg: DeliveryMessage = {
   outboxId: 1, notificationId: 9, identityId: "+237677000001", channel: "push", kind: "due_reminder",
-  groupId: "grp_1", target: null, attempt: 0, title: "Cotisation à déclarer", body: "Ouvrez KÓMBE pour voir le détail.", link: "https://kombe.vercel.app/#/notifications/9",
+  groupId: "grp_1", target: null, attempt: 0, title: "Cotisation à déclarer", body: "Ouvrez KÓMBE pour voir le détail.", link: "https://kombe.vercel.app/#/notifications/9", locale: "fr",
 };
 const sub = (n: number) => JSON.stringify({ endpoint: `https://push.example/abc${n}`, keys: { p256dh: "BPk", auth: "au" } });
 
