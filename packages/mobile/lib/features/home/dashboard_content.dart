@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_theme.dart';
 import '../../core/formatters/xaf.dart';
@@ -42,8 +43,8 @@ class HomeContent extends StatelessWidget {
         _TodoRow(
           icon: d.sending ? Icons.sync_problem_rounded : Icons.edit_note_rounded,
           tone: d.sending ? KombeTone.danger : KombeTone.brand,
-          title: d.sending ? 'Envoi à reprendre' : 'Paiement à terminer',
-          subtitle: '${Xaf.format(d.amountXaf)} · ${d.sending ? 'rien ne sera déclaré deux fois' : 'pas encore envoyé'}',
+          title: d.sending ? AppLocalizations.of(context).dashResumeSending : AppLocalizations.of(context).dashFinishPayment,
+          subtitle: '${Xaf.format(d.amountXaf)} · ${d.sending ? AppLocalizations.of(context).dashNoDoubleDeclare : AppLocalizations.of(context).dashNotSentYet}',
           onTap: () => context.push('/app/groups/$gid/contributions/new?draft=${Uri.encodeComponent(d.localId)}'),
         ),
       if (data.toValidate > 0)
@@ -51,24 +52,24 @@ class HomeContent extends StatelessWidget {
           icon: Icons.fact_check_outlined,
           tone: KombeTone.money,
           title: data.group.role == GroupRole.controller
-              ? '${data.toValidate} paiement${data.toValidate > 1 ? 's' : ''} à contrôler'
-              : '${data.toValidate} paiement${data.toValidate > 1 ? 's' : ''} à confirmer',
-          subtitle: 'Bureau',
+              ? AppLocalizations.of(context).dashToControl(data.toValidate)
+              : AppLocalizations.of(context).dashToConfirm(data.toValidate),
+          subtitle: AppLocalizations.of(context).dashBureau,
           onTap: () => context.push('/app/validations'),
         ),
       if (photoMissing)
         _TodoRow(
           icon: Icons.add_a_photo_outlined,
           tone: KombeTone.brand,
-          title: 'Ajoutez votre photo',
-          subtitle: 'Votre groupe vous reconnaît',
+          title: AppLocalizations.of(context).dashAddYourPhoto,
+          subtitle: AppLocalizations.of(context).dashGroupRecognizes,
           onTap: () => context.push('/app/profile'),
         ),
       if (data.group.photoVersion == null && canEditGroupPhoto(data.group.role))
         _TodoRow(
           icon: Icons.add_photo_alternate_outlined,
           tone: KombeTone.brand,
-          title: 'Ajoutez la photo du groupe',
+          title: AppLocalizations.of(context).dashAddGroupPhoto,
           subtitle: data.group.name,
           onTap: () => context.push('/app/groups/$gid'),
         ),
@@ -76,16 +77,16 @@ class HomeContent extends StatelessWidget {
         _TodoRow(
           icon: Icons.ballot_outlined,
           tone: KombeTone.info,
-          title: data.openPolls == 1 ? '1 vote libre attend votre réponse' : '${data.openPolls} votes libres attendent votre réponse',
-          subtitle: 'Votre avis compte',
+          title: AppLocalizations.of(context).dashOpenPolls(data.openPolls),
+          subtitle: AppLocalizations.of(context).dashYourOpinion,
           onTap: () => context.push('/app/groups/$gid/polls'),
         ),
       for (final PendingVote v in data.votes)
         _TodoRow(
           icon: Icons.how_to_vote_outlined,
           tone: KombeTone.info,
-          title: 'Vote : ${v.title}',
-          subtitle: 'Jusqu’au ${_day(context, v.closesAtUtc)}',
+          title: AppLocalizations.of(context).dashVoteTitle(v.title),
+          subtitle: AppLocalizations.of(context).dashUntil(_day(context, v.closesAtUtc)),
           onTap: () => context.push('/app/votes/${Uri.encodeComponent(v.id)}'),
         ),
     ];
@@ -107,7 +108,7 @@ class HomeContent extends StatelessWidget {
           ),
         ),
         if (data.rounds.isNotEmpty) ...<Widget>[
-          const KombeSection('Tableau de bord'),
+          KombeSection(AppLocalizations.of(context).dashboard),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: RoundsDashboard(rounds: data.rounds, onOpen: () => context.push('/app/groups/$gid/cycle')),
@@ -118,17 +119,17 @@ class HomeContent extends StatelessWidget {
           KombeGroupedList(children: todo),
         ],
         if (data.nextMeetingDate != null) ...<Widget>[
-          const KombeSection('Prochaine séance'),
+          KombeSection(AppLocalizations.of(context).dashNextMeeting),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: _MeetingCard(date: data.nextMeetingDate!, place: data.nextMeetingOnline ? <String>[if (data.nextMeetingPlace != null) data.nextMeetingPlace!, 'en ligne'].join(' · ') : data.nextMeetingPlace, group: g.name, onTap: () => context.push('/app/groups/$gid')),
           ),
         ],
-        KombeSection('Activité récente', action: data.recent.isEmpty ? null : 'Historique', onAction: () => context.go('/app/notifications')),
+        KombeSection(AppLocalizations.of(context).dashRecentActivity, action: data.recent.isEmpty ? null : AppLocalizations.of(context).dashHistory, onAction: () => context.go('/app/notifications')),
         if (data.recent.isEmpty)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
-            child: Text('Rien de nouveau.'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            child: Text(AppLocalizations.of(context).dashNothingNew),
           )
         else
           KombeGroupedList(
@@ -172,12 +173,12 @@ class _Hero extends StatelessWidget {
                       MyAvatar(name: myName, photoVersion: myPhotoVersion, size: 40),
                       const SizedBox(width: 10),
                     ],
-                    Expanded(child: Text(firstName == null ? 'Bonjour' : 'Bonjour $firstName', style: soft)),
+                    Expanded(child: Text(firstName == null ? AppLocalizations.of(context).dashHello : AppLocalizations.of(context).dashHelloName(firstName ?? ''), style: soft)),
                   ],
                 ),
                 const SizedBox(height: 18),
                 if (due > 0) ...<Widget>[
-                  const Text('À payer', style: soft),
+                  Text(AppLocalizations.of(context).dashToPay, style: soft),
                   const SizedBox(height: 4),
                   FittedBox(
                     fit: BoxFit.scaleDown,
@@ -186,18 +187,18 @@ class _Hero extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   if (data.late)
-                    const StatusPill('En retard', tone: KombeTone.danger, icon: Icons.error_outline_rounded)
+                    StatusPill(AppLocalizations.of(context).dashLate, tone: KombeTone.danger, icon: Icons.error_outline_rounded)
                   else
-                    Text(data.nextDueDate == null ? 'Pour ce tour' : 'Avant le ${_day(context, data.nextDueDate!)}', style: soft.copyWith(fontWeight: FontWeight.w700)),
+                    Text(data.nextDueDate == null ? AppLocalizations.of(context).dashForThisRound : AppLocalizations.of(context).dashBefore(_day(context, data.nextDueDate!)), style: soft.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 18),
                   FilledButton.icon(
                     style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
                     onPressed: () => context.push('/app/groups/$gid/contributions/new'),
                     icon: const Icon(Icons.check_rounded),
-                    label: const Text('J’ai payé'),
+                    label: Text(AppLocalizations.of(context).declareContribution),
                   ),
                 ] else ...<Widget>[
-                  Text('Vous êtes à jour', style: KombeType.display(size: 38, color: Colors.white)),
+                  Text(AppLocalizations.of(context).dashUpToDate, style: KombeType.display(size: 38, color: Colors.white)),
                   const SizedBox(height: 18),
                 ],
                 if (data.pendingDeclarations > 0) ...<Widget>[
@@ -225,7 +226,7 @@ class _Hero extends StatelessWidget {
                   const SizedBox(height: 14),
                   KombeCycleBand(index: data.group.cycleIndex, total: data.group.cycleTotal, onDark: true, late: data.late),
                   const SizedBox(height: 8),
-                  Text('Tour ${data.group.cycleIndex} sur ${data.group.cycleTotal}', style: soft),
+                  Text(AppLocalizations.of(context).dashRoundOf(data.group.cycleIndex, data.group.cycleTotal), style: soft),
                 ],
               ],
             ),
@@ -339,7 +340,7 @@ class HomeSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-        label: 'Chargement',
+        label: AppLocalizations.of(context).loading,
         child: ListView(
           physics: const NeverScrollableScrollPhysics(),
           children: <Widget>[
@@ -381,24 +382,23 @@ class NoGroupHome extends StatelessWidget {
       children: <Widget>[
         const Center(child: KombeEmptyArt(icon: Icons.diversity_3_rounded, size: 150)),
         const SizedBox(height: 24),
-        Text('Bienvenue sur KÓMBE', style: t.headlineMedium, textAlign: TextAlign.center),
+        Text(AppLocalizations.of(context).dashWelcome, style: t.headlineMedium, textAlign: TextAlign.center),
         const SizedBox(height: 10),
-        const Text(
-          'KÓMBE tient le registre de votre tontine : cotisations, tours, séances. '
-          'L’argent, lui, reste entre vos mains.',
+        Text(
+          AppLocalizations.of(context).dashWelcomeBody,
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 28),
         FilledButton.icon(
           onPressed: () => context.push('/app/groups/join'),
           icon: const Icon(Icons.group_add_outlined),
-          label: const Text('Rejoindre avec un code'),
+          label: Text(AppLocalizations.of(context).dashJoinWithCode),
         ),
         const SizedBox(height: 10),
         OutlinedButton.icon(
           onPressed: () => context.push('/app/groups/create'),
           icon: const Icon(Icons.add_circle_outline_rounded),
-          label: const Text('Créer une tontine'),
+          label: Text(AppLocalizations.of(context).createTontine),
         ),
       ],
     );
@@ -434,9 +434,9 @@ class _RoundsDashboardState extends State<RoundsDashboard> {
         children: <Widget>[
           SegmentedButton<bool>(
             showSelectedIcon: false,
-            segments: const <ButtonSegment<bool>>[
-              ButtonSegment<bool>(value: false, label: Text('Ce tour')),
-              ButtonSegment<bool>(value: true, label: Text('Tout le cycle')),
+            segments: <ButtonSegment<bool>>[
+              ButtonSegment<bool>(value: false, label: Text(AppLocalizations.of(context).dashThisRound)),
+              ButtonSegment<bool>(value: true, label: Text(AppLocalizations.of(context).dashWholeCycle)),
             ],
             selected: <bool>{_cycle},
             onSelectionChanged: (Set<bool> v) => setState(() => _cycle = v.first),
@@ -451,7 +451,7 @@ class _RoundsDashboardState extends State<RoundsDashboard> {
               child: LinearProgressIndicator(minHeight: 10, value: current.ratio, color: KombeColors.brand, backgroundColor: KombeColors.sand),
             ),
             const SizedBox(height: 8),
-            Text('Tour ${current.seq} · ${_day(context, current.date)}${current.label != null ? ' · ${current.label}' : ''}', style: t.bodySmall),
+            Text('${AppLocalizations.of(context).dashRoundDate(current.seq, _day(context, current.date))}${current.label != null ? ' · ${current.label}' : ''}', style: t.bodySmall),
           ] else ...<Widget>[
             Text('${Xaf.format(collected)} reçus sur ${Xaf.format(expected)} pour le cycle', style: t.bodyMedium),
             const SizedBox(height: 12),
@@ -465,7 +465,7 @@ class _RoundsDashboardState extends State<RoundsDashboard> {
                       child: Semantics(
                         button: true,
                         selected: r.seq == _selected,
-                        label: 'Tour ${r.seq} : ${(r.ratio * 100).round()} % collecté',
+                        label: AppLocalizations.of(context).dashRoundCollected(r.seq, (r.ratio * 100).round()),
                         child: GestureDetector(
                           onTap: () => setState(() => _selected = r.seq),
                           child: Container(
@@ -489,10 +489,10 @@ class _RoundsDashboardState extends State<RoundsDashboard> {
               ),
             ),
             const SizedBox(height: 10),
-            Text('Tour ${shown.seq} · ${_day(context, shown.date)}${shown.label != null ? ' · ${shown.label}' : ''}', style: t.titleSmall),
+            Text('${AppLocalizations.of(context).dashRoundDate(shown.seq, _day(context, shown.date))}${shown.label != null ? ' · ${shown.label}' : ''}', style: t.titleSmall),
             Text('${Xaf.format(shown.collectedXaf)} reçus sur ${Xaf.format(shown.expectedXaf)}', style: t.bodySmall),
           ],
-          Align(alignment: Alignment.centerRight, child: TextButton(onPressed: widget.onOpen, child: const Text('Voir le cycle'))),
+          Align(alignment: Alignment.centerRight, child: TextButton(onPressed: widget.onOpen, child: Text(AppLocalizations.of(context).dashSeeCycle))),
         ],
       ),
     );

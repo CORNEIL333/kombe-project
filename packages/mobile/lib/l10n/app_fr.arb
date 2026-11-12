@@ -122,5 +122,118 @@
         "type": "int"
       }
     }
-  }
+  },
+  "dashResumeSending": "Envoi à reprendre",
+  "dashFinishPayment": "Paiement à terminer",
+  "dashNoDoubleDeclare": "rien ne sera déclaré deux fois",
+  "dashNotSentYet": "pas encore envoyé",
+  "dashToControl": "{count, plural, =1{1 paiement à contrôler} other{{count} paiements à contrôler}}",
+  "@dashToControl": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dashToConfirm": "{count, plural, =1{1 paiement à confirmer} other{{count} paiements à confirmer}}",
+  "@dashToConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dashBureau": "Bureau",
+  "dashAddYourPhoto": "Ajoutez votre photo",
+  "dashGroupRecognizes": "Votre groupe vous reconnaît",
+  "dashAddGroupPhoto": "Ajoutez la photo du groupe",
+  "dashOpenPolls": "{count, plural, =1{1 vote libre attend votre réponse} other{{count} votes libres attendent votre réponse}}",
+  "@dashOpenPolls": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dashYourOpinion": "Votre avis compte",
+  "dashVoteTitle": "Vote : {title}",
+  "@dashVoteTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "dashUntil": "Jusqu’au {date}",
+  "@dashUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "dashNextMeeting": "Prochaine séance",
+  "dashNothingNew": "Rien de nouveau.",
+  "dashHello": "Bonjour",
+  "dashHelloName": "Bonjour {name}",
+  "@dashHelloName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "dashToPay": "À payer",
+  "dashLate": "En retard",
+  "dashForThisRound": "Pour ce tour",
+  "dashBefore": "Avant le {date}",
+  "@dashBefore": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "dashUpToDate": "Vous êtes à jour",
+  "dashRoundOf": "Tour {current} sur {total}",
+  "@dashRoundOf": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "dashWelcome": "Bienvenue sur KÓMBE",
+  "dashWelcomeBody": "KÓMBE tient le registre de votre tontine : cotisations, tours, séances. L’argent, lui, reste entre vos mains.",
+  "dashJoinWithCode": "Rejoindre avec un code",
+  "dashThisRound": "Ce tour",
+  "dashWholeCycle": "Tout le cycle",
+  "dashRoundDate": "Tour {seq} · {date}",
+  "@dashRoundDate": {
+    "placeholders": {
+      "seq": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "dashRoundCollected": "Tour {seq} : {pct} % collecté",
+  "@dashRoundCollected": {
+    "placeholders": {
+      "seq": {
+        "type": "int"
+      },
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
+  "dashSeeCycle": "Voir le cycle",
+  "dashRecentActivity": "Activité récente",
+  "dashHistory": "Historique"
 }
