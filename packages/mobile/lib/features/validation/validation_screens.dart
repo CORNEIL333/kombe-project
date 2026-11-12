@@ -17,6 +17,8 @@ import '../../core/widgets/group_avatar.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/governance.dart';
 import '../../domain/repositories/governance_repository.dart';
+import '../../l10n/app_localizations.dart';
+import '../../l10n/kombe_l10n.dart';
 
 /// Libellés selon la responsabilité : la trésorerie CONFIRME qu'elle a
 /// retrouvé le paiement ; le commissaire aux comptes CONTRÔLE ensuite.
@@ -27,17 +29,17 @@ String _meta(ValidationItem item) => <String>[
       if (item.channel != null) _channelLabel(item.channel),
     ].join(' · ');
 
-String _stageTitle(bool control) => control ? 'À contrôler' : 'À confirmer';
-String _approveLabel(bool control) => control ? 'Contrôle conforme' : 'Paiement retrouvé — confirmer';
+String _stageTitle(bool control) => control ? KombeL10n.current.vaControler : KombeL10n.current.vaConfirmer;
+String _approveLabel(bool control) => control ? KombeL10n.current.vaControleConforme : KombeL10n.current.vaPaiementRetrouveConfirmer;
 
 String _channelLabel(String? c) => switch (c) {
       'orange_money' => 'Orange Money',
       'mtn_momo' => 'MTN MoMo',
-      'bank' => 'Virement bancaire',
-      'international_transfer' => 'Transfert international',
-      'cash' => 'Espèces',
+      'bank' => KombeL10n.current.bankTransfer,
+      'international_transfer' => KombeL10n.current.csTransfertInternational,
+      'cash' => KombeL10n.current.cash,
       null => '—',
-      _ => 'Autre moyen',
+      _ => KombeL10n.current.vaAutreMoyen,
     };
 
 /// File des déclarations sur lesquelles j'ai une décision à prendre. Le
@@ -81,15 +83,15 @@ class _ValidationQueueScreenState extends State<ValidationQueueScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Validations')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).vaValidations)),
         body: RefreshIndicator(
           onRefresh: _load,
           child: ResourceView<List<ValidationItem>>(
             resource: _state,
             onRetry: _load,
             emptyWhen: (List<ValidationItem> data) => data.isEmpty,
-            emptyTitle: 'Tout est à jour',
-            emptyBody: 'Rien à confirmer.',
+            emptyTitle: AppLocalizations.of(context).vaToutEstJour,
+            emptyBody: AppLocalizations.of(context).vaRienConfirmer,
             builder: (BuildContext context, List<ValidationItem> data) {
               final List<ValidationItem> confirm = data.where((ValidationItem v) => !v.control).toList();
               final List<ValidationItem> control = data.where((ValidationItem v) => v.control).toList();
@@ -111,7 +113,7 @@ class _ValidationQueueScreenState extends State<ValidationQueueScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
-                                Text('${data.length} paiement${data.length > 1 ? 's' : ''} en attente', style: Theme.of(context).textTheme.titleMedium),
+                                Text(AppLocalizations.of(context).vaPendingPayments(data.length), style: Theme.of(context).textTheme.titleMedium),
                                 const SizedBox(height: 4),
                                 FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(total, size: 22, color: KombeColors.goldDark)),
                               ],
@@ -168,7 +170,7 @@ class _ValidationDetailScreenState extends State<ValidationDetailScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(_state is ResourceReady<ValidationItem> ? _stageTitle((_state as ResourceReady<ValidationItem>).data.control) : 'Validation')),
+        appBar: AppBar(title: Text(_state is ResourceReady<ValidationItem> ? _stageTitle((_state as ResourceReady<ValidationItem>).data.control) : AppLocalizations.of(context).validation)),
         body: ResourceView<ValidationItem>(
           resource: _state,
           builder: (BuildContext context, ValidationItem item) => SingleChildScrollView(
@@ -204,7 +206,7 @@ class _DecisionPanelState extends State<DecisionPanel> {
   Future<void> _decide(ValidationDecision d) async {
     if (_sending) return;
     if (d == ValidationDecision.reject && _motif.text.trim().isEmpty) {
-      setState(() => _error = 'Indiquez le motif : il est transmis au membre.');
+      setState(() => _error = AppLocalizations.of(context).vaIndiquezLeMotifIlEst);
       return;
     }
     setState(() {
@@ -221,13 +223,13 @@ class _DecisionPanelState extends State<DecisionPanel> {
     switch (r) {
       case OperationSuccess<void>():
         unawaited(HapticFeedback.mediumImpact());
-        if (d != ValidationDecision.reject) showKombeSeal(context, 'Confirmé');
+        if (d != ValidationDecision.reject) showKombeSeal(context, AppLocalizations.of(context).fuConfirme);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(d == ValidationDecision.reject
-              ? 'Paiement rejeté. Le membre est prévenu.'
+              ? AppLocalizations.of(context).vaPaiementRejeteLeMembreEst
               : widget.item.control
-                  ? 'Contrôle enregistré.'
-                  : 'Paiement confirmé. Il est inscrit au registre du groupe.'),
+                  ? AppLocalizations.of(context).vaControleEnregistre
+                  : AppLocalizations.of(context).vaPaiementConfirmeIlEstInscrit),
         ));
         Navigator.of(context).maybePop(true);
       case OperationFailure<void>() || OperationBlocked<void>():
@@ -277,17 +279,17 @@ class _DecisionPanelState extends State<DecisionPanel> {
                 FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(item.amountXaf, size: 34)),
                 const SizedBox(height: 10),
                 const Divider(),
-                _row(t, 'Moyen', _channelLabel(item.channel)),
-                _row(t, 'Référence', item.evidenceName ?? 'Aucune (motif donné par le membre)'),
-                _row(t, 'Déclaré le', when),
+                _row(t, AppLocalizations.of(context).csMoyen, _channelLabel(item.channel)),
+                _row(t, AppLocalizations.of(context).csReference, item.evidenceName ?? AppLocalizations.of(context).vaAucuneMotifDonneParLe),
+                _row(t, AppLocalizations.of(context).vaDeclareLe, when),
               ],
             ),
           ),
           const SizedBox(height: 12),
           Text(
             item.control
-                ? 'La trésorerie a déjà confirmé ce paiement. Vous en faites la seconde vérification.'
-                : 'Confirmez seulement si vous retrouvez ce paiement (relevé, SMS de l’opérateur, caisse).',
+                ? AppLocalizations.of(context).vaLaTresorerieDejaConfirmeCe
+                : AppLocalizations.of(context).vaConfirmezSeulementSiVousRetrouvez,
             style: t.bodySmall?.copyWith(color: KombeColors.slate),
           ),
           if (_rejecting) ...<Widget>[
@@ -298,7 +300,7 @@ class _DecisionPanelState extends State<DecisionPanel> {
               maxLength: 500,
               minLines: 2,
               maxLines: 4,
-              decoration: const InputDecoration(labelText: 'Motif du rejet', helperText: 'Transmis au membre.'),
+              decoration: InputDecoration(labelText: AppLocalizations.of(context).vaMotifDuRejet, helperText: AppLocalizations.of(context).vaTransmisAuMembre),
             ),
           ],
           if (_error != null) ...<Widget>[
@@ -316,7 +318,7 @@ class _DecisionPanelState extends State<DecisionPanel> {
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: _sending ? null : () => setState(() => _rejecting = true),
-              child: const Text('Rejeter…'),
+              child: Text(AppLocalizations.of(context).vaRejeter),
             ),
           ] else ...<Widget>[
             FilledButton(
@@ -324,12 +326,12 @@ class _DecisionPanelState extends State<DecisionPanel> {
               onPressed: _sending ? null : () => _decide(ValidationDecision.reject),
               child: _sending
                   ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
-                  : const Text('Rejeter le paiement'),
+                  : Text(AppLocalizations.of(context).vaRejeterLePaiement),
             ),
             const SizedBox(height: 8),
             TextButton(
               onPressed: _sending ? null : () => setState(() => _rejecting = false),
-              child: const Text('Annuler'),
+              child: Text(AppLocalizations.of(context).cancel),
             ),
           ],
         ],

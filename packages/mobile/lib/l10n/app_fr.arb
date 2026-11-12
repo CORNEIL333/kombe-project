@@ -1069,5 +1069,60 @@
         "type": "Object"
       }
     }
+  },
+  "vaControler": "À contrôler",
+  "vaConfirmer": "À confirmer",
+  "vaControleConforme": "Contrôle conforme",
+  "vaPaiementRetrouveConfirmer": "Paiement retrouvé — confirmer",
+  "vaAutreMoyen": "Autre moyen",
+  "vaValidations": "Validations",
+  "vaToutEstJour": "Tout est à jour",
+  "vaRienConfirmer": "Rien à confirmer.",
+  "vaIndiquezLeMotifIlEst": "Indiquez le motif : il est transmis au membre.",
+  "vaPaiementRejeteLeMembreEst": "Paiement rejeté. Le membre est prévenu.",
+  "vaControleEnregistre": "Contrôle enregistré.",
+  "vaPaiementConfirmeIlEstInscrit": "Paiement confirmé. Il est inscrit au registre du groupe.",
+  "vaAucuneMotifDonneParLe": "Aucune (motif donné par le membre)",
+  "vaDeclareLe": "Déclaré le",
+  "vaLaTresorerieDejaConfirmeCe": "La trésorerie a déjà confirmé ce paiement. Vous en faites la seconde vérification.",
+  "vaConfirmezSeulementSiVousRetrouvez": "Confirmez seulement si vous retrouvez ce paiement (relevé, SMS de l’opérateur, caisse).",
+  "vaMotifDuRejet": "Motif du rejet",
+  "vaTransmisAuMembre": "Transmis au membre.",
+  "vaRejeter": "Rejeter…",
+  "vaRejeterLePaiement": "Rejeter le paiement",
+  "meSeance": "Séance {seq}",
+  "@meSeance": {
+    "placeholders": {
+      "seq": {
+        "type": "Object"
+      }
+    }
+  },
+  "meSeances": "Séances",
+  "meAucuneSeance": "Aucune séance",
+  "meLesSeancesApparaitrontIciDes": "Les séances apparaîtront ici dès que le cycle aura démarré.",
+  "mePassees": "Passées",
+  "meSeanceMiseJourLesMembres": "Séance mise à jour : les membres sont prévenus.",
+  "meSeance2": "Séance",
+  "meDate": "Date",
+  "meModalite": "Modalité",
+  "meLieu": "Lieu",
+  "meRecoit": "Reçoit",
+  "meCommentSeTientLaSeance": "Comment se tient la séance",
+  "meRejoindreLaReunionEnLigne": "Rejoindre la réunion en ligne",
+  "meNotes": "Notes",
+  "mePresences": "Présences",
+  "meProcesVerbal": "Procès-verbal",
+  "meApprouve": "Approuvé",
+  "meEnAttenteDapprobation": "En attente d’approbation",
+  "meLienDeLaReunionEn": "Lien de la réunion en ligne",
+  "meLeLienCompletQuiCommence": "Le lien complet, qui commence par https://",
+  "vaPendingPayments": "{count, plural, =1{1 paiement en attente} other{{count} paiements en attente}}",
+  "@vaPendingPayments": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

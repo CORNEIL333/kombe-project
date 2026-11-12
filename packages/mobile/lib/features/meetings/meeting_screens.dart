@@ -13,6 +13,7 @@ import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/meeting_repository.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/widgets/operation_feedback.dart';
+import '../../l10n/app_localizations.dart';
 
 KombeTone _toneOf(MeetingState s) => switch (s) {
       MeetingState.open => KombeTone.success,
@@ -60,7 +61,7 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('Séance ${m.seq}', style: t.titleMedium),
+                Text(AppLocalizations.of(context).meSeance(m.seq), style: t.titleMedium),
                 const SizedBox(height: 2),
                 Text(DoualaTime.date(m.date), style: t.bodyMedium),
                 if (m.format != MeetingFormat.online && m.location != null) Text(m.location!, style: t.bodySmall),
@@ -78,23 +79,23 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Séances')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).meSeances)),
         body: RefreshIndicator(
           onRefresh: _load,
           child: ResourceView<List<MeetingSummary>>(
             resource: _state,
             emptyWhen: (List<MeetingSummary> items) => items.isEmpty,
-            emptyTitle: 'Aucune séance',
-            emptyBody: 'Les séances apparaîtront ici dès que le cycle aura démarré.',
+            emptyTitle: AppLocalizations.of(context).meAucuneSeance,
+            emptyBody: AppLocalizations.of(context).meLesSeancesApparaitrontIciDes,
             builder: (BuildContext context, List<MeetingSummary> items) {
               final List<MeetingSummary> next = items.where((MeetingSummary m) => m.state == MeetingState.open || m.state == MeetingState.planned).toList();
               final List<MeetingSummary> past = items.where((MeetingSummary m) => !next.contains(m)).toList();
               return ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 children: <Widget>[
-                  if (next.isNotEmpty) const KombeSection('À venir'),
+                  if (next.isNotEmpty) KombeSection(AppLocalizations.of(context).benUpcoming),
                   for (final MeetingSummary m in next) Padding(padding: const EdgeInsets.only(bottom: 10), child: _row(context, m)),
-                  if (past.isNotEmpty) const KombeSection('Passées'),
+                  if (past.isNotEmpty) KombeSection(AppLocalizations.of(context).mePassees),
                   for (final MeetingSummary m in past) Padding(padding: const EdgeInsets.only(bottom: 10), child: _row(context, m)),
                 ],
               );
@@ -153,14 +154,14 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
         );
     if (!mounted) return;
     if (reportOutcome(context, r)) {
-      showKombeMessage(context, 'Séance mise à jour : les membres sont prévenus.');
+      showKombeMessage(context, AppLocalizations.of(context).meSeanceMiseJourLesMembres);
       await _load();
     }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Séance')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).meSeance2)),
         body: RefreshIndicator(
           onRefresh: _load,
           child: ResourceView<MeetingDetail>(
@@ -175,15 +176,15 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text('Séance ${m.seq}', style: t.titleLarge),
+                        Text(AppLocalizations.of(context).meSeance(m.seq), style: t.titleLarge),
                         const SizedBox(height: 8),
                         StatusPill(meetingStateLabel(m.state), tone: _toneOf(m.state)),
                         const SizedBox(height: 12),
-                        KombeFact(icon: Icons.event_outlined, label: 'Date', value: DoualaTime.date(m.date)),
-                        KombeFact(icon: Icons.videocam_outlined, label: 'Modalité', value: meetingFormatLabel(m.format)),
-                        if (m.format != MeetingFormat.online && m.location != null) KombeFact(icon: Icons.place_outlined, label: 'Lieu', value: m.location!),
-                        if (m.hostName != null) KombeFact(icon: Icons.home_outlined, label: 'Reçoit', value: m.hostName!),
-                        if (m.roundSeq != null) KombeFact(icon: Icons.donut_large_rounded, label: 'Tour', value: '${m.roundSeq}'),
+                        KombeFact(icon: Icons.event_outlined, label: AppLocalizations.of(context).meDate, value: DoualaTime.date(m.date)),
+                        KombeFact(icon: Icons.videocam_outlined, label: AppLocalizations.of(context).meModalite, value: meetingFormatLabel(m.format)),
+                        if (m.format != MeetingFormat.online && m.location != null) KombeFact(icon: Icons.place_outlined, label: AppLocalizations.of(context).meLieu, value: m.location!),
+                        if (m.hostName != null) KombeFact(icon: Icons.home_outlined, label: AppLocalizations.of(context).meRecoit, value: m.hostName!),
+                        if (m.roundSeq != null) KombeFact(icon: Icons.donut_large_rounded, label: AppLocalizations.of(context).gdTour, value: '${m.roundSeq}'),
                       ],
                     ),
                   ),
@@ -192,7 +193,7 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     OutlinedButton.icon(
                       onPressed: () => _edit(m),
                       icon: const Icon(Icons.tune_rounded),
-                      label: const Text('Comment se tient la séance'),
+                      label: Text(AppLocalizations.of(context).meCommentSeTientLaSeance),
                     ),
                   ],
                   if (m.onlineUrl != null && m.format != MeetingFormat.inPerson && (m.state == MeetingState.planned || m.state == MeetingState.open)) ...<Widget>[
@@ -200,15 +201,15 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     FilledButton.icon(
                       onPressed: () => launchUrl(Uri.parse(m.onlineUrl!), mode: LaunchMode.externalApplication),
                       icon: const Icon(Icons.videocam_rounded),
-                      label: const Text('Rejoindre la réunion en ligne'),
+                      label: Text(AppLocalizations.of(context).meRejoindreLaReunionEnLigne),
                     ),
                   ],
                   if (m.notes != null && m.notes!.isNotEmpty) ...<Widget>[
-                    const KombeSection('Notes'),
+                    KombeSection(AppLocalizations.of(context).meNotes),
                     KombeCard(child: Text(m.notes!)),
                   ],
                   if (m.attendance.isNotEmpty) ...<Widget>[
-                    const KombeSection('Présences'),
+                    KombeSection(AppLocalizations.of(context).mePresences),
                     KombeCard(
                       child: Column(
                         children: <Widget>[
@@ -228,13 +229,13 @@ class _MeetingDetailScreenState extends State<MeetingDetailScreen> {
                     ),
                   ],
                   if (minutes != null) ...<Widget>[
-                    const KombeSection('Procès-verbal'),
+                    KombeSection(AppLocalizations.of(context).meProcesVerbal),
                     KombeCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           StatusPill(
-                            m.minutesApproved ? 'Approuvé' : 'En attente d’approbation',
+                            m.minutesApproved ? AppLocalizations.of(context).meApprouve : AppLocalizations.of(context).meEnAttenteDapprobation,
                             tone: m.minutesApproved ? KombeTone.success : KombeTone.warning,
                           ),
                           const SizedBox(height: 10),
@@ -287,7 +288,7 @@ class _ModaliteSheetState extends State<_ModaliteSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text('Comment se tient la séance', style: Theme.of(context).textTheme.titleLarge),
+            Text(AppLocalizations.of(context).meCommentSeTientLaSeance, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
             SegmentedButton<MeetingFormat>(
               showSelectedIcon: false,
@@ -298,19 +299,19 @@ class _ModaliteSheetState extends State<_ModaliteSheet> {
               onSelectionChanged: (Set<MeetingFormat> v) => setState(() => _format = v.first),
             ),
             const SizedBox(height: 12),
-            if (_format != MeetingFormat.online) TextField(controller: _place, maxLength: 120, decoration: const InputDecoration(labelText: 'Lieu')),
+            if (_format != MeetingFormat.online) TextField(controller: _place, maxLength: 120, decoration: InputDecoration(labelText: AppLocalizations.of(context).meLieu)),
             if (_format != MeetingFormat.inPerson)
               TextField(
                 controller: _url,
                 keyboardType: TextInputType.url,
                 maxLength: 500,
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(labelText: 'Lien de la réunion en ligne', helperText: 'Le lien complet, qui commence par https://'),
+                decoration: InputDecoration(labelText: AppLocalizations.of(context).meLienDeLaReunionEn, helperText: AppLocalizations.of(context).meLeLienCompletQuiCommence),
               ),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: _ready ? () => Navigator.of(context).pop(_Modalite(_format, _url.text.trim(), _place.text.trim())) : null,
-              child: const Text('Enregistrer'),
+              child: Text(AppLocalizations.of(context).save),
             ),
           ],
         ),
