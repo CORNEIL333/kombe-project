@@ -274,7 +274,7 @@ par client, puis vérification manuelle de chaque finding (trust but verify).
 
 ### 7.3 Documenté, NON corrigé (P3 — à planifier)
 
-- **Resoumission d'un brouillon de cotisation mobile = NOUVELLE Idempotency-Key à chaque essai** (`kombe_api_client.dart:88`) : un échec réseau ambigu (réponse perdue) suivi d'une resoumission peut créer un doublon de mouvement. Le correctif juste (clé générée à la création du brouillon et persistée jusqu'au succès, ou identité métier période+membre+montant) est une décision de design — à trancher avant implémentation.
+- **[CORRIGÉ — clé stable par ligne, `declarationKey(localId, index, corps)` dans `tontine_repositories.dart`, vérifié le 12/11]** **Resoumission d'un brouillon de cotisation mobile = NOUVELLE Idempotency-Key à chaque essai** (`kombe_api_client.dart:88`) : un échec réseau ambigu (réponse perdue) suivi d'une resoumission peut créer un doublon de mouvement. Le correctif juste (clé générée à la création du brouillon et persistée jusqu'au succès, ou identité métier période+membre+montant) est une décision de design — à trancher avant implémentation.
 - 3 écritures mobile sans Idempotency-Key : logout, `PATCH /me`, `notifications/read` (non créatrices de ressources, doublon inoffensif).
 - Mobile : re-fetch des listes complètes après chaque écriture (N+1, acceptable à l'échelle d'un groupe < 300 membres).
 - Mobile : pas d'épinglage de certificat (TLS système) — à réévaluer si le modèle de menace évolue.
@@ -324,10 +324,10 @@ vérification manuelle de chaque finding.
 
 ### 8.3 Documenté, NON corrigé (P2/P3 — à planifier)
 
-- **P2** — `token_hash` = SHA-256 **non salé** d'un code à 10⁶ (`domain/access.ts:49-51`) : une fuite de la table `access_token` permet un brute-force hors ligne des codes actifs. Correctif juste = HMAC avec clé serveur (env) — à faire avec la passe RLS/SECURITY DEFINER qui traitera aussi les `ses_*` en clair (§6.3), pour ne pas refaire la moitié d'un chantier.
+- **[CORRIGÉ — V-05 : HMAC avec poivre serveur `h2:`, preuve `authHardening` HASH-PEPPERED]** **P2** — `token_hash` = SHA-256 **non salé** d'un code à 10⁶ (`domain/access.ts:49-51`) : une fuite de la table `access_token` permet un brute-force hors ligne des codes actifs. Correctif juste = HMAC avec clé serveur (env) — à faire avec la passe RLS/SECURITY DEFINER qui traitera aussi les `ses_*` en clair (§6.3), pour ne pas refaire la moitié d'un chantier.
 - **P3** — `kombe.fileAttente` (localStorage PWA) : payloads d'opérations en attente (montants, libellés) persistés sur l'appareil — fonctionnalité hors-ligne assumée, aucun vecteur XSS connu (CSP stricte), mais à purger à la déconnexion comme le fait déjà la session.
 - **P3** — `/v1/access/*` (registre/récupération/connexion) : pas de cooldown par identité (chaque demande évince le jeton précédent et repart un e-mail) — borné par 10/min/IP ; la voie tontine a déjà un cooldown 45 s.
-- **P3** — `session_id` en clair en base (at-rest), TTL session 720 h sans rotation — même chantier que `token_hash`.
+- **[CORRIGÉ en production le 09/11 — R-01 : empreinte SHA-256 seule, migration 0042]** **P3** — `session_id` en clair en base (at-rest), TTL session 720 h sans rotation — même chantier que `token_hash`.
 - **P3** — `/v1/health` divulgue `mode:"réel"|"fictif"` (informationnel).
 - **P3** — `window.open("","_blank")` same-origin pour l'impression des PV (sans noopener, fenêtre contrôlée par notre propre code).
 - **P3 (info)** — mobile : pas de FLAG_SECURE (captures d'écran possibles sur écrans sensibles) ; e-mail en paramètre d'URI interne go_router (jamais loggé).
@@ -420,4 +420,4 @@ serveur » MÊME dans une application branchée (rôles, litiges, PIN, parrainag
 - Le résultat publié d'un tirage précède le placement « nouveaux en dernier » :
   l'ordre réel peut différer du tirage affiché quand cette règle est active.
 - `feeBearer` (frais Mobile Money) n'est qu'imprimé dans les statuts.
-- Aucune notification hors de l'application (push Android, SMS) : à prévoir.
+- Aucune notification hors de l'application (push Android, SMS) : à prévoir. **[Mis à jour le 12/11 : file de livraison, SMS et e-mail en place (ADR-0044) ; Push Web de la PWA dans le code (ADR-0048, A14) ; push Android en attente de Firebase (R-07, porteur) ; rien ne part sans `KOMBE_NOTIFY_EXTERNAL=on`.]**
