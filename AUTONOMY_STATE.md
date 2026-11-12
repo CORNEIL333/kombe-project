@@ -84,6 +84,7 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 | A8 | PWA : tests de l'écran Aide (assistance) | DONE (11/11) | `aide.test.tsx` : 3 tests (liste, nouvelle demande, fil, réponse, note) ; client 38/38. |
 | A9 | Délais de service : alerte avant dépassement | DONE dans le code (11/11), déploiement BLOCKED (B7) | Migration 0046 `kombe_crm_sla_scan` : P1/P2 30 min avant, P3/P4 en retard, une alerte par demande et par échéance ; relève toutes les 5 min et tâche quotidienne ; preuve crm 46/46 ; 29/29. |
 | A10 | Intégrité (audit §6.3) : une seule séance ouverte, RLS de `command`, vocabulaire PWA/mobile/site | DONE dans le code (12/11), déploiement BLOCKED (B7) pour 0047 | Index unique partiel ; preuve MEETING-ONE-OPEN-DB ; gardes `copieProduit.test.ts` et `vocabulaire_test.dart`. |
+| A12 | Mobile : traduction anglaise complète (≈ 280 chaînes en dur dans les écrans) | READY, gros lot | Cameroun bilingue ; l'écran Langue annonce une traduction partielle (12/11). Procéder écran par écran via `lib/l10n/app_*.arb`, sans modifier les goldens français. |
 | B1 | Relier Vercel à GitHub (déploiement automatique depuis `master`) | BLOCKED | Refusé par le classificateur (réglage du compte) : action du porteur (Vercel → Settings → Git). |
 | B2 | Premier opérateur en production | BLOCKED | Identité du porteur : `grant-operator.mjs`, puis second facteur. |
 | B3 | Publication de l'application mobile | BLOCKED | Clé de signature sur le PC du porteur. |
@@ -101,8 +102,8 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 
 ## Lot en cours
 
-Sélection du lot suivant (backlog READY épuisé : voir la section « Pistes »).
+A12 — traduction anglaise du mobile (écran par écran).
 
 ## Prochaine action concrète
 
-Revue de code (correction) des changements du 11/11, puis pistes : CRM en anglais (bascule FR/EN), export CSV des demandes pour la direction.
+Commencer par la connexion, l'accueil et la navigation principale : clés ARB fr/en, `AppLocalizations.of(context)`, regénération `flutter gen-l10n`, suite mobile verte.

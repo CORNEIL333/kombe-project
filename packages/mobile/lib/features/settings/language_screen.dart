@@ -28,9 +28,16 @@ class LanguageScreen extends StatelessWidget {
                 RadioListTile<String>(
                   value: 'en',
                   title: Text('English'),
+                  subtitle: Text('Partial: menus and common messages. Most screens are still in French.'),
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+          // Honnêteté : l'anglais ne couvre pas encore tous les écrans (AUTONOMY_STATE, A12).
+          const Text(
+            'La traduction anglaise est en cours : les menus et les messages courants sont traduits, '
+            'la plupart des écrans restent en français pour l’instant.',
           ),
         ],
       ),
