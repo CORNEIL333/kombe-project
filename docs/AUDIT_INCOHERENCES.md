@@ -230,11 +230,11 @@ sur un rapport non confirmé.
 
 ### 6.3 Documenté, NON corrigé (P2/P3 — à planifier, aucun masque appliqué)
 
-- **RLS** : ~7 tables sensibles sans RLS (`restore_point`, `data_erasure_tombstone`, `personal_consent`, `processing_record`, `legal_notice`, `pilot_risk`, `command`) — SELECT multi-groupes ouvert à `kombe_app` ; passe SECURITY DEFINER à prévoir (travail de fond, migration dédiée).
-- `confirm()`/`control()` : double confirmation concurrente d'un même mouvement non verrouillée (effet limité : re-UPDATE du même état) — à aligner sur le modèle `declare()` lors d'une prochaine passe.
-- Deux séances « ouvertes » simultanées restent possibles (pas d'index unique partiel) ; témoins d'une autre séance non filtrés à l'affichage.
+- **RLS** : ~7 tables sensibles sans RLS. **Résolu :** 0042 (vie privée et `pilot_risk`, en production), 0045 (`"group"`), 0047 (`command`).
+- `confirm()`/`control()` : double confirmation concurrente. **Résolu :** `lockMovement` (FOR UPDATE) dans les deux chemins (constaté le 12/11).
+- Deux séances « ouvertes » simultanées. **Résolu :** index unique partiel `meeting_one_open_per_group` (0047), message clair en cas de course, preuve MEETING-ONE-OPEN-DB. Les témoins d'une autre séance : à vérifier.
 - Notifications hors-ligne non rejouées à la reconnexion ; `newcomersLast` (reprise d'historique) non borné.
-- Jetons de session (`ses_*`) stockés en clair côté base (at-rest).
+- Jetons de session stockés en clair. **Résolu :** empreinte SHA-256 (0042, en production).
 - `docs/openapi.yaml` : ancien contrat harness, divergent du réel (201 sur `code-verifications`/`draws`, `notifications/read` renvoie `{updated}`, 410 sur invitations épuisées) — à archiver au profit de `docs/API_TONTINE.md`.
 - Mobile (inchangé depuis §5.2) : ~225 chaînes FR en dur, motif de rejet imposé en dur, majorité réinventée côté client.
 

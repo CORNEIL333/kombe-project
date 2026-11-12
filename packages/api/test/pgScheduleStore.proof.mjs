@@ -117,7 +117,7 @@ try {
   `);
 
   const DOWN = [
-    "migrations/0046_crm_delais.down.sql", "migrations/0045_rls_group.down.sql", "migrations/0044_crm_alertes.down.sql", "migrations/0043_retours_membres.down.sql", "migrations/0042_securite_residuelle.down.sql", "migrations/0041_crm.down.sql",
+    "migrations/0047_integrite.down.sql", "migrations/0046_crm_delais.down.sql", "migrations/0045_rls_group.down.sql", "migrations/0044_crm_alertes.down.sql", "migrations/0043_retours_membres.down.sql", "migrations/0042_securite_residuelle.down.sql", "migrations/0041_crm.down.sql",
     "migrations/0040_performance_charge.down.sql",
     "migrations/0039_role_api.down.sql",
     "migrations/0038_notifications_livraison.down.sql",
@@ -143,7 +143,7 @@ try {
     "migrations/0010_dispute_cases.sql", "migrations/0011_disbursement.sql", "migrations/0012_proposal.sql",
     "migrations/0013_outbox.sql", "migrations/0014_support_security.sql", "migrations/0015_export_manifest.sql",
     "migrations/0016_privacy_law.sql", "migrations/0017_pilot_metrics.sql",
-    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "migrations/0032_audit_indexes.sql", "migrations/0033_custom_funds.sql", "migrations/0034_echeances_notifications.sql", "migrations/0034_group_photo.sql", "migrations/0035_member_photo.sql", "migrations/0036_securite_operateurs.sql", "migrations/0037_rls_identite.sql", "migrations/0038_notifications_livraison.sql", "migrations/0039_role_api.sql", "migrations/0040_performance_charge.sql", "migrations/0041_crm.sql", "migrations/0042_securite_residuelle.sql", "migrations/0043_retours_membres.sql", "migrations/0044_crm_alertes.sql", "migrations/0045_rls_group.sql", "migrations/0046_crm_delais.sql", "provision/roles.sql",
+    "migrations/0018_session_resolver.sql", "migrations/0019_token_security.sql", "migrations/0020_group_resolvers.sql", "migrations/0021_privacy_restore_points.sql", "migrations/0022_cycle_schedule.sql", "migrations/0023_worker_discovery.sql", "migrations/0024_group_onboarding.sql", "migrations/0025_member_groups.sql", "migrations/0026_tontine_core.sql", "migrations/0027_association.sql", "migrations/0028_product_api.sql", "migrations/0029_ops_console.sql", "migrations/0030_decisions.sql", "migrations/0031_cycles_reserve.sql", "migrations/0032_audit_indexes.sql", "migrations/0033_custom_funds.sql", "migrations/0034_echeances_notifications.sql", "migrations/0034_group_photo.sql", "migrations/0035_member_photo.sql", "migrations/0036_securite_operateurs.sql", "migrations/0037_rls_identite.sql", "migrations/0038_notifications_livraison.sql", "migrations/0039_role_api.sql", "migrations/0040_performance_charge.sql", "migrations/0041_crm.sql", "migrations/0042_securite_residuelle.sql", "migrations/0043_retours_membres.sql", "migrations/0044_crm_alertes.sql", "migrations/0045_rls_group.sql", "migrations/0046_crm_delais.sql", "migrations/0047_integrite.sql", "provision/roles.sql",
   ];
   for (const f of UP) await runSql(migrator, f);
 

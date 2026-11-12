@@ -192,7 +192,13 @@ export function translatePgError(error: unknown): unknown {
   if (process.env.KOMBE_DEBUG_PG === "1") {
     process.stderr.write(`[tontine pg] ${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
   }
-  if (code === "23505") return new DomainError("STATE_CONFLICT", "Déjà enregistré");
+  if (code === "23505") {
+    // Deux ouvertures simultanées de séance (index unique partiel, 0047).
+    if ((error as { constraint?: string }).constraint === "meeting_one_open_per_group") {
+      return new DomainError("STATE_CONFLICT", "Une autre séance est déjà ouverte : clôturez-la d'abord");
+    }
+    return new DomainError("STATE_CONFLICT", "Déjà enregistré");
+  }
   if (code === "22P02") return new DomainError("REQUEST_INVALID", "Identifiant ou valeur mal formée");
   if (code === "22023") return new DomainError("REQUEST_INVALID", "Valeur refusée");
   if (code === "23514" || code === "23503" || code === "23502") {

@@ -177,6 +177,19 @@ try {
   const meetings = await ok(A.token, "GET", `/v1/tontines/${gid}/meetings`);
   const m1 = meetings[0].meetingId;
   await ok(A.token, "POST", `/v1/tontines/${gid}/meetings/${m1}/open`);
+  // 0047 : une seule séance ouverte par groupe, garantie par la BASE (index
+  // unique partiel) et non seulement par la vérification applicative.
+  {
+    const { default: pg } = await import("pg");
+    const own = new pg.Client({ connectionString: process.env.KOMBE_DATABASE_URL ?? url });
+    await own.connect();
+    let code = null, constraint = null;
+    try {
+      await own.query(`UPDATE meeting SET state = 'open' WHERE group_id = $1 AND meeting_id = $2`, [gid, meetings[1].meetingId]);
+    } catch (e) { code = e.code; constraint = e.constraint; }
+    await own.end();
+    check("MEETING-ONE-OPEN-DB", code === "23505" && constraint === "meeting_one_open_per_group", { code, constraint });
+  }
   const att = await ok(A.token, "PUT", `/v1/tontines/${gid}/meetings/${m1}/attendance`, {
     entries: [
       { membershipId: mid(A.name), status: "present" },

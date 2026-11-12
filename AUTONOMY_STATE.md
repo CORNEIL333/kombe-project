@@ -83,6 +83,7 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 | A11 | ADR-0047 (sécurité résiduelle, alertes, lectures) | DONE (11/11) | |
 | A8 | PWA : tests de l'écran Aide (assistance) | DONE (11/11) | `aide.test.tsx` : 3 tests (liste, nouvelle demande, fil, réponse, note) ; client 38/38. |
 | A9 | Délais de service : alerte avant dépassement | DONE dans le code (11/11), déploiement BLOCKED (B7) | Migration 0046 `kombe_crm_sla_scan` : P1/P2 30 min avant, P3/P4 en retard, une alerte par demande et par échéance ; relève toutes les 5 min et tâche quotidienne ; preuve crm 46/46 ; 29/29. |
+| A10 | Intégrité (audit §6.3) : une seule séance ouverte, RLS de `command`, vocabulaire PWA/mobile/site | DONE dans le code (12/11), déploiement BLOCKED (B7) pour 0047 | Index unique partiel ; preuve MEETING-ONE-OPEN-DB ; gardes `copieProduit.test.ts` et `vocabulaire_test.dart`. |
 | B1 | Relier Vercel à GitHub (déploiement automatique depuis `master`) | BLOCKED | Refusé par le classificateur (réglage du compte) : action du porteur (Vercel → Settings → Git). |
 | B2 | Premier opérateur en production | BLOCKED | Identité du porteur : `grant-operator.mjs`, puis second facteur. |
 | B3 | Publication de l'application mobile | BLOCKED | Clé de signature sur le PC du porteur. |
@@ -90,7 +91,7 @@ Le but est de le mener à une production sûre, mesurée et documentée, avec :
 | B5 | Plan Neon payant, branches de prévisualisation anciennes | BLOCKED | Décision d'achat et de suppression du porteur. |
 | B6 | Validations juridiques (loi 2024/017, CEMAC/COBAC) | BLOCKED | Juriste. |
 | B8 | CI GitHub Actions | BLOCKED | Tous les jobs s'arrêtent en 1 s sans démarrer (constaté le 11/11 sur 704 exécutions récentes) : compte ou limite de facturation GitHub, à lever par le porteur. Les preuves locales (`scripts/proofs-local.sh`) font foi en attendant. |
-| B7 | Déployer 0044 à 0046 (alertes support, RLS de "group", délais) et R-04 | BLOCKED | Sauvegarde Neon obligatoire, mais 10 branches sur 10 : il faut que le porteur supprime `sauvegarde-avant-0-8-1-20261106` (ou autorise sa suppression). |
+| B7 | Déployer 0044 à 0047 (alertes support, RLS de "group", délais, intégrité) et R-04 | BLOCKED | Sauvegarde Neon obligatoire, mais 10 branches sur 10 : il faut que le porteur supprime `sauvegarde-avant-0-8-1-20261106` (ou autorise sa suppression). |
 
 ## Décisions techniques importantes
 

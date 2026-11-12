@@ -84,7 +84,7 @@ const UP_MIGRATIONS = [
   "migrations/0039_role_api.sql",
   "migrations/0040_performance_charge.sql",
   "migrations/0041_crm.sql",
-  "migrations/0042_securite_residuelle.sql", "migrations/0043_retours_membres.sql", "migrations/0044_crm_alertes.sql", "migrations/0045_rls_group.sql", "migrations/0046_crm_delais.sql",
+  "migrations/0042_securite_residuelle.sql", "migrations/0043_retours_membres.sql", "migrations/0044_crm_alertes.sql", "migrations/0045_rls_group.sql", "migrations/0046_crm_delais.sql", "migrations/0047_integrite.sql",
   "provision/roles.sql",
 ];
 
