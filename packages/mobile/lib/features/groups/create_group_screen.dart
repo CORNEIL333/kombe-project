@@ -11,6 +11,7 @@ import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/operation_feedback.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Écran de CRÉATION d'une tontine, branché sur l'API réelle
 /// `POST /v1/tontines`. Le bureau saisit lui-même chaque paramètre : nom,
@@ -45,9 +46,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
   bool _operatingOn = false;
   bool _busy = false;
 
-  static const List<String> _jours = <String>[
-    'Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi',
-  ];
+  List<String> _jours(AppLocalizations l) => <String>[
+        l.daySunday, l.dayMonday, l.dayTuesday, l.dayWednesday, l.dayThursday, l.dayFriday, l.daySaturday,
+      ];
 
   @override
   void dispose() {
@@ -69,9 +70,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     final bool formOk = _form.currentState?.validate() ?? false;
     setState(() {
       _firstDateError = _firstDate == null
-          ? 'Choisissez la date de la première séance.'
+          ? AppLocalizations.of(context).chooseFirstMeetingDate
           : _firstDate!.isBefore(_today())
-              ? 'La première séance ne peut pas être dans le passé.'
+              ? AppLocalizations.of(context).firstMeetingNotPast
               : null;
     });
     if (!formOk || _firstDateError != null || _busy) return;
@@ -96,17 +97,17 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     setState(() => _busy = false);
     if (reportOutcome(context, result)) {
       Navigator.of(context).pop();
-      showKombeMessage(context, 'Tontine créée. Invitez ses membres, désignez un trésorier, puis publiez les statuts.');
+      showKombeMessage(context, AppLocalizations.of(context).tontineCreatedNext);
     }
   }
 
   static String _yyyyMmDd(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  static String? _amount(String? v, {bool positive = true}) {
+  String? _amount(String? v, {bool positive = true}) {
     final int n = int.tryParse((v ?? '').trim()) ?? 0;
-    if (positive && n <= 0) return 'Montant entier requis, supérieur à 0.';
-    if (n > 1000000000) return 'Montant trop élevé.';
+    if (positive && n <= 0) return AppLocalizations.of(context).amountWholePositive;
+    if (n > 1000000000) return AppLocalizations.of(context).amountTooHigh;
     return null;
   }
 
@@ -132,7 +133,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               controller: controller,
               keyboardType: TextInputType.number,
               inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: 'Montant par membre et par séance (FCFA)'),
+              decoration: InputDecoration(labelText: AppLocalizations.of(context).amountPerMemberPerMeeting),
               validator: (String? v) => _amount(v),
             ),
         ],
@@ -143,7 +144,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     final String locale = Localizations.localeOf(context).toLanguageTag();
     final TextTheme t = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Créer une tontine')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).createTontine)),
       body: SafeArea(
         child: Form(
           key: _form,
@@ -152,29 +153,29 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
             children: <Widget>[
               _Block(
                 icon: Icons.diversity_3_rounded,
-                title: 'Le groupe',
+                title: AppLocalizations.of(context).theGroup,
                 children: <Widget>[
                   _Field(
-                    label: 'Nom de la tontine',
+                    label: AppLocalizations.of(context).tontineName,
                     child: TextFormField(
                       controller: _name,
                       maxLength: 120,
                       textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(hintText: 'Ex. Tontine des artisans', counterText: ''),
-                      validator: (String? v) => (v == null || v.trim().isEmpty) ? 'Le nom est requis.' : null,
+                      decoration: InputDecoration(hintText: AppLocalizations.of(context).tontineNameHint, counterText: ''),
+                      validator: (String? v) => (v == null || v.trim().isEmpty) ? AppLocalizations.of(context).nameRequired : null,
                     ),
                   ),
                   _Field(
-                    label: 'Nombre maximum de membres',
+                    label: AppLocalizations.of(context).maxMembers,
                     child: TextFormField(
                       controller: _maxMembers,
                       keyboardType: TextInputType.number,
                       inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(hintText: 'Entre 2 et 60'),
+                      decoration: InputDecoration(hintText: AppLocalizations.of(context).between2And60),
                       validator: (String? v) {
                         final int n = int.tryParse((v ?? '').trim()) ?? 0;
-                        return (n >= 2 && n <= 60) ? null : 'Entre 2 et 60 membres.';
+                        return (n >= 2 && n <= 60) ? null : AppLocalizations.of(context).between2And60Members;
                       },
                     ),
                   ),
@@ -184,17 +185,17 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               _Block(
                 icon: Icons.payments_outlined,
                 tone: KombeTone.money,
-                title: 'La cotisation',
+                title: AppLocalizations.of(context).theContribution,
                 children: <Widget>[
                   _Field(
-                    label: 'Par part et par séance',
-                    help: 'Chaque part verse ce montant à chaque séance. Un membre peut prendre de 1 à 5 parts.',
+                    label: AppLocalizations.of(context).perSharePerMeeting,
+                    help: AppLocalizations.of(context).perSharePerMeetingHelp,
                     child: TextFormField(
                       controller: _contribution,
                       keyboardType: TextInputType.number,
                       inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
                       style: KombeType.amount(size: 22),
-                      decoration: const InputDecoration(hintText: 'Ex. 5000', suffixText: 'FCFA'),
+                      decoration: InputDecoration(hintText: AppLocalizations.of(context).amountHint5000, suffixText: 'FCFA'),
                       validator: (String? v) => _amount(v),
                     ),
                   ),
@@ -204,96 +205,96 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               _Block(
                 icon: Icons.event_outlined,
                 tone: KombeTone.info,
-                title: 'Les séances',
+                title: AppLocalizations.of(context).theMeetings,
                 children: <Widget>[
                   _Field(
-                    label: 'Rythme',
+                    label: AppLocalizations.of(context).rhythm,
                     child: DropdownButtonFormField<CadenceKind>(
                       initialValue: _cadence,
                       isExpanded: true,
-                      hint: const Text('Choisir le rythme'),
+                      hint: Text(AppLocalizations.of(context).chooseRhythm),
                       borderRadius: BorderRadius.circular(KombeSpacing.fieldRadius),
                       dropdownColor: Colors.white,
                       items: <DropdownMenuItem<CadenceKind>>[
                         for (final CadenceKind k in CadenceKind.values) DropdownMenuItem<CadenceKind>(value: k, child: Text(cadenceKindLabel(k))),
                       ],
-                      validator: (CadenceKind? v) => v == null ? 'Choisissez le rythme des séances.' : null,
+                      validator: (CadenceKind? v) => v == null ? AppLocalizations.of(context).chooseRhythmError : null,
                       onChanged: (CadenceKind? v) => setState(() => _cadence = v),
                     ),
                   ),
                   if (_cadence == CadenceKind.everyNDays)
                     _Field(
-                      label: 'Tous les combien de jours ?',
+                      label: AppLocalizations.of(context).everyHowManyDays,
                       child: TextFormField(
                         controller: _everyN,
                         keyboardType: TextInputType.number,
                         inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
-                        decoration: const InputDecoration(hintText: 'Ex. 8'),
+                        decoration: InputDecoration(hintText: AppLocalizations.of(context).everyNHint),
                         validator: (String? v) {
                           final int n = int.tryParse((v ?? '').trim()) ?? 0;
-                          return n >= everyNDaysMin && n <= everyNDaysMax ? null : 'Entre $everyNDaysMin et $everyNDaysMax jours.';
+                          return n >= everyNDaysMin && n <= everyNDaysMax ? null : AppLocalizations.of(context).betweenNDays(everyNDaysMin, everyNDaysMax);
                         },
                       ),
                     ),
                   if (_needsWeekday)
                     _Field(
-                      label: 'Jour de séance',
+                      label: AppLocalizations.of(context).meetingDay,
                       child: DropdownButtonFormField<int>(
                         key: ValueKey<CadenceKind?>(_cadence),
                         initialValue: _weekday,
                         isExpanded: true,
-                        hint: const Text('Choisir le jour'),
+                        hint: Text(AppLocalizations.of(context).chooseDay),
                         borderRadius: BorderRadius.circular(KombeSpacing.fieldRadius),
                         dropdownColor: Colors.white,
                         items: <DropdownMenuItem<int>>[
-                          for (int j = 1; j <= 6; j++) DropdownMenuItem<int>(value: j, child: Text(_jours[j])),
-                          const DropdownMenuItem<int>(value: 0, child: Text('Dimanche')),
+                          for (int j = 1; j <= 6; j++) DropdownMenuItem<int>(value: j, child: Text(_jours(AppLocalizations.of(context))[j])),
+                          DropdownMenuItem<int>(value: 0, child: Text(AppLocalizations.of(context).daySunday)),
                         ],
-                        validator: (int? v) => v == null ? 'Choisissez le jour de séance.' : null,
+                        validator: (int? v) => v == null ? AppLocalizations.of(context).chooseMeetingDayError : null,
                         onChanged: (int? v) => setState(() => _weekday = v),
                       ),
                     ),
                   if (_cadence == CadenceKind.monthlyDay)
                     _Field(
-                      label: 'Jour du mois',
+                      label: AppLocalizations.of(context).dayOfMonth,
                       child: DropdownButtonFormField<int>(
                         initialValue: _dayOfMonth,
                         isExpanded: true,
-                        hint: const Text('Choisir le jour du mois'),
+                        hint: Text(AppLocalizations.of(context).chooseDayOfMonth),
                         borderRadius: BorderRadius.circular(KombeSpacing.fieldRadius),
                         dropdownColor: Colors.white,
                         items: <DropdownMenuItem<int>>[
-                          for (int d = 1; d <= 31; d++) DropdownMenuItem<int>(value: d, child: Text('le $d')),
+                          for (int d = 1; d <= 31; d++) DropdownMenuItem<int>(value: d, child: Text(AppLocalizations.of(context).dayOfMonthN(d))),
                         ],
-                        validator: (int? v) => v == null ? 'Choisissez le jour du mois.' : null,
+                        validator: (int? v) => v == null ? AppLocalizations.of(context).chooseDayOfMonthError : null,
                         onChanged: (int? v) => setState(() => _dayOfMonth = v),
                       ),
                     ),
                   if (_cadence == CadenceKind.monthlyNthWeekday)
                     _Field(
-                      label: 'Quelle semaine du mois',
+                      label: AppLocalizations.of(context).whichWeekOfMonth,
                       child: DropdownButtonFormField<int>(
                         initialValue: _nth,
                         isExpanded: true,
-                        hint: const Text('Choisir la semaine'),
+                        hint: Text(AppLocalizations.of(context).chooseWeek),
                         borderRadius: BorderRadius.circular(KombeSpacing.fieldRadius),
                         dropdownColor: Colors.white,
-                        items: const <DropdownMenuItem<int>>[
-                          DropdownMenuItem<int>(value: 1, child: Text('1re')),
-                          DropdownMenuItem<int>(value: 2, child: Text('2e')),
-                          DropdownMenuItem<int>(value: 3, child: Text('3e')),
-                          DropdownMenuItem<int>(value: 4, child: Text('4e')),
-                          DropdownMenuItem<int>(value: -1, child: Text('Dernière')),
+                        items: <DropdownMenuItem<int>>[
+                          DropdownMenuItem<int>(value: 1, child: Text(AppLocalizations.of(context).week1)),
+                          DropdownMenuItem<int>(value: 2, child: Text(AppLocalizations.of(context).week2)),
+                          DropdownMenuItem<int>(value: 3, child: Text(AppLocalizations.of(context).week3)),
+                          DropdownMenuItem<int>(value: 4, child: Text(AppLocalizations.of(context).week4)),
+                          DropdownMenuItem<int>(value: -1, child: Text(AppLocalizations.of(context).weekLast)),
                         ],
-                        validator: (int? v) => v == null ? 'Choisissez la semaine du mois.' : null,
+                        validator: (int? v) => v == null ? AppLocalizations.of(context).chooseWeekError : null,
                         onChanged: (int? v) => setState(() => _nth = v),
                       ),
                     ),
                   _Field(
-                    label: 'Date de la première séance',
+                    label: AppLocalizations.of(context).firstMeetingDate,
                     child: _PickerField(
                       icon: Icons.calendar_today_outlined,
-                      text: _firstDate == null ? 'Choisir une date' : DateFormat.yMMMMd(locale).format(_firstDate!),
+                      text: _firstDate == null ? AppLocalizations.of(context).chooseDate : DateFormat.yMMMMd(locale).format(_firstDate!),
                       errorText: _firstDateError,
                       onTap: () async {
                         final DateTime today = _today();
@@ -313,8 +314,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     ),
                   ),
                   _Field(
-                    label: 'Heure limite de cotisation',
-                    help: 'Le jour de la séance, une cotisation versée après cette heure compte comme en retard.',
+                    label: AppLocalizations.of(context).contributionDeadline,
+                    help: AppLocalizations.of(context).contributionDeadlineHelp,
                     child: _PickerField(
                       icon: Icons.access_time_rounded,
                       text: _deadline.format(context),
@@ -325,12 +326,12 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     ),
                   ),
                   _Field(
-                    label: 'Lieu de séance (facultatif)',
+                    label: AppLocalizations.of(context).meetingPlaceOptional,
                     child: TextFormField(
                       controller: _place,
                       textCapitalization: TextCapitalization.sentences,
                       maxLength: 120,
-                      decoration: const InputDecoration(hintText: 'Ex. Boutique de M. Jean', counterText: ''),
+                      decoration: InputDecoration(hintText: AppLocalizations.of(context).meetingPlaceHint, counterText: ''),
                     ),
                   ),
                 ],
@@ -339,22 +340,22 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               _Block(
                 icon: Icons.account_balance_wallet_outlined,
                 tone: KombeTone.money,
-                title: 'Les caisses (facultatif)',
+                title: AppLocalizations.of(context).fundsOptional,
                 children: <Widget>[
                   Text(
-                    'En plus de la cagnotte des tours, vous pouvez ouvrir des caisses annexes. Elles restent fermées si vous ne les activez pas.',
+                    AppLocalizations.of(context).fundsOptionalIntro,
                     style: t.bodySmall,
                   ),
                   _fundSwitch(
-                    title: 'Caisse de secours',
-                    help: 'Aide aux membres en cas de deuil, maladie, naissance…',
+                    title: AppLocalizations.of(context).solidarityFund,
+                    help: AppLocalizations.of(context).solidarityFundHelp,
                     value: _solidarityOn,
                     onChanged: (bool v) => setState(() => _solidarityOn = v),
                     controller: _solidarity,
                   ),
                   _fundSwitch(
-                    title: 'Caisse de fonctionnement',
-                    help: 'Petits frais du groupe (boissons, cahier, location de salle…).',
+                    title: AppLocalizations.of(context).operatingFund,
+                    help: AppLocalizations.of(context).operatingFundHelp,
                     value: _operatingOn,
                     onChanged: (bool v) => setState(() => _operatingOn = v),
                     controller: _operating,
@@ -375,14 +376,10 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text('Autres règles appliquées à la création', style: t.titleSmall?.copyWith(color: KombeColors.forest)),
+                          Text(AppLocalizations.of(context).otherCreationRules, style: t.titleSmall?.copyWith(color: KombeColors.forest)),
                           const SizedBox(height: 6),
                           Text(
-                            '• Tous les membres voient qui a cotisé.\n'
-                            '• Aucune amende automatique (montants à 0).\n'
-                            '• La remise d’un tour se fait devant 2 témoins.\n'
-                            '• Les nouveaux venus passent en dernier.\n'
-                            '• L’ordre des tours (tirage au sort vérifiable ou ordre d’arrivée) se choisit au démarrage du cycle.',
+                            AppLocalizations.of(context).creationRulesList,
                             style: t.bodySmall?.copyWith(color: KombeColors.forest),
                           ),
                         ],
@@ -396,7 +393,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 onPressed: _busy ? null : _submit,
                 child: _busy
                     ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Créer la tontine'),
+                    : Text(AppLocalizations.of(context).createTheTontine),
               ),
             ],
           ),

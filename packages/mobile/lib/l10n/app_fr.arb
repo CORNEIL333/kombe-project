@@ -380,5 +380,83 @@
   "seeAll": "Voir tout",
   "addMyPhoto": "Ajouter ma photo",
   "changeMyPhoto": "Changer ma photo",
-  "editProfile": "Modifier le profil"
+  "editProfile": "Modifier le profil",
+  "chooseFirstMeetingDate": "Choisissez la date de la première séance.",
+  "firstMeetingNotPast": "La première séance ne peut pas être dans le passé.",
+  "tontineCreatedNext": "Tontine créée. Invitez ses membres, désignez un trésorier, puis publiez les statuts.",
+  "amountWholePositive": "Montant entier requis, supérieur à 0.",
+  "amountTooHigh": "Montant trop élevé.",
+  "amountPerMemberPerMeeting": "Montant par membre et par séance (FCFA)",
+  "theGroup": "Le groupe",
+  "tontineName": "Nom de la tontine",
+  "tontineNameHint": "Ex. Tontine des artisans",
+  "maxMembers": "Nombre maximum de membres",
+  "between2And60": "Entre 2 et 60",
+  "between2And60Members": "Entre 2 et 60 membres.",
+  "theContribution": "La cotisation",
+  "perSharePerMeeting": "Par part et par séance",
+  "perSharePerMeetingHelp": "Chaque part verse ce montant à chaque séance. Un membre peut prendre de 1 à 5 parts.",
+  "amountHint5000": "Ex. 5000",
+  "theMeetings": "Les séances",
+  "rhythm": "Rythme",
+  "chooseRhythm": "Choisir le rythme",
+  "chooseRhythmError": "Choisissez le rythme des séances.",
+  "everyHowManyDays": "Tous les combien de jours ?",
+  "meetingDay": "Jour de séance",
+  "chooseDay": "Choisir le jour",
+  "chooseMeetingDayError": "Choisissez le jour de séance.",
+  "dayOfMonth": "Jour du mois",
+  "chooseDayOfMonth": "Choisir le jour du mois",
+  "chooseDayOfMonthError": "Choisissez le jour du mois.",
+  "whichWeekOfMonth": "Quelle semaine du mois",
+  "chooseWeek": "Choisir la semaine",
+  "chooseWeekError": "Choisissez la semaine du mois.",
+  "weekLast": "Dernière",
+  "firstMeetingDate": "Date de la première séance",
+  "chooseDate": "Choisir une date",
+  "contributionDeadline": "Heure limite de cotisation",
+  "contributionDeadlineHelp": "Le jour de la séance, une cotisation versée après cette heure compte comme en retard.",
+  "meetingPlaceOptional": "Lieu de séance (facultatif)",
+  "meetingPlaceHint": "Ex. Boutique de M. Jean",
+  "fundsOptional": "Les caisses (facultatif)",
+  "fundsOptionalIntro": "En plus de la cagnotte des tours, vous pouvez ouvrir des caisses annexes. Elles restent fermées si vous ne les activez pas.",
+  "solidarityFund": "Caisse de secours",
+  "solidarityFundHelp": "Aide aux membres en cas de deuil, maladie, naissance…",
+  "operatingFund": "Caisse de fonctionnement",
+  "operatingFundHelp": "Petits frais du groupe (boissons, cahier, location de salle…).",
+  "otherCreationRules": "Autres règles appliquées à la création",
+  "createTheTontine": "Créer la tontine",
+  "daySunday": "Dimanche",
+  "dayMonday": "Lundi",
+  "dayTuesday": "Mardi",
+  "dayWednesday": "Mercredi",
+  "dayThursday": "Jeudi",
+  "dayFriday": "Vendredi",
+  "daySaturday": "Samedi",
+  "week1": "1re",
+  "week2": "2e",
+  "week3": "3e",
+  "week4": "4e",
+  "everyNHint": "Ex. 8",
+  "betweenNDays": "Entre {min} et {max} jours.",
+  "@betweenNDays": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "dayOfMonthN": "le {day}",
+  "@dayOfMonthN": {
+    "placeholders": {
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "creationRulesList": "• Tous les membres voient qui a cotisé.\n• Aucune amende automatique (montants à 0).\n• La remise d’un tour se fait devant 2 témoins.\n• Les nouveaux venus passent en dernier.\n• L’ordre des tours (tirage au sort vérifiable ou ordre d’arrivée) se choisit au démarrage du cycle.",
+  "nameRequired": "Le nom est requis."
 }
