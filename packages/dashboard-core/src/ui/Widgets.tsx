@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useTx } from '../i18n/locale';
 
 /** Carte statistique du haut de page (mockups direction/ops/engineering) :
  *  icône, libellé, grande valeur, variation optionnelle. `trend` n'affiche
@@ -13,18 +14,19 @@ export interface StatCardProps {
   readonly tone?: 'ok' | 'warn' | 'danger' | 'neutral';
 }
 export function StatCard(p: StatCardProps) {
+  const { tx } = useTx();
   return (
     <article className="k-stat">
       {p.icon && <span className={`k-stat-icon k-stat-icon-${p.tone ?? 'neutral'}`} aria-hidden="true">{p.icon}</span>}
       <div className="k-stat-body">
-        <span className="k-stat-label">{p.label}</span>
-        <strong className="k-stat-value">{p.value}</strong>
+        <span className="k-stat-label">{tx(p.label)}</span>
+        <strong className="k-stat-value">{tx(p.value)}</strong>
         {p.trend && (
           <small className={`k-stat-trend k-stat-trend-${p.trend.direction}`}>
             {p.trend.direction === 'up' ? '↑' : '↓'} {p.trend.text}
           </small>
         )}
-        {p.hint && <small className="k-stat-hint">{p.hint}</small>}
+        {p.hint && <small className="k-stat-hint">{tx(p.hint)}</small>}
       </div>
     </article>
   );
@@ -40,6 +42,7 @@ export interface ProgressTrackProps {
   readonly caption?: string;
 }
 export function ProgressTrack(p: ProgressTrackProps) {
+  const { L } = useTx();
   const steps = Array.from({ length: p.total }, (_, i) => i + 1);
   const pct = p.total > 0 ? Math.round((p.completed / p.total) * 100) : 0;
   return (
@@ -55,7 +58,7 @@ export function ProgressTrack(p: ProgressTrackProps) {
               key={n}
               role="listitem"
               className={done ? 'k-progress-step k-progress-step-done' : 'k-progress-step'}
-              aria-label={`Étape ${n} sur ${p.total}${done ? ', terminée' : ', à venir'}`}
+              aria-label={L(`Étape ${n} sur ${p.total}${done ? ', terminée' : ', à venir'}`, `Step ${n} of ${p.total}${done ? ', done' : ', upcoming'}`)}
             >
               {done ? '✓' : n}
             </span>
@@ -117,11 +120,12 @@ export interface ActivityItemData {
   readonly tone?: 'ok' | 'warn' | 'danger' | 'neutral';
 }
 export function ActivityList(p: { readonly title: string; readonly items: readonly ActivityItemData[]; readonly empty?: string }) {
+  const { tx } = useTx();
   return (
     <div className="k-activity">
-      <h3 className="k-activity-title">{p.title}</h3>
+      <h3 className="k-activity-title">{tx(p.title)}</h3>
       {p.items.length === 0 ? (
-        <p className="k-activity-empty">{p.empty ?? 'Aucune activité.'}</p>
+        <p className="k-activity-empty">{tx(p.empty ?? 'Aucune activité.')}</p>
       ) : (
         <ul className="k-activity-list">
           {p.items.map((item) => (
@@ -145,9 +149,10 @@ export interface QuickActionData {
   readonly tone?: 'primary' | 'neutral';
 }
 export function QuickActions(p: { readonly title: string; readonly actions: readonly QuickActionData[] }) {
+  const { tx } = useTx();
   return (
     <div className="k-quick-actions">
-      <h3 className="k-activity-title">{p.title}</h3>
+      <h3 className="k-activity-title">{tx(p.title)}</h3>
       <div className="k-quick-actions-list">
         {p.actions.map((a) => (
           <button

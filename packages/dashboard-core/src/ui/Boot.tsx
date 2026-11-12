@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ApiClient } from '../api/client';
 import { AccessApi, useSession, type SessionController } from '../api/session';
 import { loadRuntimeConfig, type DashboardRuntimeConfig as RuntimeConfig } from '../config/runtime';
-import { LocaleProvider } from '../i18n/locale';
+import { LocaleProvider, useTx, type EnglishCatalog } from '../i18n/locale';
 import { CapabilityNotice } from './Elements';
 import { SessionBar } from './SessionBar';
 import { BrandMark } from './Elements';
@@ -21,13 +21,17 @@ export function DashboardBoot(p: {
   readonly product: string;
   readonly messages: Parameters<typeof LocaleProvider>[0]['messages'];
   readonly children: (ctx: DashboardContext) => ReactNode;
+  /** Suit la langue choisie dans l'application KÓMBE (même origine) et la garde (A17). */
+  readonly followAppLanguage?: boolean;
+  /** Textes de l'espace en anglais, indexés par le français exact. */
+  readonly english?: EnglishCatalog;
 }) {
   const [config, setConfig] = useState<RuntimeConfig | null>(null);
   const [error, setError] = useState<unknown>(null);
   useEffect(() => { loadRuntimeConfig().then(setConfig).catch(setError); }, []);
   if (error) return <main className="k-boot"><CapabilityNotice title="Configuration API absente">{error instanceof Error ? error.message : String(error)}</CapabilityNotice></main>;
   if (!config) return <main className="k-boot"><div className="k-skeleton-stack" role="status" aria-label="Chargement"><span className="k-skeleton" /></div></main>;
-  return <LocaleProvider messages={p.messages}><Gate product={p.product} config={config}>{p.children}</Gate></LocaleProvider>;
+  return <LocaleProvider messages={p.messages} {...(p.followAppLanguage ? { storageKey: 'kombe.langue' } : {})} {...(p.english ? { english: p.english } : {})}><Gate product={p.product} config={config}>{p.children}</Gate></LocaleProvider>;
 }
 
 /* Scène d'accueil par espace : photo d'ambiance (illustration, décorative),
@@ -48,6 +52,7 @@ function Gate(p: { readonly product: string; readonly config: RuntimeConfig; rea
   const tokenRef = useRef<string | null>(null);
   tokenRef.current = session.token;
   const api = useMemo(() => new ApiClient({ baseUrl: p.config.apiBaseUrl, getSessionToken: () => tokenRef.current }), [p.config.apiBaseUrl]);
+  const { tx } = useTx();
   if (session.phase.kind !== 'authenticated') {
     const hero = HEROS[p.product] ?? HERO_DEFAUT;
     return (
@@ -62,14 +67,14 @@ function Gate(p: { readonly product: string; readonly config: RuntimeConfig; rea
           </svg>
           <BrandMark variante="couleur" />
           <div className="k-boot-hero-body">
-            <p className="k-eyebrow">{p.product}</p>
-            <h1 className="k-boot-title">{hero.title} <em>{hero.accent}</em></h1>
-            <p className="k-boot-lead">{hero.lead}</p>
+            <p className="k-eyebrow">{tx(p.product)}</p>
+            <h1 className="k-boot-title">{tx(hero.title)} <em>{tx(hero.accent)}</em></h1>
+            <p className="k-boot-lead">{tx(hero.lead)}</p>
           </div>
         </section>
         <div className="k-boot-card">
           <SessionBar session={session} />
-          <p className="k-boot-note">KÓMBE tient le registre ; l’argent reste chez le trésorier du groupe.</p>
+          <p className="k-boot-note">{tx('KÓMBE tient le registre ; l’argent reste chez le trésorier du groupe.')}</p>
         </div>
       </main>
     );
