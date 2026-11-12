@@ -868,7 +868,7 @@
       }
     }
   },
-  "ruDaysCount": "{label} : {days, plural, =1{1 jour} other{{days} jours}}",
+  "ruDaysCount": "{label} : {days, plural, =0{0 jour} =1{1 jour} other{{days} jours}}",
   "@ruDaysCount": {
     "placeholders": {
       "label": {
@@ -1117,7 +1117,7 @@
   "meEnAttenteDapprobation": "En attente d’approbation",
   "meLienDeLaReunionEn": "Lien de la réunion en ligne",
   "meLeLienCompletQuiCommence": "Le lien complet, qui commence par https://",
-  "vaPendingPayments": "{count, plural, =1{1 paiement en attente} other{{count} paiements en attente}}",
+  "vaPendingPayments": "{count, plural, =0{0 paiement en attente} =1{1 paiement en attente} other{{count} paiements en attente}}",
   "@vaPendingPayments": {
     "placeholders": {
       "count": {
@@ -1249,7 +1249,7 @@
   },
   "mdProposerUneFonction2": "Proposer une fonction",
   "mdMembreSansTelephoneRepresentePar": "Membre sans téléphone, représenté par un proche : il ne tient pas de fonction du bureau.",
-  "mbCountSuffix": "  {count, plural, =1{membre} other{membres}} · {office} au bureau",
+  "mbCountSuffix": "  {count, plural, =0{membre} =1{membre} other{membres}} · {office} au bureau",
   "@mbCountSuffix": {
     "placeholders": {
       "count": {
@@ -1641,6 +1641,141 @@
         "type": "Object"
       },
       "version": {
+        "type": "Object"
+      }
+    }
+  },
+  "npDansLapplication": "Dans l’application",
+  "npToujoursActivesEcheancesDeCotisation": "Toujours actives : échéances de cotisation, déclarations à confirmer, statuts à accepter, votes, séances, demandes d’adhésion, remises, amendes. Retrouvez-les dans l’onglet Activité ; touchez-en une pour ouvrir l’écran concerné.",
+  "npRappelsAvantEcheance": "Rappels avant échéance",
+  "npKombeVousRelanceDePlus": "KÓMBE vous relance de plus en plus près de l’échéance (cotisation, séance, statuts, vote). Ces rappels ne se désactivent pas : ils protègent votre place dans le groupe.",
+  "npPasEncoreDisponibles": "Pas encore disponibles",
+  "npAlertesSurLeTelephone": "Alertes sur le téléphone",
+  "npPourLinstantOuvrezLapplicationPour": "Pour l’instant, ouvrez l’application pour voir les nouveautés.",
+  "npSmsEtWhatsapp": "SMS et WhatsApp",
+  "npLeBureauPartageLesInvitations": "Le bureau partage les invitations et les comptes rendus lui-même.",
+  "abPropos": "À propos",
+  "abVersionInstallee": "Version installée",
+  "abCeQueFaitKombe": "Ce que fait KÓMBE",
+  "abLeRegistreDeVotreTontine": "Le registre de votre tontine ou association : cotisations déclarées et confirmées, tours, caisses, séances, statuts et votes, visibles par les membres.",
+  "abCeQueKombeNeFait": "Ce que KÓMBE ne fait pas",
+  "abKombeNeGardePasLargent": "KÓMBE ne garde pas l’argent et ne fait aucun paiement : l’argent passe entre les membres et le trésorier, comme d’habitude.",
+  "abRechercherUneMiseJour": "Rechercher une mise à jour",
+  "abLicencesDesPolicesEtBibliotheques": "Licences des polices et bibliothèques",
+  "ofBrouillonsLocaux": "Brouillons locaux",
+  "ofPossiblesIlsRestentSurCe": "Possibles : ils restent sur ce téléphone jusqu’à leur envoi.",
+  "ofBrouillonsPresents": "Brouillons présents",
+  "ofValidationDuneCotisation": "Validation d’une cotisation",
+  "ofChangementDeRole": "Changement de rôle",
+  "ofPublicationDesRegles": "Publication des règles",
+  "ofAutoriseHorsConnexion": "Autorisé hors connexion",
+  "ofImpossibleHorsConnexionLaDecision": "Impossible hors connexion : la décision doit être enregistrée en ligne",
+  "vcNouveauCodeEnvoye": "Nouveau code envoyé {viaLabel}.",
+  "@vcNouveauCodeEnvoye": {
+    "placeholders": {
+      "viaLabel": {
+        "type": "Object"
+      }
+    }
+  },
+  "vcLeCodeComporteChiffres": "Le code comporte 6 chiffres.",
+  "vcDerniereEtape": "Dernière étape",
+  "vcSaisissezLeCodeChiffresEnvoye": "Saisissez le code à 6 chiffres envoyé {viaLabel} à {identityId}.",
+  "@vcSaisissezLeCodeChiffresEnvoye": {
+    "placeholders": {
+      "viaLabel": {
+        "type": "Object"
+      },
+      "identityId": {
+        "type": "Object"
+      }
+    }
+  },
+  "vcCePremierCodeCreeVotre": "Ce premier code crée votre compte.",
+  "vcValiderLeCode": "Valider le code",
+  "vcRenvoyerLeCodeDans": "Renvoyer le code (dans {p0} s)",
+  "@vcRenvoyerLeCodeDans": {
+    "placeholders": {
+      "p0": {
+        "type": "Object"
+      }
+    }
+  },
+  "vcRenvoyerLeCode": "Renvoyer le code",
+  "vcChangerDeNumero": "Changer de numéro",
+  "vcChangerDadresseMail": "Changer d’adresse e-mail",
+  "vcLeCodeExpireAuBout": "Le code expire au bout de 10 minutes. Pensez à regarder vos courriers indésirables.",
+  "cdDetailDeCotisation": "Détail de cotisation",
+  "cdDetails": "Détails",
+  "cdCanalDeclare": "Canal déclaré",
+  "cdDeclareeLe": "Déclarée le",
+  "cdNote": "Note",
+  "cdDeclaree": "Déclarée",
+  "usMiseJourDirecteDisponibleSur": "Mise à jour directe disponible sur Android uniquement.",
+  "usKombeEstJour": "KÓMBE {name} est à jour.",
+  "@usKombeEstJour": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "usMiseJourRequise": "Mise à jour requise",
+  "usNouvelleVersion": "Nouvelle version",
+  "usKombeVousAvez": "KÓMBE {version} · vous avez {name}{size}",
+  "@usKombeVousAvez": {
+    "placeholders": {
+      "version": {
+        "type": "Object"
+      },
+      "name": {
+        "type": "Object"
+      },
+      "size": {
+        "type": "Object"
+      }
+    }
+  },
+  "usVosDonneesRestentSurLe": "Vos données restent sur le serveur : la mise à jour ne touche ni vos tontines ni votre session.",
+  "usTelechargement": "Téléchargement… {round} %",
+  "@usTelechargement": {
+    "placeholders": {
+      "round": {
+        "type": "Object"
+      }
+    }
+  },
+  "usInstaller": "Installer",
+  "usMettreJour": "Mettre à jour",
+  "usPlusTard": "Plus tard",
+  "ofDraftsCount": "{count, plural, =0{0 brouillons} =1{1 brouillon} other{{count} brouillons}}",
+  "@ofDraftsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdStepOf": "Étape {step} sur 3",
+  "@cdStepOf": {
+    "placeholders": {
+      "step": {
+        "type": "Object"
+      }
+    }
+  },
+  "cdStepOfBroken": "Étape {step} sur 3, interrompue",
+  "@cdStepOfBroken": {
+    "placeholders": {
+      "step": {
+        "type": "Object"
+      }
+    }
+  },
+  "usSizeMb": " · {size} Mo",
+  "@usSizeMb": {
+    "placeholders": {
+      "size": {
         "type": "Object"
       }
     }

@@ -6,6 +6,7 @@ import '../../core/design/kombe_colors.dart';
 import '../../core/widgets/section_card.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/repositories/draft_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 class OfflineStatusScreen extends StatefulWidget {
   const OfflineStatusScreen({super.key});
@@ -31,29 +32,29 @@ class _OfflineStatusScreenState extends State<OfflineStatusScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('État hors connexion')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).offlineStatus)),
         body: ListView(
           padding: const EdgeInsets.all(20),
           children: <Widget>[
             SectionCard(
               child: Column(
                 children: <Widget>[
-                  const ListTile(
+                  ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(Icons.edit_note_outlined),
-                    title: Text('Brouillons locaux'),
+                    title: Text(AppLocalizations.of(context).ofBrouillonsLocaux),
                     subtitle: Text(
-                      'Possibles : ils restent sur ce téléphone jusqu’à leur envoi.',
+                      AppLocalizations.of(context).ofPossiblesIlsRestentSurCe,
                     ),
                   ),
                   const Divider(),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.storage_outlined),
-                    title: const Text('Brouillons présents'),
+                    title: Text(AppLocalizations.of(context).ofBrouillonsPresents),
                     trailing: Semantics(
                       label:
-                          '${_drafts.length} brouillon${_drafts.length == 1 ? '' : 's'}',
+                          AppLocalizations.of(context).ofDraftsCount(_drafts.length),
                       child: Text('${_drafts.length}'),
                     ),
                   ),
@@ -65,26 +66,26 @@ class _OfflineStatusScreenState extends State<OfflineStatusScreen> {
               child: Column(
                 children: <Widget>[
                   _CapabilityRow(
-                    label: 'Validation d’une cotisation',
+                    label: AppLocalizations.of(context).ofValidationDuneCotisation,
                     allowed: OfflinePolicy.isAllowed(
                       OfflineCapability.validateContribution,
                     ),
                   ),
                   const Divider(),
                   _CapabilityRow(
-                    label: 'Vote',
+                    label: AppLocalizations.of(context).voVote2,
                     allowed: OfflinePolicy.isAllowed(OfflineCapability.vote),
                   ),
                   const Divider(),
                   _CapabilityRow(
-                    label: 'Changement de rôle',
+                    label: AppLocalizations.of(context).ofChangementDeRole,
                     allowed: OfflinePolicy.isAllowed(
                       OfflineCapability.changeRole,
                     ),
                   ),
                   const Divider(),
                   _CapabilityRow(
-                    label: 'Publication des règles',
+                    label: AppLocalizations.of(context).ofPublicationDesRegles,
                     allowed: OfflinePolicy.isAllowed(
                       OfflineCapability.publishRules,
                     ),
@@ -113,8 +114,8 @@ class _CapabilityRow extends StatelessWidget {
           // Indicateur d'état : ne repose pas que sur la couleur. Un lecteur
           // d'écran annonce le verdict en toutes lettres (a11y seniors).
           semanticLabel: allowed
-              ? 'Autorisé hors connexion'
-              : 'Impossible hors connexion : la décision doit être enregistrée en ligne',
+              ? AppLocalizations.of(context).ofAutoriseHorsConnexion
+              : AppLocalizations.of(context).ofImpossibleHorsConnexionLaDecision,
         ),
       );
 }

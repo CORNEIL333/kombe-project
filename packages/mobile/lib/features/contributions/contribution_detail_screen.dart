@@ -9,6 +9,7 @@ import '../../core/state/resource.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/repositories/contribution_repository.dart';
+import '../../l10n/app_localizations.dart';
 import 'contribution_status_view.dart';
 
 class ContributionDetailScreen extends StatefulWidget {
@@ -36,7 +37,7 @@ class _ContributionDetailScreenState extends State<ContributionDetailScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Détail de cotisation')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).cdDetailDeCotisation)),
         body: ResourceView<Contribution>(
           resource: _state,
           onRetry: _load,
@@ -64,18 +65,18 @@ class _ContributionDetailScreenState extends State<ContributionDetailScreen> {
                     ),
                   ),
                 ),
-                const KombeSection('Détails'),
+                KombeSection(AppLocalizations.of(context).cdDetails),
                 KombeGroupedList(
                   children: <Widget>[
-                    KombeFact(icon: Icons.smartphone_rounded, label: 'Canal déclaré', value: KombeLabels.channel(c.channel)),
+                    KombeFact(icon: Icons.smartphone_rounded, label: AppLocalizations.of(context).cdCanalDeclare, value: KombeLabels.channel(c.channel)),
                     KombeFact(
                       icon: Icons.event_outlined,
-                      label: 'Déclarée le',
+                      label: AppLocalizations.of(context).cdDeclareeLe,
                       // Horodatage du serveur ; « — » s'il n'est pas rendu (jamais inventé).
                       value: d == null ? '—' : DateFormat('d MMMM y, HH:mm', locale).format(d.toLocal()),
                     ),
-                    if (c.evidenceName != null) KombeFact(icon: Icons.attach_file_rounded, label: 'Justificatif', value: c.evidenceName!),
-                    if (c.note != null && c.note!.trim().isNotEmpty) KombeFact(icon: Icons.notes_rounded, label: 'Note', value: c.note!),
+                    if (c.evidenceName != null) KombeFact(icon: Icons.attach_file_rounded, label: AppLocalizations.of(context).evidence, value: c.evidenceName!),
+                    if (c.note != null && c.note!.trim().isNotEmpty) KombeFact(icon: Icons.notes_rounded, label: AppLocalizations.of(context).cdNote, value: c.note!),
                   ],
                 ),
               ],
@@ -100,9 +101,9 @@ class _Journey extends StatelessWidget {
       ContributionStatus.validated => 3,
     };
     final bool broken = status == ContributionStatus.rejected || status == ContributionStatus.disputed;
-    const List<String> steps = <String>['Déclarée', 'Confirmée', 'Validée'];
+    List<String> steps = <String>[AppLocalizations.of(context).cdDeclaree, AppLocalizations.of(context).csConfirmed, AppLocalizations.of(context).csValidated];
     return Semantics(
-      label: 'Étape ${reached.clamp(0, 3)} sur 3${broken ? ', interrompue' : ''}',
+      label: broken ? AppLocalizations.of(context).cdStepOfBroken(reached.clamp(0, 3)) : AppLocalizations.of(context).cdStepOf(reached.clamp(0, 3)),
       excludeSemantics: true,
       child: Row(
         children: <Widget>[

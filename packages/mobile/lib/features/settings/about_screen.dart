@@ -5,6 +5,7 @@ import '../../core/update/kombe_update.dart';
 import '../../core/update/kombe_update_sheet.dart';
 import '../../core/widgets/kombe_logo.dart';
 import '../../core/widgets/section_card.dart';
+import '../../l10n/app_localizations.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -36,7 +37,7 @@ class _AboutScreenState extends State<AboutScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('À propos')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).abPropos)),
         body: ListView(
           padding: const EdgeInsets.all(24),
           children: <Widget>[
@@ -45,23 +46,21 @@ class _AboutScreenState extends State<AboutScreen> {
             SectionCard(
               child: Column(
                 children: <Widget>[
-                  ListTile(contentPadding: EdgeInsets.zero, title: const Text('Version installée'), trailing: Text(_version)),
+                  ListTile(contentPadding: EdgeInsets.zero, title: Text(AppLocalizations.of(context).abVersionInstallee), trailing: Text(_version)),
                   const Divider(),
-                  const ListTile(
+                  ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text('Ce que fait KÓMBE'),
+                    title: Text(AppLocalizations.of(context).abCeQueFaitKombe),
                     subtitle: Text(
-                      'Le registre de votre tontine ou association : cotisations déclarées et confirmées, tours, caisses, '
-                      'séances, statuts et votes, visibles par les membres.',
+                      AppLocalizations.of(context).abLeRegistreDeVotreTontine,
                     ),
                   ),
                   const Divider(),
-                  const ListTile(
+                  ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text('Ce que KÓMBE ne fait pas'),
+                    title: Text(AppLocalizations.of(context).abCeQueKombeNeFait),
                     subtitle: Text(
-                      'KÓMBE ne garde pas l’argent et ne fait aucun paiement : l’argent passe entre les membres et le trésorier, '
-                      'comme d’habitude.',
+                      AppLocalizations.of(context).abKombeNeGardePasLargent,
                     ),
                   ),
                 ],
@@ -75,13 +74,13 @@ class _AboutScreenState extends State<AboutScreen> {
               icon: _busy
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.system_update_rounded),
-              label: const Text('Rechercher une mise à jour'),
+              label: Text(AppLocalizations.of(context).abRechercherUneMiseJour),
             ),
             const SizedBox(height: 12),
             Center(
               child: TextButton(
                 onPressed: () => showLicensePage(context: context, applicationName: 'KÓMBE'),
-                child: const Text('Licences des polices et bibliothèques'),
+                child: Text(AppLocalizations.of(context).abLicencesDesPolicesEtBibliotheques),
               ),
             ),
           ],

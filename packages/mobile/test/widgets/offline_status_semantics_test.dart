@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kombe_mobile/domain/entities/contribution.dart';
 import 'package:kombe_mobile/domain/repositories/draft_repository.dart';
 import 'package:kombe_mobile/features/offline/offline_status_screen.dart';
+import 'package:kombe_mobile/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 /// Brouillons = dépôt local ; ici on le stubbe (le vrai utilise sqflite, absent
@@ -29,7 +30,12 @@ void main() {
       await tester.pumpWidget(
         Provider<ContributionDraftRepository>(
           create: (_) => _FakeDraftRepository(),
-          child: const MaterialApp(home: OfflineStatusScreen()),
+          child: const MaterialApp(
+            locale: Locale('fr'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: OfflineStatusScreen(),
+          ),
         ),
       );
       await tester.pumpAndSettle();

@@ -101,7 +101,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     if (!mounted) return;
     setState(() => _resending = false);
     if (reportOutcome(context, r)) {
-      showKombeMessage(context, 'Nouveau code envoyé ${widget.channel.viaLabel}.');
+      showKombeMessage(context, AppLocalizations.of(context).vcNouveauCodeEnvoye(widget.channel.viaLabel));
       _startCountdown();
     }
   }
@@ -110,7 +110,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     if (_submitting) return;
     final String code = _digits;
     if (code.length != 6) {
-      setState(() => _error = 'Le code comporte 6 chiffres.');
+      setState(() => _error = AppLocalizations.of(context).vcLeCodeComporteChiffres);
       return;
     }
     setState(() {
@@ -153,13 +153,13 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
           children: <Widget>[
             KombeFormHeader(
               icon: Icons.sms_outlined,
-              title: widget.purpose == VerifyCodePurpose.registration ? 'Dernière étape' : l10n.verifyCodeTitle,
-              body: 'Saisissez le code à 6 chiffres envoyé ${widget.channel.viaLabel} à ${widget.identityId}.',
+              title: widget.purpose == VerifyCodePurpose.registration ? AppLocalizations.of(context).vcDerniereEtape : l10n.verifyCodeTitle,
+              body: AppLocalizations.of(context).vcSaisissezLeCodeChiffresEnvoye(widget.channel.viaLabel, widget.identityId),
             ),
             if (widget.purpose == VerifyCodePurpose.registration)
               Padding(
                 padding: const EdgeInsets.only(bottom: 18),
-                child: Text('Ce premier code crée votre compte.', style: t.bodyMedium?.copyWith(color: KombeColors.slate)),
+                child: Text(AppLocalizations.of(context).vcCePremierCodeCreeVotre, style: t.bodyMedium?.copyWith(color: KombeColors.slate)),
               ),
             TextField(
               controller: _code,
@@ -177,32 +177,32 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
               },
               onSubmitted: (_) => _verify(),
               style: KombeType.amount(size: 30).copyWith(letterSpacing: 8),
-              decoration: InputDecoration(labelText: 'Code à 6 chiffres', errorText: _error, errorMaxLines: 4),
+              decoration: InputDecoration(labelText: AppLocalizations.of(context).code, errorText: _error, errorMaxLines: 4),
             ),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: _submitting ? null : _verify,
               child: _submitting
                   ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Valider le code'),
+                  : Text(AppLocalizations.of(context).vcValiderLeCode),
             ),
             const SizedBox(height: 16),
             Center(
               child: TextButton.icon(
                 onPressed: _wait > 0 || _resending ? null : _resend,
                 icon: const Icon(Icons.refresh_rounded),
-                label: Text(_wait > 0 ? 'Renvoyer le code (dans $_wait s)' : 'Renvoyer le code'),
+                label: Text(_wait > 0 ? AppLocalizations.of(context).vcRenvoyerLeCodeDans(_wait) : AppLocalizations.of(context).vcRenvoyerLeCode),
               ),
             ),
             Center(
               child: TextButton(
                 onPressed: () => context.go(back),
-                child: Text(widget.channel.isPhone ? 'Changer de numéro' : 'Changer d’adresse e-mail'),
+                child: Text(widget.channel.isPhone ? AppLocalizations.of(context).vcChangerDeNumero : AppLocalizations.of(context).vcChangerDadresseMail),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Le code expire au bout de 10 minutes. Pensez à regarder vos courriers indésirables.',
+              AppLocalizations.of(context).vcLeCodeExpireAuBout,
               textAlign: TextAlign.center,
               style: t.bodySmall?.copyWith(color: KombeColors.slate),
             ),

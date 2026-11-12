@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../design/kombe_colors.dart';
 import '../design/kombe_theme.dart';
 import 'kombe_update.dart';
@@ -14,7 +15,7 @@ Future<void> kombeCheckForUpdate(BuildContext context, {KombeUpdater? updater, b
   final KombeUpdater u = updater ?? KombeUpdater();
   if (!u.supported) {
     if (manual && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mise à jour directe disponible sur Android uniquement.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).usMiseJourDirecteDisponibleSur)));
     }
     return;
   }
@@ -39,7 +40,7 @@ Future<void> kombeCheckForUpdate(BuildContext context, {KombeUpdater? updater, b
       );
     case UpToDate(:final InstalledVersion installed):
       if (manual) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KÓMBE ${installed.name} est à jour.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).usKombeEstJour(installed.name))));
       }
     case UpdateUnavailable(:final String reason):
       if (manual) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(reason)));
@@ -60,7 +61,7 @@ class _KombeUpdateSheetState extends State<KombeUpdateSheet> {
   String? _error;
   bool _readyToInstall = false;
 
-  String _taille(int octets) => octets <= 0 ? '' : ' · ${(octets / 1048576).toStringAsFixed(1)} Mo';
+  String _taille(int octets) => octets <= 0 ? '' : AppLocalizations.of(context).usSizeMb((octets / 1048576).toStringAsFixed(1));
 
   Future<void> _go() async {
     setState(() {
@@ -108,8 +109,8 @@ class _KombeUpdateSheetState extends State<KombeUpdateSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(widget.check.mandatory ? 'Mise à jour requise' : 'Nouvelle version', style: KombeType.titre(size: 22)),
-                      Text('KÓMBE ${rel.version} · vous avez ${widget.check.installed.name}${_taille(widget.check.apk.size)}', style: t.bodySmall),
+                      Text(widget.check.mandatory ? AppLocalizations.of(context).usMiseJourRequise : AppLocalizations.of(context).usNouvelleVersion, style: KombeType.titre(size: 22)),
+                      Text(AppLocalizations.of(context).usKombeVousAvez(rel.version, widget.check.installed.name, _taille(widget.check.apk.size)), style: t.bodySmall),
                     ],
                   ),
                 ),
@@ -131,7 +132,7 @@ class _KombeUpdateSheetState extends State<KombeUpdateSheet> {
                 ),
             ],
             const SizedBox(height: 10),
-            Text('Vos données restent sur le serveur : la mise à jour ne touche ni vos tontines ni votre session.', style: t.bodySmall),
+            Text(AppLocalizations.of(context).usVosDonneesRestentSurLe, style: t.bodySmall),
             if (_progress != null) ...<Widget>[
               const SizedBox(height: 14),
               ClipRRect(
@@ -149,10 +150,10 @@ class _KombeUpdateSheetState extends State<KombeUpdateSheet> {
               icon: busy
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Icon(_readyToInstall ? Icons.install_mobile_rounded : Icons.download_rounded),
-              label: Text(busy ? 'Téléchargement… ${((_progress ?? 0) * 100).round()} %' : _readyToInstall ? 'Installer' : 'Mettre à jour'),
+              label: Text(busy ? AppLocalizations.of(context).usTelechargement(((_progress ?? 0) * 100).round()) : _readyToInstall ? AppLocalizations.of(context).usInstaller : AppLocalizations.of(context).usMettreJour),
             ),
             if (!widget.check.mandatory)
-              TextButton(onPressed: busy ? null : () => Navigator.of(context).pop(), child: const Text('Plus tard')),
+              TextButton(onPressed: busy ? null : () => Navigator.of(context).pop(), child: Text(AppLocalizations.of(context).usPlusTard)),
           ],
         ),
       ),
