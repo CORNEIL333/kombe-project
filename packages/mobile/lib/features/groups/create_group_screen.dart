@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/design/kombe_colors.dart';
 import '../../core/design/kombe_spacing.dart';
 import '../../core/design/kombe_theme.dart';
+import '../../core/formatters/labels.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/operation_feedback.dart';

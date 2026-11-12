@@ -2,18 +2,6 @@ enum GroupRole { member, treasurer, controller, secretary, administrator }
 
 // ── Fonctions du bureau et droits (packages/domain/src/tontine/roles.ts) ──
 
-/// Libellé terrain d'une fonction (identifiant technique de l'API).
-String apiRoleLabel(String role) => switch (role) {
-      'animator' => 'Président',
-      'vice_president' => 'Vice-président',
-      'secretary' => 'Secrétaire général',
-      'treasurer' => 'Trésorier',
-      'treasurer_deputy' => 'Trésorier adjoint',
-      'auditor' => 'Commissaire aux comptes',
-      'censor' => 'Censeur',
-      'advisor' => 'Conseiller',
-      _ => 'Membre',
-    };
 
 /// Fonctions du bureau qu'on peut proposer à un membre (tout sauf « membre »).
 const List<String> bureauRoles = <String>[
@@ -73,14 +61,6 @@ enum CadenceKind {
   monthlyNthWeekday,
 }
 
-String cadenceKindLabel(CadenceKind kind) => switch (kind) {
-  CadenceKind.daily => 'Chaque jour',
-  CadenceKind.weekly => 'Chaque semaine',
-  CadenceKind.biweekly => 'Toutes les deux semaines',
-  CadenceKind.everyNDays => 'Tous les n jours (ex. tous les 8 jours)',
-  CadenceKind.monthlyDay => 'Chaque mois, à date fixe (ex. le 5)',
-  CadenceKind.monthlyNthWeekday => 'Chaque mois, un jour précis (ex. 2e samedi)',
-};
 
 /// Bornes serveur de « tous les n jours » (`cadenceSchema`).
 const int everyNDaysMin = 2;

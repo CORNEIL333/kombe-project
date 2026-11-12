@@ -18,6 +18,7 @@ import '../../domain/repositories/notification_repository.dart';
 import '../../features/notifications/notification_actions.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/kombe_l10n.dart';
 import '../active_group_controller.dart';
 
 /// Branches du shell (ordre fixe, voir `AppRouter`) : quatre destinations.
@@ -271,11 +272,11 @@ class RoleBadge extends StatelessWidget {
 }
 
 String roleLabel(GroupRole r) => switch (r) {
-      GroupRole.member => 'Membre',
-      GroupRole.treasurer => 'Trésorerie',
-      GroupRole.controller => 'Commissaire aux comptes',
-      GroupRole.secretary => 'Secrétariat',
-      GroupRole.administrator => 'Présidence',
+      GroupRole.member => KombeL10n.current.roleMemberLabel,
+      GroupRole.treasurer => KombeL10n.current.roleTreasury,
+      GroupRole.controller => KombeL10n.current.roleAuditor,
+      GroupRole.secretary => KombeL10n.current.roleSecretariat,
+      GroupRole.administrator => KombeL10n.current.rolePresidency,
     };
 
 class MainShell extends StatefulWidget {

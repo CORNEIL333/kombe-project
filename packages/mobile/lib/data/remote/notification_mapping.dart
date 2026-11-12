@@ -1,6 +1,6 @@
 import '../../core/formatters/douala_time.dart';
+import '../../core/formatters/labels.dart';
 import '../../core/formatters/xaf.dart';
-import '../../domain/entities/group.dart';
 import '../../domain/entities/notification.dart';
 import '../../features/notifications/notification_catalog.dart';
 

@@ -22,6 +22,7 @@ import '../domain/repositories/notification_repository.dart';
 import '../domain/repositories/profile_repository.dart';
 import '../domain/repositories/preferences_repository.dart';
 import '../l10n/app_localizations.dart';
+import '../l10n/kombe_l10n.dart';
 import 'active_group_controller.dart';
 import 'app_settings_controller.dart';
 import 'di/app_dependencies.dart';
@@ -105,7 +106,10 @@ class _KombeAppState extends State<KombeApp> {
           ],
           routerConfig: _router.router,
           // Ouverture animée de la marque, au-dessus de l'app qui se charge dessous.
-          builder: (BuildContext context, Widget? child) => KombeOuverture(child: child ?? const SizedBox.shrink()),
+          builder: (BuildContext context, Widget? child) {
+            KombeL10n.update(context);
+            return KombeOuverture(child: child ?? const SizedBox.shrink());
+          },
         ),
       ),
     );
