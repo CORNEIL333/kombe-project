@@ -27,7 +27,7 @@ import { PollService } from "./polls.js";
 import { ExportService } from "./exportXlsx.js";
 import { cadenceSchema, settingsSchema } from "./settings.js";
 import { EmailCodeSender, codeSenderFromEnv, type CodeSender } from "./sms.js";
-import { NotificationDispatcher, afterResponse, createPiggyback, dispatcherOptionsFromEnv, piggybackInterval, type DispatcherOptions } from "./delivery.js";
+import { NotificationDispatcher, afterResponse, createPiggyback, dispatcherOptionsFromEnv, piggybackInterval, vapidFromEnv, type DispatcherOptions } from "./delivery.js";
 import { NotificationPrefs } from "./notificationPrefs.js";
 import { translatePgError } from "./infra.js";
 import { SupportTickets } from "../crm/crmRoutes.js";
@@ -346,6 +346,8 @@ export function registerTontineRoutes(app: FastifyInstance, opts: TontineRoutesO
   });
   app.get("/v1/me/notification-preferences", async (req) => prefs.get(H(req)));
   app.put("/v1/me/notification-preferences", async (req, reply) => write(req, reply, 200, () => prefs.put(H(req), S.notificationPrefs.parse(req.body))));
+  // Push Web (A14) : clé publique VAPID, ou null tant que le canal n'est pas configuré.
+  app.get("/v1/push/web-key", async () => ({ publicKey: vapidFromEnv()?.publicKey ?? null }));
   app.post("/v1/me/push-devices", async (req, reply) => {
     const b = S.pushDevice.parse(req.body);
     return write(req, reply, 201, () => prefs.registerDevice(H(req), b.platform, b.token));

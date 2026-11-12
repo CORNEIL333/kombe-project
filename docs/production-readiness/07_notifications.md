@@ -32,8 +32,9 @@ Le détail de conception est dans l'ADR-0044 ; la preuve est `notificationDelive
 - `GET /v1/me/notifications` : liste.
 - `GET /v1/me/notifications/unread-count` : pastille, sondée chaque minute.
 - `GET` et `PUT /v1/me/notification-preferences`.
-- `POST` et `DELETE /v1/me/push-devices`.
-- PWA : Profil, puis « Notifications hors de l'application » (push, SMS si compte téléphone, e-mail si compte adresse, heures de silence).
+- `POST` et `DELETE /v1/me/push-devices` (`platform` : `android`, `ios` ou `web`).
+- `GET /v1/push/web-key` : clé publique VAPID du Push Web, `null` tant qu'il n'est pas configuré (A14).
+- PWA : Profil, puis « Notifications hors de l'application » (push, « Sur ce navigateur » si le Push Web est configuré, SMS si compte téléphone, e-mail si compte adresse, heures de silence).
 
 ## État d'ouverture (décision du propriétaire)
 
@@ -42,9 +43,14 @@ Sans action du propriétaire, **rien ne part** :
 - la trace reste dans `notification_outbox`.
 
 Ouverture progressive :
-1. **Push** :
+1. **Push Web (PWA, A14)**, sans compte tiers :
+   - générer une paire de clés : `npx web-push generate-vapid-keys` (dans `packages/api`) ;
+   - poser `KOMBE_WEBPUSH_PUBLIC_KEY` et `KOMBE_WEBPUSH_PRIVATE_KEY` (Sensitive), et au besoin `KOMBE_WEBPUSH_SUBJECT` (défaut `https://kombe.vercel.app`) ;
+   - la PWA propose alors « Sur ce navigateur ». Un abonnement expiré (404/410) est retiré, jamais réessayé.
+   - Changer de paire de clés invalide les abonnements existants : chacun réactive sur son navigateur.
+2. **Push mobile** :
    - créer un projet Firebase ;
    - poser `KOMBE_PUSH_PROVIDER=fcm` et `FCM_SERVICE_ACCOUNT_JSON` ;
    - ajouter `google-services.json` à l'application Android et y intégrer `firebase_messaging` (travail de code restant).
-2. **SMS** : `KOMBE_SMS_PROVIDER` (Africa's Talking). Les envois ont un **coût par message**, et seules les personnes qui ont choisi le SMS en reçoivent.
-3. **Ouverture** : `KOMBE_NOTIFY_EXTERNAL=on`.
+3. **SMS** : `KOMBE_SMS_PROVIDER` (Africa's Talking). Les envois ont un **coût par message**, et seules les personnes qui ont choisi le SMS en reçoivent.
+4. **Ouverture** : `KOMBE_NOTIFY_EXTERNAL=on`.

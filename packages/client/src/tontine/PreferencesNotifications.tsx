@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { acces, type PreferencesNotif, type PreferencesNotifSaisie, type Session } from "./api.js";
 import { Carte, Charge, Retour, useAction, useDonnees } from "./ui.js";
 import { useTextes } from "./textes.js";
+import { activerPushWeb, desactiverPushWeb, etatPushWeb, type EtatPushWeb } from "./pushWeb.js";
 
 const HEURES = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
 
@@ -46,6 +47,7 @@ export function PreferencesNotifications({ session }: { readonly session: Sessio
                   <small className="aide">{dyn("pn.pushAide", { n: p.devices })}</small>
                 </span>
               </label>
+              <PushNavigateur session={session} apres={prefs.recharger} />
               {p.available.sms ? (
                 <label className="case pn-case">
                   <input type="checkbox" checked={saisie.smsEnabled} disabled={action.enCours} onChange={(e) => void enregistrer({ smsEnabled: e.target.checked })} />
@@ -101,5 +103,52 @@ export function PreferencesNotifications({ session }: { readonly session: Sessio
         }
       </Charge>
     </Carte>
+  );
+}
+
+/** Push Web : proposé seulement si le navigateur et le serveur le permettent. */
+function PushNavigateur({ session, apres }: { readonly session: Session; readonly apres: () => void }) {
+  const { tx } = useTextes();
+  const [etat, setEtat] = useState<EtatPushWeb>("indisponible");
+  const [cle, setCle] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+  const [echec, setEchec] = useState(false);
+  useEffect(() => {
+    let vivant = true;
+    void etatPushWeb().then((e) => {
+      if (!vivant) return;
+      setEtat(e.etat);
+      setCle(e.cle);
+    });
+    return () => {
+      vivant = false;
+    };
+  }, []);
+  if (etat === "indisponible") return null;
+  const basculer = async () => {
+    setEnCours(true);
+    setEchec(false);
+    try {
+      setEtat(etat === "actif" ? await desactiverPushWeb(session) : await activerPushWeb(session, cle ?? ""));
+      apres();
+    } catch {
+      setEchec(true);
+    } finally {
+      setEnCours(false);
+    }
+  };
+  return (
+    <div className="pn-case pn-navigateur">
+      <strong>{tx("pn.nav")}</strong>
+      <p className="aide">{tx("pn.navAide")}</p>
+      {etat === "refuse" ? <p className="aide" role="status">{tx("pn.navRefuse")}</p> : null}
+      {etat === "actif" ? <p className="aide" role="status">{tx("pn.navActif")}</p> : null}
+      {echec ? <p className="erreur" role="alert">{tx("pn.navEchec")}</p> : null}
+      {etat !== "refuse" ? (
+        <button type="button" className="bouton bouton-secondaire" disabled={enCours} onClick={() => void basculer()}>
+          {etat === "actif" ? tx("pn.navDesactiver") : tx("pn.navActiver")}
+        </button>
+      ) : null}
+    </div>
   );
 }

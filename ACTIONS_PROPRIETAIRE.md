@@ -41,7 +41,8 @@ Le reste du travail avance seul (voir `AUTONOMY_STATE.md`). Chaque point ci-dess
 ## 6. Décisions à prendre
 
 - **Neon payant**, si 5 000 arrivées dans la même minute doivent rester rapides (voir 12).
-- **Firebase** (`google-services.json`) pour les notifications push (R-07).
+- **Firebase** (`google-services.json`) pour les notifications push sur téléphone (R-07). Le Push Web de la PWA, lui, n'a besoin d'aucun compte (A14) : il partira dès l'ouverture des envois.
+- **Ouvrir les envois hors application** (`KOMBE_NOTIFY_EXTERNAL=on`) : rien ne part sans cette décision, ni push, ni SMS, ni e-mail.
 - **Validation juridique** :
   - loi n° 2024/017 : base légale du support, conservation de 730 jours, transfert hors du Cameroun ;
   - réglementation CEMAC/COBAC.

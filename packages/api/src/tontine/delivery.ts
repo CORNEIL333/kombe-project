@@ -209,6 +209,120 @@ export class FcmProvider implements ChannelProvider {
   }
 }
 
+/* ── Push Web (PWA, VAPID) — A14 ──────────────────────────────────────── */
+
+/** Abonnement Push Web tel que le navigateur le donne (`PushSubscription.toJSON()`). */
+export interface WebPushSubscription {
+  readonly endpoint: string;
+  readonly keys: { readonly p256dh: string; readonly auth: string };
+}
+
+/** Frontière d'envoi Push Web : chiffrement et signature VAPID (bibliothèque `web-push`). */
+export interface WebPushSender {
+  send(sub: WebPushSubscription, payload: string, opts: { readonly ttl: number; readonly topic: string }): Promise<{ readonly statusCode: number }>;
+}
+
+export interface VapidKeys {
+  readonly publicKey: string;
+  readonly privateKey: string;
+  readonly subject: string;
+}
+
+/** Abonnement lisible, ou null (jeton corrompu : retiré, jamais réessayé). */
+export function parseWebSubscription(token: string): WebPushSubscription | null {
+  try {
+    const o = JSON.parse(token) as Partial<WebPushSubscription>;
+    if (typeof o.endpoint !== "string" || !o.endpoint.startsWith("https://")) return null;
+    if (typeof o.keys?.p256dh !== "string" || typeof o.keys?.auth !== "string") return null;
+    return { endpoint: o.endpoint, keys: { p256dh: o.keys.p256dh, auth: o.keys.auth } };
+  } catch {
+    return null;
+  }
+}
+
+export function webPushSender(vapid: VapidKeys): WebPushSender {
+  return {
+    async send(sub, payload, opts) {
+      const { default: webpush } = await import("web-push");
+      try {
+        const r = await webpush.sendNotification(sub, payload, {
+          vapidDetails: { subject: vapid.subject, publicKey: vapid.publicKey, privateKey: vapid.privateKey },
+          TTL: opts.ttl,
+          urgency: "normal",
+          topic: opts.topic,
+        });
+        return { statusCode: r.statusCode };
+      } catch (e) {
+        return { statusCode: Number((e as { statusCode?: number }).statusCode ?? 0) };
+      }
+    },
+  };
+}
+
+/** Push Web : seulement les appareils `web`. Texte générique (ADR-0016). */
+export class WebPushProvider implements ChannelProvider {
+  readonly channel = "push" as const;
+  readonly simulated = false;
+  constructor(private readonly sender: WebPushSender) {}
+
+  async send(m: DeliveryMessage, ctx: { tokens: () => Promise<readonly PushToken[]>; revoke: (deviceId: number) => Promise<void> }): Promise<DeliveryResult> {
+    const tokens = (await ctx.tokens()).filter((t) => t.platform === "web");
+    if (tokens.length === 0) return { outcome: "suppressed", code: "NO_DEVICE" };
+    const payload = JSON.stringify({ title: m.title, body: m.body, link: m.link, kind: m.kind, notificationId: m.notificationId });
+    const topic = m.kind.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32) || "kombe";
+    let delivered = 0;
+    let transient = 0;
+    for (const t of tokens) {
+      const sub = parseWebSubscription(t.token);
+      if (!sub) {
+        await ctx.revoke(t.deviceId);
+        continue;
+      }
+      const { statusCode } = await this.sender.send(sub, payload, { ttl: 24 * 3600, topic }).catch(() => ({ statusCode: 0 }));
+      if (statusCode >= 200 && statusCode < 300) delivered += 1;
+      else if (statusCode === 404 || statusCode === 410) await ctx.revoke(t.deviceId); // abonnement expiré ou retiré
+      else transient += 1;
+    }
+    if (delivered > 0) return { outcome: "sent", code: "OK", ref: null };
+    if (transient > 0) return { outcome: "retry", code: "PROVIDER_ERROR" };
+    return { outcome: "suppressed", code: "NO_DEVICE" };
+  }
+}
+
+/** Téléphones (FCM) et navigateurs (Push Web) : chacun ne voit que ses appareils. */
+export class CombinedPushProvider implements ChannelProvider {
+  readonly channel = "push" as const;
+  constructor(private readonly native: ChannelProvider | null, private readonly web: ChannelProvider | null) {}
+  get simulated(): boolean {
+    return (this.native?.simulated ?? false) || (this.web?.simulated ?? false);
+  }
+
+  async send(m: DeliveryMessage, ctx: { tokens: () => Promise<readonly PushToken[]>; revoke: (deviceId: number) => Promise<void> }): Promise<DeliveryResult> {
+    const all = await ctx.tokens();
+    const parts: [ChannelProvider | null, readonly PushToken[]][] = [
+      [this.native, all.filter((t) => t.platform !== "web")],
+      [this.web, all.filter((t) => t.platform === "web")],
+    ];
+    const results: DeliveryResult[] = [];
+    for (const [p, tokens] of parts) {
+      if (!p || tokens.length === 0) continue;
+      results.push(await p.send(m, { tokens: async () => tokens, revoke: ctx.revoke }));
+    }
+    const sent = results.find((r) => r.outcome === "sent");
+    if (sent) return sent;
+    if (results.some((r) => r.outcome === "retry")) return { outcome: "retry", code: "PROVIDER_ERROR" };
+    return { outcome: "suppressed", code: results.length === 0 ? "NO_DEVICE" : (results[0]?.code ?? "NO_DEVICE") };
+  }
+}
+
+/** Clés VAPID depuis l'environnement ; absentes ou incomplètes → Push Web fermé. */
+export function vapidFromEnv(env: NodeJS.ProcessEnv = process.env): VapidKeys | null {
+  const publicKey = env.KOMBE_WEBPUSH_PUBLIC_KEY?.trim();
+  const privateKey = env.KOMBE_WEBPUSH_PRIVATE_KEY?.trim();
+  if (!publicKey || !privateKey) return null;
+  return { publicKey, privateKey, subject: env.KOMBE_WEBPUSH_SUBJECT?.trim() || "https://kombe.vercel.app" };
+}
+
 /* ── Répartiteur ────────────────────────────────────────────────────── */
 
 export interface DispatcherOptions {
@@ -323,14 +437,18 @@ export function dispatcherOptionsFromEnv(
 ): DispatcherOptions {
   const production = env.NODE_ENV === "production" || env.VERCEL_ENV === "production";
   const providers: Partial<Record<Channel, ChannelProvider>> = {};
+  let native: ChannelProvider | null = null;
   if (env.KOMBE_PUSH_PROVIDER === "fcm" && env.FCM_SERVICE_ACCOUNT_JSON) {
     try {
       const sa = JSON.parse(env.FCM_SERVICE_ACCOUNT_JSON) as ServiceAccount;
-      if (sa.project_id && sa.client_email && sa.private_key) providers.push = new FcmProvider(sa);
+      if (sa.project_id && sa.client_email && sa.private_key) native = new FcmProvider(sa);
     } catch { /* configuration invalide : canal fermé, jamais un faux envoi */ }
   } else if (env.KOMBE_PUSH_PROVIDER === "simulator" && !production) {
-    providers.push = new SimulatorProvider("push");
+    native = new SimulatorProvider("push");
   }
+  const vapid = vapidFromEnv(env);
+  const web = vapid ? new WebPushProvider(webPushSender(vapid)) : null;
+  if (native || web) providers.push = new CombinedPushProvider(native, web);
   if (!deps.codeSender.simulated || !production) providers.sms = new SmsProvider(deps.codeSender);
   providers.email = new EmailProvider(deps.emailSender, deps.emailSimulated, deps.emailAvailable);
   return {

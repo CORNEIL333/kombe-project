@@ -242,6 +242,10 @@ export const acces = {
   /** Préférences de livraison hors application (ADR-0044). */
   preferencesNotif: (s: Session) => appel<PreferencesNotif>(s, "GET", "/v1/me/notification-preferences"),
   majPreferencesNotif: (s: Session, p: PreferencesNotifSaisie) => appel<PreferencesNotif>(s, "PUT", "/v1/me/notification-preferences", p),
+  /** Push Web (A14) : clé publique VAPID, null tant que le serveur ne l'offre pas. */
+  cleWebPush: () => appel<{ publicKey: string | null }>(null, "GET", "/v1/push/web-key"),
+  enregistrerAppareil: (s: Session, platform: "web", token: string) => appel<{ deviceId: string }>(s, "POST", "/v1/me/push-devices", { platform, token }),
+  retirerAppareil: (s: Session, deviceId: string) => appel<{ revoked: boolean }>(s, "DELETE", `/v1/me/push-devices/${encodeURIComponent(deviceId)}`),
 };
 
 /* ── Assistance : mes demandes au support (CRM, ADR-0046) ─────────────── */

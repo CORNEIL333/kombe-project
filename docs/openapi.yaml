@@ -3022,6 +3022,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TontineError'
+  /push/web-key:
+    get:
+      tags:
+      - tontine
+      operationId: getWebPushKey
+      summary: 'Clé publique VAPID du Push Web (PWA)'
+      description: 'Sans session. publicKey vaut null tant que le Push Web n''est pas configuré sur le serveur : la PWA ne propose alors pas l''activation. A14.'
+      responses:
+        '200':
+          description: Succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publicKey:
+                    type: string
+                    nullable: true
   /me/push-devices:
     post:
       tags:
