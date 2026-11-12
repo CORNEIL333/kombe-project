@@ -12,6 +12,8 @@ import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/fund.dart';
 import '../../domain/repositories/fund_repository.dart';
+import '../../l10n/app_localizations.dart';
+import '../../l10n/kombe_l10n.dart';
 
 /// Caisses et cotisations du groupe. Les caisses du règlement suivent les
 /// statuts ; le bureau ouvre en plus les caisses propres à la tontine
@@ -52,7 +54,7 @@ class _FundsScreenState extends State<FundsScreen> {
     );
     if (ok == true) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Caisse créée. Les membres sont prévenus.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).fuCaisseCreeeLesMembresSont)));
       await _load();
     }
   }
@@ -61,14 +63,14 @@ class _FundsScreenState extends State<FundsScreen> {
     final bool? ok = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
-        title: Text('Clôturer « ${f.name} » ?'),
-        content: const Text('Les cotisations dues jusqu’à aujourd’hui restent dues ; rien ne sera réclamé ensuite. La clôture est définitive.'),
+        title: Text(AppLocalizations.of(context).fuCloturer(f.name)),
+        content: Text(AppLocalizations.of(context).fuLesCotisationsDuesJusquaAujourdhui),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(AppLocalizations.of(context).cancel)),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: KombeColors.danger),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Clôturer'),
+            child: Text(AppLocalizations.of(context).fuCloturer2),
           ),
         ],
       ),
@@ -89,13 +91,13 @@ class _FundsScreenState extends State<FundsScreen> {
       _ => false,
     };
     return Scaffold(
-      appBar: AppBar(title: const Text('Caisses')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).gdCaisses)),
       floatingActionButton: canManage
           ? FloatingActionButton.extended(
               key: const Key('nouvelle-caisse'),
               onPressed: _create,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Nouvelle caisse'),
+              label: Text(AppLocalizations.of(context).fuNouvelleCaisse),
             )
           : null,
       body: RefreshIndicator(
@@ -104,8 +106,8 @@ class _FundsScreenState extends State<FundsScreen> {
           resource: _state,
           onRetry: _load,
           emptyWhen: (GroupFunds d) => d.funds.isEmpty,
-          emptyTitle: 'Aucune caisse',
-          emptyBody: 'Les caisses du groupe apparaîtront ici.',
+          emptyTitle: AppLocalizations.of(context).fuAucuneCaisse,
+          emptyBody: AppLocalizations.of(context).fuLesCaissesDuGroupeApparaitront,
           builder: (BuildContext context, GroupFunds data) => ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
             children: <Widget>[
@@ -114,7 +116,7 @@ class _FundsScreenState extends State<FundsScreen> {
               if (!data.canManage)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text('Le président, le vice-président ou le trésorier crée et modifie les caisses.',
+                  child: Text(AppLocalizations.of(context).fuLePresidentLeVicePresident,
                       style: Theme.of(context).textTheme.bodySmall),
                 ),
             ],
@@ -127,11 +129,11 @@ class _FundsScreenState extends State<FundsScreen> {
 
 String _ruleLabel(GroupFund f) {
   final CustomFundRules? c = f.custom;
-  if (c == null) return f.perMeetingXaf > 0 ? '${Xaf.format(f.perMeetingXaf)} par séance' : 'Règle fixée par le règlement';
+  if (c == null) return f.perMeetingXaf > 0 ? KombeL10n.current.fuParSeance(Xaf.format(f.perMeetingXaf)) : KombeL10n.current.fuRegleFixeeParLeReglement;
   return switch (c.mode) {
-    FundMode.eachMeeting => '${Xaf.format(c.currentAmountXaf)} par séance',
-    FundMode.oneTime => '${Xaf.format(c.currentAmountXaf)} une seule fois',
-    FundMode.free => 'Contributions libres',
+    FundMode.eachMeeting => KombeL10n.current.fuParSeance2(Xaf.format(c.currentAmountXaf)),
+    FundMode.oneTime => KombeL10n.current.fuUneSeuleFois(Xaf.format(c.currentAmountXaf)),
+    FundMode.free => KombeL10n.current.fuContributionsLibres,
   };
 }
 
@@ -167,7 +169,7 @@ class _FundCard extends StatelessWidget {
                 ),
                 if (c != null) ...<Widget>[
                   const SizedBox(width: 8),
-                  StatusPill(fund.closed ? 'Clôturée' : 'Règle propre', tone: fund.closed ? KombeTone.neutral : KombeTone.brand),
+                  StatusPill(fund.closed ? AppLocalizations.of(context).fuCloturee : AppLocalizations.of(context).fuReglePropre, tone: fund.closed ? KombeTone.neutral : KombeTone.brand),
                 ],
               ],
             ),
@@ -176,18 +178,18 @@ class _FundCard extends StatelessWidget {
               Text(c!.purpose!, style: t.bodyMedium),
             ],
             const SizedBox(height: 14),
-            Text('Confirmé', style: t.bodySmall),
+            Text(AppLocalizations.of(context).fuConfirme, style: t.bodySmall),
             const SizedBox(height: 2),
             FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(fund.confirmedXaf, size: 26)),
             if (fund.pendingXaf > 0) ...<Widget>[
               const SizedBox(height: 8),
-              StatusPill('En attente : ${Xaf.format(fund.pendingXaf)}', tone: KombeTone.warning, icon: Icons.hourglass_top_rounded),
+              StatusPill(AppLocalizations.of(context).fuEnAttente(Xaf.format(fund.pendingXaf)), tone: KombeTone.warning, icon: Icons.hourglass_top_rounded),
             ],
             if (target != null && target > 0) ...<Widget>[
               const SizedBox(height: 12),
               LinearProgressIndicator(value: (fund.confirmedXaf / target).clamp(0, 1).toDouble(), minHeight: 8),
               const SizedBox(height: 6),
-              Text('Objectif : ${Xaf.format(target)}', style: t.bodySmall),
+              Text(AppLocalizations.of(context).fuObjectif(Xaf.format(target)), style: t.bodySmall),
             ],
             if (onClose != null)
               Align(
@@ -196,7 +198,7 @@ class _FundCard extends StatelessWidget {
                   onPressed: onClose,
                   style: TextButton.styleFrom(foregroundColor: KombeColors.danger),
                   icon: const Icon(Icons.lock_outline_rounded, size: 18),
-                  label: const Text('Clôturer'),
+                  label: Text(AppLocalizations.of(context).fuCloturer2),
                 ),
               ),
           ],
@@ -266,10 +268,10 @@ class _NewFundSheetState extends State<_NewFundSheet> {
   @override
   Widget build(BuildContext context) {
     final TextTheme t = Theme.of(context).textTheme;
-    const Map<FundMode, (String, String)> modes = <FundMode, (String, String)>{
-      FundMode.eachMeeting: ('À chaque séance', 'Chaque membre verse ce montant à chaque séance.'),
-      FundMode.oneTime: ('Une seule fois', 'Chaque membre verse ce montant une fois, à la prochaine séance.'),
-      FundMode.free: ('Libre (volontaire)', 'Chacun verse ce qu’il veut. Rien n’est réclamé.'),
+    final Map<FundMode, (String, String)> modes = <FundMode, (String, String)>{
+      FundMode.eachMeeting: (AppLocalizations.of(context).fuChaqueSeance, AppLocalizations.of(context).fuChaqueMembreVerseCeMontant),
+      FundMode.oneTime: (AppLocalizations.of(context).fuUneSeuleFois2, AppLocalizations.of(context).fuChaqueMembreVerseCeMontant2),
+      FundMode.free: (AppLocalizations.of(context).fuLibreVolontaire, AppLocalizations.of(context).fuChacunVerseCeQuilVeut),
     };
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
@@ -277,19 +279,19 @@ class _NewFundSheetState extends State<_NewFundSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text('Nouvelle caisse', style: KombeType.display(size: 24)),
+            Text(AppLocalizations.of(context).fuNouvelleCaisse, style: KombeType.display(size: 24)),
             const SizedBox(height: 4),
-            Text('Effective dès aujourd’hui : jamais rétroactive.', style: t.bodySmall),
+            Text(AppLocalizations.of(context).fuEffectiveDesAujourdhuiJamaisRetroactive, style: t.bodySmall),
             const SizedBox(height: 16),
             TextField(
               key: const Key('caisse-nom'),
               controller: _name,
               maxLength: 80,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(labelText: 'Nom de la caisse', hintText: 'Ex. : Fête de fin d’année'),
+              decoration: InputDecoration(labelText: AppLocalizations.of(context).fuNomDeLaCaisse, hintText: AppLocalizations.of(context).fuExFeteDeFinDannee),
             ),
             const SizedBox(height: 4),
-            Text('Règle de cotisation', style: t.titleSmall),
+            Text(AppLocalizations.of(context).fuRegleDeCotisation, style: t.titleSmall),
             const SizedBox(height: 8),
             for (final MapEntry<FundMode, (String, String)> m in modes.entries)
               Padding(
@@ -330,19 +332,19 @@ class _NewFundSheetState extends State<_NewFundSheet> {
                 keyboardType: TextInputType.number,
                 inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(labelText: 'Montant par membre', suffixText: 'FCFA'),
+                decoration: InputDecoration(labelText: AppLocalizations.of(context).fuMontantParMembre, suffixText: 'FCFA'),
               ),
             const SizedBox(height: 12),
             TextField(
               controller: _purpose,
               maxLength: 280,
-              decoration: const InputDecoration(labelText: 'À quoi sert-elle ? (facultatif)'),
+              decoration: InputDecoration(labelText: AppLocalizations.of(context).fuQuoiSertElleFacultatif),
             ),
             TextField(
               controller: _target,
               keyboardType: TextInputType.number,
               inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
-              decoration: const InputDecoration(labelText: 'Objectif à atteindre (facultatif)', suffixText: 'FCFA'),
+              decoration: InputDecoration(labelText: AppLocalizations.of(context).fuObjectifAtteindreFacultatif, suffixText: 'FCFA'),
             ),
             if (_error != null)
               Padding(padding: const EdgeInsets.only(top: 12), child: KombeInlineError(_error!)),
@@ -352,7 +354,7 @@ class _NewFundSheetState extends State<_NewFundSheet> {
               onPressed: _valid && !_busy ? _submit : null,
               child: _busy
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Créer la caisse'),
+                  : Text(AppLocalizations.of(context).fuCreerLaCaisse),
             ),
           ],
         ),

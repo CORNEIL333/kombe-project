@@ -491,5 +491,185 @@
   "docOther": "Document",
   "benReceived": "Reçu",
   "benCurrent": "Tour en cours",
-  "benUpcoming": "À venir"
+  "benUpcoming": "À venir",
+  "gdGroupe": "Groupe",
+  "gdInviterUnMembre": "Inviter un membre",
+  "gdModifierLaPhoto": "Modifier la photo",
+  "gdParPart": "Par part",
+  "gdTour": "Tour",
+  "gdAfficherCeGroupeLaccueil": "Afficher ce groupe à l’accueil",
+  "gdDemandeDadhesionExaminer": "1 demande d’adhésion à examiner",
+  "gdDemandesDadhesionExaminer": "{pendingCount} demandes d’adhésion à examiner",
+  "@gdDemandesDadhesionExaminer": {
+    "placeholders": {
+      "pendingCount": {
+        "type": "Object"
+      }
+    }
+  },
+  "gdCycleEtOrdreDesTours": "Cycle et ordre des tours",
+  "gdLesNomsDuCycle": "Les noms du cycle",
+  "gdCaisses": "Caisses",
+  "gdSeancesEtProcesVerbaux": "Séances et procès-verbaux",
+  "gdVotesLibres": "Votes libres",
+  "gdAmendesContestationsEtSecours": "Amendes, contestations et secours",
+  "gdAmendesEtSecours": "Amendes et secours",
+  "gdOutilsDuBureau": "Outils du bureau",
+  "gdAmendesDuGroupe": "Amendes du groupe",
+  "gdParametresDuGroupe": "Paramètres du groupe",
+  "fuCaisseCreeeLesMembresSont": "Caisse créée. Les membres sont prévenus.",
+  "fuCloturer": "Clôturer « {name} » ?",
+  "@fuCloturer": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      }
+    }
+  },
+  "fuLesCotisationsDuesJusquaAujourdhui": "Les cotisations dues jusqu’à aujourd’hui restent dues ; rien ne sera réclamé ensuite. La clôture est définitive.",
+  "fuCloturer2": "Clôturer",
+  "fuNouvelleCaisse": "Nouvelle caisse",
+  "fuAucuneCaisse": "Aucune caisse",
+  "fuLesCaissesDuGroupeApparaitront": "Les caisses du groupe apparaîtront ici.",
+  "fuLePresidentLeVicePresident": "Le président, le vice-président ou le trésorier crée et modifie les caisses.",
+  "fuParSeance": "{perMeetingXaf} par séance",
+  "@fuParSeance": {
+    "placeholders": {
+      "perMeetingXaf": {
+        "type": "Object"
+      }
+    }
+  },
+  "fuRegleFixeeParLeReglement": "Règle fixée par le règlement",
+  "fuParSeance2": "{currentAmountXaf} par séance",
+  "@fuParSeance2": {
+    "placeholders": {
+      "currentAmountXaf": {
+        "type": "Object"
+      }
+    }
+  },
+  "fuUneSeuleFois": "{currentAmountXaf} une seule fois",
+  "@fuUneSeuleFois": {
+    "placeholders": {
+      "currentAmountXaf": {
+        "type": "Object"
+      }
+    }
+  },
+  "fuContributionsLibres": "Contributions libres",
+  "fuCloturee": "Clôturée",
+  "fuReglePropre": "Règle propre",
+  "fuConfirme": "Confirmé",
+  "fuEnAttente": "En attente : {pendingXaf}",
+  "@fuEnAttente": {
+    "placeholders": {
+      "pendingXaf": {
+        "type": "Object"
+      }
+    }
+  },
+  "fuObjectif": "Objectif : {format}",
+  "@fuObjectif": {
+    "placeholders": {
+      "format": {
+        "type": "Object"
+      }
+    }
+  },
+  "fuChaqueSeance": "À chaque séance",
+  "fuChaqueMembreVerseCeMontant": "Chaque membre verse ce montant à chaque séance.",
+  "fuUneSeuleFois2": "Une seule fois",
+  "fuChaqueMembreVerseCeMontant2": "Chaque membre verse ce montant une fois, à la prochaine séance.",
+  "fuLibreVolontaire": "Libre (volontaire)",
+  "fuChacunVerseCeQuilVeut": "Chacun verse ce qu’il veut. Rien n’est réclamé.",
+  "fuEffectiveDesAujourdhuiJamaisRetroactive": "Effective dès aujourd’hui : jamais rétroactive.",
+  "fuNomDeLaCaisse": "Nom de la caisse",
+  "fuExFeteDeFinDannee": "Ex. : Fête de fin d’année",
+  "fuRegleDeCotisation": "Règle de cotisation",
+  "fuMontantParMembre": "Montant par membre",
+  "fuQuoiSertElleFacultatif": "À quoi sert-elle ? (facultatif)",
+  "fuObjectifAtteindreFacultatif": "Objectif à atteindre (facultatif)",
+  "fuCreerLaCaisse": "Créer la caisse",
+  "poVoteOuvertLesMembresSont": "Vote ouvert : les membres sont prévenus.",
+  "poPoserUneQuestion": "Poser une question",
+  "poChaqueMembrePeutPoserUne": "Chaque membre peut poser une question au groupe. Un vote libre donne l’avis du groupe : il ne change rien tout seul.",
+  "poAucunVoteEnCours": "Aucun vote en cours.",
+  "poMasquerLesVotesTermines": "Masquer les votes terminés",
+  "poVoirLesVotesTermines": "Voir les votes terminés ({length})",
+  "@poVoirLesVotesTermines": {
+    "placeholders": {
+      "length": {
+        "type": "Object"
+      }
+    }
+  },
+  "poVotreReponse": "Votre réponse",
+  "poAutreReponseFacultatif": "Autre réponse (facultatif)",
+  "poReponseSurMembres": "{ballotCount} réponse(s) sur {electorate} membres",
+  "@poReponseSurMembres": {
+    "placeholders": {
+      "ballotCount": {
+        "type": "Object"
+      },
+      "electorate": {
+        "type": "Object"
+      }
+    }
+  },
+  "poMasquerLeDetail": "Masquer le détail",
+  "poVoirQuiReponduQuoi": "Voir qui a répondu quoi",
+  "poChangerMaReponse": "Changer ma réponse",
+  "poTerminer": "Terminer",
+  "poVotreQuestion": "Votre question",
+  "poExQuelJourPourLa": "Ex. : Quel jour pour la fête de fin d’année ?",
+  "poPrecisionsFacultatif": "Précisions (facultatif)",
+  "poReponsesProposees": "Réponses proposées",
+  "poRetirerCetteReponse": "Retirer cette réponse",
+  "poAjouterUneReponse": "Ajouter une réponse",
+  "poAccepterUneReponseLibre": "Accepter une réponse libre",
+  "poPlusieursReponsesPossibles": "Plusieurs réponses possibles",
+  "poNePasMontrerQuiRepondu": "Ne pas montrer qui a répondu quoi",
+  "poDuree": "Durée",
+  "poJusquaCeQueJeLe": "Jusqu’à ce que je le termine",
+  "po24Heures": "24 heures",
+  "po72Heures": "72 heures",
+  "poUneSemaine": "Une semaine",
+  "poOuvrirLeVote": "Ouvrir le vote",
+  "poAskedByOn": "Posée par {name} le {date}",
+  "@poAskedByOn": {
+    "placeholders": {
+      "name": {
+        "type": "Object"
+      },
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "poUntil": " · jusqu’au {date}",
+  "@poUntil": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "poAnonymousSuffix": " · réponses anonymes",
+  "poVotes": "{count} voix",
+  "@poVotes": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "poAnswerN": "Réponse {n}",
+  "@poAnswerN": {
+    "placeholders": {
+      "n": {
+        "type": "Object"
+      }
+    }
+  }
 }
