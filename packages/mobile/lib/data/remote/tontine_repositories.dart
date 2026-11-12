@@ -36,6 +36,7 @@ import '../../domain/repositories/governance_repository.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
+import '../../l10n/kombe_l10n.dart';
 import 'kombe_api_client.dart';
 import 'notification_mapping.dart';
 import 'stored_session_codec.dart';
@@ -66,7 +67,7 @@ DateTime _date(Object? v) {
 /// (bouton en attente, aucune requête envoyée).
 Object _clientError(Object e) => e is ApiFailure || e is ClientFailure
     ? e
-    : const ApiFailure(statusCode: 0, code: 'CLIENT_ERROR', message: 'Une erreur est survenue sur cet appareil. Réessayez.');
+    : ApiFailure(statusCode: 0, code: 'CLIENT_ERROR', message: KombeL10n.current.trUneErreurEstSurvenueSur);
 
 Future<Resource<T>> _read<T>(Future<T> Function() run) async {
   try {
@@ -337,7 +338,7 @@ TontineStatutes statutesFrom(Map<String, dynamic> b) {
 Future<String> _myName(KombeApiClient api) async {
   final String name = '${(await api.get('/me')).body['displayName'] ?? ''}'.trim();
   if (name.isEmpty) {
-    throw const ClientFailure('Indiquez d’abord votre nom dans « Mon profil » : c’est lui que les membres verront.');
+    throw ClientFailure(KombeL10n.current.trIndiquezDabordVotreNomDans);
   }
   return name;
 }
@@ -407,7 +408,7 @@ final class TontineGroupRepository implements GroupRepository {
             'contributionPerShare': settings['contributionPerShare'],
             'nextMeetingDate': next?['date'] ?? round?['date'],
           }, cycleIndex: (round?['seq'] as num?)?.toInt() ?? 0, cycleTotal: (d['memberCount'] as num?)?.toInt() ?? 0),
-          description: caisses.isEmpty ? '' : 'Montants confirmés dans les caisses : $caisses. L’argent est tenu par la trésorerie du groupe, pas par KÓMBE.',
+          description: caisses.isEmpty ? '' : KombeL10n.current.trMontantsConfirmesDansLesCaisses(caisses),
           currentRulesVersion: (statutes?['version'] as num?)?.toInt() ?? 0,
           pendingCount: (d['pendingCount'] as num?)?.toInt() ?? 0,
           cycleStarted: d['cycleStarted'] == true,
@@ -424,7 +425,7 @@ final class TontineGroupRepository implements GroupRepository {
   Future<Resource<GroupMember>> getMember(String groupId, String identityId) => _read(() async {
         final Map<String, dynamic> m = _items(await _api.get('${_t(groupId)}/members')).firstWhere(
               (Map<String, dynamic> x) => x['membershipId'] == identityId,
-              orElse: () => throw const ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE', message: 'Membre introuvable'),
+              orElse: () => throw ApiFailure(statusCode: 404, code: 'OBJET_INTROUVABLE', message: KombeL10n.current.trMembreIntrouvable),
             );
         return memberFrom(m);
       });
@@ -481,7 +482,7 @@ final class TontineGroupRepository implements GroupRepository {
         final String code = invitationCode.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
         final Map<String, dynamic> preview = (await _api.get('/invitations/${Uri.encodeComponent(code)}')).body;
         if (preview['alreadyMember'] == true) return;
-        if (preview['usable'] != true) throw const ApiFailure(statusCode: 409, code: 'STATE_CONFLICT', message: 'Ce code n’est plus valable');
+        if (preview['usable'] != true) throw ApiFailure(statusCode: 409, code: 'STATE_CONFLICT', message: KombeL10n.current.trCeCodeNestPlusValable);
         final String name = await _myName(_api);
         await _api.postOnce('/invitations/${Uri.encodeComponent(code)}/join', <String, dynamic>{'displayName': name});
       });
@@ -863,7 +864,7 @@ final class TontineGovernanceRepository implements GovernanceRepository {
           // Le motif est transmis au membre : jamais inventé à sa place.
           final String motif = (reason ?? '').trim();
           if (motif.isEmpty) {
-            throw const ApiFailure(statusCode: 422, code: 'VALIDATION', message: 'Indiquez le motif du rejet : il est transmis au membre.');
+            throw ApiFailure(statusCode: 422, code: 'VALIDATION', message: KombeL10n.current.trIndiquezLeMotifDuRejet);
           }
           await _api.postOnce('$base/${Uri.encodeComponent(contributionId)}/rejection', <String, dynamic>{'reason': motif});
       }
@@ -877,12 +878,12 @@ final class TontineGovernanceRepository implements GovernanceRepository {
 
   final Map<String, String> _voteGroup = <String, String>{};
 
-  static const Map<String, String> _kindTitles = <String, String>{
-    'pause': 'Pause des séances',
-    'removal': 'Destitution d’un membre du bureau',
-    'exclusion': 'Exclusion d’un membre',
-    'payout_suspension': 'Suspension du droit de bouffer',
-    'replacement': 'Reprise de place',
+  static Map<String, String> get _kindTitles => <String, String>{
+    'pause': KombeL10n.current.ntPauseDesSeances,
+    'removal': KombeL10n.current.trDestitutionDunMembreDuBureau,
+    'exclusion': KombeL10n.current.trExclusionDunMembre,
+    'payout_suspension': KombeL10n.current.ntSuspensionDuDroitDeBouffer,
+    'replacement': KombeL10n.current.ntRepriseDePlace,
   };
 
   VoteSummary _vote(String gid, Map<String, dynamic> d) {
@@ -890,7 +891,7 @@ final class TontineGovernanceRepository implements GovernanceRepository {
     final String? target = d['targetName'] as String?;
     final Map<String, dynamic> params = (d['params'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
     final String what = switch (kind) {
-      'pause' => '${params['occurrences'] ?? 1} séance(s)',
+      'pause' => KombeL10n.current.trPauseOccurrences('${params['occurrences'] ?? 1}'),
       'replacement' => '${params['incomingName'] ?? ''} ← ${target ?? ''}',
       _ => target ?? '',
     };
@@ -965,7 +966,7 @@ final class TontineGovernanceRepository implements GovernanceRepository {
             );
           }
         }
-        throw const ApiFailure(statusCode: 404, code: 'NOT_FOUND', message: 'Ce vote n’existe plus ou ne concerne pas vos groupes.');
+        throw ApiFailure(statusCode: 404, code: 'NOT_FOUND', message: KombeL10n.current.trCeVoteNexistePlusOu);
       });
 
   @override
@@ -1035,7 +1036,7 @@ final class TontineDocumentRepository implements DocumentRepository {
             out.add(KombeDocument(
               id: '$gid-statuts-${st['version']}',
               kind: DocumentKind.rules,
-              title: 'Statuts — ${g['name']} (version ${st['version']})',
+              title: KombeL10n.current.trStatutesDocTitle('${g['name']}', '${st['version']}'),
               createdAtUtc: _date(st['publishedAt']),
               downloadUri: _webBase.replace(fragment: '/groupe/$gid'),
             ));
@@ -1053,13 +1054,13 @@ final class TontineDashboardRepository implements DashboardRepository {
   const TontineDashboardRepository({required KombeApiClient api}) : _api = api;
   final KombeApiClient _api;
 
-  static const Map<String, String> _decisionTitle = <String, String>{
-    'pause': 'Pause des séances',
+  static Map<String, String> _decisionTitle = <String, String>{
+    'pause': KombeL10n.current.ntPauseDesSeances,
     // Même vocabulaire que la PWA (`dc.k.*`).
-    'removal': 'Destitution d’un membre du bureau',
-    'exclusion': 'Exclusion d’un membre',
-    'payout_suspension': 'Suspension du droit de bouffer',
-    'replacement': 'Reprise de place',
+    'removal': KombeL10n.current.trDestitutionDunMembreDuBureau,
+    'exclusion': KombeL10n.current.trExclusionDunMembre,
+    'payout_suspension': KombeL10n.current.ntSuspensionDuDroitDeBouffer,
+    'replacement': KombeL10n.current.ntRepriseDePlace,
   };
 
   @override
@@ -1110,7 +1111,7 @@ final class TontineDashboardRepository implements DashboardRepository {
                 d['state'] == 'open' && d['myChoice'] == null && ((d['can'] as Map<String, dynamic>?)?['vote'] == true))
             .map((Map<String, dynamic> d) => PendingVote(
                   id: '${d['decisionId']}',
-                  title: _decisionTitle['${d['kind']}'] ?? 'Vote de l’association',
+                  title: _decisionTitle['${d['kind']}'] ?? KombeL10n.current.ncVoteDeLassociation,
                   closesAtUtc: _date(d['closesAt']),
                 ))
             .toList();

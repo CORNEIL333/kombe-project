@@ -1,3 +1,5 @@
+import '../../l10n/kombe_l10n.dart';
+
 /// Échec d'appel conforme au contrat OpenAPI : `code` est l'ErrorCode STABLE
 /// servi par le serveur dans `Error{code, message, traceId}`, ou un code client
 /// explicite quand la réponse elle-même est invalide (`RESPONSE_NOT_JSON`,
@@ -39,7 +41,7 @@ final class ClientFailure implements Exception {
 }
 
 /// Texte affiché quand le serveur KÓMBE ne répond pas.
-const String networkFailureMessage = 'Pas de connexion au serveur KÓMBE. Vérifiez votre réseau et réessayez.';
+String get networkFailureMessage => KombeL10n.current.afPasDeConnexionAuServeur;
 
 /// Message français lisible pour n'importe quel échec : la raison française
 /// du serveur prime toujours (`Error.message`), sauf pour une session
@@ -56,7 +58,7 @@ String failureMessage(Object error) {
   }
   if (error is ClientFailure) return error.reason;
   final String s = '$error'.trim();
-  return s.isEmpty ? 'Une erreur est survenue. Réessayez.' : s;
+  return s.isEmpty ? KombeL10n.current.afUneErreurEstSurvenueReessayez : s;
 }
 
 /// Message lisible pour un échec sans explication du serveur (le code reste
@@ -66,28 +68,28 @@ String humanMessageFor(int statusCode, String code) {
     case 'NETWORK_ERROR':
       return networkFailureMessage;
     case 'TIMEOUT':
-      return 'Le serveur KÓMBE met trop de temps à répondre. Réessayez dans un instant.';
+      return KombeL10n.current.afLeServeurKombeMetTrop;
     case 'SESSION_INVALID':
     case 'UNAUTHENTICATED':
-      return 'Votre session a expiré : reconnectez-vous pour continuer.';
+      return KombeL10n.current.afVotreSessionExpireReconnectezVous;
     case 'FORBIDDEN':
-      return 'Cette action est réservée à une autre fonction du groupe.';
+      return KombeL10n.current.afCetteActionEstReserveeUne;
     case 'NOT_FOUND':
-      return 'Élément introuvable : il a peut-être été retiré.';
+      return KombeL10n.current.afElementIntrouvableIlPeutEtre;
     case 'CONFLICT':
     case 'STATE_CONFLICT':
-      return 'La situation a changé entre-temps : actualisez puis réessayez.';
+      return KombeL10n.current.afLaSituationChangeEntreTemps;
     case 'RESPONSE_NOT_JSON':
-      return 'Réponse inattendue du serveur KÓMBE. Réessayez dans un instant.';
+      return KombeL10n.current.afReponseInattendueDuServeurKombe;
   }
   return switch (statusCode) {
-    401 => 'Votre session a expiré : reconnectez-vous pour continuer.',
-    403 => 'Cette action est réservée à une autre fonction du groupe.',
-    404 => 'Élément introuvable : il a peut-être été retiré.',
-    409 => 'La situation a changé entre-temps : actualisez puis réessayez.',
-    422 || 400 => 'Les informations saisies ont été refusées par le serveur KÓMBE.',
-    429 => 'Trop de demandes : patientez un instant puis réessayez.',
-    >= 500 => 'Le serveur KÓMBE rencontre un problème. Réessayez dans un instant.',
-    _ => 'L’opération n’a pas abouti. Réessayez ; si cela persiste, contactez le bureau du groupe.',
+    401 => KombeL10n.current.afVotreSessionExpireReconnectezVous,
+    403 => KombeL10n.current.afCetteActionEstReserveeUne,
+    404 => KombeL10n.current.afElementIntrouvableIlPeutEtre,
+    409 => KombeL10n.current.afLaSituationChangeEntreTemps,
+    422 || 400 => KombeL10n.current.afLesInformationsSaisiesOntEte,
+    429 => KombeL10n.current.afTropDeDemandesPatientezUn,
+    >= 500 => KombeL10n.current.afLeServeurKombeRencontreUn,
+    _ => KombeL10n.current.afLoperationNaPasAboutiReessayez,
   };
 }

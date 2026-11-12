@@ -1,4 +1,5 @@
 import '../../domain/entities/notification.dart';
+import '../../l10n/kombe_l10n.dart';
 
 /// Où mène une notification. `web` : la fonction n'existe que dans KÓMBE Web
 /// (PWA) — l'ouverture est annoncée comme telle, jamais déguisée.
@@ -30,52 +31,52 @@ final class NotificationEntry {
   final String title;
 }
 
-const Map<String, NotificationEntry> notificationCatalog = <String, NotificationEntry>{
-  'declared': NotificationEntry(NotificationKind.validation, 'Un paiement attend votre confirmation'),
-  'toControl': NotificationEntry(NotificationKind.validation, 'Des paiements confirmés attendent votre contrôle'),
-  'rejected': NotificationEntry(NotificationKind.contribution, 'Un paiement a été rejeté'),
-  'due': NotificationEntry(NotificationKind.contribution, 'Une cotisation arrive à échéance'),
-  'payout': NotificationEntry(NotificationKind.contribution, 'Remise enregistrée : confirmez la réception'),
-  'received': NotificationEntry(NotificationKind.contribution, 'Réception de la remise confirmée'),
-  'reserve': NotificationEntry(NotificationKind.contribution, 'Réserve de fin d’année distribuée'),
-  'fund': NotificationEntry(NotificationKind.system, 'Nouvelle caisse dans le groupe'),
-  'decision': NotificationEntry(NotificationKind.vote, 'Un vote est ouvert'),
-  'decision-closed': NotificationEntry(NotificationKind.vote, 'Résultat d’un vote'),
-  'decision-lifted': NotificationEntry(NotificationKind.vote, 'Une sanction a été levée'),
-  'fine': NotificationEntry(NotificationKind.dispute, 'Une amende vous a été notifiée'),
-  'fineDecision': NotificationEntry(NotificationKind.dispute, 'Décision sur votre contestation d’amende'),
-  'contest': NotificationEntry(NotificationKind.dispute, 'Une amende est contestée'),
-  'aid': NotificationEntry(NotificationKind.validation, 'Une demande de secours est à examiner'),
-  'aidDecision': NotificationEntry(NotificationKind.system, 'Décision sur votre demande de secours'),
-  'aidPaid': NotificationEntry(NotificationKind.contribution, 'Secours versé'),
-  'meetingSoon': NotificationEntry(NotificationKind.meeting, 'Séance dans les prochains jours'),
-  'minutes': NotificationEntry(NotificationKind.meeting, 'Procès-verbal disponible'),
-  'statutes': NotificationEntry(NotificationKind.system, 'Nouvelles règles à lire et accepter'),
-  'admission': NotificationEntry(NotificationKind.system, 'Votre adhésion est acceptée'),
-  'join': NotificationEntry(NotificationKind.system, 'Nouvelle demande d’adhésion'),
-  'role': NotificationEntry(NotificationKind.system, 'Une fonction vous a été confiée'),
-  'cycle': NotificationEntry(NotificationKind.system, 'Un nouveau cycle commence'),
-  'draw': NotificationEntry(NotificationKind.vote, 'Ordre des tours tiré au sort'),
-  'swap': NotificationEntry(NotificationKind.vote, 'Demande d’échange de tour'),
-  'swap-ready': NotificationEntry(NotificationKind.vote, 'Échange de tour à approuver'),
-  'swap-applied': NotificationEntry(NotificationKind.vote, 'Échange de tour appliqué'),
+Map<String, NotificationEntry> get notificationCatalog => <String, NotificationEntry>{
+  'declared': NotificationEntry(NotificationKind.validation, KombeL10n.current.ncUnPaiementAttendVotreConfirmation),
+  'toControl': NotificationEntry(NotificationKind.validation, KombeL10n.current.ncDesPaiementsConfirmesAttendentVotre),
+  'rejected': NotificationEntry(NotificationKind.contribution, KombeL10n.current.ncUnPaiementEteRejete),
+  'due': NotificationEntry(NotificationKind.contribution, KombeL10n.current.ncUneCotisationArriveEcheance),
+  'payout': NotificationEntry(NotificationKind.contribution, KombeL10n.current.ncRemiseEnregistreeConfirmezLaReception),
+  'received': NotificationEntry(NotificationKind.contribution, KombeL10n.current.ncReceptionDeLaRemiseConfirmee),
+  'reserve': NotificationEntry(NotificationKind.contribution, KombeL10n.current.ncReserveDeFinDanneeDistribuee),
+  'fund': NotificationEntry(NotificationKind.system, KombeL10n.current.ncNouvelleCaisseDansLeGroupe),
+  'decision': NotificationEntry(NotificationKind.vote, KombeL10n.current.ncUnVoteEstOuvert),
+  'decision-closed': NotificationEntry(NotificationKind.vote, KombeL10n.current.ncResultatDunVote),
+  'decision-lifted': NotificationEntry(NotificationKind.vote, KombeL10n.current.ncUneSanctionEteLevee),
+  'fine': NotificationEntry(NotificationKind.dispute, KombeL10n.current.ntUneAmendeVousEteNotifiee),
+  'fineDecision': NotificationEntry(NotificationKind.dispute, KombeL10n.current.ncDecisionSurVotreContestationDamende),
+  'contest': NotificationEntry(NotificationKind.dispute, KombeL10n.current.ntUneAmendeEstContestee),
+  'aid': NotificationEntry(NotificationKind.validation, KombeL10n.current.ncUneDemandeDeSecoursEst),
+  'aidDecision': NotificationEntry(NotificationKind.system, KombeL10n.current.ncDecisionSurVotreDemandeDe),
+  'aidPaid': NotificationEntry(NotificationKind.contribution, KombeL10n.current.ncSecoursVerse),
+  'meetingSoon': NotificationEntry(NotificationKind.meeting, KombeL10n.current.ncSeanceDansLesProchainsJours),
+  'minutes': NotificationEntry(NotificationKind.meeting, KombeL10n.current.ntProcesVerbalDisponible),
+  'statutes': NotificationEntry(NotificationKind.system, KombeL10n.current.ncNouvellesReglesLireEtAccepter),
+  'admission': NotificationEntry(NotificationKind.system, KombeL10n.current.ncVotreAdhesionEstAcceptee),
+  'join': NotificationEntry(NotificationKind.system, KombeL10n.current.ntNouvelleDemandeDadhesion),
+  'role': NotificationEntry(NotificationKind.system, KombeL10n.current.ncUneFonctionVousEteConfiee),
+  'cycle': NotificationEntry(NotificationKind.system, KombeL10n.current.ncUnNouveauCycleCommence),
+  'draw': NotificationEntry(NotificationKind.vote, KombeL10n.current.ncOrdreDesToursTireAu),
+  'swap': NotificationEntry(NotificationKind.vote, KombeL10n.current.ncDemandeDechangeDeTour),
+  'swap-ready': NotificationEntry(NotificationKind.vote, KombeL10n.current.ncEchangeDeTourApprouver),
+  'swap-applied': NotificationEntry(NotificationKind.vote, KombeL10n.current.ncEchangeDeTourApplique),
 };
 
 /// Repli par catégorie serveur (anciennes notifications sans topic).
 NotificationEntry entryFor(String topic, String kind) =>
     notificationCatalog[topic] ??
     switch (kind) {
-      'due_reminder' => const NotificationEntry(NotificationKind.contribution, 'Une cotisation arrive à échéance'),
-      'meeting_reminder' => const NotificationEntry(NotificationKind.meeting, 'Séance dans les prochains jours'),
-      'validation_waiting' => const NotificationEntry(NotificationKind.validation, 'Une validation vous attend'),
-      'payout_recorded' => const NotificationEntry(NotificationKind.contribution, 'Remise enregistrée'),
-      'fine_issued' => const NotificationEntry(NotificationKind.dispute, 'Amende'),
-      'aid_decided' => const NotificationEntry(NotificationKind.system, 'Décision sur une demande de secours'),
-      'order_change' => const NotificationEntry(NotificationKind.vote, 'Ordre des tours'),
-      'membership' => const NotificationEntry(NotificationKind.system, 'Membres du groupe'),
-      'minutes_ready' => const NotificationEntry(NotificationKind.meeting, 'Procès-verbal disponible'),
-      'decision' => const NotificationEntry(NotificationKind.vote, 'Vote de l’association'),
-      _ => const NotificationEntry(NotificationKind.system, 'Nouveauté dans votre groupe'),
+      'due_reminder' => NotificationEntry(NotificationKind.contribution, KombeL10n.current.ncUneCotisationArriveEcheance),
+      'meeting_reminder' => NotificationEntry(NotificationKind.meeting, KombeL10n.current.ncSeanceDansLesProchainsJours),
+      'validation_waiting' => NotificationEntry(NotificationKind.validation, KombeL10n.current.ncUneValidationVousAttend),
+      'payout_recorded' => NotificationEntry(NotificationKind.contribution, KombeL10n.current.ntRemiseEnregistree),
+      'fine_issued' => NotificationEntry(NotificationKind.dispute, KombeL10n.current.fkOther),
+      'aid_decided' => NotificationEntry(NotificationKind.system, KombeL10n.current.ntDecisionSurUneDemandeDe),
+      'order_change' => NotificationEntry(NotificationKind.vote, KombeL10n.current.ncOrdreDesTours),
+      'membership' => NotificationEntry(NotificationKind.system, KombeL10n.current.ncMembresDuGroupe),
+      'minutes_ready' => NotificationEntry(NotificationKind.meeting, KombeL10n.current.ntProcesVerbalDisponible),
+      'decision' => NotificationEntry(NotificationKind.vote, KombeL10n.current.ncVoteDeLassociation),
+      _ => NotificationEntry(NotificationKind.system, KombeL10n.current.ncNouveauteDansVotreGroupe),
     };
 
 /// Destination contrôlée : toujours dans le bon groupe. La nature précise
@@ -93,15 +94,15 @@ NotificationDestination destinationFor(KombeNotification n) {
       'declared' || 'toControl' => const InAppDestination('/app/validations'),
       'rejected' => const InAppDestination('/app/contributions'),
       'due' => InAppDestination('/app/groups/$gid/contributions/new'),
-      'payout' || 'received' || 'reserve' => WebDestination('/groupe/$gid/argent', 'Ouvrir la trésorerie dans KÓMBE Web'),
+      'payout' || 'received' || 'reserve' => WebDestination('/groupe/$gid/argent', KombeL10n.current.ncOuvrirLaTresorerieDansKombe),
       'fund' => InAppDestination('/app/groups/$gid/funds'),
       'decision' || 'decision-closed' when s != null => InAppDestination('/app/votes/$s'),
       'decision' || 'decision-closed' || 'decision-lifted' => const InAppDestination('/app/votes'),
       // Mes amendes (contestation possible) : dans l'application.
       'fine' || 'fineDecision' => const InAppDestination('/app/fines'),
-      'contest' => WebDestination('/groupe/$gid/discipline', 'Ouvrir la discipline dans KÓMBE Web'),
-      'aid' || 'aidDecision' || 'aidPaid' => WebDestination('/groupe/$gid/discipline', 'Ouvrir les secours dans KÓMBE Web'),
-      'meetingSoon' || 'minutes' => WebDestination('/groupe/$gid/seances', 'Ouvrir les séances dans KÓMBE Web'),
+      'contest' => WebDestination('/groupe/$gid/discipline', KombeL10n.current.ncOuvrirLaDisciplineDansKombe),
+      'aid' || 'aidDecision' || 'aidPaid' => WebDestination('/groupe/$gid/discipline', KombeL10n.current.ncOuvrirLesSecoursDansKombe),
+      'meetingSoon' || 'minutes' => WebDestination('/groupe/$gid/seances', KombeL10n.current.ncOuvrirLesSeancesDansKombe),
       'statutes' => InAppDestination('/app/groups/$gid/rules'),
       'join' || 'role' => InAppDestination('/app/groups/$gid/members'),
       'cycle' || 'draw' || 'swap' || 'swap-ready' || 'swap-applied' => InAppDestination('/app/groups/$gid/cycle'),
