@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/formatters/douala_time.dart';
+import '../../core/formatters/labels.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/kombe_components.dart';
 import '../../core/widgets/screen_states.dart';

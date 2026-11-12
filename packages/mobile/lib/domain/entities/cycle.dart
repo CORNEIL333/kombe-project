@@ -7,20 +7,6 @@ enum BeneficiaryStatus { received, current, upcoming }
 /// propose ces deux ordres ; elle n'annonce aucun autre mode.
 enum CycleOrderKind { draw, joinOrder }
 
-extension CycleOrderKindLabel on CycleOrderKind {
-  String get label => switch (this) {
-        CycleOrderKind.draw => 'Tirage au sort vérifiable',
-        CycleOrderKind.joinOrder => 'Ordre d’arrivée',
-      };
-
-  String get aide => switch (this) {
-        CycleOrderKind.draw =>
-          'Le serveur tire l’ordre au hasard et publie la preuve (engagement puis révélation). Chacun peut vérifier que rien n’a été truqué.',
-        CycleOrderKind.joinOrder =>
-          'Les parts passent dans l’ordre d’adhésion : les premières mains arrivées passent en premier. Les nouveaux arrivants passent en dernier.',
-      };
-}
-
 final class BeneficiaryTurn {
   const BeneficiaryTurn({
     required this.turnNumber,

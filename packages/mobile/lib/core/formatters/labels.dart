@@ -1,7 +1,11 @@
+import '../../domain/entities/auth.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/entities/cycle.dart';
 import '../../domain/entities/document.dart';
+import '../../domain/entities/fine.dart';
 import '../../domain/entities/group.dart';
+import '../../domain/entities/meeting.dart';
+import '../../domain/entities/poll.dart';
 import '../../l10n/kombe_l10n.dart';
 
 /// Libellés affichés pour les valeurs du domaine. Une valeur technique
@@ -72,3 +76,80 @@ String cadenceKindLabel(CadenceKind kind) => switch (kind) {
   CadenceKind.monthlyDay => KombeL10n.current.cadenceMonthlyDay,
   CadenceKind.monthlyNthWeekday => KombeL10n.current.cadenceMonthlyNthWeekday,
 };
+
+String pollStateLabel(PollState s) => switch (s) {
+      PollState.open => KombeL10n.current.pollOpen,
+      PollState.closed => KombeL10n.current.pollClosed,
+      PollState.cancelled => KombeL10n.current.pollCancelled,
+    };
+
+String meetingStateLabel(MeetingState s) => switch (s) {
+      MeetingState.planned => KombeL10n.current.mtgPlanned,
+      MeetingState.open => KombeL10n.current.mtgOpen,
+      MeetingState.closed => KombeL10n.current.mtgClosed,
+      MeetingState.cancelled => KombeL10n.current.mtgCancelled,
+    };
+
+String meetingFormatLabel(MeetingFormat f) => switch (f) {
+      MeetingFormat.inPerson => KombeL10n.current.fmtInPerson,
+      MeetingFormat.online => KombeL10n.current.fmtOnline,
+      MeetingFormat.hybrid => KombeL10n.current.fmtHybrid,
+    };
+
+String attendanceStatusLabel(AttendanceStatus s) => switch (s) {
+      AttendanceStatus.present => KombeL10n.current.attPresent,
+      AttendanceStatus.late => KombeL10n.current.attLate,
+      AttendanceStatus.excused => KombeL10n.current.attExcused,
+      AttendanceStatus.absent => KombeL10n.current.attAbsent,
+      AttendanceStatus.represented => KombeL10n.current.attRepresented,
+      AttendanceStatus.unknown => KombeL10n.current.attUnknown,
+    };
+
+String fineStateLabel(FineState s) => switch (s) {
+      FineState.issued => KombeL10n.current.fineIssued,
+      FineState.contested => KombeL10n.current.fineContested,
+      FineState.paid => KombeL10n.current.finePaid,
+      FineState.cancelled => KombeL10n.current.fineCancelled,
+    };
+
+String fineKindLabel(String kind) => switch (kind) {
+      'late_contribution' => KombeL10n.current.fkLateContribution,
+      'meeting_late' => KombeL10n.current.fkMeetingLate,
+      'meeting_absence' => KombeL10n.current.fkMeetingAbsence,
+      'indiscipline' => KombeL10n.current.fkIndiscipline,
+      _ => KombeL10n.current.fkOther,
+    };
+
+extension CycleOrderKindLabel on CycleOrderKind {
+  String get label => switch (this) {
+        CycleOrderKind.draw => KombeL10n.current.orderDraw,
+        CycleOrderKind.joinOrder => KombeL10n.current.orderJoin,
+      };
+
+  String get aide => switch (this) {
+        CycleOrderKind.draw => KombeL10n.current.orderDrawHelp,
+        CycleOrderKind.joinOrder => KombeL10n.current.orderJoinHelp,
+      };
+}
+
+extension LoginChannelLabels on LoginChannel {
+  /// Libellé du choix de voie.
+  String get label => switch (this) {
+        LoginChannel.email => KombeL10n.current.chEmail,
+        LoginChannel.sms => 'SMS',
+        LoginChannel.whatsapp => 'WhatsApp',
+      };
+
+  /// Libellé du champ de saisie.
+  String get fieldLabel => switch (this) {
+        LoginChannel.email => KombeL10n.current.fieldEmail,
+        LoginChannel.sms || LoginChannel.whatsapp => KombeL10n.current.fieldPhone,
+      };
+
+  /// « … reçu par e-mail / SMS / WhatsApp ».
+  String get viaLabel => switch (this) {
+        LoginChannel.email => KombeL10n.current.viaEmail,
+        LoginChannel.sms => KombeL10n.current.viaSms,
+        LoginChannel.whatsapp => KombeL10n.current.viaWhatsapp,
+      };
+}

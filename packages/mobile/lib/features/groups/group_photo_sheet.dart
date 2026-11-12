@@ -15,6 +15,7 @@ import '../../core/widgets/kombe_sheet.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Présidence et secrétariat (miroir de `group.photo` ; le serveur tranche).
 bool canEditGroupPhoto(GroupRole role) => role == GroupRole.administrator || role == GroupRole.secretary;
@@ -63,12 +64,12 @@ Future<void> showGroupPhotoSheet(BuildContext context, GroupSummary group) {
   final ActiveGroupController groups = context.read<ActiveGroupController>();
   return showKombeSheet<void>(
     context,
-    title: 'Photo du groupe',
+    title: AppLocalizations.of(context).phPhotoDuGroupe,
     builder: (_) => PhotoPanel(
       preview: GroupAvatar(groupId: group.id, name: group.name, photoVersion: group.photoVersion, size: 180),
       hasPhoto: group.photoVersion != null,
-      note: 'Visible par les membres du groupe. La position et les informations de l’appareil sont retirées.',
-      savedMessage: 'Photo du groupe enregistrée.',
+      note: AppLocalizations.of(context).phVisibleParLesMembresDu,
+      savedMessage: AppLocalizations.of(context).phPhotoDuGroupeEnregistree,
       save: (Uint8List a, Uint8List b) => repo.setPhoto(group.id, a, b),
       remove: () => repo.removePhoto(group.id),
       afterChange: () async {
@@ -84,12 +85,12 @@ Future<void> showMyPhotoSheet(BuildContext context, {required String name, requi
   final ProfileRepository repo = context.read<ProfileRepository>();
   return showKombeSheet<void>(
     context,
-    title: 'Ma photo',
+    title: AppLocalizations.of(context).phMaPhoto,
     builder: (_) => PhotoPanel(
       preview: MyAvatar(name: name, photoVersion: photoVersion, size: 180),
       hasPhoto: photoVersion != null,
-      note: 'Visible par les membres de vos groupes. La position et les informations de l’appareil sont retirées.',
-      savedMessage: 'Photo enregistrée.',
+      note: AppLocalizations.of(context).phVisibleParLesMembresDe,
+      savedMessage: AppLocalizations.of(context).phPhotoEnregistree,
       save: repo.setPhoto,
       remove: repo.removePhoto,
       afterChange: afterChange,
@@ -133,7 +134,7 @@ class _PhotoPanelState extends State<PhotoPanel> {
       if (file == null) return;
       final Uint8List bytes = await file.readAsBytes();
       if (bytes.length > 15 * 1024 * 1024) {
-        setState(() => _error = 'Choisissez une photo de moins de 15 Mo.');
+        setState(() => _error = AppLocalizations.of(context).phChoisissezUnePhotoDeMoins);
         return;
       }
       setState(() {
@@ -141,7 +142,7 @@ class _PhotoPanelState extends State<PhotoPanel> {
         _zoom = 1;
       });
     } catch (_) {
-      setState(() => _error = 'La photo n’a pas pu être ouverte. Essayez-en une autre.');
+      setState(() => _error = AppLocalizations.of(context).phLaPhotoNaPasPu);
     }
   }
 
@@ -157,7 +158,7 @@ class _PhotoPanelState extends State<PhotoPanel> {
     if (variants == null) {
       setState(() {
         _busy = false;
-        _error = 'Cette image ne peut pas être utilisée. Essayez une autre photo.';
+        _error = AppLocalizations.of(context).phCetteImageNePeutPas;
       });
       return;
     }
@@ -188,7 +189,7 @@ class _PhotoPanelState extends State<PhotoPanel> {
       case OperationBlocked<Object?>():
         setState(() {
           _busy = false;
-          _error = 'La photo ne peut pas être changée depuis cette version de l’application.';
+          _error = AppLocalizations.of(context).phLaPhotoNePeutPas;
         });
     }
   }
@@ -205,7 +206,7 @@ class _PhotoPanelState extends State<PhotoPanel> {
             child: src == null
                 ? widget.preview
                 : Semantics(
-                    label: 'Aperçu de la photo recadrée',
+                    label: AppLocalizations.of(context).phApercuDeLaPhotoRecadree,
                     image: true,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(90),
@@ -219,13 +220,13 @@ class _PhotoPanelState extends State<PhotoPanel> {
           if (src != null)
             Row(
               children: <Widget>[
-                const Text('Recadrer'),
+                Text(AppLocalizations.of(context).phRecadrer),
                 Expanded(
                   child: Slider(
                     value: _zoom,
                     min: 1,
                     max: 3,
-                    label: 'Zoom',
+                    label: AppLocalizations.of(context).phZoom,
                     onChanged: _busy ? null : (double v) => setState(() => _zoom = v),
                   ),
                 ),
@@ -238,7 +239,7 @@ class _PhotoPanelState extends State<PhotoPanel> {
                 child: OutlinedButton.icon(
                   onPressed: _busy ? null : () => _pick(ImageSource.gallery),
                   icon: const Icon(Icons.photo_library_outlined),
-                  label: const Text('Galerie'),
+                  label: Text(AppLocalizations.of(context).phGalerie),
                 ),
               ),
               const SizedBox(width: 10),
@@ -246,7 +247,7 @@ class _PhotoPanelState extends State<PhotoPanel> {
                 child: OutlinedButton.icon(
                   onPressed: _busy ? null : () => _pick(ImageSource.camera),
                   icon: const Icon(Icons.photo_camera_outlined),
-                  label: const Text('Appareil'),
+                  label: Text(AppLocalizations.of(context).phAppareil),
                 ),
               ),
             ],
@@ -260,13 +261,13 @@ class _PhotoPanelState extends State<PhotoPanel> {
           const SizedBox(height: 14),
           FilledButton(
             onPressed: src == null || _busy ? null : _save,
-            child: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4)) : const Text('Enregistrer la photo'),
+            child: _busy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4)) : Text(AppLocalizations.of(context).phEnregistrerLaPhoto),
           ),
           if (widget.hasPhoto && src == null)
             TextButton(
               onPressed: _busy ? null : _remove,
               style: TextButton.styleFrom(foregroundColor: KombeColors.danger),
-              child: const Text('Retirer la photo'),
+              child: Text(AppLocalizations.of(context).phRetirerLaPhoto),
             ),
         ],
       ),

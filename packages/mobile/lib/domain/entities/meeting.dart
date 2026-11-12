@@ -9,13 +9,6 @@ MeetingState meetingStateFrom(Object? v) => switch ('$v') {
       _ => MeetingState.planned,
     };
 
-String meetingStateLabel(MeetingState s) => switch (s) {
-      MeetingState.planned => 'Prévue',
-      MeetingState.open => 'En cours',
-      MeetingState.closed => 'Close',
-      MeetingState.cancelled => 'Annulée',
-    };
-
 /// Modalité d'une séance (0041).
 enum MeetingFormat { inPerson, online, hybrid }
 
@@ -23,12 +16,6 @@ MeetingFormat meetingFormatFrom(Object? v) => switch ('$v') {
       'online' => MeetingFormat.online,
       'hybrid' => MeetingFormat.hybrid,
       _ => MeetingFormat.inPerson,
-    };
-
-String meetingFormatLabel(MeetingFormat f) => switch (f) {
-      MeetingFormat.inPerson => 'Sur place',
-      MeetingFormat.online => 'En ligne',
-      MeetingFormat.hybrid => 'Sur place et en ligne',
     };
 
 enum AttendanceStatus { present, late, excused, absent, represented, unknown }
@@ -40,15 +27,6 @@ AttendanceStatus attendanceStatusFrom(Object? v) => switch ('$v') {
       'absent' => AttendanceStatus.absent,
       'represented' => AttendanceStatus.represented,
       _ => AttendanceStatus.unknown,
-    };
-
-String attendanceStatusLabel(AttendanceStatus s) => switch (s) {
-      AttendanceStatus.present => 'Présent',
-      AttendanceStatus.late => 'En retard',
-      AttendanceStatus.excused => 'Excusé',
-      AttendanceStatus.absent => 'Absent',
-      AttendanceStatus.represented => 'Représenté',
-      AttendanceStatus.unknown => 'Non pointé',
     };
 
 class MeetingSummary {

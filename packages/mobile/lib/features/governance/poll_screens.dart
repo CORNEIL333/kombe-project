@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/design/kombe_colors.dart';
 import '../../core/formatters/douala_time.dart';
+import '../../core/formatters/labels.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/kombe_components.dart';

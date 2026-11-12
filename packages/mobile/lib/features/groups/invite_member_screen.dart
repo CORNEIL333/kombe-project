@@ -13,6 +13,7 @@ import '../../core/widgets/kombe_sheet.dart';
 import '../../core/widgets/operation_feedback.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Lien `https://wa.me/?text=…` pour partager l'invitation sur WhatsApp ;
 /// `null` si le lien construit n'est pas en https (jamais d'autre schéma).
@@ -23,7 +24,7 @@ Uri? whatsappShareUri(String text) {
 
 /// Ouvre l'invitation en demi-fenêtre, sans quitter l'écran du groupe.
 Future<void> showInviteSheet(BuildContext context, String groupId) =>
-    showKombeSheet<void>(context, title: 'Inviter un membre', builder: (_) => InvitePanel(groupId: groupId));
+    showKombeSheet<void>(context, title: AppLocalizations.of(context).gdInviterUnMembre, builder: (_) => InvitePanel(groupId: groupId));
 
 /// Route directe (`/app/groups/:id/invite`) : même contenu en plein écran.
 class InviteMemberScreen extends StatelessWidget {
@@ -32,7 +33,7 @@ class InviteMemberScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Inviter un membre')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).gdInviterUnMembre)),
         body: SafeArea(
           child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: InvitePanel(groupId: groupId)),
         ),
@@ -76,16 +77,16 @@ class _InvitePanelState extends State<InvitePanel> {
 
   Future<void> _copy(String text, String what) async {
     await Clipboard.setData(ClipboardData(text: text));
-    if (mounted) showKombeMessage(context, '$what copié.');
+    if (mounted) showKombeMessage(context, AppLocalizations.of(context).inCopie(what));
   }
 
   Future<void> _shareWhatsApp(GroupInvitation inv) async {
-    final String text = inv.whatsappText.isNotEmpty ? inv.whatsappText : 'Rejoins notre tontine sur KÓMBE : ${inv.url} (code ${inv.code})';
+    final String text = inv.whatsappText.isNotEmpty ? inv.whatsappText : AppLocalizations.of(context).inRejoinsNotreTontineSurKombe(inv.url, inv.code);
     final Uri? uri = whatsappShareUri(text);
     if (uri == null) return;
     final bool ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && mounted) {
-      showKombeMessage(context, 'WhatsApp n’a pas pu s’ouvrir : copiez le lien et envoyez-le vous-même.');
+      showKombeMessage(context, AppLocalizations.of(context).inWhatsappNaPasPuSouvrir);
     }
   }
 
@@ -98,8 +99,8 @@ class _InvitePanelState extends State<InvitePanel> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'Créez un lien d’invitation, valable 14 jours, et envoyez-le à la personne à inviter. Elle ouvre le lien '
-            '(ou saisit le code), puis le président ou le vice-président admet sa demande.',
+            AppLocalizations.of(context).inCreateLinkIntro +
+                AppLocalizations.of(context).inOuSaisitLeCodePuis,
             style: t.bodyMedium,
           ),
           if (_error != null) ...<Widget>[
@@ -112,12 +113,12 @@ class _InvitePanelState extends State<InvitePanel> {
             icon: _creating
                 ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2.4))
                 : const Icon(Icons.link_rounded),
-            label: const Text('Créer un lien d’invitation'),
+            label: Text(AppLocalizations.of(context).inCreerUnLienDinvitation),
           ),
         ],
       );
     }
-    final String uses = inv.maxUses <= 1 ? 'pour une personne' : '${inv.maxUses} personnes au plus';
+    final String uses = inv.maxUses <= 1 ? AppLocalizations.of(context).inPourUnePersonne : AppLocalizations.of(context).inPersonnesAuPlus(inv.maxUses);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -131,36 +132,36 @@ class _InvitePanelState extends State<InvitePanel> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    const Text('CODE D’INVITATION', style: KombeType.eyebrow),
+                    Text(AppLocalizations.of(context).inCodeDinvitation, style: KombeType.eyebrow),
                     const SizedBox(height: 4),
                     SelectableText(inv.code, style: KombeType.amount(size: 28).copyWith(letterSpacing: 3)),
                   ],
                 ),
               ),
-              IconButton(tooltip: 'Copier le code', onPressed: () => _copy(inv.code, 'Code'), icon: const Icon(Icons.copy_rounded)),
+              IconButton(tooltip: AppLocalizations.of(context).inCopierLeCode, onPressed: () => _copy(inv.code, AppLocalizations.of(context).inCode), icon: const Icon(Icons.copy_rounded)),
             ],
           ),
         ),
         const SizedBox(height: 14),
-        const Text('LIEN', style: KombeType.eyebrow),
+        Text(AppLocalizations.of(context).inLien, style: KombeType.eyebrow),
         const SizedBox(height: 4),
         SelectableText(inv.url, style: t.bodyMedium),
         const SizedBox(height: 8),
         Text(
-          'Valable jusqu’au ${DoualaTime.date(inv.expiresAtUtc)}, $uses.',
+          AppLocalizations.of(context).inValableJusquau(DoualaTime.date(inv.expiresAtUtc), uses),
           style: t.bodySmall?.copyWith(color: KombeColors.slate),
         ),
         const SizedBox(height: 18),
         FilledButton.icon(
           onPressed: () => _shareWhatsApp(inv),
           icon: const Icon(Icons.chat_rounded),
-          label: const Text('Partager sur WhatsApp'),
+          label: Text(AppLocalizations.of(context).inPartagerSurWhatsapp),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
-          onPressed: () => _copy(inv.url, 'Lien'),
+          onPressed: () => _copy(inv.url, AppLocalizations.of(context).inLien2),
           icon: const Icon(Icons.link_rounded),
-          label: const Text('Copier le lien'),
+          label: Text(AppLocalizations.of(context).inCopierLeLien),
         ),
       ],
     );

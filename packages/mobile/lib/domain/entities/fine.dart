@@ -11,21 +11,6 @@ FineState fineStateFrom(Object? v) => switch ('$v') {
       _ => FineState.issued,
     };
 
-String fineStateLabel(FineState s) => switch (s) {
-      FineState.issued => 'À régler',
-      FineState.contested => 'Contestée — en attente de la présidence',
-      FineState.paid => 'Réglée',
-      FineState.cancelled => 'Annulée',
-    };
-
-String fineKindLabel(String kind) => switch (kind) {
-      'late_contribution' => 'Retard de cotisation',
-      'meeting_late' => 'Retard à la séance',
-      'meeting_absence' => 'Absence non excusée',
-      'indiscipline' => 'Indiscipline',
-      _ => 'Amende',
-    };
-
 final class MyFine {
   const MyFine({
     required this.fineId,

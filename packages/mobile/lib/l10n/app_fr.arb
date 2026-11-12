@@ -1275,5 +1275,147 @@
         "type": "Object"
       }
     }
-  }
+  },
+  "chTerminer": "À terminer",
+  "chEnvoiInterrompuReprendre": "Envoi interrompu — à reprendre",
+  "chBrouillonPasEncoreEnvoye": "Brouillon, pas encore envoyé",
+  "chMesPaiements": "Mes paiements",
+  "chAucunPaiement": "Aucun paiement",
+  "chVosPaiementsApparaitrontIci": "Vos paiements apparaîtront ici.",
+  "chToutVoir": "Tout voir ({length})",
+  "@chToutVoir": {
+    "placeholders": {
+      "length": {
+        "type": "Object"
+      }
+    }
+  },
+  "chSansDate": "Sans date",
+  "inCopie": "{what} copié.",
+  "@inCopie": {
+    "placeholders": {
+      "what": {
+        "type": "Object"
+      }
+    }
+  },
+  "inRejoinsNotreTontineSurKombe": "Rejoins notre tontine sur KÓMBE : {url} (code {code})",
+  "@inRejoinsNotreTontineSurKombe": {
+    "placeholders": {
+      "url": {
+        "type": "Object"
+      },
+      "code": {
+        "type": "Object"
+      }
+    }
+  },
+  "inWhatsappNaPasPuSouvrir": "WhatsApp n’a pas pu s’ouvrir : copiez le lien et envoyez-le vous-même.",
+  "inOuSaisitLeCodePuis": "(ou saisit le code), puis le président ou le vice-président admet sa demande.",
+  "inCreerUnLienDinvitation": "Créer un lien d’invitation",
+  "inPourUnePersonne": "pour une personne",
+  "inPersonnesAuPlus": "{maxUses} personnes au plus",
+  "@inPersonnesAuPlus": {
+    "placeholders": {
+      "maxUses": {
+        "type": "Object"
+      }
+    }
+  },
+  "inCodeDinvitation": "CODE D’INVITATION",
+  "inCopierLeCode": "Copier le code",
+  "inCode": "Code",
+  "inLien": "LIEN",
+  "inValableJusquau": "Valable jusqu’au {expiresAtUtc}, {uses}.",
+  "@inValableJusquau": {
+    "placeholders": {
+      "expiresAtUtc": {
+        "type": "Object"
+      },
+      "uses": {
+        "type": "Object"
+      }
+    }
+  },
+  "inPartagerSurWhatsapp": "Partager sur WhatsApp",
+  "inLien2": "Lien",
+  "inCopierLeLien": "Copier le lien",
+  "phPhotoDuGroupe": "Photo du groupe",
+  "phVisibleParLesMembresDu": "Visible par les membres du groupe. La position et les informations de l’appareil sont retirées.",
+  "phPhotoDuGroupeEnregistree": "Photo du groupe enregistrée.",
+  "phMaPhoto": "Ma photo",
+  "phVisibleParLesMembresDe": "Visible par les membres de vos groupes. La position et les informations de l’appareil sont retirées.",
+  "phPhotoEnregistree": "Photo enregistrée.",
+  "phChoisissezUnePhotoDeMoins": "Choisissez une photo de moins de 15 Mo.",
+  "phLaPhotoNaPasPu": "La photo n’a pas pu être ouverte. Essayez-en une autre.",
+  "phCetteImageNePeutPas": "Cette image ne peut pas être utilisée. Essayez une autre photo.",
+  "phLaPhotoNePeutPas": "La photo ne peut pas être changée depuis cette version de l’application.",
+  "phApercuDeLaPhotoRecadree": "Aperçu de la photo recadrée",
+  "phRecadrer": "Recadrer",
+  "phZoom": "Zoom",
+  "phGalerie": "Galerie",
+  "phAppareil": "Appareil",
+  "phEnregistrerLaPhoto": "Enregistrer la photo",
+  "phRetirerLaPhoto": "Retirer la photo",
+  "cyCycleEtTours": "Cycle et tours",
+  "cyNouveauCycleLanceLeCalendrier": "Nouveau cycle lancé — le calendrier est prêt",
+  "cyCycleLanceLeCalendrierDes": "Cycle lancé — le calendrier des tours est prêt",
+  "cySaisonTermineeLancezLaSuivante": "Saison terminée — lancez la suivante",
+  "cyLeCycleNestPasEncore": "Le cycle n’est pas encore lancé",
+  "cyTousLesToursDeCette": "Tous les tours de cette saison ont été servis. Pour la saison suivante, le bureau choisit à nouveau l’ordre de passage : les tours continuent (T13, T14…) et le calendrier est affiché à tous.",
+  "cyAucunTourNestProgrammePersonne": "Aucun tour n’est programmé : personne ne reçoit encore. Pour lancer le cycle, il faut au moins deux membres admis, un trésorier qui a accepté sa fonction, et les statuts acceptés par chaque membre.",
+  "cyQuiRecoitEnPremier": "Qui reçoit en premier ?",
+  "cyLancerLeNouveauCycle": "Lancer le nouveau cycle",
+  "cyLancerLeCycle": "Lancer le cycle",
+  "cySeulsLePresidentLeVice": "Seuls le président, le vice-président ou le secrétaire général peuvent lancer le cycle.",
+  "cyProgressionDuCycle": "Progression du cycle",
+  "cyTours": "{currentTurn}/{totalTurns} tours",
+  "@cyTours": {
+    "placeholders": {
+      "currentTurn": {
+        "type": "Object"
+      },
+      "totalTurns": {
+        "type": "Object"
+      }
+    }
+  },
+  "cyQuiRecoitEtQuand": "Qui reçoit, et quand",
+  "cyRecoitCeTour": "Reçoit ce tour",
+  "inCreateLinkIntro": "Créez un lien d’invitation, valable 14 jours, et envoyez-le à la personne à inviter. Elle ouvre le lien ",
+  "pollOpen": "Ouvert",
+  "pollClosed": "Terminé",
+  "pollCancelled": "Annulé",
+  "mtgPlanned": "Prévue",
+  "mtgOpen": "En cours",
+  "mtgClosed": "Close",
+  "mtgCancelled": "Annulée",
+  "fmtInPerson": "Sur place",
+  "fmtOnline": "En ligne",
+  "fmtHybrid": "Sur place et en ligne",
+  "attPresent": "Présent",
+  "attLate": "En retard",
+  "attExcused": "Excusé",
+  "attAbsent": "Absent",
+  "attRepresented": "Représenté",
+  "attUnknown": "Non pointé",
+  "fineIssued": "À régler",
+  "fineContested": "Contestée — en attente de la présidence",
+  "finePaid": "Réglée",
+  "fineCancelled": "Annulée",
+  "fkLateContribution": "Retard de cotisation",
+  "fkMeetingLate": "Retard à la séance",
+  "fkMeetingAbsence": "Absence non excusée",
+  "fkIndiscipline": "Indiscipline",
+  "fkOther": "Amende",
+  "orderDraw": "Tirage au sort vérifiable",
+  "orderJoin": "Ordre d’arrivée",
+  "orderDrawHelp": "Le serveur tire l’ordre au hasard et publie la preuve (engagement puis révélation). Chacun peut vérifier que rien n’a été truqué.",
+  "orderJoinHelp": "Les parts passent dans l’ordre d’adhésion : les premières mains arrivées passent en premier. Les nouveaux arrivants passent en dernier.",
+  "chEmail": "E-mail",
+  "fieldEmail": "Adresse e-mail",
+  "fieldPhone": "Numéro de téléphone",
+  "viaEmail": "par e-mail",
+  "viaSms": "par SMS",
+  "viaWhatsapp": "sur WhatsApp"
 }

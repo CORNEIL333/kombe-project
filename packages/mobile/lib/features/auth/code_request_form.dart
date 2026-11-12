@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api/api_failure.dart';
 import '../../core/design/kombe_colors.dart';
+import '../../core/formatters/labels.dart';
 import '../../core/state/operation_result.dart';
 import '../../core/state/resource.dart';
 import '../../core/widgets/operation_feedback.dart';

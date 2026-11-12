@@ -17,6 +17,7 @@ import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/contribution.dart';
 import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/draft_repository.dart';
+import '../../l10n/app_localizations.dart';
 import 'contribution_status_view.dart';
 
 class ContributionHistoryScreen extends StatefulWidget {
@@ -59,7 +60,7 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
           actions: <Widget>[
             if (context.watch<ActiveGroupController>().active case final GroupSummary g)
               IconButton(
-                tooltip: 'J’ai payé',
+                tooltip: AppLocalizations.of(context).declareContribution,
                 onPressed: () => context.push('/app/groups/${Uri.encodeComponent(g.id)}/contributions/new'),
                 icon: const Icon(Icons.add_rounded),
               ),
@@ -70,10 +71,10 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
           child: ListView(
             padding: const EdgeInsets.only(bottom: 32),
             children: <Widget>[
-              const KombeScreenHeader(title: 'Cotisations'),
+              KombeScreenHeader(title: AppLocalizations.of(context).filterContributions),
               if (_remote case ResourceReady<List<Contribution>>(:final List<Contribution> data) when data.isNotEmpty) _Totals(contributions: data),
               if (_drafts.isNotEmpty) ...<Widget>[
-                const KombeSection('À terminer'),
+                KombeSection(AppLocalizations.of(context).chTerminer),
                 KombeGroupedList(
                   children: <Widget>[
                     for (final ContributionDraft draft in _drafts)
@@ -84,20 +85,20 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
                           tone: draft.sending ? KombeTone.danger : KombeTone.neutral,
                         ),
                         title: Text(Xaf.format(draft.amountXaf), style: KombeType.amount(size: 18)),
-                        subtitle: Text(draft.sending ? 'Envoi interrompu — à reprendre' : 'Brouillon, pas encore envoyé'),
+                        subtitle: Text(draft.sending ? AppLocalizations.of(context).chEnvoiInterrompuReprendre : AppLocalizations.of(context).chBrouillonPasEncoreEnvoye),
                         trailing: const Icon(Icons.chevron_right_rounded, color: KombeColors.slate),
                         onTap: () => context.push('/app/groups/${draft.groupId}/contributions/new?draft=${draft.localId}'),
                       ),
                   ],
                 ),
               ],
-              const KombeSection('Mes paiements'),
+              KombeSection(AppLocalizations.of(context).chMesPaiements),
               ResourceView<List<Contribution>>(
                 resource: _remote,
                 onRetry: _load,
                 emptyWhen: (List<Contribution> data) => data.isEmpty,
-                emptyTitle: 'Aucun paiement',
-                emptyBody: 'Vos paiements apparaîtront ici.',
+                emptyTitle: AppLocalizations.of(context).chAucunPaiement,
+                emptyBody: AppLocalizations.of(context).chVosPaiementsApparaitrontIci,
                 builder: (BuildContext context, List<Contribution> contributions) => Column(
                   children: <Widget>[
                     for (final MapEntry<String, List<Contribution>> month in _byMonth(context, _all ? contributions : contributions.take(_recent).toList()).entries) ...<Widget>[
@@ -113,7 +114,7 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
                     if (contributions.length > _recent)
                       TextButton(
                         onPressed: () => setState(() => _all = !_all),
-                        child: Text(_all ? 'Voir moins' : 'Tout voir (${contributions.length})'),
+                        child: Text(_all ? AppLocalizations.of(context).fiVoirMoins : AppLocalizations.of(context).chToutVoir(contributions.length)),
                       ),
                   ],
                 ),
@@ -129,7 +130,7 @@ class _ContributionHistoryScreenState extends State<ContributionHistoryScreen> {
     final Map<String, List<Contribution>> out = <String, List<Contribution>>{};
     for (final Contribution c in all) {
       final DateTime? d = c.declaredAtUtc;
-      out.putIfAbsent(d == null ? 'Sans date' : f.format(d.toLocal()), () => <Contribution>[]).add(c);
+      out.putIfAbsent(d == null ? AppLocalizations.of(context).chSansDate : f.format(d.toLocal()), () => <Contribution>[]).add(c);
     }
     return out;
   }
@@ -170,9 +171,9 @@ class _Totals extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
       child: Row(
         children: <Widget>[
-          tile('Confirmé', confirmed, Colors.white, KombeColors.ink, Icons.check_circle_outline_rounded),
+          tile(AppLocalizations.of(context).fuConfirme, confirmed, Colors.white, KombeColors.ink, Icons.check_circle_outline_rounded),
           const SizedBox(width: 12),
-          tile('En attente', pending, Colors.white, KombeColors.ink, Icons.hourglass_top_rounded),
+          tile(AppLocalizations.of(context).pendingState, pending, Colors.white, KombeColors.ink, Icons.hourglass_top_rounded),
         ],
       ),
     );

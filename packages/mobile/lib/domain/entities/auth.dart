@@ -25,25 +25,6 @@ extension LoginChannelX on LoginChannel {
 
   bool get isPhone => this != LoginChannel.email;
 
-  /// Libellé du choix de voie.
-  String get label => switch (this) {
-        LoginChannel.email => 'E-mail',
-        LoginChannel.sms => 'SMS',
-        LoginChannel.whatsapp => 'WhatsApp',
-      };
-
-  /// Libellé du champ de saisie.
-  String get fieldLabel => switch (this) {
-        LoginChannel.email => 'Adresse e-mail',
-        LoginChannel.sms || LoginChannel.whatsapp => 'Numéro de téléphone',
-      };
-
-  /// « … reçu par e-mail / SMS / WhatsApp ».
-  String get viaLabel => switch (this) {
-        LoginChannel.email => 'par e-mail',
-        LoginChannel.sms => 'par SMS',
-        LoginChannel.whatsapp => 'sur WhatsApp',
-      };
 }
 
 LoginChannel? loginChannelFrom(String? value) => switch (value) {

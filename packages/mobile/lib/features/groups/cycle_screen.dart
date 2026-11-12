@@ -17,6 +17,7 @@ import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/cycle.dart';
 import '../../domain/entities/group.dart';
 import '../../domain/repositories/group_repository.dart';
+import '../../l10n/app_localizations.dart';
 import 'groups_view_models.dart';
 
 /// Cycle & bénéficiaires : suivi des tours, lancement d'une saison
@@ -74,7 +75,7 @@ class _CycleScreenState extends State<CycleScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Cycle et tours')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).cyCycleEtTours)),
         body: ListenableBuilder(
           listenable: _vm!,
           builder: (BuildContext context, Widget? child) => FutureBuilder<Resource<GroupDetails>>(
@@ -139,7 +140,7 @@ class _PanneauLancementCycleState extends State<_PanneauLancementCycle> {
     if (!mounted) return;
     if (erreur == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(widget.renouvellement ? 'Nouveau cycle lancé — le calendrier est prêt' : 'Cycle lancé — le calendrier des tours est prêt')),
+        SnackBar(content: Text(widget.renouvellement ? AppLocalizations.of(context).cyNouveauCycleLanceLeCalendrier : AppLocalizations.of(context).cyCycleLanceLeCalendrierDes)),
       );
       return;
     }
@@ -167,7 +168,7 @@ class _PanneauLancementCycleState extends State<_PanneauLancementCycle> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    widget.renouvellement ? 'Saison terminée — lancez la suivante' : 'Le cycle n’est pas encore lancé',
+                    widget.renouvellement ? AppLocalizations.of(context).cySaisonTermineeLancezLaSuivante : AppLocalizations.of(context).cyLeCycleNestPasEncore,
                     style: t.titleLarge,
                   ),
                 ),
@@ -175,8 +176,8 @@ class _PanneauLancementCycleState extends State<_PanneauLancementCycle> {
               const SizedBox(height: 12),
               Text(
                 widget.renouvellement
-                    ? 'Tous les tours de cette saison ont été servis. Pour la saison suivante, le bureau choisit à nouveau l’ordre de passage : les tours continuent (T13, T14…) et le calendrier est affiché à tous.'
-                    : 'Aucun tour n’est programmé : personne ne reçoit encore. Pour lancer le cycle, il faut au moins deux membres admis, un trésorier qui a accepté sa fonction, et les statuts acceptés par chaque membre.',
+                    ? AppLocalizations.of(context).cyTousLesToursDeCette
+                    : AppLocalizations.of(context).cyAucunTourNestProgrammePersonne,
                 style: t.bodyMedium,
               ),
             ],
@@ -184,7 +185,7 @@ class _PanneauLancementCycleState extends State<_PanneauLancementCycle> {
         ),
         if (widget.bureau) ...<Widget>[
           const SizedBox(height: 16),
-          Text('Qui reçoit en premier ?', style: t.titleLarge),
+          Text(AppLocalizations.of(context).cyQuiRecoitEnPremier, style: t.titleLarge),
           const SizedBox(height: 4),
           for (final CycleOrderKind kind in CycleOrderKind.values)
             _CarteOrdre(
@@ -203,12 +204,12 @@ class _PanneauLancementCycleState extends State<_PanneauLancementCycle> {
             onPressed: _occupe ? null : _lancer,
             child: _occupe
                 ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text(widget.renouvellement ? 'Lancer le nouveau cycle' : 'Lancer le cycle'),
+                : Text(widget.renouvellement ? AppLocalizations.of(context).cyLancerLeNouveauCycle : AppLocalizations.of(context).cyLancerLeCycle),
           ),
         ] else ...<Widget>[
           const SizedBox(height: 12),
           Text(
-            'Seuls le président, le vice-président ou le secrétaire général peuvent lancer le cycle.',
+            AppLocalizations.of(context).cySeulsLePresidentLeVice,
             style: t.bodySmall,
           ),
         ],
@@ -256,8 +257,8 @@ class CycleView extends StatelessWidget {
         ],
         Row(
           children: <Widget>[
-            Expanded(child: Text('Progression du cycle', style: t.titleLarge)),
-            Text('${cycle.currentTurn}/${cycle.totalTurns} tours', style: t.bodyMedium),
+            Expanded(child: Text(AppLocalizations.of(context).cyProgressionDuCycle, style: t.titleLarge)),
+            Text(AppLocalizations.of(context).cyTours(cycle.currentTurn, cycle.totalTurns), style: t.bodyMedium),
           ],
         ),
         const SizedBox(height: 14),
@@ -269,9 +270,9 @@ class CycleView extends StatelessWidget {
         const SizedBox(height: 24),
         Row(
           children: <Widget>[
-            Expanded(child: Text('Qui reçoit, et quand', style: t.titleLarge)),
+            Expanded(child: Text(AppLocalizations.of(context).cyQuiRecoitEtQuand, style: t.titleLarge)),
             IconButton(
-              tooltip: 'Voir tout',
+              tooltip: AppLocalizations.of(context).seeAll,
               onPressed: onSeeAll,
               icon: const Icon(Icons.arrow_forward_rounded, color: KombeColors.goldDark),
             ),
@@ -356,7 +357,7 @@ class _CurrentBeneficiary extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('Reçoit ce tour', style: t.titleSmall?.copyWith(color: KombeColors.ink)),
+                    Text(AppLocalizations.of(context).cyRecoitCeTour, style: t.titleSmall?.copyWith(color: KombeColors.ink)),
                     Text(turn.displayName, style: KombeType.display(size: 27, color: KombeColors.ink)),
                     const SizedBox(height: 4),
                     Text(DateFormat.yMMMMd(locale).format(turn.dueAtUtc.toLocal()), style: t.titleSmall?.copyWith(color: KombeColors.ink)),
@@ -382,7 +383,7 @@ class _TurnRow extends StatelessWidget {
     final bool current = turn.status == BeneficiaryStatus.current;
     final Widget chip = switch (turn.status) {
       BeneficiaryStatus.received => KombeChip(label: KombeLabels.beneficiaryStatus(turn.status), icon: Icons.check_circle_outline_rounded),
-      BeneficiaryStatus.current => const KombeChip(label: 'En cours', tone: ChipTone.gold),
+      BeneficiaryStatus.current => KombeChip(label: AppLocalizations.of(context).stInProgress, tone: ChipTone.gold),
       BeneficiaryStatus.upcoming => KombeChip(label: KombeLabels.beneficiaryStatus(turn.status), tone: ChipTone.neutral),
     };
     return Container(

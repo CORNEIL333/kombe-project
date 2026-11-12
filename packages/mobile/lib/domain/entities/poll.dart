@@ -9,12 +9,6 @@ PollState pollStateFrom(Object? v) => switch ('$v') {
       _ => PollState.open,
     };
 
-String pollStateLabel(PollState s) => switch (s) {
-      PollState.open => 'Ouvert',
-      PollState.closed => 'Terminé',
-      PollState.cancelled => 'Annulé',
-    };
-
 final class PollVoter {
   const PollVoter({required this.name, required this.choices});
   final String name;
