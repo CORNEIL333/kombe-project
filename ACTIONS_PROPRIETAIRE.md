@@ -2,18 +2,23 @@
 
 Le reste du travail avance seul (voir `AUTONOMY_STATE.md`). Chaque point ci-dessous ne peut être fait que par le porteur. Ils sont classés par effet.
 
-## 1. Libérer une place de sauvegarde Neon → déploiement des migrations 0044 à 0046
+## 1. Libérer une place de sauvegarde Neon → déploiement des migrations 0044 à 0048
 
 - **Pourquoi.** Le projet Neon a atteint sa limite de 10 branches. Or toute migration en production exige d'abord une sauvegarde.
 - **Ce qui attend :**
   - les alertes au support (nouvelle demande, réponse) ;
   - la RLS de `"group"` ;
   - les alertes de délai de service ;
-  - « mes tontines » plus rapide (R-04).
+  - « mes tontines » plus rapide (R-04) ;
+  - une seule séance ouverte par groupe, garantie par la base (0047) ;
+  - les messages d'erreur en anglais pour qui a choisi l'anglais (A13) ;
+  - les notifications sur le navigateur (A14) ;
+  - les notifications envoyées dans la langue de chacun (A15, 0048).
 - **Comment.** Supprimer `sauvegarde-avant-0-8-1-20261106` :
   - soit dans la console Neon (projet *kombe* → Branches → la branche → Delete) ;
   - soit en écrivant simplement « je t'autorise à supprimer la sauvegarde 0.8.1 ».
 - **Ensuite (automatique) :** sauvegarde 0.9.2, déploiement, contrôles, fusion dans `master`.
+- **À noter.** Le conteneur de travail a été recréé le 12/11 : les accès Vercel et Neon qu'il gardait sont perdus. Au moment du déploiement, il faudra les redonner (jeton Vercel, clé API Neon, adresse de la base).
 
 ## 2. Relancer la CI GitHub Actions
 

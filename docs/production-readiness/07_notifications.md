@@ -27,6 +27,13 @@ Le détail de conception est dans l'ADR-0044 ; la preuve est `notificationDelive
 - **Aucun montant, aucun nom** de personne ou de groupe.
 - Lien profond `https://…/#/notifications/<id>`. Les données push portent aussi `target`, pour que l'application mobile ouvre l'écran exact.
 
+## Langue des messages hors application (A15)
+
+- Push, SMS et e-mail partent dans la langue du profil (`identity_profile.language`, `fr` ou `en`) ; français par défaut.
+- Le répartiteur la lit par `kombe_notification_locale(identity)` (migration 0048, fonction étroite : une identité → sa langue).
+- L'application mobile et la PWA tiennent le profil à jour : à la connexion et à chaque changement de langue (`PATCH /v1/me`).
+- Preuves : `notificationsEn.test.ts` (un titre anglais par type, aucun mot interdit) ; `notificationDelivery` : LOCALE-DEFAULT-FR, LOCALE-EN-DELIVERED.
+
 ## Interfaces
 
 - `GET /v1/me/notifications` : liste.
