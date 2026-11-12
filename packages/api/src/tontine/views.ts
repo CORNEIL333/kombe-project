@@ -627,7 +627,11 @@ export async function movementViews(
       rejectedReason: row.rejected_reason ?? null,
       relatedKind: row.related_kind ?? null,
       relatedId: row.related_id ?? null,
-      witnesses: (row.witness_membership_ids as string[] | null ?? []).map((w) => names.byMembership.get(w) ?? w),
+      // Noms des témoins du groupe ; un identifiant inconnu n'est jamais affiché brut.
+      witnesses: (row.witness_membership_ids as string[] | null ?? []).flatMap((w) => {
+        const n = names.byMembership.get(w);
+        return n ? [n] : [];
+      }),
       beneficiaryConfirmedAt: isoInstant(row.beneficiary_confirmed_at),
       can: {
         confirm:

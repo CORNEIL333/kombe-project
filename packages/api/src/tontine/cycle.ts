@@ -592,6 +592,17 @@ export class CycleService {
       } else if (!inMeeting && input.channel === "cash" && group.settings.payoutWitnesses > 0) {
         throw new DomainError("WITNESS_REQUIRED", "Une remise en espèces se fait en séance ouverte, devant témoins");
       }
+      // Hors séance, des témoins cités restent des membres actifs DE CE groupe,
+      // distincts du bénéficiaire et du déclarant (audit §6.3).
+      if (!inMeeting && input.witnessMembershipIds.length > 0) {
+        const ids = [...new Set(input.witnessMembershipIds)];
+        if (ids.length !== input.witnessMembershipIds.length) throw new DomainError("WITNESS_REQUIRED", "Témoin cité deux fois");
+        if (ids.includes(beneficiary) || ids.includes(actor.membershipId)) {
+          throw new DomainError("WITNESS_REQUIRED", "Un témoin est distinct du bénéficiaire et du trésorier");
+        }
+        const known = await db.query(`SELECT count(*) AS n FROM membership WHERE group_id = $1 AND state = 'active' AND membership_id = ANY($2::text[])`, [groupId, ids]);
+        if (Number(known.rows[0]?.n) !== ids.length) throw new DomainError("WITNESS_REQUIRED", "Un témoin doit être membre actif du groupe");
+      }
 
       // Impayés du tour : avance du fonds de caisse, remise réduite ou attente.
       const shares = await loadShares(db, groupId, seq);

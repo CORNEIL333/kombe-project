@@ -232,7 +232,7 @@ sur un rapport non confirmé.
 
 - **RLS** : ~7 tables sensibles sans RLS. **Résolu :** 0042 (vie privée et `pilot_risk`, en production), 0045 (`"group"`), 0047 (`command`).
 - `confirm()`/`control()` : double confirmation concurrente. **Résolu :** `lockMovement` (FOR UPDATE) dans les deux chemins (constaté le 12/11).
-- Deux séances « ouvertes » simultanées. **Résolu :** index unique partiel `meeting_one_open_per_group` (0047), message clair en cas de course, preuve MEETING-ONE-OPEN-DB. Les témoins d'une autre séance : à vérifier.
+- Deux séances « ouvertes » simultanées. **Résolu :** index unique partiel `meeting_one_open_per_group` (0047), message clair en cas de course, preuve MEETING-ONE-OPEN-DB. Témoins : en séance, présents et distincts (déjà en place) ; hors séance, membres actifs du groupe et distincts (12/11) ; un identifiant inconnu n'est plus affiché brut.
 - Notifications hors-ligne non rejouées à la reconnexion ; `newcomersLast` (reprise d'historique) non borné.
 - Jetons de session stockés en clair. **Résolu :** empreinte SHA-256 (0042, en production).
 - `docs/openapi.yaml` : ancien contrat harness, divergent du réel (201 sur `code-verifications`/`draws`, `notifications/read` renvoie `{updated}`, 410 sur invitations épuisées) — à archiver au profit de `docs/API_TONTINE.md`.
