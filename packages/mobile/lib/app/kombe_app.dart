@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../core/widgets/kombe_ouverture.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -54,10 +56,29 @@ class _KombeAppState extends State<KombeApp> {
     _router = AppRouter(sessionController: _session);
     _activeGroup = ActiveGroupController(widget.dependencies.groupRepository, _session);
     _settings.initialize();
+    _session.addListener(_syncLanguage);
+    _settings.addListener(_syncLanguage);
+  }
+
+  /// Langue des messages envoyés hors de l'application (A15) : le profil
+  /// serveur suit la langue de l'application, à la connexion et à chaque
+  /// changement. Un échec est sans effet (nouvel essai au prochain changement).
+  String? _syncedLanguage;
+  void _syncLanguage() {
+    if (_session.kind != SessionStateKind.signedIn) {
+      _syncedLanguage = null;
+      return;
+    }
+    final String code = _settings.locale.languageCode == 'en' ? 'en' : 'fr';
+    if (code == _syncedLanguage) return;
+    _syncedLanguage = code;
+    unawaited(widget.dependencies.profileRepository.updateProfile(displayName: '', localeCode: code));
   }
 
   @override
   void dispose() {
+    _session.removeListener(_syncLanguage);
+    _settings.removeListener(_syncLanguage);
     _router.dispose();
     _activeGroup.dispose();
     _session.dispose();

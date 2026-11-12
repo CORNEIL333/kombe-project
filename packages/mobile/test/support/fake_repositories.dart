@@ -187,7 +187,8 @@ final class FakeProfileRepository implements ProfileRepository {
   @override
   Future<OperationResult<UserProfile>> updateProfile({required String displayName, required String localeCode}) async {
     await _lag();
-    _p = UserProfile(identityId: _p.identityId, displayName: displayName, phoneE164: _p.phoneE164, localeCode: localeCode);
+    // Comme l'API réelle : un nom vide n'est pas envoyé, seule la langue change.
+    _p = UserProfile(identityId: _p.identityId, displayName: displayName.trim().isEmpty ? _p.displayName : displayName.trim(), phoneE164: _p.phoneE164, localeCode: localeCode);
     return OperationSuccess<UserProfile>(_p);
   }
 }

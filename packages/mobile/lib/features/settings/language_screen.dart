@@ -11,7 +11,7 @@ class LanguageScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppSettingsController settings = context.watch<AppSettingsController>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Langue')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).language)),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: <Widget>[
