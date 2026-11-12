@@ -1,5 +1,16 @@
 # 10 — Tests et matrice adverse
 
+## Suites exécutées le 12/11/2026 (toutes vertes)
+
+Lots A12 (mobile en anglais) et A13 (motifs d'erreur en anglais) :
+
+- **Unitaires :**
+  - api 268, dont `errorsEn.test.ts` (relit les sources : un motif des routes produit sans version anglaise fait échouer la suite) ;
+  - client 43, dont `langueApi.test.ts` ;
+  - mobile 81 (3 ignorés), dont `english_tour_test.dart` : les 35 écrans du tour, en anglais, sans texte d'interface français. Contrôle négatif fait : en français, le même test signale 32 routes.
+- **PostgreSQL 16 réel :** 29/29 (migrations jusqu'à 0047).
+- **Non relancés ce jour (paquets inchangés) :** domain, dashboard-core, CRM, bureau.
+
 ## Suites exécutées le 11/11/2026 (toutes vertes)
 
 - **Unitaires :**
