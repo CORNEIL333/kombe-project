@@ -878,5 +878,196 @@
         "type": "int"
       }
     }
+  },
+  "csSaisissezUnMontantEntierEn": "Saisissez un montant entier en FCFA.",
+  "csAuMaximumCestCeQui": "Au maximum {maxXaf} : c’est ce qui reste à régler.",
+  "@csAuMaximumCestCeQui": {
+    "placeholders": {
+      "maxXaf": {
+        "type": "Object"
+      }
+    }
+  },
+  "csSaisissezLaReferenceRecueDe": "Saisissez la référence reçue de l’opérateur ou de la banque.",
+  "csLettresChiffresEtUniquement64": "Lettres, chiffres et . - _ / uniquement (64 caractères au plus).",
+  "csExpliquezPourquoiIlNyPas": "Expliquez pourquoi il n’y a pas de référence.",
+  "csVerifierEtEnvoyer": "Vérifier et envoyer",
+  "csMontantVerse": "Montant versé",
+  "csReferenceDeLaTransaction": "Référence de la transaction",
+  "csLeCodeDuSmsDe": "Le code du SMS de confirmation de l’opérateur ou de la banque.",
+  "csPourquoiPasDeReference": "Pourquoi pas de référence ?",
+  "csParExempleSmsDeConfirmation": "Par exemple : SMS de confirmation non reçu.",
+  "csJaiUneReference": "J’ai une référence",
+  "csJeNaiPasDeReference": "Je n’ai pas de référence",
+  "csGardezVotreRecu": "Gardez votre reçu.",
+  "csReprendreLenvoi": "Reprendre l’envoi",
+  "csVerifier": "Vérifier",
+  "csTransfertInternational": "Transfert international",
+  "csResteRegler": "Reste à régler",
+  "csTour": "{fundName} · tour {roundSeq}",
+  "@csTour": {
+    "placeholders": {
+      "fundName": {
+        "type": "Object"
+      },
+      "roundSeq": {
+        "type": "Object"
+      }
+    }
+  },
+  "csEnRetard": "en retard",
+  "csLenvoiCommenceReprenezLeRien": "L’envoi a commencé. Reprenez-le : rien ne sera envoyé deux fois.",
+  "csRienReglerPourLeMoment": "Rien à régler pour le moment",
+  "csToutEstPaye": "Tout est payé.",
+  "csReessayer": "Réessayer",
+  "csEnregistree": "enregistrée",
+  "csEnvoyer": "à envoyer",
+  "csTour2": "{fundName} · tour {roundSeq}",
+  "@csTour2": {
+    "placeholders": {
+      "fundName": {
+        "type": "Object"
+      },
+      "roundSeq": {
+        "type": "Object"
+      }
+    }
+  },
+  "csMoyen": "Moyen",
+  "csReference": "Référence",
+  "csSansReference": "Sans référence",
+  "csLaTresorerieConfirmeraCePaiement": "La trésorerie confirmera ce paiement.",
+  "csModifierLaSaisie": "Modifier la saisie",
+  "csReponseNonRecue": "Réponse non reçue",
+  "csLeReseauCoupeReprenezLenvoi": "Le réseau a coupé. Reprenez l’envoi : rien ne sera compté deux fois.",
+  "csSurEnregistrees": "{recordedCount} sur {length} enregistrées",
+  "@csSurEnregistrees": {
+    "placeholders": {
+      "recordedCount": {
+        "type": "Object"
+      },
+      "length": {
+        "type": "Object"
+      }
+    }
+  },
+  "csPaiementNonEnregistre": "Paiement non enregistré",
+  "voAucunVoteEnCours": "Aucun vote en cours",
+  "voQuandLeBureauOuvreUn": "Quand le bureau ouvre un vote, il apparaît ici.",
+  "voVoter": "À voter",
+  "voDejaVote": "Déjà voté",
+  "voClotureAujourdhui": "Clôture aujourd’hui, {format}",
+  "@voClotureAujourdhui": {
+    "placeholders": {
+      "format": {
+        "type": "Object"
+      }
+    }
+  },
+  "voVote": "Voté",
+  "voVotreBulletinEstEnregistreVote": "Votre bulletin est enregistré (vote secret).",
+  "voPour": "Pour",
+  "voContre": "Contre",
+  "voAbstention": "Abstention",
+  "voAdopte": "Adopté",
+  "voRejete": "Rejeté",
+  "voAnnule": "Annulé",
+  "voAdoptePuisLeve": "Adopté, puis levé",
+  "voClos": "Clos",
+  "voVote2": "Vote",
+  "voVoteOuvert": "Vote ouvert",
+  "voPour2": "{voteMajority} : {requiredYes} « pour »",
+  "@voPour2": {
+    "placeholders": {
+      "voteMajority": {
+        "type": "Object"
+      },
+      "requiredYes": {
+        "type": "Object"
+      }
+    }
+  },
+  "voCeVoteEstClos": "Ce vote est clos : {toLowerCase}.",
+  "@voCeVoteEstClos": {
+    "placeholders": {
+      "toLowerCase": {
+        "type": "Object"
+      }
+    }
+  },
+  "voVousAvezVoteLeResultat": "Vous avez voté : {myChoice}. Le résultat sera publié au dépouillement.",
+  "@voVousAvezVoteLeResultat": {
+    "placeholders": {
+      "myChoice": {
+        "type": "Object"
+      }
+    }
+  },
+  "voVousNeVotezPasSur": "Vous ne votez pas sur ce scrutin.",
+  "voVotreChoix": "Votre choix",
+  "voBulletin": "Bulletin",
+  "voConfirmerMonVote": "Confirmer mon vote",
+  "voVotreBulletinEstSecretPersonne": "Votre bulletin est secret : personne ne voit ce que vous avez voté, seulement le résultat.",
+  "voCloturePrevue": "Clôture prévue : {toLocal}",
+  "@voCloturePrevue": {
+    "placeholders": {
+      "toLocal": {
+        "type": "Object"
+      }
+    }
+  },
+  "voResultat": "Résultat : {outcome}",
+  "@voResultat": {
+    "placeholders": {
+      "outcome": {
+        "type": "Object"
+      }
+    }
+  },
+  "csPartialBody": "Les lignes cochées sont enregistrées. {error} Reprenez l’envoi pour terminer ; le brouillon est gardé sur ce téléphone.",
+  "@csPartialBody": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "csFailedBody": "{error} Rien n’a été enregistré : corrigez puis renvoyez.",
+  "@csFailedBody": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "voClosedOn": "Clos le {date}",
+  "@voClosedOn": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      }
+    }
+  },
+  "voClosesOnIn": "Clôture le {date} · dans {days} j",
+  "@voClosesOnIn": {
+    "placeholders": {
+      "date": {
+        "type": "Object"
+      },
+      "days": {
+        "type": "Object"
+      }
+    }
+  },
+  "voBallotsOf": " / {electorate} {ballots}",
+  "@voBallotsOf": {
+    "placeholders": {
+      "electorate": {
+        "type": "Object"
+      },
+      "ballots": {
+        "type": "Object"
+      }
+    }
   }
 }

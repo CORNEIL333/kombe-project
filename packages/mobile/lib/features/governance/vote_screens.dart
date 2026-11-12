@@ -13,6 +13,7 @@ import '../../core/widgets/screen_states.dart';
 import '../../domain/entities/governance.dart';
 import '../../domain/repositories/governance_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/kombe_l10n.dart';
 
 class VotesScreen extends StatefulWidget {
   const VotesScreen({super.key});
@@ -38,20 +39,20 @@ class _VotesScreenState extends State<VotesScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Votes et décisions')),
+        appBar: AppBar(title: Text(AppLocalizations.of(context).votesDecisions)),
         body: ResourceView<List<VoteSummary>>(
           resource: _state,
           emptyWhen: (List<VoteSummary> votes) => votes.isEmpty,
           onRetry: _load,
-          emptyTitle: 'Aucun vote en cours',
-          emptyBody: 'Quand le bureau ouvre un vote, il apparaît ici.',
+          emptyTitle: AppLocalizations.of(context).voAucunVoteEnCours,
+          emptyBody: AppLocalizations.of(context).voQuandLeBureauOuvreUn,
           builder: (BuildContext context, List<VoteSummary> votes) {
             final List<VoteSummary> todo = votes.where((VoteSummary v) => !v.hasCurrentUserVoted).toList();
             final List<VoteSummary> done = votes.where((VoteSummary v) => v.hasCurrentUserVoted).toList();
             return ListView(
               padding: const EdgeInsets.only(bottom: 32),
               children: <Widget>[
-                for (final (String title, List<VoteSummary> items) in <(String, List<VoteSummary>)>[('À voter', todo), ('Déjà voté', done)])
+                for (final (String title, List<VoteSummary> items) in <(String, List<VoteSummary>)>[(AppLocalizations.of(context).voVoter, todo), (AppLocalizations.of(context).voDejaVote, done)])
                   if (items.isNotEmpty) ...<Widget>[
                     KombeSection('$title · ${items.length}'),
                     KombeGroupedList(children: <Widget>[for (final VoteSummary v in items) _VoteRow(vote: v)]),
@@ -73,10 +74,10 @@ class _VoteRow extends StatelessWidget {
     final DateTime close = vote.closesAtUtc.toLocal();
     final int days = close.difference(DateTime.now()).inDays;
     final String when = close.isBefore(DateTime.now())
-        ? 'Clos le ${DateFormat('d MMM', locale).format(close)}'
+        ? AppLocalizations.of(context).voClosedOn(DateFormat('d MMM', locale).format(close))
         : days < 1
-            ? 'Clôture aujourd’hui, ${DateFormat.Hm(locale).format(close)}'
-            : 'Clôture le ${DateFormat('d MMM', locale).format(close)} · dans $days j';
+            ? AppLocalizations.of(context).voClotureAujourdhui(DateFormat.Hm(locale).format(close))
+            : AppLocalizations.of(context).voClosesOnIn(DateFormat('d MMM', locale).format(close), days);
     return ListTile(
       minTileHeight: 76,
       leading: KombeIconBadge(Icons.how_to_vote_outlined, tone: vote.hasCurrentUserVoted ? KombeTone.success : KombeTone.info),
@@ -89,9 +90,9 @@ class _VoteRow extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: <Widget>[
             if (vote.hasCurrentUserVoted)
-              const StatusPill('Voté', tone: KombeTone.success, icon: Icons.check_rounded)
+              StatusPill(AppLocalizations.of(context).voVote, tone: KombeTone.success, icon: Icons.check_rounded)
             else
-              const StatusPill('À voter', tone: KombeTone.warning),
+              StatusPill(AppLocalizations.of(context).voVoter, tone: KombeTone.warning),
             Text(when, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
@@ -134,23 +135,23 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
     if (!mounted) return;
     setState(() => _sending = false);
     if (reportOutcome(context, result)) {
-      showKombeMessage(context, 'Votre bulletin est enregistré (vote secret).');
+      showKombeMessage(context, AppLocalizations.of(context).voVotreBulletinEstEnregistreVote);
       await _load();
     }
   }
 
   static String _label(VoteChoice c) => switch (c) {
-        VoteChoice.forChoice => 'Pour',
-        VoteChoice.against => 'Contre',
-        VoteChoice.abstain => 'Abstention',
+        VoteChoice.forChoice => KombeL10n.current.voPour,
+        VoteChoice.against => KombeL10n.current.voContre,
+        VoteChoice.abstain => KombeL10n.current.voAbstention,
       };
 
   static String _outcome(String state) => switch (state) {
-        'adopted' => 'Adopté',
-        'rejected' => 'Rejeté',
-        'cancelled' => 'Annulé',
-        'lifted' => 'Adopté, puis levé',
-        _ => 'Clos',
+        'adopted' => KombeL10n.current.voAdopte,
+        'rejected' => KombeL10n.current.voRejete,
+        'cancelled' => KombeL10n.current.voAnnule,
+        'lifted' => KombeL10n.current.voAdoptePuisLeve,
+        _ => KombeL10n.current.voClos,
       };
 
   @override
@@ -158,7 +159,7 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
     final TextTheme t = Theme.of(context).textTheme;
     final AppLocalizations l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Vote')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).voVote2)),
       body: ResourceView<VoteDetails>(
         resource: _state,
         onRetry: _load,
@@ -167,7 +168,7 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
           children: <Widget>[
             Align(
               alignment: Alignment.centerLeft,
-              child: StatusPill(vote.open ? 'Vote ouvert' : _outcome(vote.state), tone: vote.open ? KombeTone.info : KombeTone.neutral, icon: Icons.how_to_vote_outlined),
+              child: StatusPill(vote.open ? AppLocalizations.of(context).voVoteOuvert : _outcome(vote.state), tone: vote.open ? KombeTone.info : KombeTone.neutral, icon: Icons.how_to_vote_outlined),
             ),
             const SizedBox(height: 12),
             Text(vote.summary.title, style: t.headlineSmall),
@@ -185,14 +186,14 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
                     TextSpan(
                       children: <InlineSpan>[
                         TextSpan(text: '${vote.ballots}', style: KombeType.amount(size: 26)),
-                        TextSpan(text: ' / ${vote.electorate} ${l10n.voteBallots.toLowerCase()}', style: t.bodyMedium),
+                        TextSpan(text: l10n.voBallotsOf(vote.electorate, l10n.voteBallots.toLowerCase()), style: t.bodyMedium),
                       ],
                     ),
                   ),
                   const SizedBox(height: 10),
                   LinearProgressIndicator(value: vote.electorate == 0 ? 0 : (vote.ballots / vote.electorate).clamp(0, 1)),
                   const SizedBox(height: 10),
-                  Text('${l10n.voteMajority} : ${vote.requiredYes} « pour »', style: t.bodySmall),
+                  Text(AppLocalizations.of(context).voPour2(l10n.voteMajority, vote.requiredYes), style: t.bodySmall),
                 ],
               ),
             ),
@@ -201,7 +202,7 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
               Semantics(
                 liveRegion: true,
                 child: vote.result == null
-                    ? Text('Ce vote est clos : ${_outcome(vote.state).toLowerCase()}.', style: t.titleMedium)
+                    ? Text(AppLocalizations.of(context).voCeVoteEstClos(_outcome(vote.state).toLowerCase()), style: t.titleMedium)
                     : _Result(yes: vote.result!.yes, no: vote.result!.no, abstain: vote.result!.abstain, outcome: _outcome(vote.state)),
               )
             else if (vote.myChoice != null)
@@ -212,19 +213,19 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
                   children: <Widget>[
                     const Icon(Icons.verified_outlined, color: KombeColors.jade),
                     const SizedBox(width: 12),
-                    Expanded(child: Text('Vous avez voté : ${_label(vote.myChoice!)}. Le résultat sera publié au dépouillement.', style: t.titleSmall)),
+                    Expanded(child: Text(AppLocalizations.of(context).voVousAvezVoteLeResultat(_label(vote.myChoice!)), style: t.titleSmall)),
                   ],
                 ),
               )
             else if (!vote.canVote)
-              Text('Vous ne votez pas sur ce scrutin.', style: t.titleMedium)
+              Text(AppLocalizations.of(context).voVousNeVotezPasSur, style: t.titleMedium)
             else ...<Widget>[
-              Text('Votre choix', style: t.titleMedium),
+              Text(AppLocalizations.of(context).voVotreChoix, style: t.titleMedium),
               const SizedBox(height: 10),
               // Bulletin : trois grandes cibles, la sélection est visible (forme + couleur).
               Semantics(
                 container: true,
-                label: 'Bulletin',
+                label: AppLocalizations.of(context).voBulletin,
                 child: Row(
                   children: <Widget>[
                     for (final VoteChoice c in VoteChoice.values) ...<Widget>[
@@ -239,7 +240,7 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
                 onPressed: _choice == null || _sending ? null : _submit,
                 child: _sending
                     ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
-                    : const Text('Confirmer mon vote'),
+                    : Text(AppLocalizations.of(context).voConfirmerMonVote),
               ),
               const SizedBox(height: 12),
               Row(
@@ -247,12 +248,12 @@ class _VoteDetailScreenState extends State<VoteDetailScreen> {
                 children: <Widget>[
                   const Icon(Icons.lock_outline_rounded, size: 16, color: KombeColors.slate),
                   const SizedBox(width: 8),
-                  Expanded(child: Text('Votre bulletin est secret : personne ne voit ce que vous avez voté, seulement le résultat.', style: t.bodySmall)),
+                  Expanded(child: Text(AppLocalizations.of(context).voVotreBulletinEstSecretPersonne, style: t.bodySmall)),
                 ],
               ),
             ],
             const SizedBox(height: 16),
-            Text('Clôture prévue : ${DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag()).add_Hm().format(vote.summary.closesAtUtc.toLocal())}',
+            Text(AppLocalizations.of(context).voCloturePrevue(DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag()).add_Hm().format(vote.summary.closesAtUtc.toLocal())),
                 style: t.bodySmall),
           ],
         ),
@@ -344,10 +345,10 @@ class _Result extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('Résultat : $outcome', style: Theme.of(context).textTheme.titleMedium),
-          bar('Pour', yes, KombeColors.jade),
-          bar('Contre', no, KombeColors.danger),
-          bar('Abstention', abstain, KombeColors.slate),
+          Text(AppLocalizations.of(context).voResultat(outcome), style: Theme.of(context).textTheme.titleMedium),
+          bar(AppLocalizations.of(context).voPour, yes, KombeColors.jade),
+          bar(AppLocalizations.of(context).voContre, no, KombeColors.danger),
+          bar(AppLocalizations.of(context).voAbstention, abstain, KombeColors.slate),
         ],
       ),
     );

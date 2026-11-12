@@ -15,6 +15,7 @@ import '../../domain/entities/contribution.dart';
 import '../../domain/repositories/contribution_repository.dart';
 import '../../domain/repositories/draft_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/kombe_l10n.dart';
 import 'contribution_draft_view_model.dart';
 import 'contribution_sent_sheet.dart';
 
@@ -102,20 +103,20 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
 
   String? get _amountError {
     final int? v = ContributionDraftViewModel.parseAmount(_amount.text);
-    if (v == null) return 'Saisissez un montant entier en FCFA.';
-    if (v > _vm.maxXaf) return 'Au maximum ${Xaf.format(_vm.maxXaf)} : c’est ce qui reste à régler.';
+    if (v == null) return AppLocalizations.of(context).csSaisissezUnMontantEntierEn;
+    if (v > _vm.maxXaf) return AppLocalizations.of(context).csAuMaximumCestCeQui(Xaf.format(_vm.maxXaf));
     return null;
   }
 
   String? get _referenceError {
     if (!_needsReference || _noReference) return null;
     final String r = _reference.text.trim();
-    if (r.isEmpty) return 'Saisissez la référence reçue de l’opérateur ou de la banque.';
-    if (!isValidTransactionReference(r)) return 'Lettres, chiffres et . - _ / uniquement (64 caractères au plus).';
+    if (r.isEmpty) return AppLocalizations.of(context).csSaisissezLaReferenceRecueDe;
+    if (!isValidTransactionReference(r)) return AppLocalizations.of(context).csLettresChiffresEtUniquement64;
     return null;
   }
 
-  String? get _reasonError => _needsReference && _noReference && _reason.text.trim().isEmpty ? 'Expliquez pourquoi il n’y a pas de référence.' : null;
+  String? get _reasonError => _needsReference && _noReference && _reason.text.trim().isEmpty ? AppLocalizations.of(context).csExpliquezPourquoiIlNyPas : null;
 
   bool get _valid => _amountError == null && _referenceError == null && _reasonError == null;
 
@@ -140,7 +141,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
   Future<void> _openReview() async {
     await showKombeSheet<void>(
       context,
-      title: 'Vérifier et envoyer',
+      title: AppLocalizations.of(context).csVerifierEtEnvoyer,
       dismissible: true,
       builder: (_) => _ReviewSheet(vm: _vm, channelLabel: _channelLabel(AppLocalizations.of(context), _vm.draft?.channel ?? _channel)),
     );
@@ -182,7 +183,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                     keyboardType: TextInputType.number,
                     textInputAction: TextInputAction.next,
                     style: KombeType.amount(size: 26),
-                    decoration: InputDecoration(labelText: 'Montant versé', suffixText: 'FCFA', errorText: _showErrors ? _amountError : null),
+                    decoration: InputDecoration(labelText: AppLocalizations.of(context).csMontantVerse, suffixText: 'FCFA', errorText: _showErrors ? _amountError : null),
                     onChanged: (_) => setState(_save),
                   ),
                   const SizedBox(height: 22),
@@ -219,8 +220,8 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                         autocorrect: false,
                         maxLength: 64,
                         decoration: InputDecoration(
-                          labelText: 'Référence de la transaction',
-                          helperText: 'Le code du SMS de confirmation de l’opérateur ou de la banque.',
+                          labelText: AppLocalizations.of(context).csReferenceDeLaTransaction,
+                          helperText: AppLocalizations.of(context).csLeCodeDuSmsDe,
                           helperMaxLines: 2,
                           errorText: _showErrors ? _referenceError : null,
                         ),
@@ -233,8 +234,8 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                         maxLength: 500,
                         maxLines: 2,
                         decoration: InputDecoration(
-                          labelText: 'Pourquoi pas de référence ?',
-                          helperText: 'Par exemple : SMS de confirmation non reçu.',
+                          labelText: AppLocalizations.of(context).csPourquoiPasDeReference,
+                          helperText: AppLocalizations.of(context).csParExempleSmsDeConfirmation,
                           helperMaxLines: 2,
                           errorText: _showErrors ? _reasonError : null,
                         ),
@@ -247,7 +248,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                           _noReference = !_noReference;
                           _save();
                         }),
-                        child: Text(_noReference ? 'J’ai une référence' : 'Je n’ai pas de référence'),
+                        child: Text(_noReference ? AppLocalizations.of(context).csJaiUneReference : AppLocalizations.of(context).csJeNaiPasDeReference),
                       ),
                     ),
                   ],
@@ -259,7 +260,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Gardez votre reçu.',
+                          AppLocalizations.of(context).csGardezVotreRecu,
                           style: t.bodySmall?.copyWith(color: KombeColors.slate),
                         ),
                       ),
@@ -275,7 +276,7 @@ class _ContributionStartScreenState extends State<ContributionStartScreen> {
           ? SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: FilledButton(onPressed: locked ? _openReview : _review, child: Text(locked ? 'Reprendre l’envoi' : 'Vérifier')),
+                child: FilledButton(onPressed: locked ? _openReview : _review, child: Text(locked ? AppLocalizations.of(context).csReprendreLenvoi : AppLocalizations.of(context).csVerifier)),
               ),
             )
           : null,
@@ -288,7 +289,7 @@ String _channelLabel(AppLocalizations l10n, PaymentChannel c) => switch (c) {
   PaymentChannel.mtnMomo => l10n.mtnMomo,
   PaymentChannel.bankTransfer => l10n.bankTransfer,
   // Libellé court (puce) ; le montant déclaré est celui reçu en FCFA.
-  PaymentChannel.internationalTransfer => 'Transfert international',
+  PaymentChannel.internationalTransfer => KombeL10n.current.csTransfertInternational,
   PaymentChannel.cash => l10n.cash,
   PaymentChannel.mobileMoney => 'Mobile Money',
 };
@@ -306,7 +307,7 @@ class _DueSummary extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('Reste à régler', style: t.bodyMedium),
+          Text(AppLocalizations.of(context).csResteRegler, style: t.bodyMedium),
           const SizedBox(height: 2),
           FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: KombeAmount(total, size: 32)),
           const SizedBox(height: 10),
@@ -317,11 +318,11 @@ class _DueSummary extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: <Widget>[
-                  Expanded(child: Text('${d.fundName} · tour ${d.roundSeq}', style: t.bodyMedium)),
+                  Expanded(child: Text(AppLocalizations.of(context).csTour(d.fundName, d.roundSeq), style: t.bodyMedium)),
                   if (d.late)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.only(right: 8),
-                      child: StatusPill('en retard', tone: KombeTone.danger),
+                      child: StatusPill(AppLocalizations.of(context).csEnRetard, tone: KombeTone.danger),
                     ),
                   Text(Xaf.format(d.remainingXaf), style: KombeType.amount(size: 15, color: KombeColors.ink)),
                 ],
@@ -338,7 +339,7 @@ class _LockedNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-    'L’envoi a commencé. Reprenez-le : rien ne sera envoyé deux fois.',
+    AppLocalizations.of(context).csLenvoiCommenceReprenezLeRien,
     style: Theme.of(context).textTheme.bodyLarge,
   );
 }
@@ -356,11 +357,11 @@ class _NothingDue extends StatelessWidget {
         children: <Widget>[
           const Icon(Icons.check_circle_outline_rounded, size: 48, color: KombeColors.forest),
           const SizedBox(height: 12),
-          Text('Rien à régler pour le moment', style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
+          Text(AppLocalizations.of(context).csRienReglerPourLeMoment, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
           const SizedBox(height: 6),
-          const Text('Tout est payé.', textAlign: TextAlign.center),
+          Text(AppLocalizations.of(context).csToutEstPaye, textAlign: TextAlign.center),
           const SizedBox(height: 16),
-          OutlinedButton(onPressed: onBack, child: const Text('Retour')),
+          OutlinedButton(onPressed: onBack, child: Text(AppLocalizations.of(context).back)),
         ],
       ),
     ),
@@ -381,7 +382,7 @@ class _LoadError extends StatelessWidget {
         children: <Widget>[
           Text(message, textAlign: TextAlign.center),
           const SizedBox(height: 12),
-          OutlinedButton(onPressed: onRetry, child: const Text('Réessayer')),
+          OutlinedButton(onPressed: onRetry, child: Text(AppLocalizations.of(context).csReessayer)),
         ],
       ),
     ),
@@ -425,35 +426,35 @@ class _ReviewSheet extends StatelessWidget {
                       l.recorded ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
                       size: 20,
                       color: l.recorded ? KombeColors.forest : KombeColors.slate,
-                      semanticLabel: l.recorded ? 'enregistrée' : 'à envoyer',
+                      semanticLabel: l.recorded ? AppLocalizations.of(context).csEnregistree : AppLocalizations.of(context).csEnvoyer,
                     ),
                     const SizedBox(width: 10),
-                    Expanded(child: Text('${l.fundName} · tour ${l.roundSeq}', style: t.bodyLarge)),
+                    Expanded(child: Text(AppLocalizations.of(context).csTour2(l.fundName, l.roundSeq), style: t.bodyLarge)),
                     Text(Xaf.format(l.amountXaf), style: KombeType.amount(size: 17)),
                   ],
                 ),
               ),
             const Divider(height: 24),
-            _kv(t, 'Moyen', channelLabel),
-            if (d?.reference != null) _kv(t, 'Référence', d!.reference!),
-            if (d?.reference == null && d?.noReferenceReason != null) _kv(t, 'Sans référence', d!.noReferenceReason!),
+            _kv(t, AppLocalizations.of(context).csMoyen, channelLabel),
+            if (d?.reference != null) _kv(t, AppLocalizations.of(context).csReference, d!.reference!),
+            if (d?.reference == null && d?.noReferenceReason != null) _kv(t, AppLocalizations.of(context).csSansReference, d!.noReferenceReason!),
             const SizedBox(height: 14),
             if (r != null && vm.phase != DeclarationPhase.editing && vm.phase != DeclarationPhase.sending)
               _Outcome(phase: vm.phase, receipt: r)
             else
               Text(
-                'La trésorerie confirmera ce paiement.',
+                AppLocalizations.of(context).csLaTresorerieConfirmeraCePaiement,
                 style: t.bodySmall?.copyWith(color: KombeColors.slate),
               ),
             const SizedBox(height: 16),
             if (vm.phase == DeclarationPhase.failed)
-              OutlinedButton(onPressed: () => Navigator.of(context).maybePop(), child: const Text('Modifier la saisie'))
+              OutlinedButton(onPressed: () => Navigator.of(context).maybePop(), child: Text(AppLocalizations.of(context).csModifierLaSaisie))
             else
               FilledButton(
                 onPressed: sending || lines.isEmpty ? null : vm.send,
                 child: sending
                     ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.4))
-                    : Text(d?.sending ?? false ? 'Reprendre l’envoi' : 'Envoyer'),
+                    : Text(d?.sending ?? false ? AppLocalizations.of(context).csReprendreLenvoi : AppLocalizations.of(context).send),
               ),
           ],
         ),
@@ -487,15 +488,14 @@ class _Outcome extends StatelessWidget {
     final TextTheme t = Theme.of(context).textTheme;
     final (String title, String body) = switch (phase) {
       DeclarationPhase.unknown => (
-        'Réponse non reçue',
-        'Le réseau a coupé. Reprenez l’envoi : rien ne sera compté deux fois.',
+        AppLocalizations.of(context).csReponseNonRecue,
+        AppLocalizations.of(context).csLeReseauCoupeReprenezLenvoi,
       ),
       DeclarationPhase.partial => (
-        '${receipt.recordedCount} sur ${receipt.lines.length} enregistrées',
-        'Les lignes cochées sont enregistrées. ${receipt.error ?? ''} '
-            'Reprenez l’envoi pour terminer ; le brouillon est gardé sur ce téléphone.',
+        AppLocalizations.of(context).csSurEnregistrees(receipt.recordedCount, receipt.lines.length),
+        AppLocalizations.of(context).csPartialBody(receipt.error ?? ''),
       ),
-      _ => ('Paiement non enregistré', '${receipt.error ?? ''} Rien n’a été enregistré : corrigez puis renvoyez.'),
+      _ => (AppLocalizations.of(context).csPaiementNonEnregistre, AppLocalizations.of(context).csFailedBody(receipt.error ?? '')),
     };
     return Semantics(
       liveRegion: true,
