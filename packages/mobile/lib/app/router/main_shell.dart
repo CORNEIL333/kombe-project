@@ -17,6 +17,7 @@ import '../../domain/entities/notification.dart';
 import '../../domain/repositories/notification_repository.dart';
 import '../../features/notifications/notification_actions.dart';
 import '../../features/notifications/notifications_screen.dart';
+import '../../l10n/app_localizations.dart';
 import '../active_group_controller.dart';
 
 /// Branches du shell (ordre fixe, voir `AppRouter`) : quatre destinations.
@@ -67,12 +68,12 @@ class KombeTopBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       leading: shell == null
           ? null
-          : IconButton(tooltip: 'Menu', onPressed: shell.openMenu, icon: KombeIcon(KombeIconData.menu, size: 26, color: fg)),
+          : IconButton(tooltip: AppLocalizations.of(context).navMenu, onPressed: shell.openMenu, icon: KombeIcon(KombeIconData.menu, size: 26, color: fg)),
       title: title ?? ActiveGroupTitle(dark: dark),
       actions: <Widget>[
         ...actions,
         IconButton(
-          tooltip: unread > 0 ? 'Non lues, $unread' : 'Non lues',
+          tooltip: unread > 0 ? AppLocalizations.of(context).unreadCount(unread) : AppLocalizations.of(context).unreadTitle,
           onPressed: () => showUnreadSheet(context),
           icon: Badge(
             isLabelVisible: unread > 0,
@@ -136,7 +137,7 @@ class ActiveGroupTitle extends StatelessWidget {
 /// Changer de groupe sans quitter l'écran.
 Future<void> showGroupSwitcher(BuildContext context) => showKombeSheet<void>(
       context,
-      title: 'Vos groupes',
+      title: AppLocalizations.of(context).yourGroups,
       builder: (BuildContext sheet) {
         final ActiveGroupController groups = sheet.watch<ActiveGroupController>();
         return Column(
@@ -162,7 +163,7 @@ Future<void> showUnreadSheet(BuildContext context) async {
   final KombeShellScope? shell = KombeShellScope.of(context);
   await showKombeSheet<void>(
     context,
-    title: 'Non lues',
+    title: AppLocalizations.of(context).unreadTitle,
     builder: (BuildContext sheet) => FutureBuilder<Resource<List<KombeNotification>>>(
       future: repo.listNotifications(),
       builder: (BuildContext c, AsyncSnapshot<Resource<List<KombeNotification>>> snap) {
@@ -176,7 +177,7 @@ Future<void> showUnreadSheet(BuildContext context) async {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            if (unread.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Text('Tout est lu. Rien de nouveau.')),
+            if (unread.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text(AppLocalizations.of(context).allCaughtUp)),
             for (final KombeNotification n in unread)
               NotificationTile(
                 n: n,
@@ -191,7 +192,7 @@ Future<void> showUnreadSheet(BuildContext context) async {
                 Navigator.of(sheet).pop();
                 context.go('/app/notifications');
               },
-              child: const Text('Toute l’activité'),
+              child: Text(AppLocalizations.of(context).allActivity),
             ),
           ],
         );
@@ -233,13 +234,13 @@ class _GroupTile extends StatelessWidget {
                       Row(
                         children: <Widget>[
                           Flexible(child: Text(roleLabel(group.role), style: const TextStyle(color: KombeColors.slate, fontSize: 14))),
-                          if (treasury) ...<Widget>[const SizedBox(width: 8), const RoleBadge(label: 'Trésorier')],
+                          if (treasury) ...<Widget>[const SizedBox(width: 8), RoleBadge(label: AppLocalizations.of(context).treasurerBadge)],
                         ],
                       ),
                     ],
                   ),
                 ),
-                if (selected) const Icon(Icons.check_rounded, color: KombeColors.forest, semanticLabel: 'groupe actif'),
+                if (selected) Icon(Icons.check_rounded, color: KombeColors.forest, semanticLabel: AppLocalizations.of(context).activeGroup),
               ],
             ),
           ),
@@ -323,11 +324,12 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    const List<(String, String)> items = <(String, String)>[
-      (KombeIconData.accueil, 'Accueil'),
-      (KombeIconData.declarer, 'Cotisations'),
-      (KombeIconData.groupes, 'Groupes'),
-      (KombeIconData.cloche, 'Activité'),
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final List<(String, String)> items = <(String, String)>[
+      (KombeIconData.accueil, l10n.home),
+      (KombeIconData.declarer, l10n.navContributions),
+      (KombeIconData.groupes, l10n.groups),
+      (KombeIconData.cloche, l10n.navActivity),
     ];
     final bool wide = MediaQuery.sizeOf(context).width >= 720;
     return KombeShellScope(
@@ -429,7 +431,7 @@ class KombeMenu extends StatelessWidget {
                 children: <Widget>[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-                    child: Text('Vos groupes', style: t.titleSmall?.copyWith(fontWeight: FontWeight.w800, color: KombeColors.ink)),
+                    child: Text(AppLocalizations.of(context).yourGroups, style: t.titleSmall?.copyWith(fontWeight: FontWeight.w800, color: KombeColors.ink)),
                   ),
                   for (final GroupSummary g in groups.list)
                     _GroupTile(
@@ -442,14 +444,14 @@ class KombeMenu extends StatelessWidget {
                       },
                     ),
                   const Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), child: Divider()),
-                  _MenuRow(icon: Icons.person_add_alt_1_outlined, label: 'Rejoindre un groupe', onTap: () => onNavigate('/app/groups/join')),
-                  _MenuRow(icon: Icons.add_circle_outline_rounded, label: 'Créer une tontine', onTap: () => onNavigate('/app/groups/create')),
+                  _MenuRow(icon: Icons.person_add_alt_1_outlined, label: AppLocalizations.of(context).joinGroup, onTap: () => onNavigate('/app/groups/join')),
+                  _MenuRow(icon: Icons.add_circle_outline_rounded, label: AppLocalizations.of(context).createTontine, onTap: () => onNavigate('/app/groups/create')),
                   const Padding(padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8), child: Divider()),
-                  _MenuRow(icon: Icons.how_to_vote_outlined, label: 'Votes et décisions', onTap: () => onNavigate('/app/votes')),
-                  _MenuRow(icon: Icons.gavel_outlined, label: 'Mes amendes', onTap: () => onNavigate('/app/fines')),
-                  _MenuRow(icon: Icons.description_outlined, label: 'Documents', onTap: () => onNavigate('/app/documents')),
-                  _MenuRow(icon: Icons.help_outline_rounded, label: 'Aide', onTap: () => onNavigate('/app/help')),
-                  _MenuRow(icon: Icons.person_outline_rounded, label: 'Profil et réglages', onTap: () => onNavigate('/app/profile')),
+                  _MenuRow(icon: Icons.how_to_vote_outlined, label: AppLocalizations.of(context).votesDecisions, onTap: () => onNavigate('/app/votes')),
+                  _MenuRow(icon: Icons.gavel_outlined, label: AppLocalizations.of(context).myFines, onTap: () => onNavigate('/app/fines')),
+                  _MenuRow(icon: Icons.description_outlined, label: AppLocalizations.of(context).documentsMenu, onTap: () => onNavigate('/app/documents')),
+                  _MenuRow(icon: Icons.help_outline_rounded, label: AppLocalizations.of(context).helpMenu, onTap: () => onNavigate('/app/help')),
+                  _MenuRow(icon: Icons.person_outline_rounded, label: AppLocalizations.of(context).profileSettings, onTap: () => onNavigate('/app/profile')),
                 ],
               ),
             ),

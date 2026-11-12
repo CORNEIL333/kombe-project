@@ -99,5 +99,21 @@
   "voteElectorate": "Voters",
   "voteMajority": "Yes votes needed (absolute majority)",
   "voteBallots": "Ballots cast (secret ballot)",
-  "internationalTransfer": "Transfer from abroad (amount received in FCFA)"
+  "internationalTransfer": "Transfer from abroad (amount received in FCFA)",
+  "navMenu": "Menu",
+  "navContributions": "Contributions",
+  "navActivity": "Activity",
+  "unreadTitle": "Unread",
+  "yourGroups": "Your groups",
+  "allCaughtUp": "All caught up. Nothing new.",
+  "allActivity": "All activity",
+  "treasurerBadge": "Treasurer",
+  "activeGroup": "active group",
+  "createTontine": "Create a tontine",
+  "votesDecisions": "Votes and decisions",
+  "myFines": "My fines",
+  "documentsMenu": "Documents",
+  "helpMenu": "Help",
+  "profileSettings": "Profile and settings",
+  "unreadCount": "Unread, {count}"
 }

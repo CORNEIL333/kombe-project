@@ -99,5 +99,28 @@
   "voteElectorate": "Électeurs",
   "voteMajority": "Oui nécessaires (majorité absolue)",
   "voteBallots": "Bulletins déposés (vote secret)",
-  "internationalTransfer": "Transfert depuis l’étranger (montant reçu en FCFA)"
+  "internationalTransfer": "Transfert depuis l’étranger (montant reçu en FCFA)",
+  "navMenu": "Menu",
+  "navContributions": "Cotisations",
+  "navActivity": "Activité",
+  "unreadTitle": "Non lues",
+  "yourGroups": "Vos groupes",
+  "allCaughtUp": "Tout est lu. Rien de nouveau.",
+  "allActivity": "Toute l’activité",
+  "treasurerBadge": "Trésorier",
+  "activeGroup": "groupe actif",
+  "createTontine": "Créer une tontine",
+  "votesDecisions": "Votes et décisions",
+  "myFines": "Mes amendes",
+  "documentsMenu": "Documents",
+  "helpMenu": "Aide",
+  "profileSettings": "Profil et réglages",
+  "unreadCount": "Non lues, {count}",
+  "@unreadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }
