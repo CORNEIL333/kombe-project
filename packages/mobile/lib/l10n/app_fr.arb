@@ -1886,7 +1886,7 @@
     }
   },
   "relMonths": "janv.|févr.|mars|avr.|mai|juin|juil.|août|sept.|oct.|nov.|déc.",
-  "langServerNote": "Certains messages envoyés par le serveur restent en français pour l’instant.",
+  "langServerNote": "Les messages écrits par les membres de vos groupes ou par le support restent dans la langue où ils ont été écrits.",
   "kvCycle": "Cycle {index}/{total}",
   "@kvCycle": {
     "placeholders": {

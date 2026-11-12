@@ -26,4 +26,17 @@ void main() {
     await expectLater(api.get('/tontines/x'), throwsA(isA<ApiFailure>().having((ApiFailure f) => f.statusCode, 'status', 404)));
     expect(purged, isFalse);
   });
+
+  test('chaque requête annonce la langue choisie (motifs d’erreur traduits, A13)', () async {
+    final List<String?> seen = <String?>[];
+    final KombeApiClient api = KombeApiClient(
+      baseUrl: Uri.parse('https://essai.invalid/v1'),
+      client: MockClient((http.Request request) async {
+        seen.add(request.headers['accept-language']);
+        return http.Response('{}', 200);
+      }),
+    );
+    await api.get('/me');
+    expect(seen, <String?>['fr']);
+  });
 }

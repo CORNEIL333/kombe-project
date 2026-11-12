@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../../core/api/api_failure.dart';
+import '../../l10n/kombe_l10n.dart';
 
 /// En-têtes de session injectés à chaque appel (jeton, etc.). Fournis par
 /// l'appelant — le transport ne stocke aucun secret lui-même et ne logge
@@ -120,6 +121,8 @@ final class KombeApiClient {
   }) async {
     final Map<String, String> base = {
       'accept': 'application/json',
+      // Motifs d'erreur dans la langue choisie (A13) ; français par défaut.
+      'accept-language': KombeL10n.current.localeName,
       if (body != null) 'content-type': 'application/json',
       ...await _sessionHeaders(),
       if (headers != null) ...headers,

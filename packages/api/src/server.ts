@@ -159,6 +159,7 @@ import {
   economicsBody,
   riskBody,
 } from "./schemas.js";
+import { localizeMessage } from "./i18n/errorsEn.js";
 
 /** Code d'erreur domaine → statut HTTP (erreurs stables, non divulguantes). */
 const STATUS_BY_CODE: Partial<Record<DomainErrorCode, number>> = {
@@ -1137,8 +1138,10 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
   const realSchedule = pool ? new PgScheduleStore(pool) : undefined;
 
   app.setErrorHandler((error, _request, reply) => {
+    // Langue du motif : français par défaut, anglais si l'application le demande (A13).
+    const say = (message: string): string => localizeMessage(message, _request.headers["accept-language"]);
     if (error instanceof ZodError) {
-      return reply.code(422).send({ code: "VALIDATION", message: "Requête invalide" });
+      return reply.code(422).send({ code: "VALIDATION", message: say("Requête invalide") });
     }
     if (error instanceof DomainError) {
       const status = STATUS_BY_CODE[error.code] ?? 400;
@@ -1146,16 +1149,16 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
       // affiché tel quel à la personne (jamais un détail technique : les
       // erreurs Postgres sont traduites en amont, cf. tontine/infra.ts).
       const productRoute = /^\/v1\/(auth|me|tontines|invitations)(\/|\?|$)/.test(_request.url);
-      return reply.code(status).send({ code: error.code, message: productRoute ? error.message : "Requête refusée" });
+      return reply.code(status).send({ code: error.code, message: say(productRoute ? error.message : "Requête refusée") });
     }
     // Erreurs de PROTOCOLE Fastify (corps JSON vide/malformé, type de contenu
     // refusé…) : statut 4xx porté par l'erreur elle-même ; jamais 500.
     const proto = (error as { statusCode?: number }).statusCode;
     if (typeof proto === "number" && proto >= 400 && proto < 500) {
-      return reply.code(proto).send({ code: "INVALID_REQUEST", message: "Requête invalide" });
+      return reply.code(proto).send({ code: "INVALID_REQUEST", message: say("Requête invalide") });
     }
     _request.log.error({ err: error }, "erreur interne");
-    return reply.code(500).send({ code: "INTERNAL", message: "Erreur interne" });
+    return reply.code(500).send({ code: "INTERNAL", message: say("Erreur interne") });
   });
 
   // Santé d'exploitation (DÉPLOIEMENT) : liveness = le process répond ;

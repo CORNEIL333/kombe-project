@@ -970,7 +970,7 @@
   "relYesterday": "yesterday",
   "relDays": "{n} days ago",
   "relMonths": "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec",
-  "langServerNote": "Some messages sent by the server are still in French for now.",
+  "langServerNote": "Messages written by members of your groups or by support stay in the language they were written in.",
   "kvCycle": "Cycle {index}/{total}",
   "kcFrancsCfa": "{sign}{abs} CFA francs",
   "kcTourSur": "Turn {index} of {total}",

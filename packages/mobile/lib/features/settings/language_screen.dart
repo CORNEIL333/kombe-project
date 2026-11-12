@@ -29,13 +29,13 @@ class LanguageScreen extends StatelessWidget {
                 RadioListTile<String>(
                   value: 'en',
                   title: Text('English'),
-                  subtitle: Text('Some messages from the server may still appear in French.'),
+                  subtitle: Text('Menus, screens and server messages.'),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
-          // Honnêteté : les messages d'erreur rédigés par le serveur restent en français.
+          // Honnêteté : les textes saisis par des personnes ne sont pas traduits.
           Text(AppLocalizations.of(context).langServerNote),
         ],
       ),
