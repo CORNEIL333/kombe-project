@@ -22,7 +22,7 @@ class SecurityScreen extends StatelessWidget {
             ListTile(
               leading: Icon(Icons.phonelink_lock_outlined, color: KombeColors.forest),
               title: Text('Session gardée sur ce téléphone'),
-              subtitle: Text('Protégée par le coffre sécurisé du système. Une session expirée demande un nouveau code.'),
+              subtitle: Text('Gardée dans le trousseau protégé du téléphone. Une session expirée demande un nouveau code.'),
             ),
             ListTile(
               leading: Icon(Icons.verified_user_outlined, color: KombeColors.forest),
