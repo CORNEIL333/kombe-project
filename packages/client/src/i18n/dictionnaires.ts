@@ -229,7 +229,7 @@ export type Langue = "fr" | "en" | "pcm";
 // chaîne FR ne peut rester sans équivalent EN à la compilation).
 export const en: Record<CleI18n, string> = {
   "app.titre": "KÓMBE",
-  "app.sousTitre": "Your tontine, made clear.",
+  "app.sousTitre": "Your tontine, made clearer.",
   "lien.evitement": "Skip to main content",
   "langue.libelle": "Language",
   "langue.fr": "Français",
@@ -365,7 +365,7 @@ export const en: Record<CleI18n, string> = {
   "connexion.connecte": "Signed in — real session open.",
   "bouton.deconnexion": "Sign out",
   "connexion.headlinePlain": "Your tontine,",
-  "connexion.headlineAccent": "made clear.",
+  "connexion.headlineAccent": "made clearer.",
   "connexion.sousAccroche":
     "KÓMBE doesn't hold your money. It holds the group's truth: who contributed, who confirmed, whose turn it is.",
   "connexion.signature": "The circle keeps its own record, together.",

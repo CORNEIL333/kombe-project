@@ -1127,7 +1127,7 @@ export const en: Record<CleTexte, string> = {
 
   "cx.titre": "Sign in",
   "cx.accroche": "Your tontine,",
-  "cx.accent": "made clear.",
+  "cx.accent": "made clearer.",
   "cx.telephone": "Phone number",
   "cx.telephoneAide": "Orange, MTN, Camtel or Nexttel. Example: 6 77 12 34 56",
   "cx.email": "Email address",
