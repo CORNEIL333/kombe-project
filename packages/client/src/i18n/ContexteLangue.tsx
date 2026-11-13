@@ -85,6 +85,11 @@ export function FournisseurLangue({
   );
 }
 
+/** Variante tolérante : hors fournisseur (rendu isolé), le français s'applique. */
+export function useLangueFacultative(): ValeurLangue | null {
+  return useContext(ContexteLangue);
+}
+
 export function useLangue(): ValeurLangue {
   const valeur = useContext(ContexteLangue);
   if (valeur === null) {

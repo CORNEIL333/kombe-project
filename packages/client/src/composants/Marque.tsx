@@ -4,6 +4,7 @@
    requise. Le nom est lu par les lecteurs d'écran via le role="img". */
 
 import { logoSvg, symboleSvg, type Variante } from "@kombe/brand/logo";
+import { useLangueFacultative } from "../i18n/ContexteLangue.js";
 
 /** Rapports largeur / hauteur des tracés générés (logo court et complet). */
 const RATIO_COURT = 3.141;
@@ -64,12 +65,13 @@ export const SymboleOrbite = ({ taille = 32, className }: { readonly taille?: nu
 /** Logo composé (symbole tracé + nom + signature en Manrope) : tailles
     réglées au pixel sur la maquette de connexion (en-tête et carte). */
 export function LogoCompose({ symbole, mot, signature, ecart, className }: { readonly symbole: number; readonly mot: number; readonly signature: number; readonly ecart: number; readonly className?: string }) {
+  const tagline = useLangueFacultative()?.t("marque.tagline") ?? "Votre tontine, plus claire.";
   return (
-    <span className={`logo-compose ${className ?? ""}`} role="img" aria-label="KÓMBE — Votre tontine, plus claire.">
+    <span className={`logo-compose ${className ?? ""}`} role="img" aria-label={`KÓMBE — ${tagline}`}>
       <SymboleKombe taille={symbole} />
       <span className="logo-compose__texte" aria-hidden="true" style={{ marginLeft: ecart }}>
         <span className="logo-compose__mot" style={{ fontSize: mot }}>KÓMBE</span>
-        <span className="logo-compose__signature" style={{ fontSize: signature }}>Votre tontine, plus claire.</span>
+        <span className="logo-compose__signature" style={{ fontSize: signature }}>{tagline}</span>
       </span>
     </span>
   );

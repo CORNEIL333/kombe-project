@@ -370,7 +370,7 @@ export const en: Record<CleI18n, string> = {
     "KÓMBE doesn't hold your money. It holds the group's truth: who contributed, who confirmed, whose turn it is.",
   "connexion.signature": "The circle keeps its own record, together.",
   "connexion.bonRetour": "Welcome back!",
-  "marque.tagline": "Your tontine, made clear.",
+  "marque.tagline": "Your tontine, made clearer.",
   "marque.promesse": "KÓMBE doesn't hold your money. It holds the truth.",
   "atout.verifie.titre": "Checked by others",
   "atout.verifie.texte": "Every contribution is confirmed by another group member.",
