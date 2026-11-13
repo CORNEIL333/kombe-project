@@ -1,5 +1,17 @@
 # 10 — Tests et matrice adverse
 
+## Suites exécutées le 13/11/2026 (toutes vertes)
+
+Lots A15 à A17 (langue des notifications, site en anglais, Espace bureau en anglais) :
+
+- **PostgreSQL 16 réel :** 30/30 (`scripts/proofs-local.sh`, migrations jusqu'à 0048), dont `notificationDelivery` (LOCALE-DEFAULT-FR, LOCALE-EN-DELIVERED).
+- **Unitaires :** api 278 ; client 50 ; socle des tableaux de bord 35 ; CRM 16 ; Espace bureau 6 (dont `english.test.ts`) ; mobile 82 (3 ignorés).
+- **Parcours navigateur :**
+  - `scripts/e2e/parcours-site.mjs` : 20 pages du site (FR et EN) en 1280 et 390 px, mouvement normal et réduit : PASS, 80 chargements ;
+  - `scripts/e2e/parcours-bureau.mjs` : 9 pages de l'Espace bureau en FR et EN, 1280 et 390 px : PASS, 36 chargements ;
+  - `scripts/e2e/parcours-crm.mjs` : PASS, 40 pages.
+- **Leçon du jour :** une preuve ne se relance pas pendant que la série complète tourne (même base `kombe_proof`) ; et un filtre `| grep` masque le code de sortie : on lit le code de la commande elle-même.
+
 ## Suites exécutées le 12/11/2026 (toutes vertes)
 
 Lots A12 (mobile en anglais) et A13 (motifs d'erreur en anglais) :
