@@ -264,8 +264,8 @@ function Mouvements({ api, g }: P) {
   const [state, setState] = useState('');
   const q = useRemote((s) => api.movements(g.groupId, state ? { state } : {}, s), [api, g.groupId, state]);
   const exporter = (rows: readonly MovementView[]) => downloadCsv(`kombe-mouvements-${g.name.replace(/\W+/g, '-')}.csv`, toCsv(
-    ['Date', 'Type', 'Caisse', 'Membre', 'Tour', 'Montant (XAF)', 'Moyen', 'Référence', 'État', 'Déclaré par', 'Confirmé par', 'Contrôlé par'],
-    rows.map((m) => [m.declaredAt.slice(0, 10), TYPE[m.kind] ?? m.kind, m.fundKind === 'custom' ? m.fundName : CAISSE[m.fundKind] ?? m.fundKind, m.memberName, m.roundSeq, m.amount, CANAL[m.channel] ?? m.channel, m.reference, ETAT_MVT[m.state]?.[0] ?? m.state, m.declaredByName, m.confirmedByName, m.controlledByName]),
+    ['Date', 'Type', 'Caisse', 'Membre', 'Tour', 'Montant (XAF)', 'Moyen', 'Référence', 'État', 'Déclaré par', 'Confirmé par', 'Contrôlé par'].map(tx),
+    rows.map((m) => [m.declaredAt.slice(0, 10), tx(TYPE[m.kind] ?? m.kind), m.fundKind === 'custom' ? m.fundName : tx(CAISSE[m.fundKind] ?? m.fundKind), m.memberName, m.roundSeq, m.amount, tx(CANAL[m.channel] ?? m.channel), m.reference, tx(ETAT_MVT[m.state]?.[0] ?? m.state), m.declaredByName, m.confirmedByName, m.controlledByName]),
   ));
   return (
     <>
@@ -470,7 +470,7 @@ function Votes({ api, g }: P) {
       <PageHeader title={tx('Votes & sanctions')} description={tx('Décisions de l’assemblée à la majorité absolue des électeurs (la personne concernée ne vote pas). Le vote est secret jusqu’au dépouillement ; les membres votent dans l’application.')} />
       {err ? <CapabilityNotice title={tx('Action refusée')}>{err}</CapabilityNotice> : null}
       <div className="k-grid">
-        <div className="k-span-12"><Panel title={tx('Votes de l’assemblée')} action={d.state.kind === 'ready' ? <button type="button" className="k-button k-button-secondary" onClick={() => d.state.kind === 'ready' && downloadCsv(`kombe-votes-${g.name.replace(/\W+/g, '-')}.csv`, toCsv(['Ouvert le', 'Objet', 'Concerné', 'Motif', 'État', 'Électeurs', 'Oui', 'Non', 'Abstention', 'Exécution'], d.state.data.map((x) => [x.openedAt, DECISION[x.kind], objet(x), x.reason, DECISION_ETAT[x.state]?.[0], x.electorate, x.result?.yes, x.result?.no, x.result?.abstain, x.outcomeNote])))}>{tx('Exporter en CSV')}</button> : undefined}>
+        <div className="k-span-12"><Panel title={tx('Votes de l’assemblée')} action={d.state.kind === 'ready' ? <button type="button" className="k-button k-button-secondary" onClick={() => d.state.kind === 'ready' && downloadCsv(`kombe-votes-${g.name.replace(/\W+/g, '-')}.csv`, toCsv(['Ouvert le', 'Objet', 'Concerné', 'Motif', 'État', 'Électeurs', 'Oui', 'Non', 'Abstention', 'Exécution'].map(tx), d.state.data.map((x) => [x.openedAt, tx(DECISION[x.kind] ?? x.kind), objet(x), x.reason, tx(DECISION_ETAT[x.state]?.[0] ?? x.state), x.electorate, x.result?.yes, x.result?.no, x.result?.abstain, x.outcomeNote])))}>{tx('Exporter en CSV')}</button> : undefined}>
           <RemoteState state={d.state} onRetry={d.reload} emptyTitle={tx('Aucun vote')}>{(rows) => (
             <DataTable rows={rows} rowKey={(x) => x.decisionId} caption={tx('Votes')} columns={[
               { header: 'Objet', render: (x) => DECISION[x.kind] }, { header: 'Concerné', render: (x) => objet(x) }, { header: 'Motif', render: (x) => x.reason },
@@ -527,7 +527,7 @@ function Registre({ api, g }: P) {
       <PageHeader title={tx('Registre')} description={tx('Journal append-only chaîné par empreintes : un événement modifié ou supprimé casse la chaîne.')} />
       <ExportExcel api={api} g={g} />
       <RemoteState state={q.state} onRetry={q.reload}>{(j) => (
-        <Panel title={j.valid ? 'Chaîne vérifiée' : 'Chaîne NON vérifiée'} action={<button type="button" className="k-button k-button-secondary" onClick={() => downloadCsv(`kombe-registre-${g.name.replace(/\W+/g, '-')}.csv`, toCsv(['N°', 'Date', 'Événement', 'Auteur', 'Empreinte'], j.entries.map((e) => [e.seq, e.at, e.summary, e.actorName, e.hash])))}>{tx('Exporter en CSV')}</button>}>
+        <Panel title={j.valid ? 'Chaîne vérifiée' : 'Chaîne NON vérifiée'} action={<button type="button" className="k-button k-button-secondary" onClick={() => downloadCsv(`kombe-registre-${g.name.replace(/\W+/g, '-')}.csv`, toCsv(['N°', 'Date', 'Événement', 'Auteur', 'Empreinte'].map(tx), j.entries.map((e) => [e.seq, e.at, e.summary, e.actorName, e.hash])))}>{tx('Exporter en CSV')}</button>}>
           <StatusChip status={j.valid ? 'Aucun événement modifié ni supprimé' : 'Prévenez le commissaire aux comptes'} tone={j.valid ? 'ok' : 'danger'} />
           <DataTable rows={[...j.entries].reverse()} rowKey={(e) => String(e.seq)} caption={tx('Registre')} columns={[
             { header: 'N°', render: (e) => String(e.seq), width: '60px' }, { header: 'Date', render: (e) => formatServerDate(e.at, langue) },
