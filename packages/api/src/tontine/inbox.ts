@@ -149,7 +149,7 @@ const EVENT_LABELS_EN: Readonly<Record<string, string>> = {
   "role.proposed": "Role offered",
   "role.accepted": "Role accepted",
   "invitation.created": "Invitation created",
-  "invitation.revoked": "Invitation withdrawn",
+  "invitation.revoked": "Invitation revoked",
   "statutes.published": "Rules published",
   "statutes.accepted": "Rules accepted",
   "statutes.deadline_set": "Rules acceptance deadline set",
