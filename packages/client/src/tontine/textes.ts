@@ -473,6 +473,7 @@ export const fr = {
   "di.d.written_off": "Abandonnée",
 
   "st.titre": "Statuts et règlement intérieur",
+  "st.redigeFr": "",
   "st.version": "Version {v} · acceptée par {n} sur {total}",
   "st.publierTitre": "Publier les statuts",
   "st.publierAide": "Les statuts sont générés depuis votre règlement. Chaque membre doit les accepter avant le démarrage du cycle. Fixez un délai : KÓMBE relance les retardataires de plus en plus souvent à l'approche de l'échéance.",
@@ -1541,6 +1542,7 @@ export const en: Record<CleTexte, string> = {
   "di.d.written_off": "Written off",
 
   "st.titre": "By-laws and internal rules",
+  "st.redigeFr": "The rules are drafted in French.",
   "st.version": "Version {v} · accepted by {n} of {total}",
   "st.publierTitre": "Publish the by-laws",
   "st.publierAide": "The by-laws are generated from your rules. Every member must accept them before the cycle starts. Set a deadline: KÓMBE reminds latecomers more and more often as it approaches.",

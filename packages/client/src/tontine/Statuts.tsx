@@ -149,7 +149,8 @@ export function Statuts({ ctx }: { readonly ctx: ContexteGroupe }) {
                   ) : null}
                 </details>
               )}
-              <article className="statuts">
+              {tx("st.redigeFr") ? <p className="aide-champ">{tx("st.redigeFr")}</p> : null}
+              <article className="statuts" lang="fr">
                 <h4>{st.title}</h4>
                 <pre className="pv">{st.body}</pre>
               </article>
