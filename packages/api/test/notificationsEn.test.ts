@@ -29,4 +29,13 @@ describe("A15 — textes hors application en anglais", () => {
     const words = /\b(savings?|balance|withdraw\w*|debited|secured|guaranteed)\b/i;
     expect(kinds.map((k) => genericText(k, "en").title).filter((t) => words.test(t))).toEqual([]);
   });
+  it("chaque libellé du registre a sa version anglaise (A17)", () => {
+    const inbox = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../src/tontine/inbox.ts"), "utf8");
+    const bloc = (nom: string) => {
+      const i = inbox.indexOf(`const ${nom}:`);
+      return [...inbox.slice(i, inbox.indexOf("};", i)).matchAll(/^ {2}"([^"]+)": "/gm)].map((m) => m[1]);
+    };
+    expect(bloc("EVENT_LABELS").length).toBeGreaterThan(50);
+    expect(bloc("EVENT_LABELS_EN")).toEqual(bloc("EVENT_LABELS"));
+  });
 });

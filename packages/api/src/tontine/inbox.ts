@@ -2,6 +2,7 @@
  * Boîte de notifications de l'application et registre lisible (journal
  * chaîné, vérifié à chaque lecture), plus l'idempotence des écritures.
  */
+import { prefersEnglish } from "../i18n/errorsEn.js";
 import type pg from "pg";
 import { DomainError, verifyJournal, type JournalEntryView, type JournalEvent, type NotificationView } from "@kombe/domain";
 import { canonicalHash } from "@kombe/domain";
@@ -134,6 +135,76 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   "history.imported": "Historique repris (cahier ou ancienne application)",
 };
 
+/** Libellés du registre en anglais (A17), servis quand l'anglais est demandé. */
+const EVENT_LABELS_EN: Readonly<Record<string, string>> = {
+  "tontine.created": "Association created",
+  "tontine.settings_changed": "Bylaws changed",
+  "tontine.photo_changed": "Group photo changed",
+  "tontine.photo_removed": "Group photo removed",
+  "member.requested": "Membership request",
+  "member.admitted": "Member admitted",
+  "member.rejected": "Membership declined",
+  "member.offline_added": "Member without a phone added",
+  "member.shares_set": "Number of shares changed",
+  "role.proposed": "Role offered",
+  "role.accepted": "Role accepted",
+  "invitation.created": "Invitation created",
+  "invitation.revoked": "Invitation withdrawn",
+  "statutes.published": "Rules published",
+  "statutes.accepted": "Rules accepted",
+  "statutes.deadline_set": "Rules acceptance deadline set",
+  "statutes.reminded": "Reminder sent to latecomers",
+  "statutes.deadline_exclusion": "Latecomer excluded at the rules deadline",
+  "draw.committed": "Draw sealed",
+  "cycle.started": "Cycle started",
+  "cycle.renewed": "New cycle started",
+  "reserve.distributed": "End-of-year reserve returned to members",
+  "payout.declared": "Payout declared",
+  "payout.received": "Payout received by the beneficiary",
+  "round.closed": "Turn closed",
+  "order.swap_requested": "Turn swap requested",
+  "order.swap_accepted": "Turn swap accepted",
+  "order.swap_applied": "Turn swap applied",
+  "order.priority_requested": "Priority turn requested",
+  "order.priority_applied": "Priority turn applied",
+  "meeting.opened": "Meeting opened",
+  "meeting.attendance": "Roll call recorded",
+  "meeting.closed": "Meeting closed, minutes generated",
+  "meeting.minutes_approved": "Minutes approved",
+  "fund.created": "New fund created",
+  "fund.updated": "Fund rules changed",
+  "fund.closed": "Fund closed",
+  "movement.declared": "Payment declared",
+  "movement.confirmed": "Payments confirmed by the treasury",
+  "movement.validated": "Movement validated by the auditor",
+  "movement.rejected": "Movement rejected",
+  "fine.issued": "Fine recorded",
+  "fine.contested": "Fine disputed",
+  "fine.cancelled": "Fine cancelled",
+  "fine.maintained": "Fine upheld",
+  "fine.refunded": "Fine refunded",
+  "poll.opened": "Open vote opened",
+  "poll.closed": "Open vote closed",
+  "poll.cancelled": "Open vote cancelled",
+  "meeting.updated": "Meeting changed",
+  "share.renamed": "Name renamed",
+  "aid.requested": "Assistance requested",
+  "aid.approved": "Assistance granted",
+  "aid.rejected": "Assistance refused",
+  "aid.paid": "Assistance paid out",
+  "debt.written_off": "Debt written off",
+  "member.share_shared": "Share shared between two members",
+  "decision.opened": "Vote opened",
+  "decision.ballot_cast": "Ballot cast",
+  "decision.adopted": "Decision adopted by vote",
+  "decision.rejected": "Decision rejected by vote",
+  "decision.cancelled": "Vote cancelled",
+  "decision.lifted": "Suspension lifted",
+  "schedule.paused": "Meetings postponed (pause voted)",
+  "order.place_taken_over": "Taking over a place",
+  "history.imported": "History imported (notebook or previous app)",
+};
+
 /** `rejected:mv_1:+2376…` → topic `rejected`, objet `mv_1` (le suffixe
  *  d'identité ajouté par `notify` n'est jamais exposé). */
 export function topicOf(dedupKey: string): { topic: string; subjectId: string | null } {
@@ -205,6 +276,7 @@ export class InboxService {
   /** Registre de l'association : chaîne d'empreintes revérifiée à chaque lecture. */
   async journal(headers: Record<string, unknown>, groupId: string): Promise<{ valid: boolean; entries: JournalEntryView[] }> {
     const nowMs = this.now();
+    const anglais = prefersEnglish(headers["accept-language"]);
     return inTx(this.pool, async (db) => {
       await groupActor(db, await sessionIdentity(db, headers, nowMs), groupId);
       const r = await db.query(`SELECT seq, event_type, hash, payload FROM journal WHERE group_id = $1 ORDER BY seq`, [groupId]);
@@ -227,7 +299,7 @@ export class InboxService {
             type: String(row.event_type),
             at: p.payload?.serverDate ?? new Date(0).toISOString(),
             actorName: actor ? (names.byIdentity.get(actor) ?? null) : null,
-            summary: EVENT_LABELS[String(row.event_type)] ?? String(row.event_type),
+            summary: (anglais ? EVENT_LABELS_EN : EVENT_LABELS)[String(row.event_type)] ?? String(row.event_type),
             hash: String(row.hash),
           };
         });

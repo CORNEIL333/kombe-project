@@ -245,4 +245,5 @@ export const ENGLISH: Readonly<Record<string, string>> = {
   "Avertissement → amende → suspension du droit de bouffer → vote d’exclusion, d’après les retards et dettes non régularisés. Le bureau décide ; l’assemblée vote.": "Warning → fine → suspension of the right to receive the pot → exclusion vote, based on unsettled delays and debts. The committee decides; the assembly votes.",
   "Statuts pas encore publiés. Le président les publie depuis l’application (onglet Statuts), avec une date limite d’acceptation.": "Rules not published yet. The president publishes them from the app (Rules tab), with an acceptance deadline.",
   "Document indicatif inspiré de la loi n° 90/053 sur la liberté d’association ; sans valeur juridique par lui-même.": "Indicative document inspired by law no. 90/053 on freedom of association; it has no legal value by itself.",
+  "Procès-verbal": "Minutes",
 };

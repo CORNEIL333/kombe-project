@@ -76,7 +76,11 @@ for (const langue of ["fr", "en"]) {
       const htmlLang = await pg.evaluate(() => document.documentElement.lang);
       let resteFr = [];
       if (langue === "en") {
-        const t = await pg.evaluate(() => document.body.innerText.split("\n").concat([...document.querySelectorAll("[aria-label]")].map((e) => e.getAttribute("aria-label") ?? "")));
+        // Contenus rédigés en français par le serveur (statuts, procès-verbaux) : marqués lang="fr", exclus.
+        const t = await pg.evaluate(() => {
+          const fr = new Set([...document.querySelectorAll('[lang="fr"]')].flatMap((e) => e.innerText.split("\n")));
+          return document.body.innerText.split("\n").filter((l) => !fr.has(l)).concat([...document.querySelectorAll("[aria-label]")].map((e) => e.getAttribute("aria-label") ?? ""));
+        });
         resteFr = t.map((x) => x.replace(/Njangi \d+|Awa Mballa|Paul Ndi|Akwa/g, "")).filter((x) => FR.test(x)).slice(0, 6);
       }
       const ok = errs.length === 0 && axe.length === 0 && !hscroll && h1 !== "" && resteFr.length === 0 && (langue === "fr" || htmlLang === "en");

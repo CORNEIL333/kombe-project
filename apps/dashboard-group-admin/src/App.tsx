@@ -386,7 +386,7 @@ function Seances({ api, g }: P) {
               <KeyValue label={tx('Mouvements')} value={String(m.movements.length)} />
               {m.minutes ? (
                 <>
-                  <pre className="k-minutes">{m.minutes.text}</pre>
+                  <pre className="k-minutes" tabIndex={0} role="region" aria-label={tx('Procès-verbal')} lang="fr">{m.minutes.text}</pre>
                   <p className="k-hint">{tx('Empreinte :')} <span className="k-code">{m.minutes.hash}</span></p>
                   <div className="k-toolbar">
                     <button type="button" className="k-button k-button-secondary" onClick={() => imprimer(m)}>{tx('Imprimer / PDF')}</button>
@@ -530,7 +530,7 @@ function Registre({ api, g }: P) {
         <Panel title={j.valid ? 'Chaîne vérifiée' : 'Chaîne NON vérifiée'} action={<button type="button" className="k-button k-button-secondary" onClick={() => downloadCsv(`kombe-registre-${g.name.replace(/\W+/g, '-')}.csv`, toCsv(['N°', 'Date', 'Événement', 'Auteur', 'Empreinte'], j.entries.map((e) => [e.seq, e.at, e.summary, e.actorName, e.hash])))}>{tx('Exporter en CSV')}</button>}>
           <StatusChip status={j.valid ? 'Aucun événement modifié ni supprimé' : 'Prévenez le commissaire aux comptes'} tone={j.valid ? 'ok' : 'danger'} />
           <DataTable rows={[...j.entries].reverse()} rowKey={(e) => String(e.seq)} caption={tx('Registre')} columns={[
-            { header: 'N°', render: (e) => String(e.seq), width: '60px' }, { header: 'Date', render: (e) => formatServerDate(e.at) },
+            { header: 'N°', render: (e) => String(e.seq), width: '60px' }, { header: 'Date', render: (e) => formatServerDate(e.at, langue) },
             { header: 'Événement', render: (e) => e.summary }, { header: 'Auteur', render: (e) => e.actorName ?? '—' }, { header: 'Empreinte', render: (e) => <span className="k-code">{e.hash.slice(0, 12)}</span> },
           ]} />
         </Panel>
@@ -569,7 +569,8 @@ function Reglement({ api, g }: P) {
           <>
             <p className="k-hint">{L(`Version ${s.version} · acceptée par ${s.acceptedCount} sur ${s.expectedCount}`, `Version ${s.version} · accepted by ${s.acceptedCount} of ${s.expectedCount}`)}{s.deadline ? ` · ${L('échéance', 'deadline')} ${new Date(s.deadline.deadlineAt).toLocaleString(L('fr-FR', 'en-GB'), { timeZone: 'Africa/Douala', dateStyle: 'medium', timeStyle: 'short' })} (${tx(s.deadline.onExpiry === 'exclude' ? 'retardataires exclus' : 'bureau prévenu')})` : ''} · {L('empreinte', 'fingerprint')} <span className="k-code">{s.hash.slice(0, 16)}</span></p>
             {s.pending.length ? <p className="k-hint">Pas encore accepté : {s.pending.map((p) => p.name).join(', ')}</p> : null}
-            <pre className="k-minutes">{s.body}</pre>
+            {L('', 'The rules are drafted in French.') ? <p className="k-hint">{L('', 'The rules are drafted in French.')}</p> : null}
+            <pre className="k-minutes" tabIndex={0} role="region" aria-label={tx('Statuts et règlement intérieur')} lang="fr">{s.body}</pre>
             <p className="k-hint">{tx('Document indicatif inspiré de la loi n° 90/053 sur la liberté d’association ; sans valeur juridique par lui-même.')}</p>
           </>
         )}</RemoteState></Panel></div>
