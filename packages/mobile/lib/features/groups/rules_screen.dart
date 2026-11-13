@@ -185,6 +185,11 @@ class _RulesScreenState extends State<RulesScreen> {
                   ),
                 ],
                 KombeSection(AppLocalizations.of(context).ruTexteDesStatuts, padding: EdgeInsets.fromLTRB(0, 24, 0, 8)),
+                if (AppLocalizations.of(context).ruDraftedInFrench.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(AppLocalizations.of(context).ruDraftedInFrench, style: t.bodySmall),
+                  ),
                 SectionCard(child: SelectableText(s.body, style: t.bodyMedium)),
               ],
             );

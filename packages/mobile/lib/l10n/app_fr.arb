@@ -2085,5 +2085,6 @@
   "orbitCurrent": "en cours",
   "orbitUpcoming": "à venir",
   "monthsLong": "janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre",
-  "srCetteVersionDeLapplicationNest": "Cette version de l’application n’est reliée à aucun serveur KÓMBE : rien ne peut s’afficher. Installez la version officielle depuis kombe.vercel.app/telecharger."
+  "srCetteVersionDeLapplicationNest": "Cette version de l’application n’est reliée à aucun serveur KÓMBE : rien ne peut s’afficher. Installez la version officielle depuis kombe.vercel.app/telecharger.",
+  "ruDraftedInFrench": ""
 }

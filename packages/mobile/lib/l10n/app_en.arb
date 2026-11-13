@@ -1019,5 +1019,6 @@
   "orbitCurrent": "in progress",
   "orbitUpcoming": "upcoming",
   "monthsLong": "January|February|March|April|May|June|July|August|September|October|November|December",
-  "srCetteVersionDeLapplicationNest": "This version of the app is not linked to any KÓMBE server: nothing can be shown. Install the official version from kombe.vercel.app/telecharger."
+  "srCetteVersionDeLapplicationNest": "This version of the app is not linked to any KÓMBE server: nothing can be shown. Install the official version from kombe.vercel.app/telecharger.",
+  "ruDraftedInFrench": "The rules are drafted in French."
 }
