@@ -37,6 +37,8 @@ export class ApiClient{
   async request<T>(path:string,init:RequestInit&{readonly query?:Query}={},signal?:AbortSignal):Promise<T>{
     const controller=new AbortController(); const timer=window.setTimeout(()=>controller.abort('timeout'),this.timeoutMs); const onAbort=()=>controller.abort(signal?.reason); signal?.addEventListener('abort',onAbort,{once:true});
     const headers=new Headers(init.headers); headers.set('accept','application/json');
+    // Motifs d'erreur dans la langue de la page (A13/A17) ; français par défaut.
+    if(!headers.has('accept-language'))headers.set('accept-language',typeof document!=='undefined'&&document.documentElement.lang==='en'?'en':'fr');
     if(init.body!==undefined&&init.body!==null&&!headers.has('content-type'))headers.set('content-type','application/json');
     const session=this.getSessionToken?.(); if(session)headers.set('authorization',`Bearer ${session}`);
     const method=(init.method??'GET').toUpperCase(); if(!['GET','HEAD','OPTIONS'].includes(method)){const csrf=this.getCsrfToken?.();if(csrf)headers.set(this.csrfHeaderName,csrf);}
