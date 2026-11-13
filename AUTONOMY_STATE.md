@@ -113,4 +113,7 @@ Aucun : A12 à A17 terminés (13/11).
 
 ## Prochaine action concrète
 
-Sélectionner le lot suivant (A12 à A15 terminés ; B7 attend toujours la place de sauvegarde Neon, et emportera A13 à A15, migrations 0044 à 0048 ; au déploiement, générer et poser les clés VAPID). Après le redémarrage du conteneur (12/11), les accès Vercel et Neon gardés dans le bloc-notes sont perdus : le déploiement B7 demandera de les reposer.
+Plus de lot réalisable sans le porteur (13/11). Tout ce qui reste attend une action ou une décision :
+- B7 (place de sauvegarde Neon, puis accès Vercel et Neon à redonner) emportera A3 à A5, A9, A10, A13 à A15 et A17 (migrations 0044 à 0048) ;
+- statuts et procès-verbaux générés en anglais : à décider avec la validation juridique (B6), les textes restent en français et sont annoncés comme tels ;
+- « SAV bientôt » sur le site : à retirer dès qu'un opérateur répond (B2).
